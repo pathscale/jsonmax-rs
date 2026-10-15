@@ -1,0 +1,32 @@
+{
+  "worker_id": "W3-25",
+  "wave": 3,
+  "crate": "jmax-codegen-rust",
+  "file": "crates/jmax-codegen-rust/src/registries.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "registries::generate_registries(model: &EndpointModel, options: &CodegenOptions) -> Result<RegistryArtifacts>",
+    "Generated registries.rs: TypeEntry, EndpointEntry, TYPES, ENDPOINTS, type_by_name, endpoint_by_code",
+    "Generated schema_tables.rs: SCHEMA_COUNT, SCHEMA_<id> static projections, SCHEMA_<id>_PROGRAM complete executable image byte slices"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Empty models in both schema modes return both correctly named artifacts, explicit empty tables, exact zero schema count, generation notices, and one trailing LF",
+    "Declared aliases and inline nominal types from definitions, request fields, response fields, streams, and headers occur once in original bytewise name order without mutating the input",
+    "Qualified schema ordering model::Alpha, model::Header, model::StreamItem, model::Zulu, request::api.get, response::api.get yields exact ids 1 through 6",
+    "Canonical IR fingerprints match compiled headers and registry metadata; each emitted image reloads through the AOT facade with all projection tables, executable states, key tables, patterns, slots, policy, format options, and canonical schema preserved",
+    "Endpoint codes 0, 7, and u32::MAX sort numerically while canonical methods, declaration-order required roles, and independently sorted request/response schema ids remain exact",
+    "Dense field ids and slots preserve declaration order, optional absence semantics, u32/i32/i64 intrinsic bounds, timestamp bounds, float and Boolean mappings, and all supported string formats",
+    "Disabled schema tables skip unsupported projections, emit only the explicit zero count, and leave every optional schema id and fingerprint absent",
+    "Object, decimal, unit, nondefault NanoId lengths, vectors, nested optionals, nested records, and enums fail complete generation when used in any model/request/response candidate; dependency errors propagate unchanged",
+    "Duplicate endpoint codes, mismatched service ownership, unknown roles and references, alias cycles, nominal-name mismatches, duplicate field names, and injected service names propagate registry errors in both schema modes",
+    "Recursive nominal references terminate finite collection; reference aliases produce no extra schema candidate or fabricated schema provider identity",
+    "Invalid module names and configured ABI/AOT/derive paths fail before model processing and source interpolation",
+    "Configured crate paths appear verbatim in emitted tables; quote, backslash, LF, CR, tab, NUL, accented UTF-8, and emoji field bytes round trip as image data without source injection",
+    "Schema-id positions at zero, one, u32::MAX minus one, u32::MAX, and usize::MAX exercise checked conversion; metadata literals preserve zero and maximum fingerprints",
+    "Traversal depths zero and 127 succeed, while 128, 129, and usize::MAX fail with structured depth errors; duplicate internal catalog/candidate names and empty enums return constraint errors",
+    "Identical inputs produce identical program source; truncated images and corrupted image magic are rejected by the full program loader",
+    "The exact emitted lookup tokens are instantiated in tests for empty tables, static reference identity, case-sensitive byte ordering, absent names and codes, zero fingerprint, and maximum integer values"
+  ],
+  "status": "implemented; 16 inline tests authored but not run per instruction; no build, check, formatting, or commit commands executed; the frozen endpoint-model utilities::schema_for_fields dependency is referenced as required and its implementation was absent from the checkout during this task"
+}

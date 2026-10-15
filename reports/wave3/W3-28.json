@@ -1,0 +1,53 @@
+{
+  "worker_id": "W3-28",
+  "wave": 3,
+  "crate": "jmax-mcp",
+  "file": "crates/jmax-mcp/src/catalog.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn list_tools(services: &[ServiceSpec], roles: &[String], schemas: &dyn ToolSchemaProvider, max_bytes: u32) -> Result<Vec<ToolDefinition>>",
+    "pub fn find_tool<'a>(services: &'a [ServiceSpec], roles: &[String], name: &str) -> Result<&'a EndpointSchemaSpec>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 27,
+    "execution": "Not executed. The task prohibits build, test, formatting, and check commands.",
+    "coverage": [
+      "Empty and fully hidden catalogs with a zero byte budget",
+      "Stable service and endpoint order, exact descriptions and schema bytes, endpoint codes zero and u32::MAX",
+      "Owned tool metadata and schema payloads remain usable after catalog and provider destruction",
+      "Public endpoints and exact case-sensitive any-role authorization",
+      "Borrowed endpoint pointer identity and malformed or noncanonical lookup names",
+      "Duplicate service IDs and names, including services without endpoints",
+      "Global endpoint-code collisions and per-service endpoint-name collisions",
+      "Mismatched service names and invalid identifiers on hidden endpoints and empty services",
+      "ASCII identifier acceptance matches the frozen root tool_name convention",
+      "Empty and duplicate caller or endpoint roles, with no trimming or Unicode normalization",
+      "Aggregate UTF-8 byte accounting at the exact limit and one byte below",
+      "All visible metadata accounted before schema-provider invocation",
+      "Provider called exactly once per visible endpoint with the remaining byte budget",
+      "Two-byte minimum object schema with zero, one, and two remaining bytes",
+      "Checked u32 accounting at u32::MAX, arithmetic overflow, and oversized usize conversion",
+      "Hidden endpoints never reach the schema provider",
+      "Provider errors preserve code, source, offset, schema ID, and field ID",
+      "Malformed JSON syntax, number grammar, escapes, surrogates, control bytes, and trailing content with precise offsets",
+      "Invalid schema UTF-8",
+      "Late invalid schemas discard accumulated output and prevent subsequent provider calls",
+      "JSON schema must be one complete object; nonobject kinds fail with TypeMismatch",
+      "Duplicate decoded keys rejected at the root, inside nested objects, and inside arrays",
+      "Recursive locally resolved schema references and endpoint parameter mapping preserved verbatim",
+      "Schemas exceeding default parser depth or field counts remain accepted within the explicit byte budget",
+      "Full u16 ABI nesting boundary accepted and one additional container rejected",
+      "Deterministic full-catalog validation precedes budget and provider errors"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Manually reviewed against contracts/jmax-mcp.md, the frozen MCP and ABI roots, envelope.rs, state.rs, and the wire role and limit definitions.",
+    "validation": "No cargo, rustc, rustfmt, build, test, check, or git commit commands were run.",
+    "scope": "Only crates/jmax-mcp/src/catalog.rs and reports/wave3/W3-28.json were written.",
+    "schema_responsibility": "ToolSchemaProvider owns endpoint schema generation, schema correctness, and local named-reference resolution. Catalog validates complete object JSON syntax, decoded-key uniqueness, UTF-8, and aggregate byte bounds.",
+    "allocation": "Catalog validation and lookup allocate no metadata. Output vectors and strings use fallible reservation. Schema payloads transfer ownership without deep copying, and metadata is copied only after the aggregate budget fits."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "worker_id": "W3-38",
+  "wave": 3,
+  "crate": "jmax-fuzz",
+  "file": "crates/jmax-fuzz/src/ownership.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "validate_snapshot(&OwnershipSnapshot, u64) -> Result<()> ",
+    "run_ownership(&[Payload], &mut dyn OwnershipProbe, OwnershipConfig, FuzzConfig) -> Result<FuzzReport>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Valid source-specific raw and decoded spans with Unicode scalar counting",
+    "Invalid UTF-8 and scalar-count mismatch error paths",
+    "Overflowing raw span and wrong-owner decoded range errors",
+    "Underreported retained bytes and retention cap boundary",
+    "Two JSON inputs across three deterministic alignments with exact attempt accounting",
+    "Probe BudgetExhausted mapped to Retention failure with replay bytes",
+    "Invalid alignment configuration and malformed caller JSON rejected before probe"
+  ],
+  "status": "implemented; tests added but not run per instruction"
+}

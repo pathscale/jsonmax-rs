@@ -1,0 +1,86 @@
+{
+  "worker_id": "W3-31",
+  "wave": 3,
+  "crate": "jmax-wss",
+  "file": "crates/jmax-wss/src/policy.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_policy(policy: &WssPolicy) -> Result<()>",
+    "pub fn accept_frame(state: &mut FragmentState, frame: IncomingFrame, policy: &WssPolicy) -> Result<ReceiveEvent>",
+    "pub fn validate_close_payload(payload: &[u8]) -> Result<(Option<u16>, &str)>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "policy validation",
+      "vectors": "Each required frame, message, fragment, syntax payload, and depth limit set to zero; unrelated syntax limits set to zero; frame ceiling above message ceiling.",
+      "expected": "ConstraintViolation from Transport for required zero limits; valid independent nonzero ceilings accepted; policy errors clear partial assembly."
+    },
+    {
+      "area": "complete-message ownership and binary policy",
+      "vectors": "Text and Binary final frames using Shared, Bytes, and sliced Bytes owners; application buffers and cloned inputs dropped; empty and non-JSON UTF-8 data.",
+      "expected": "Allowed data preserves its original owner and pointer; BinaryPolicy::Reject rejects both final and nonfinal Binary with TypeMismatch; transport acceptance does not issue a JSON proof."
+    },
+    {
+      "area": "independent byte boundaries",
+      "vectors": "Each byte ceiling independently tightened to four bytes with three-, four-, and five-byte messages; two-byte frames assembled into a four-byte message; continuation frame and accumulated message ceilings tightened separately.",
+      "expected": "Inclusive frame, transport message, and syntax payload boundaries; oversized data returns PayloadTooLarge and discards assembly; assembled messages may exceed the per-frame ceiling."
+    },
+    {
+      "area": "fragment budgets and arithmetic",
+      "vectors": "One through three fragment ceilings with empty initial and continuation frames; exact final fragment boundary; u32::MAX count increment; usize addition overflow; ABI u32 length overflow on 64-bit targets.",
+      "expected": "Initial and final frames count even when empty; count exhaustion and overflow return BudgetExhausted; byte arithmetic and ABI overflow return PayloadTooLarge without large allocations."
+    },
+    {
+      "area": "fallible reservation",
+      "vectors": "Reserve usize::MAX additional bytes in a nonempty vector, then append normal and empty slices.",
+      "expected": "Deterministic capacity overflow returns BudgetExhausted without changing contents, pointer, or capacity; subsequent bounded appends succeed. This exercises allocation-error mapping without inducing host out-of-memory."
+    },
+    {
+      "area": "frame ordering and recovery",
+      "vectors": "Orphan final and nonfinal Continuation; Text and Binary arriving during active assembly; successful fresh data after ordering errors.",
+      "expected": "FramingError from Transport; active assembly cleared with capacity retained; open state can accept a new message."
+    },
+    {
+      "area": "fragmented Unicode",
+      "vectors": "Every byte split of quoted two-, three-, and four-byte Unicode scalars for Text and BinaryPolicy::Json; a four-byte scalar delivered as four one-byte fragments.",
+      "expected": "Pending until final continuation, then complete original UTF-8 bytes with the initial data opcode and owned accumulated storage."
+    },
+    {
+      "area": "invalid UTF-8",
+      "vectors": "Invalid lead and continuation bytes, overlong encoding, surrogate encoding, out-of-range scalar, truncated scalar, and invalid byte after valid Unicode; both data opcodes and direct versus fragmented input.",
+      "expected": "InvalidUtf8 from Utf8 at the first invalid sequence offset only on message completion; assembly discarded; byte errors take precedence over UTF-8 processing."
+    },
+    {
+      "area": "Ping and Pong",
+      "vectors": "Opaque invalid-UTF-8 payloads of zero, one, 124, and 125 bytes, both payload storage variants, interleaved with active data at a tight fragment and JSON byte budget.",
+      "expected": "Control events preserve payload owners and pointers, accept opaque bytes independently of JSON ceilings, and leave all active assembly fields and storage unchanged."
+    },
+    {
+      "area": "control frame violations",
+      "vectors": "Nonfinal Ping, Pong, and Close; 126-byte controls; controls exceeding a separately tightened two-byte frame ceiling.",
+      "expected": "FramingError for nonfinal controls, PayloadTooLarge for byte ceilings, and assembly reset without closing an open state."
+    },
+    {
+      "area": "close-code classification",
+      "vectors": "All 65,536 u16 codes encoded big endian; empty payload; one-byte payload.",
+      "expected": "Only 1000..=1003, 1007..=1014, and 3000..=4999 accepted; empty payload returns no status and empty reason; malformed or reserved status returns FramingError."
+    },
+    {
+      "area": "close reasons",
+      "vectors": "Empty, ASCII, Unicode, NUL, newline, and non-JSON reasons; zero through 123 reason bytes; 41 three-byte scalars reaching 123 bytes; one excess byte; malformed and truncated UTF-8 reasons.",
+      "expected": "Borrowed UTF-8 reason excludes status bytes; 123-byte ceiling inclusive; overlong close payload returns PayloadTooLarge; InvalidUtf8 offsets include the two-byte close status prefix."
+    },
+    {
+      "area": "permanent closure and close ownership",
+      "vectors": "Empty and status-bearing Close during active assembly with Shared and Bytes payloads; sliced Bytes close owner dropped; every opcode and finality after successful close; invalid policy after close; malformed close followed by fresh data.",
+      "expected": "Close reason owns only its exposed reason range; Bytes shares its reason view; successful Close discards assembly and preserves closed across resets; every subsequent frame returns FramingError; malformed close clears assembly while leaving the connection open."
+    },
+    {
+      "area": "policy changes and offset arithmetic",
+      "vectors": "Tightened active Binary policy, fragment ceiling, transport message ceiling, and syntax payload ceiling; UTF-8 diagnostic base offset at u32::MAX.",
+      "expected": "Continuations obey current policy; failures clear assembly; diagnostic offset addition cannot wrap."
+    }
+  ],
+  "status": "complete: implementation and comprehensive inline tests written; frozen interfaces and prior wave integration reviewed manually; tests, builds, checks, formatting, and commits not run as instructed"
+}

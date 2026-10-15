@@ -1,0 +1,71 @@
+{
+  "worker_id": "W3-05",
+  "wave": 3,
+  "crate": "jmax-scan-neon",
+  "file": "crates/jmax-scan-neon/src/structural.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks"
+  ],
+  "unsafe_justifications": [
+    "The safe public entry point independently calls is_supported before entering the private AArch64-only function annotated with target_feature(enable = neon). Unsupported configurations use a complete local scalar implementation.",
+    "Four unaligned vld1q_u8 loads use offsets 0, 16, 32, and 48 within the borrowed 64-byte array. Each load has 16 readable initialized bytes and no access extends beyond that object.",
+    "All vector comparisons use unsigned byte intrinsics. Comparison results and their Boolean combinations contain only 0x00 or 0xff, satisfying the private reducer precondition.",
+    "The reducer loads eight initialized power-of-two weights and sums each vector half separately. Each sum is at most 255. Explicit half placement preserves byte-address order without native-endian integer reinterpretation, matching classify.rs.",
+    "Lane masks are converted to u64 before shifting by 0, 16, 32, or 48. Every unsafe operation appears inside an explicit unsafe block with its safety justification.",
+    "The AArch64 reducer test checks CPU support before its native load and helper call, using an initialized 16-byte array containing only valid comparison bytes."
+  ],
+  "test_vectors": [
+    {
+      "name": "exact_mixed_class_vector",
+      "coverage": "Explicit expected masks for all ten classes, whitespace/control overlap, punctuation, digit endpoints, ignored quotes and backslashes, and high bytes."
+    },
+    {
+      "name": "every_byte_value_at_every_position",
+      "coverage": "All 256 byte values at each of 64 positions, totaling 16384 single-position vectors, compared with independent membership expectations for both scalar and selected paths."
+    },
+    {
+      "name": "all_uniform_blocks_include_full_width_masks",
+      "coverage": "All 256 uniform blocks, including zero masks and u64::MAX masks."
+    },
+    {
+      "name": "lane_boundaries_and_high_bit_keep_address_order",
+      "coverage": "Positions 0, 15, 16, 31, 32, 47, 48, and 63 must form mask 0x8001800180018001; alternating digit/high-byte input must form 0x5555555555555555 and 0xaaaaaaaaaaaaaaaa."
+    },
+    {
+      "name": "unsigned_boundaries_and_non_json_whitespace",
+      "coverage": "Rotated boundary alphabet includes controls, VT, FF, space, slash, digit endpoints, colon, DEL, 0x80, 0x85, 0xa0, and 0xff."
+    },
+    {
+      "name": "deterministic_permutations_and_mixed_blocks",
+      "coverage": "256 byte permutations and 512 mixed blocks from fixed xorshift seed 0x243f6a8885a308d3, compared with an independent oracle."
+    },
+    {
+      "name": "arrays_at_every_alignment_are_read_without_mutation",
+      "coverage": "Complete 64-byte arrays at all 16 alignment residues, including an array ending at the backing object's end, with input preservation assertions."
+    },
+    {
+      "name": "raw_classes_survive_quoting_and_invalid_utf8",
+      "coverage": "Raw punctuation inside a quoted string survives classification while final structural punctuation is excluded. Controls and invalid UTF-8 bytes remain classified, and opaque UTF-8 carry is preserved."
+    },
+    {
+      "name": "assembly_clips_raw_classes_at_every_valid_length",
+      "coverage": "All lengths 0 through 64 across representatives of every class verify clipping, zero-length behavior, full-width behavior, and structural assembly."
+    },
+    {
+      "name": "integration_errors_preserve_raw_masks_and_carry",
+      "coverage": "Structural classification is infallible by contract. Integration tests verify assembly errors for lengths 65, 255, 256, and usize::MAX and quote errors for noncanonical carry, including Scanner source, zero offset, and unchanged state."
+    },
+    {
+      "name": "native_reduction_covers_every_sixteen_bit_pattern",
+      "coverage": "On supported AArch64, all 65536 comparison patterns exercise the native reducer and verify exact byte-to-bit placement."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source and deterministic mask expectations manually reviewed against the frozen contract and prior-wave implementations.",
+    "validation": "Not compiled or executed. No cargo, rustc, rustfmt, build, check, test, or git commit command was run, as instructed.",
+    "scope": "Only the assigned structural.rs source and this handoff report were written.",
+    "integration": "The frozen root still requires the separately owned Wave 4 tails module before crate-level compilation. No other module, manifest, ABI definition, or contract was modified."
+  }
+}

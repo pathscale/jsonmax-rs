@@ -1,0 +1,82 @@
+{
+  "worker_id": "W3-10",
+  "wave": 3,
+  "crate": "jmax-number",
+  "file": "crates/jmax-number/src/float.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn parse_f64(token: &NumberToken<'_>, policy: &NumericPolicy) -> Result<f64>",
+    "pub fn convert_float(token: &NumberToken<'_>, policy: &NumericPolicy) -> Result<ConvertedNumber>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "ordinary decimals and integer boundaries",
+      "vectors": [
+        "0.1 -> 0x3fb999999999999a",
+        "9007199254740993 -> 0x4340000000000000",
+        "9007199254740995 -> 0x4340000000000002",
+        "18446744073709551615 and 18446744073709551616 -> 0x43f0000000000000",
+        "Quoted and signed integers, including magnitudes outside i64 and u64"
+      ]
+    },
+    {
+      "category": "exact rounding",
+      "vectors": [
+        "Exact decimal midpoint 1 + 2^-53, decimal neighbors, and negative counterparts",
+        "Exact decimal midpoint 1 + 3*2^-53 rounds to the even upper significand",
+        "Exact midpoint immediately below 1 rounds to 1",
+        "8192-byte significand with a decisive nonzero final digit beyond an exact midpoint"
+      ]
+    },
+    {
+      "category": "subnormal boundaries",
+      "vectors": [
+        "2.4703282292062327e-324 -> positive zero",
+        "2.4703282292062328e-324 and 5e-324 -> 0x0000000000000001",
+        "Known decimals at the largest subnormal and smallest normal",
+        "Integer-generated exact midpoints odd*2^-1075 for odd=1,3,5,9007199254740991, each perturbed by -10^-1075, zero, and +10^-1075 with both signs"
+      ]
+    },
+    {
+      "category": "overflow and signed underflow",
+      "vectors": [
+        "1.7976931348623158e308 -> maximum finite binary64",
+        "1.7976931348623159e308 -> infinity or NumberOverflow according to policy",
+        "Integer-generated exact overflow midpoint (2^54-1)*2^970 and adjacent integers with both signs",
+        "Explicit exponents +32767 and -32767",
+        "8192-byte integer overflow, including a quoted negative integer at nonzero offset",
+        "Lexical zero with extreme exponents, quoted negative zero, and negative nonzero underflow"
+      ]
+    },
+    {
+      "category": "policy and error paths",
+      "vectors": [
+        "Recheck quoted-integer permission on a token lexed under a permissive policy",
+        "Negative max_exponent_abs values -1 and i16::MIN precede other errors",
+        "Inclusive explicit exponent bounds with signs and leading zeros",
+        "Exponent violations use the first exponent digit and exactly match lexer diagnostics",
+        "Negative-zero violations use the minus sign, including inside quotes",
+        "Zero exponent limit accepts 8192-byte zero exponents and unrestricted fractional scale",
+        "Private safe UTF-8 and parser failure adapter returns InvalidNumber at offsets 0, 17, and u32::MAX without constructing invalid tokens",
+        "All error assertions verify Lexer source and default schema and field identifiers"
+      ]
+    },
+    {
+      "category": "long input, boundaries, and preservation",
+      "vectors": [
+        "4097-digit integer and fractional significands canceled by explicit exponents",
+        "EOF and all seven legal delimiters at 16 source alignments",
+        "2048 fixed-seed bit-pattern iterations with finite values round-tripped through core scientific formatting and lexing",
+        "Conversion success and failure preserve input bytes, token metadata, borrowed pointer, and policy",
+        "Every bit-vector assertion also verifies the F64Bits wrapper result"
+      ]
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "approach": "Safe core UTF-8 conversion and complete-spelling f64 parsing, with current-policy revalidation and checked absolute diagnostic offsets. No allocation, unsafe code, new dependency, or changes outside the two assigned files.",
+    "inline_tests": "19 deterministic test functions authored",
+    "validation": "Source reviewed without executing tests. No cargo, rustc, rustfmt, build/check command, or git commit was run, as instructed. Compilation and execution validation remain for the integrating owner."
+  }
+}

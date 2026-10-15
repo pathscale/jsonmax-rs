@@ -1,0 +1,22 @@
+{
+  "worker_id": "W3-37",
+  "wave": 3,
+  "crate": "jmax-bench",
+  "file": "crates/jmax-bench/src/serialize.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "run_serialize",
+    "run_escape",
+    "run_format",
+    "compare"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Compact serialization of nested objects, arrays, strings, booleans, numbers, and empty containers",
+    "Escaping object names and string values with controls, BMP and non-BMP Unicode, and empty strings",
+    "Formatting u64::MAX, fixed-point decimals, and exponent notation with exact lexeme preservation",
+    "Exact output limit and encode error source",
+    "Missing string/number microbenchmark values, malformed input, and input budget failures"
+  ],
+  "status": "implemented; build and tests not run per task instructions"
+}

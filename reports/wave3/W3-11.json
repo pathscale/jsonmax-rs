@@ -1,0 +1,109 @@
+{
+  "worker_id": "W3-11",
+  "wave": 3,
+  "crate": "jmax-decimal",
+  "file": "crates/jmax-decimal/src/bounds.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn rescale(value: AccumulatedDecimal, policy: &DecimalPolicy, offset: u32) -> Result<Decimal128>",
+      "behavior": "Validates policy before data, rejects nonzero exponents when disabled, computes source scale in i64 across the full public accumulator domain, uses checked coefficient multiplication, and divides at most 39 times for downward rescaling. Rejects discarded nonzero digits or truncates toward zero according to policy. Recomputes final precision without trusting the accumulator precision field, preserves the exact target scale, and leaves range and tick checks to validate. Zero avoids scale-dependent arithmetic."
+    },
+    {
+      "signature": "pub fn validate(value: Decimal128, policy: &DecimalPolicy, bounds: DecimalBounds, offset: u32) -> Result<()>",
+      "behavior": "Validates policy, target-scale equality, final coefficient precision, inclusive numeric bounds including reversed-bound rejection, and positive tick divisibility in frozen order. Bounds may use any u8 scale. Tick zero disables divisibility; negative coefficients and i128::MIN are handled safely. Configuration errors retain offset zero; value errors use the supplied offset and Decode source."
+    },
+    {
+      "signature": "pub fn compare(left: Decimal128, right: Decimal128) -> core::cmp::Ordering",
+      "behavior": "Compares signs and unsigned coefficient magnitudes exactly, including i128::MIN. Aligns different scales using bounded decimal division and a sticky nonzero remainder to break quotient ties. Handles all scale pairs from zero through 255 without allocation, cross-multiplication, floating point, or fallible arithmetic."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "exact_rescale_vectors_preserve_value_and_target_scale",
+      "coverage": "Identity, exact extension and reduction, both coefficient signs, positive and negative exponents, exponent cancellation, scale 255, and fractional digit counts greater than 255."
+    },
+    {
+      "test": "extreme_accumulator_scales_are_computed_without_wrapping",
+      "coverage": "u32::MAX fractional digits combined with i32::MIN, -32767, zero, 32767 and i32::MAX exponents. Exact mode rejects inexact reduction, truncation reaches zero, and extreme upward shifts report NumberOverflow. Exercises offset u32::MAX without offset arithmetic."
+    },
+    {
+      "test": "zero_rescales_at_every_target_scale_with_extreme_source_scales",
+      "coverage": "All 256 target scales, fractional counts zero, 255 and u32::MAX, and exponent endpoints. Zero remains precision one even with a forged descriptive precision of 255."
+    },
+    {
+      "test": "disabled_exponents_reject_manual_accumulators_including_zero",
+      "coverage": "Both nonzero exponent signs and i32 endpoints fail ConstraintViolation for zero, signed unit values and i128 endpoints. Exponent zero remains accepted."
+    },
+    {
+      "test": "multiplication_accepts_the_last_safe_step_and_rejects_the_next",
+      "coverage": "i128 endpoints divided by ten extend safely; the immediately adjacent coefficients fail. Signed unit coefficients extend exactly through 10^38 and overflow at scales 39 and 255."
+    },
+    {
+      "test": "endpoint_coefficients_survive_identity_and_truncate_toward_zero",
+      "coverage": "i128::MIN, i128::MIN + 1, i128::MAX - 1 and i128::MAX at scales zero, 38 and 255, plus signed endpoint division with truncation toward zero."
+    },
+    {
+      "test": "inexact_rescale_detects_nonzero_digits_at_every_discard_position",
+      "coverage": "Every decimal shift from one through 38 with both signs, exact powers of ten, immediately adjacent coefficients, and nonzero digits following discarded trailing zeros. Truncation is compared against independent single-divisor arithmetic."
+    },
+    {
+      "test": "huge_downward_shifts_reject_inexact_or_truncate_to_zero",
+      "coverage": "Downward shifts of 39, 255, 32767 and u32::MAX for signed units and both i128 endpoints, without representing a power of ten. Truncated zero satisfies precision one."
+    },
+    {
+      "test": "rescale_precision_uses_final_coefficient_and_ignores_descriptive_field",
+      "coverage": "Forged precision fields cannot bypass final precision or reject a valid reduced coefficient. Inexact rejection precedes precision, truncation reduces precision, and added target-scale zeros count toward final precision."
+    },
+    {
+      "test": "rescale_leaves_tick_validation_to_validate",
+      "coverage": "Coefficient 101 at target scale two rescales successfully under tick five, then fails TickMultipleViolation only during validate."
+    },
+    {
+      "test": "invalid_policies_precede_data_errors_and_preserve_configuration_metadata",
+      "coverage": "Precision zero, 40 and 255, negative tick one and i128::MIN. Both entry points preserve the original policy error at offset zero before exponent, scale, overflow or reversed-bound errors."
+    },
+    {
+      "test": "validation_enforces_scale_then_precision_then_range_then_tick",
+      "coverage": "Overlapping failure cases prove the specified error precedence. Both out-of-range directions precede tick violations. Error assertions include code, Decode source, exact offset, zero schema/field identifiers and nonempty static detail."
+    },
+    {
+      "test": "precision_accepts_each_boundary_and_rejects_the_next_digit",
+      "coverage": "Precision limits one through 38 accept signed all-nine boundaries and reject the next power of ten; precision 39 accepts both i128 endpoints. Uses target scale 255."
+    },
+    {
+      "test": "inclusive_bounds_accept_endpoints_and_reject_adjacent_values",
+      "coverage": "Different-scale bounds -1.25 and 2.5 at target scale three include endpoints and reject one coefficient unit beyond either bound. Singleton bounds include zero and both i128 endpoints at scale 255."
+    },
+    {
+      "test": "equal_numeric_bounds_with_different_scales_form_a_singleton",
+      "coverage": "Representations 10 at scale one and 1000 at scale three form a valid singleton. Adjacent values fail, and reversed bounds at scales 254 and 255 fail ConstraintViolation."
+    },
+    {
+      "test": "one_sided_bounds_and_extreme_scale_gaps_are_exact",
+      "coverage": "Minimum-only and maximum-only bounds with signed units or i128 endpoints at scale 255 are compared against integer-scale values, including zero and out-of-range neighbors."
+    },
+    {
+      "test": "tick_checks_cover_both_signs_zero_and_largest_positive_divisor",
+      "coverage": "Signed multiples and adjacent failures for tick five, tick i128::MAX with positive/negative multiples and i128::MIN rejection, and safe i128::MIN handling for ticks zero, one and two."
+    },
+    {
+      "test": "compare_vectors_cover_sign_scale_endpoints_and_sticky_remainders",
+      "coverage": "Numeric zero equality across scales, differing signs, equivalent representations, quotient ties resolved by discarded digits, signed endpoint magnitudes, scale gaps through 255, and magnitude transitions at scales 38 and 39. Every vector also verifies reversed comparison."
+    },
+    {
+      "test": "compare_agrees_with_independent_bounded_cross_products",
+      "coverage": "All pairs from eleven signed coefficients at every pair of scales zero through six are compared against independent overflow-free cross-products, with antisymmetry assertions."
+    },
+    {
+      "test": "compare_preserves_identity_and_scaled_equalities_at_every_scale",
+      "coverage": "All 256 scales with signed endpoints, signed units, signed hundreds and zero. Checks identity, ordering against zero and equivalent adjacent-scale representations including the largest safely extensible coefficients."
+    },
+    {
+      "test": "compare_handles_every_scale_pair_for_endpoint_magnitudes",
+      "coverage": "All 65,536 scale pairs for i128::MAX, i128::MIN and zero, verifying exact expected ordering and reversed comparisons."
+    }
+  ],
+  "status": "Implementation and 21 deterministic inline tests complete. Source and test vectors reviewed manually against the frozen contract, canonical ABI and prior-wave decimal files. No cargo, rustc, rustfmt, build, check, test or git commit command was run, as instructed. Tests have not been executed. No unsafe code or dependencies were introduced. Only the assigned source and report paths were written."
+}

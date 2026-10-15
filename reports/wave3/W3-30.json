@@ -1,0 +1,57 @@
+{
+  "worker_id": "W3-30",
+  "wave": 3,
+  "crate": "jmax-http",
+  "file": "crates/jmax-http/src/outgoing.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn encode_body<T: JsonEncode + SchemaProvider>(value: &T, validator: &dyn BodyValidator, limits: HttpLimits) -> Result<ValidatedBody>",
+    "pub fn request<T: JsonEncode + SchemaProvider>(method: HttpMethod, uri: &str, headers: Vec<Header>, value: &T, validator: &dyn BodyValidator, limits: HttpLimits) -> Result<OutgoingRequest>",
+    "pub fn response<T: JsonEncode + SchemaProvider>(status: u16, headers: Vec<Header>, value: &T, validator: &dyn BodyValidator, limits: HttpLimits) -> Result<OutgoingResponse>"
+  ],
+  "unsafe_justifications": [
+    {
+      "scope": "Production implementation",
+      "justification": "No unsafe code. Proof binding and ownership checks delegate to the frozen root validate_body implementation. Encoding writes once into the root bounded BodySink; the validated payload owner is moved unchanged into the outgoing message."
+    },
+    {
+      "scope": "cfg(test)::tests::literal_slots",
+      "operation": "ValidationProof::issue_unchecked",
+      "justification": "The test validator matches complete literal JSON objects against two registered schemas with the same required string field. Checked payload and decoded lengths, exact UTF-8 spans, and scalar counts describe the actual immutable buffers and sole string slot. Fault tests mutate already proven output using safe operations so the root rejects mismatched evidence; they do not issue invalid proofs."
+    }
+  ],
+  "test_vectors": {
+    "execution": "Not executed, as explicitly required. No cargo, rustc, rustfmt, git commit, build command, or check command was run.",
+    "inline_test_count": 25,
+    "literal_payloads": [
+      { "json": "{\"text\":\"a\"}", "payload_bytes": 12, "decoded_bytes": 0 },
+      { "json": "{\"text\":\"a\\n\"}", "payload_bytes": 14, "decoded_bytes": 2 },
+      { "json": "{\"text\":\"é😀\"}", "payload_bytes": 17, "decoded_bytes": 0, "unicode_scalars_in_complete_json": 13 },
+      { "json": " \n{\"text\":\"a\"}\t ", "payload_bytes": 16, "decoded_bytes": 0 }
+    ],
+    "coverage": [
+      "Exactly one encoding and validation call; exact fingerprint; retained owner identity, whitespace, UTF-8, escapes, raw spans, and decoded spans.",
+      "Request and response builders generate one application/json Content-Type and one canonical decimal Content-Length; preserve supplied header values, order, unknown duplicates, and identity encoding.",
+      "Content-Length accepts ASCII OWS and leading zeroes only after exact byte-length verification. Empty, signed, comma-list, embedded-whitespace, fractional, hexadecimal, non-ASCII, overflowing, shorter, and longer values fail with the specified errors.",
+      "Duplicate Content-Length, Content-Type, and Content-Encoding are rejected even with identical values. Transfer-Encoding and nonidentity content codings are rejected.",
+      "Valid application/json and application/*+json media types and UTF-8 charset parameters are preserved. Invalid subtypes, quotes, charset values, unknown parameters, and duplicate parameters are rejected.",
+      "All six supported methods and valid absolute HTTP(S) targets are preserved. HEAD, relative targets, malformed schemes, authorities, ports, IPv6, percent escapes, userinfo, fragments, controls, and non-ASCII hosts fail before encoding.",
+      "Every status from 0 through 600 plus u16::MAX is classified. Only 200 through 299 excluding 204 and 205 produce typed success bodies; invalid statuses cause no encoding or validation.",
+      "All three exports preflight invalid limits. Effective body caps test exact and one-byte-over boundaries for both transport and syntax limits; remaining syntax policy is forwarded unchanged.",
+      "Final header count and storage limits include generated fields, UTF-8 bytes, separators, and final CRLF. Oversized padded supplied lengths can normalize into an exactly fitting final header set.",
+      "Unicode byte lengths differ from character counts; a 17-byte Unicode body succeeds at 17 and fails at 16, and a supplied character-count Content-Length is rejected.",
+      "Encoder and validator errors retain source, offset, schema ID, field ID, and detail through every export; partial encoded bodies are discarded.",
+      "Encoder success does not bypass validation of empty bytes, wrong shapes, nonfinite literals, trailing content, or invalid UTF-8.",
+      "All exports reject wrong fingerprints, substituted payload bytes, mismatched payload lengths, and mismatched decoded lengths. Decoded arena limits test zero, one, and two bytes.",
+      "Decimal formatting tests zero, digit transitions, u32::MAX, u64 overflow, addressable u64::MAX, and payload lengths above the ABI range when representable.",
+      "BodySink reservation and write failures retain the existing prefix; exact-capacity writes and empty writes succeed."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "Source reviewed manually against the frozen HTTP contract and root/ABI declarations. Compilation, formatting, and tests intentionally not run.",
+    "scope": "Only crates/jmax-http/src/outgoing.rs and reports/wave3/W3-30.json were written.",
+    "dependencies": "No new dependencies. Uses frozen jmax-http root types, incoming public metadata helpers, core, alloc, and jmax-abi test types.",
+    "handoff": "Ready for coordinator integration and authorized verification."
+  }
+}

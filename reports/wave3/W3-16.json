@@ -1,0 +1,37 @@
+{
+  "worker_id": "W3-16",
+  "wave": 3,
+  "crate": "jmax-schema-ir",
+  "file": "crates/jmax-schema-ir/src/policy.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn supports(policy: SchemaPolicy, feature: SchemaFeature) -> bool",
+    "pub fn validate_policy(policy: &SchemaPolicy) -> Result<()>",
+    "pub fn validate_schema(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<()>",
+    "pub fn known_format(name: &str) -> bool"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Complete feature matrix for both dialects and both recursion settings.",
+    "Capability queries remain independent of policy validity and do not mutate policy.",
+    "Exponent limits 0, 1, 308, and i16::MAX; pattern budgets 1, 4096, and u32::MAX; all eight numeric flag combinations.",
+    "Negative exponent limits i16::MIN and -1 and zero pattern budget return ConstraintViolation with SchemaCompile metadata.",
+    "Invalid policy is rejected before recursion and scalar policy failures.",
+    "All ten registry-v1 formats are accepted under both dialects and both unknown-format modes.",
+    "Case changes, whitespace, NUL suffixes, alternate spellings, unsupported standard format names, empty names, and Unicode lookalikes are unknown.",
+    "Reject returns UnsupportedSchemaFeature for unknown formats; Annotate preserves exact format strings and the input schema.",
+    "Pattern boundaries cover empty, ASCII, two-byte and four-byte scalars, combining characters, NUL, and lengths 4095, 4096, and 4097.",
+    "Pattern budgets apply individually; regex syntax remains the compiler's responsibility.",
+    "Annotate does not bypass pattern budgets.",
+    "Unreachable patterns, formats, named definitions, and structural cycles do not affect reachable policy validation.",
+    "Aliases, alias roots at nonzero indices, array items, nested objects, shared targets, and maximum field IDs preserve deterministic error context.",
+    "Self-recursive objects and arrays and constructor cycles through aliases are accepted or rejected according to allow_recursive.",
+    "Allowed recursion does not skip policy failures in later properties.",
+    "Shared diamonds and 1024 repeated target edges are accepted with recursion disabled.",
+    "All modeled value kinds, extreme integer and decimal bounds, and boundary string and container counts are accepted.",
+    "Invalid type discovery returns ConstraintViolation without changing traversal state.",
+    "An 8192-edge array chain exercises iterative traversal with recursion enabled and disabled.",
+    "A usize::MAX reservation exercises deterministic capacity-overflow mapping to BudgetExhausted."
+  ],
+  "status": "Implementation complete with inline deterministic tests and source review. Tests were not executed. No build, check, formatting, or commit commands were run. Only the assigned source and report files were written. Uses no_std plus alloc and the frozen jmax-abi types; no additional crate dependencies or unsafe code."
+}

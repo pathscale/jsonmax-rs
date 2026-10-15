@@ -1,0 +1,45 @@
+{
+  "worker_id": "W3-14",
+  "wave": 3,
+  "crate": "jmax-path",
+  "file": "crates/jmax-path/src/query.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn execute(payload: Payload, paths: &CompiledPaths, mode: SkipMode, limits: Limits) -> Result<SelectedValues>",
+    "pub fn span(results: &SelectedValues, slot: u32) -> Option<Span32>",
+    "pub fn raw(results: &SelectedValues, slot: u32) -> Option<&[u8]>",
+    "pub fn string(results: &SelectedValues, slot: u32) -> Option<&str>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "All six JSON value kinds, empty strings and containers, root aliases, exact nonzero byte offsets, and exclusion of outer whitespace.",
+    "Input slot order differs from document order; shared prefixes, overlapping ancestor and descendant spans, and repeated paths retain independent slots.",
+    "Missing paths differ from matched null and empty strings; scalar/container type mismatches remain missing without errors.",
+    "Numeric object keys are distinct from array indices; last valid and first missing array positions and u32::MAX indices remain bounded.",
+    "Allowed duplicate members retain each slot's first complete match, including later completion when an earlier duplicate lacks a descendant.",
+    "Container spans retain both delimiters, internal whitespace, numeric spelling, nested empty containers, and escaped quotes adjacent to nesting punctuation.",
+    "Raw-payload and decoded-arena strings include empty and multibyte UTF-8 content, simple escapes, surrogate pairs, and escaped control characters; borrowed pointers refer to the tagged owner.",
+    "Decoded keys match escaped punctuation, Unicode escapes, surrogate pairs, and empty keys without Unicode normalization.",
+    "Programmatic wildcard-looking, punctuation-containing, control-containing, and root-marker keys remain literal.",
+    "Numeric raw results preserve negative zero, decimal and exponent spelling, integers beyond u64 and exact f64 precision, huge exponents, and long fractional digits without conversion.",
+    "Results retain payload and decoded storage after caller input mutation, input and plan destruction, result cloning, and original result destruction.",
+    "Shared and Bytes payload backings preserve complete supplied bytes in strict and query modes.",
+    "Zero-slot strict queries still validate input; successful zero-slot queries expose no slots and retain the cursor's validation flag.",
+    "Query results and errors match direct cursor extraction, including optional early completion, invalid suffix handling, decoded references, full owner retention, and validation flags.",
+    "Missing query slots force EOF traversal; malformed suffixes propagate errors without returning partial results.",
+    "Exact error parity covers empty input, truncation, malformed containers, trailing content, invalid escapes, lone surrogates, invalid numbers, invalid UTF-8, and unescaped controls, including failures after a match.",
+    "Strict duplicate-key rejection includes equivalent decoded key spellings and preserves original error diagnostics.",
+    "Payload byte limits are inclusive and apply to all supplied bytes even when query traversal can stop early; one-byte overflow and zero limits reject input.",
+    "Inclusive depth, array-item, object-field, string-byte, number-digit, and decoded-arena limits accept their boundaries and reject the next unit with the cursor's exact errors.",
+    "Zero resource ceilings allow scalars that consume none of the constrained resource and reject containers, digits, and nonempty strings as appropriate.",
+    "257 repeated root slots preserve identical spans and cooked strings; first out-of-range, 65535, 65536, and u32::MAX slot arguments safely return None."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "21 deterministic tests authored; not executed",
+    "validation": "Source reviewed against contracts/jmax-path.md, crates/jmax-path/src/lib.rs, crates/jmax-abi/src/lib.rs, prior-wave parse.rs and compile.rs, the cursor contract, and canonical owner accessors. No cargo, rustc, rustfmt, build, check, or git commit commands were run, as instructed.",
+    "dependency_note": "crates/jmax-cursor/src/select.rs was absent during source review. Execution and parity tests target its frozen extract signature and documented behavior; integration execution remains unverified.",
+    "ownership": "Only crates/jmax-path/src/query.rs and reports/wave3/W3-14.json were written.",
+    "reasoning": "high"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "worker_id": "W3-35",
+  "wave": 3,
+  "crate": "jmax-validator",
+  "file": "crates/jmax-validator/src/session.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "new_session",
+    "connect",
+    "submit",
+    "poll",
+    "close"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "session defaults and zero budget/capacity rejection",
+    "connect success, duplicate connect, and reactor failure",
+    "empty poll, connection event, and duplicate connection event",
+    "prepared payload validation, request sequence assignment, and atomic send failure",
+    "pending capacity and retained payload byte boundaries",
+    "unary immediate response and remote error completion",
+    "streaming immediate, stream, and stream-close lifecycle",
+    "unknown sequence and illegal event kind framing failures",
+    "reactor poll failure and remote connection closure cleanup",
+    "disconnect, graceful close, idempotent close, and close failure cleanup",
+    "u64 sequence overflow boundary",
+    "invalid phase and missing endpoint submission errors"
+  ],
+  "status": "complete; source and handoff report written; build and test commands not run per instruction"
+}

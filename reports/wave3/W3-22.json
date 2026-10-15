@@ -1,0 +1,125 @@
+{
+  "worker_id": "W3-22",
+  "wave": 3,
+  "crate": "jmax-schema-aot",
+  "file": "crates/jmax-schema-aot/src/encode.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn write_json_string(value: &str, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_bool(value: bool, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_u64(value: u64, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_i64(value: i64, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_f64(value: f64, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_decimal(value: Decimal128, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_slots(reader: &SlotReader<'_>, fields: &[EncodeField<'_>], sink: &mut dyn ByteSink) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits compiler, build, check, test, and formatting commands. Validation was limited to direct source review against the frozen contracts and existing definitions.",
+    "inline_test_count": 20,
+    "fixture_strategy": "Private static-dispatch SlotAccess fixtures exercise the same preflight and emission implementation called by public write_slots. Production access delegates to SlotReader. Fixtures do not construct ValidatedSlots, manufacture ValidationProof, or expose an unchecked public entry point.",
+    "coverage_limitations": [
+      "Public write_slots cannot receive safely constructed test fixtures from the allowed dependencies, which expose no safe proof producer. Its delegation and signature are reviewed in source; fixture resolver tests cover encoder delegation and error propagation rather than independently testing the root SlotReader.",
+      "Scratch allocation uses try_reserve_exact and reports BudgetExhausted before touching the sink. Allocator exhaustion is not forced in deterministic tests.",
+      "Compilation and execution of all inline tests remain unverified under the explicit command prohibition."
+    ],
+    "cases": [
+      {
+        "test": "strings_escape_every_ascii_control_and_preserve_other_bytes",
+        "coverage": "Exact vectors for every U+0000 through U+001F control, all printable ASCII, quotes, backslashes, unescaped slash, empty strings, multibyte and supplementary Unicode, combining scalars, U+2028/U+2029, DEL and C1 controls, mixed escaped runs, and a long Unicode string."
+      },
+      {
+        "test": "booleans_and_integer_extremes_have_exact_spelling",
+        "coverage": "Both Boolean literals, exact i64::MIN and u64::MAX snapshots, signed boundaries, powers of ten and adjacent integers, independent standard formatting and integer parsing, JSON number grammar, and the full 39-digit u128 magnitude helper boundary."
+      },
+      {
+        "test": "floats_round_trip_extremes_exponents_and_deterministic_bit_patterns",
+        "coverage": "Exact scientific spellings for positive and negative zero, one and a negative fraction; extreme finite values; all 2047 finite exponent fields crossed with four significand boundary patterns and both signs; 4096 deterministic xorshift patterns. Every finite output must satisfy JSON number grammar, fit the documented 24-byte bound, and parse to identical f64 bits."
+      },
+      {
+        "test": "nonfinite_floats_fail_before_any_sink_access",
+        "coverage": "Both infinities, positive and negative signaling and quiet NaNs, and all-one bits fail with InvalidNumber/Encode and no sink calls or prefix changes."
+      },
+      {
+        "test": "float_buffer_rejects_overflow_without_mutating_existing_text",
+        "coverage": "Checked stack formatting buffer rejects an overflowing append, accepts an exact-capacity append and empty append, and preserves previous content and length on failure."
+      },
+      {
+        "test": "decimals_preserve_every_scale_and_full_coefficient_range",
+        "coverage": "Exact decimal snapshots including i128::MIN and i128::MAX, every u8 scale crossed with nine coefficients, retained trailing zeroes, JSON grammar, signed coefficient reconstruction without floating conversion, and the maximum 258-byte negative scale-255 spelling."
+      },
+      {
+        "test": "scalar_sink_errors_are_unchanged_at_every_byte_boundary",
+        "coverage": "Injected partial-write failures at every output byte for all scalar writers, including Unicode and escapes, empty strings, full integer limits, signed zero, extreme float and scale-255 decimal. Full sink error metadata remains unchanged and each failure retains exactly the permitted output prefix."
+      },
+      {
+        "test": "object_emits_all_types_in_caller_order_with_exact_keys_and_numbers",
+        "coverage": "Deterministic exact object snapshot with all supported present types, null, reordered slots, escaped key, empty key, decoded-arena Unicode, integer limits, negative zero and scaled decimal. Each slot and string resolves once per successful preflight. Sink failures are injected at every object output byte."
+      },
+      {
+        "test": "empty_objects_subsets_and_omission_preserve_comma_rules",
+        "coverage": "Empty plans, selected subsets with an unrelated invalid raw slot, all omitted fields, omitted first and last fields, null emission, and correct object punctuation. Empty object sink failures are also covered."
+      },
+      {
+        "test": "present_false_zero_and_empty_strings_are_never_omitted",
+        "coverage": "omit_empty preserves false, unsigned and signed integer zero, floating zero, scale-preserving decimal zero, and a required present empty string."
+      },
+      {
+        "test": "required_empty_and_raw_fields_fail_even_when_omitted",
+        "coverage": "Every slot kind under both omission settings; required Empty always fails, optional Empty is null or omitted for supported kinds, optional Raw Empty remains unsupported, and nonempty raw spans fail even when empty, apparently valid JSON, or out of bounds."
+      },
+      {
+        "test": "complete_type_matrix_rejects_coercions_and_preflights_late_errors",
+        "coverage": "Seven-by-seven declared kind/value matrix under both requiredness settings, with a valid preceding field and omission enabled. Exact supported matches succeed; coercions, raw specifications, and late nonfinite floats fail without any sink access."
+      },
+      {
+        "test": "duplicates_are_rejected_before_access_including_omitted_fields",
+        "coverage": "Duplicate ordinary, empty, escaped and Unicode keys, duplicate indices, duplicate full-width field identifiers, omitted optional values, deterministic later-conflict field context, and no slot or resolver access before structural rejection."
+      },
+      {
+        "test": "distinct_unicode_and_escaped_key_spellings_remain_distinct",
+        "coverage": "Composed and decomposed Unicode keys and newline versus literal backslash-n keys remain distinct with exact emitted spellings."
+      },
+      {
+        "test": "slot_bounds_errors_keep_full_width_field_context",
+        "coverage": "Index immediately past the slot array and u32::MAX fail even for optional omitted fields, with full-width field identifiers and Encode source."
+      },
+      {
+        "test": "strings_resolve_both_owners_and_exact_end_empty_ranges",
+        "coverage": "Raw-payload and decoded-arena selection, nonzero offsets, multibyte scalar counts, exact-end empty strings, invalid bytes in the unselected owner, and one resolution per field."
+      },
+      {
+        "test": "invalid_string_spans_utf8_and_scalar_counts_fail_before_output",
+        "coverage": "Past-end and overflowing spans, truncated UTF-8, continuation-byte starts, incorrect and maximum scalar counts, and empty-span count mismatches in either owner, after a valid first field. Invalid UTF-8 byte offsets are retained."
+      },
+      {
+        "test": "resolver_errors_change_only_encode_and_field_context",
+        "coverage": "Injected resolver diagnostics preserve code, byte offset and detail while acquiring Encode source, schema zero, and the current full-width field identifier."
+      },
+      {
+        "test": "large_reversed_plan_preserves_order_and_detects_interior_duplicates",
+        "coverage": "2048 reversed slots with full-width field identifiers, exact output order, and an interior duplicate rejected before additional slot reads."
+      },
+      {
+        "test": "public_signatures_match_the_frozen_contract",
+        "coverage": "Typed function-pointer assignments for all seven frozen public exports."
+      }
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "source_review_only_tests_not_executed",
+    "reasoning": "high",
+    "integration": "Uses frozen root and ABI types, core formatting, and alloc::vec::Vec. Production slot and string access delegate to SlotReader. No additional dependency or root modification is required. Other wave modules remain owned by their assigned workers.",
+    "notes": [
+      "Only crates/jmax-schema-aot/src/encode.rs and reports/wave3/W3-22.json were written.",
+      "Read the frozen AOT contract, AOT and ABI roots, relevant ABI definitions, and prior-wave tables and decode implementations.",
+      "Scalar numeric formatting uses bounded stack buffers. Finite floats use core precision-free LowerExp formatting with explicit negative-zero preservation. Decimal coefficients use unsigned absolute magnitude and preserve all scale positions.",
+      "Object structural validation sorts fallibly allocated indices for O(n log n) comparisons. Complete value preflight resolves strings and formats floats into prepared values before the first sink operation.",
+      "Duplicate keys use DuplicateObjectKey; duplicate indices and field identifiers use SchemaImageInvalid. Required Empty takes precedence over raw unsupported errors for that field. Structural errors precede value errors; values are checked in supplied order.",
+      "Local errors have Encode source and field context. Sink errors are propagated unchanged and sink writes are not transactional.",
+      "Raw field specifications are rejected even when optional and empty. No proof is issued, strengthened, or fabricated.",
+      "No unsafe code, stubs, prohibited dependencies, compiler, build/check/test, formatting, or commit commands were used."
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "worker_id": "W3-01",
+  "wave": 3,
+  "crate": "jmax-buffer",
+  "file": "crates/jmax-buffer/src/views.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "impl<'a> OwnerBytes<'a>: pub fn new(raw: &'a [u8], decoded: &'a [u8]) -> Result<Self>",
+    "impl<'a> OwnerBytes<'a>: pub fn from_message<T>(message: &'a ParsedMessage<T>) -> Result<Self>",
+    "impl<'a> OwnerBytes<'a>: pub fn raw_bytes(&self) -> &'a [u8]",
+    "impl<'a> OwnerBytes<'a>: pub fn decoded_bytes(&self) -> &'a [u8]",
+    "impl<'a> OwnerBytes<'a>: pub fn view(&self, source: SpanSource, span: Span32) -> Result<ByteView<'a>>",
+    "impl<'a> OwnerBytes<'a>: pub fn string(&self, reference: StrRef) -> Result<StrView<'a>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "19 deterministic inline tests use only alloc, core, and canonical root/ABI types. Production code allocates nothing, contains no unsafe code, and adds no dependencies.",
+    "The production length-admission helper is exercised without allocation at zero, one, 64 MiB, u32::MAX - 1, and u32::MAX. Where usize allows, u32::MAX + 1 and usize::MAX verify distinct raw and decoded errors, including raw error precedence when both lengths are oversized.",
+    "Construction accepts arbitrary binary bytes and preserves both input pointers. Empty owners accept empty zero-offset views and strings, while nonempty or out-of-range spans fail.",
+    "Distinct raw and decoded buffers verify exact source selection, unchanged coordinates, byte and string allocation identity, and rejection when only the other buffer has sufficient length. Every small subrange of binary raw and decoded vectors is compared with the corresponding input slice.",
+    "Out-of-bounds and overflowing spans include (0, 5), (3, 2), (5, 0), (u32::MAX, 0), (u32::MAX, 1), (u32::MAX - 1, 2), and (1, u32::MAX) against four-byte owners. Bounds errors precede UTF-8 and scalar-count checks.",
+    "Empty strings are accepted at every byte offset of a four-byte scalar, including interior offsets and the exclusive buffer end, only when scalar_len is zero. Scalar counts of one and u32::MAX are rejected for these empty spans.",
+    "Valid Unicode vectors cover NUL, ASCII, UTF-8 width boundaries through U+10FFFF, combining marks, a joiner emoji sequence, and mixed-width text. Byte lengths and Unicode scalar counts are asserted separately, with invalid UTF-8 surrounding the selected region.",
+    "21 malformed UTF-8 vectors cover continuation bytes, overlong sequences, truncated two-, three-, and four-byte encodings, invalid continuations, surrogate encodings, values beyond U+10FFFF, and invalid leading bytes. Errors verify absolute offsets after ASCII and multibyte prefixes, independently of scalar metadata.",
+    "Splitting each multibyte scalar at every internal boundary remains valid for byte views and fails UTF-8 validation for string views. Scalar metadata mismatches report the span start for ASCII and multibyte strings.",
+    "Literal JSON escapes, lone-surrogate escape text, quotes, control bytes, and malformed JSON text are preserved without interpretation. The same StrRef resolves against different caller-selected owners, documenting the lack of provenance authentication.",
+    "Views and full-buffer accessors remain usable after a temporary OwnerBytes wrapper leaves scope while their backing vectors remain alive. Shared payload borrowing preserves Arc counts; sliced Bytes payloads use visible-range coordinates without importing the external bytes crate.",
+    "Prior-wave arena integration verifies bounds after truncation, invalid UTF-8 after splitting a scalar, scalar mismatch after coordinate reuse, and rejection after clear. Error assertions cover canonical code, Decode source, exact byte offset, zero schema and field identifiers, and static payload-free detail.",
+    "A higher-ranked function-pointer assignment covers from_message's generic borrowing signature with a values type having no trait implementations. Runtime message construction is intentionally absent because the frozen ABI exposes only unsafe proof-based constructors and this crate forbids unsafe code. The delegation body was manually reviewed."
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Source manually reviewed against contracts/jmax-buffer.md, the buffer and ABI roots, ABI buffer/span/error definitions, and prior-wave payload and arena modules. Inline tests were written but not executed. No cargo, rustc, rustfmt, git commit, build, or check command was run.",
+    "integration": "Only crates/jmax-buffer/src/views.rs and reports/wave3/W3-01.json were written. Frozen types, signatures, contracts, manifests, ownership records, ABI sources, and other worker files were not edited. No validation proof is trusted, issued, copied into a new owner, or forged."
+  }
+}

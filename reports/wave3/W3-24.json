@@ -1,0 +1,59 @@
+{
+  "worker_id": "W3-24",
+  "wave": 3,
+  "crate": "jmax-endpoint-ron",
+  "file": "crates/jmax-endpoint-ron/src/validate.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_model(model: &EndpointModel) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 28,
+    "execution": "Not executed per explicit instruction. No build, check, formatter, compiler, test runner or commit command was run.",
+    "review": "Manually reviewed against frozen endpoint-ron and endpoint-model contracts, ABI types, registry implementation, and prior loading and normalization modules.",
+    "groups": [
+      {
+        "coverage": "Empty models, unconstrained model version during semantic validation, complete immutable models, deterministic repeated calls and unchanged ABI errors",
+        "expected": "Valid models return Ok(()); failures preserve registry diagnostics and leave the model unchanged."
+      },
+      {
+        "coverage": "Service ids 0 and u16::MAX; endpoint and error codes 0 and u32::MAX; duplicate service names/ids, global endpoint codes and service-local endpoint names",
+        "expected": "Boundary values are valid; duplicates fail with ConstraintViolation; endpoint and error code namespaces remain independent."
+      },
+      {
+        "coverage": "Canonical method components, exact service ownership, ASCII identifier rules, case-sensitive names, reused endpoint names across services and independent name namespaces",
+        "expected": "Canonical distinct names are accepted; malformed or fully qualified components and service mismatches fail with ConstraintViolation."
+      },
+      {
+        "coverage": "StructRef, EnumRef and StructTable in params, response, stream, unused definitions and headers; nested containers and struct fields; forward aliases and inline declarations",
+        "expected": "Declared references resolve; unknown references, scalar targets and wrong nominal kinds fail with ConstraintViolation."
+      },
+      {
+        "coverage": "Self and mutual nominal recursion, recursive StructTable, unused self/mutual alias cycles, alias kind changes, duplicate definitions, mismatched nominal names and repeated inline declarations",
+        "expected": "Nominal recursion is accepted; alias-only cycles and namespace conflicts fail with ConstraintViolation."
+      },
+      {
+        "coverage": "Ownership depth MAX_REFERENCE_DEPTH and MAX_REFERENCE_DEPTH + 1 at every root; alias chains at both boundaries; combined ownership/reference budgets; shallow-visit depth regression",
+        "expected": "The exact boundary is accepted; exceeding the shared traversal limit fails with DepthLimitExceeded."
+      },
+      {
+        "coverage": "Every scalar EndpointType; NanoId lengths 0, 1 and u8::MAX; field scope, UTF-8 names, empty and duplicate fields; enum i32 boundaries, empty enums, duplicate names/discriminants and invalid identifiers",
+        "expected": "Valid scalar, field and enum metadata is accepted; zero NanoId length and invalid fields/variants fail with ConstraintViolation."
+      },
+      {
+        "coverage": "Unused definition/role/error names; independent global error name/code uniqueness and case-sensitive error names",
+        "expected": "All records are validated even without endpoint references; invalid or duplicate keys fail with ConstraintViolation."
+      },
+      {
+        "coverage": "Public endpoints with invalid unused roles, unknown and duplicate includes, self/mutual cycles, unknown/duplicate endpoint roles, role diamonds and chains longer than the type depth limit",
+        "expected": "Role DAGs are accepted without imposing the type depth limit; undeclared roles, duplicate entries and cycles fail with ConstraintViolation."
+      },
+      {
+        "coverage": "HTTP token header names, invalid Unicode/control/space/colon names, ASCII case-insensitive duplicates, parsed and normalized valid recursive configuration and invalid unused reference configuration",
+        "expected": "Valid headers and normalized models succeed; invalid names, header collisions and unresolved normalized references fail with canonical registry errors."
+      }
+    ]
+  },
+  "status": "complete; source and inline tests written; manual review only; execution intentionally not performed"
+}

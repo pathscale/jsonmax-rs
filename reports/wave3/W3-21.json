@@ -1,0 +1,45 @@
+{
+  "worker_id": "W3-21",
+  "wave": 3,
+  "crate": "jmax-derive",
+  "file": "crates/jmax-derive/src/schema.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub(crate) fn expand(input: &DeriveInput) -> DeriveResult<TokenStream>",
+    "Generated implementation: configured_abi::traits::SchemaProvider",
+    "Generated method: fn schema_ir() -> configured_abi::schema::SchemaIr",
+    "Generated method: fn schema_fingerprint() -> u64"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Exact deterministic empty-provider source and frozen canonical v1 byte vector",
+    "Raw identifier schema-name defaults, explicit Unicode names, schema id zero and u32::MAX, reject_unknown policy",
+    "Preserved impl/type generics, where clauses, configured ABI paths, and no added generic bounds",
+    "Bool, String, U32, I32, I64, and F64 ABI kinds and authoritative normalized categories",
+    "Optional properties retain their scalar category and do not become nullable",
+    "Declaration-order dense FieldIds and slots across skipped, defaulted, optional, and required fields",
+    "All-skipped and empty schemas agree without field reads or Default evaluation",
+    "U32, I32, and I64 intrinsic bounds, wider user bounds, narrower bounds, singleton endpoints, and disjoint intersections",
+    "U64 and Decimal128 rejection for optional, required, defaulted, and bounded fields",
+    "String format and length attributes, zero and u32::MAX lengths, and every frozen known format",
+    "Inverted length bounds, incompatible constraint families, missing slots, gaps, duplicates, and malformed skipped slots",
+    "Checked u16 required_count and u32 slot-count arithmetic at their exact overflow boundaries",
+    "65,535 required fields accepted by the builder, an additional optional field preserved, and the next required field rejected",
+    "Optional field ids cross the u16 boundary without truncation; authoritative AOT budgets remain applicable",
+    "Empty and duplicate names plus conflicting skipped-field metadata fail with field context",
+    "Unknown, empty, and incorrectly cased formats propagate complete authoritative canonicalization diagnostics",
+    "Authoritative schema/property name-byte budget boundaries produce errors without fallback fingerprints",
+    "Quotes, backslashes, NUL, control characters, Unicode, and source-injection-shaped names remain escaped Rust string literals",
+    "All frozen ScalarKind variants, absent optional literals, i64::MIN, i64::MAX, and u32::MAX literal rendering",
+    "Handwritten mixed-field ABI schema agrees with both AOT fingerprinting and schema-ir canonical fingerprinting",
+    "Runtime fingerprint method contains only a precomputed typed u64 literal and no allocation, hashing, panic, or proof construction",
+    "Identity changes with schema metadata, wire names, requiredness, and bounds while ignoring Rust generic/path spelling"
+  ],
+  "status": {
+    "implementation": "complete",
+    "tests": "Comprehensive inline unit tests written; not executed per explicit instruction.",
+    "validation": "Manual source review against frozen contracts and prior-wave implementations only. No cargo, rustc, rustfmt, build/check command, or git commit was run.",
+    "scope": "Only crates/jmax-derive/src/schema.rs and reports/wave3/W3-21.json were written.",
+    "integration": "Uses the frozen attributes parser output and jmax-schema-aot::fingerprint_schema; compilation and test execution remain unverified."
+  }
+}

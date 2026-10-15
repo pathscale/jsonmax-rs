@@ -1,0 +1,80 @@
+{
+  "worker_id": "W3-15",
+  "wave": 3,
+  "crate": "jmax-dom",
+  "file": "crates/jmax-dom/src/scalar.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn raw<'a>(node: Node<'a>) -> Result<&'a [u8]>",
+    "pub fn value<'a>(node: Node<'a>) -> Result<Scalar<'a>>",
+    "pub fn string<'a>(node: Node<'a>) -> Result<&'a str>",
+    "pub fn boolean(node: Node<'_>) -> Result<bool>",
+    "pub fn u64(node: Node<'_>) -> Result<u64>",
+    "pub fn i64(node: Node<'_>) -> Result<i64>",
+    "pub fn f64(node: Node<'_>) -> Result<f64>",
+    "pub fn converted(node: Node<'_>) -> Result<ConvertedNumber>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "coverage": "Exact raw spans and borrowed ownership",
+      "vectors": [
+        "All seven JSON value tags with leading and trailing whitespace",
+        "Empty strings, arrays, and objects",
+        "Nested containers whose container index differs from their node ID",
+        "Payload pointer identity and preservation of internal whitespace"
+      ]
+    },
+    {
+      "coverage": "Cooked scalar values and strings",
+      "vectors": [
+        "Null, true, false, exact -0 and 1.2300E+0042 number spellings",
+        "Raw UTF-8 for accented, CJK, and non-BMP characters",
+        "Every short JSON escape, slash, NUL, U+001F, combining marks, and surrogate pairs",
+        "Payload and decoded-arena pointer identity and cloned owner lifetime"
+      ]
+    },
+    {
+      "coverage": "Checked integer conversion",
+      "vectors": [
+        "Zero, decimal digit boundaries, i64::MIN, i64::MAX, u64::MAX and neighboring values",
+        "Signed -0 succeeds; every minus integer spelling fails unsigned conversion with ConstraintViolation",
+        "Integer overflow never falls back to floating point in converted",
+        "Decimal and exponent spellings, including 1.0, 1e0, -0.0, and -1e0, fail integer conversion with InvalidNumber",
+        "256 fixed-seed full-width unsigned and signed integer pairs",
+        "Long integer spellings at lengths 19, 20, 21, 31, 32, 63, 64, 127, 128, and 1024"
+      ]
+    },
+    {
+      "coverage": "Correctly rounded binary64 and lexical variant selection",
+      "vectors": [
+        "Positive and negative zero, 0.1, -1.5, and integer rounding around 2^53",
+        "Exact halfway ties at 1 plus 2^-53 and 1 plus 3*2^-53, plus a decimal just above a tie",
+        "Minimum normal, maximum subnormal, minimum subnormal, and decimals bracketing half the minimum subnormal",
+        "Finite underflow with both signs and arbitrarily long exponent spellings",
+        "Maximum finite binary64 and adjacent decimal overflow cases",
+        "A thousand-digit fractional tail that rounds to exactly 1",
+        "U64, I64, and F64Bits selection with preserved signed-zero bits"
+      ]
+    },
+    {
+      "coverage": "Error paths and immutability",
+      "vectors": [
+        "Wrong-kind access across all JSON kinds, including quoted numbers",
+        "Absolute offsets for padded roots and nested conversion failures",
+        "Span overflow, out-of-bounds raw and cooked spans, missing tables and metadata",
+        "Invalid UTF-8 in raw numeric text, raw strings, and decoded strings",
+        "Invalid internal numeric text and unknown or missing node words",
+        "Repeated successes and failures leave payload, decoded arena, tables, metadata, and empty numeric caches unchanged"
+      ]
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_added": 21,
+    "review": "Source manually reviewed against the frozen DOM contract, ABI types, and prior wave implementations.",
+    "execution": "Not compiled or executed, as explicitly instructed. No build, check, formatting, or commit commands were run.",
+    "scope": "Only crates/jmax-dom/src/scalar.rs and reports/wave3/W3-15.json were written.",
+    "notes": "Uses safe allocation-free core numeric parsers, preserving the DOM contract without applying the separate number lexer's exponent or negative-zero policy. All local errors use source Dom and the node's raw start when available. No unsafe code or new dependencies."
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "worker_id": "W3-04",
+  "wave": 3,
+  "crate": "jmax-scan-scalar",
+  "file": "crates/jmax-scan-scalar/src/structural.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "classify_structural",
+      "signature": "pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks",
+      "behavior": "Returns ten full-block raw masks using safe unsigned byte iteration. Recognizes six ASCII punctuation characters, exactly four JSON whitespace characters, controls below 0x20, ASCII digits, and bytes at least 0x80. Preserves whitespace/control overlap and maps byte i to bit i. Performs no allocation, quote filtering, carry update, JSON validation, or UTF-8 validation. The function has no error path."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "explicit_mixed_vector_has_exact_raw_masks",
+      "coverage": "Literal expected masks for all punctuation, space, tab, CR, LF, ASCII digit endpoints, slash, 0x1f, DEL, 0x80, 0xff, quotes, backslashes, vertical tab, and form feed. Explicit whitespace/control overlap."
+    },
+    {
+      "test": "every_byte_value_fills_exactly_its_classes",
+      "coverage": "All 256 homogeneous full blocks compared against independent byte-set membership, including all-zero and all-one masks."
+    },
+    {
+      "test": "every_byte_value_at_every_position_sets_only_that_bit",
+      "coverage": "All 256 byte values isolated at each of 64 positions, including bits 0 and 63, with unrelated positions required to remain clear."
+    },
+    {
+      "test": "mixed_byte_ramps_preserve_byte_order_and_class_independence",
+      "coverage": "256 deterministic wrapping byte ramps; per-byte membership assertions, disjoint punctuation classes, punctuation union, and non-ASCII class independence."
+    },
+    {
+      "test": "first_and_last_bytes_are_independent_of_backing_slice_alignment",
+      "coverage": "A fixed block borrowed at offset one within a larger array, with distinguishable adjacent bytes and explicit first/last-bit expectations."
+    },
+    {
+      "test": "unicode_whitespace_digits_and_punctuation_are_only_non_ascii_bytes",
+      "coverage": "UTF-8 encodings of NBSP, EM SPACE, LINE SEPARATOR, Arabic-Indic zero, fullwidth zero, and fullwidth colon set only non-ASCII bits."
+    },
+    {
+      "test": "raw_classes_remain_present_inside_strings_and_invalid_json",
+      "coverage": "Quoted punctuation, raw tab, NUL, invalid UTF-8, and digits retain their individual masks; quote analysis excludes only quoted punctuation from the assembled structural mask."
+    },
+    {
+      "test": "final_assembly_clips_all_classes_at_every_length",
+      "coverage": "All live lengths from 0 through 64 clip every class and the punctuation union, with exact valid length, valid mask, and scalar backend tag."
+    },
+    {
+      "test": "zero_padding_is_raw_control_but_not_live_control",
+      "coverage": "Raw padded zeros set control bits; final assembly removes them for empty and one-byte blocks while retaining them for full blocks."
+    },
+    {
+      "test": "final_assembly_rejects_oversized_lengths",
+      "coverage": "Integration error paths for lengths 65, 255, 256, and usize::MAX require InvalidToken, Scanner source, offset zero, zero schema/field identifiers, and nonempty error detail."
+    },
+    {
+      "test": "scanner_errors_leave_carry_unchanged",
+      "coverage": "Oversized input and noncanonical quote carry produce the frozen scanner errors without mutating quote state or opaque UTF-8 state; covers empty, one-byte, and full-block input."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_written": 11,
+    "review": "Source and literal mask expectations reviewed manually against the frozen contract, root definitions, ABI, and prior-wave modules.",
+    "execution": "No build, check, formatter, compiler, test execution, or commit command was run, as explicitly required. No passing execution result is claimed.",
+    "integration": "Uses existing root types and helpers. Scanner integration tests also require the separately owned Wave 4 tails module declared by the frozen root.",
+    "ownership": "Only crates/jmax-scan-scalar/src/structural.rs and reports/wave3/W3-04.json were written."
+  }
+}

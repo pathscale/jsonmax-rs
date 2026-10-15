@@ -1,0 +1,100 @@
+{
+  "worker_id": "W3-23",
+  "wave": 3,
+  "crate": "jmax-endpoint-model",
+  "file": "crates/jmax-endpoint-model/src/wire_names.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn convert_case(name: &str, case: NameCase) -> Result<String>",
+    "pub fn resolve_wire_names(names: &[String], policy: WireNamePolicy) -> Result<Vec<WireName>>",
+    "pub fn method_name(service: &str, endpoint: &str) -> Result<String>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "contract_acronym_vector_covers_every_case",
+      "coverage": "HTTPServerID has exact expected outputs under all six NameCase variants."
+    },
+    {
+      "test": "word_boundaries_acronyms_and_digits_have_exact_vectors",
+      "coverage": "Seventeen vectors across five conversion cases cover single letters and digits, uppercase runs, acronym boundaries, lowercase-to-uppercase boundaries, digit-to-uppercase boundaries, and digits retained within words."
+    },
+    {
+      "test": "repeated_separators_are_ignored_and_reset_word_boundaries",
+      "coverage": "Underscore, hyphen, space, TAB, LF, CR, and form feed, including repeated, leading, trailing, and mixed separators."
+    },
+    {
+      "test": "empty_inputs_and_separator_only_conversions_are_rejected",
+      "coverage": "Empty input fails every case; separator-only inputs fail conversions and survive Preserve unchanged."
+    },
+    {
+      "test": "preserve_keeps_every_utf8_byte_without_normalization",
+      "coverage": "Unicode, combining marks, emoji, punctuation, NUL, DEL, whitespace, and canonically equivalent but byte-distinct strings remain exact."
+    },
+    {
+      "test": "conversions_reject_unicode_including_non_ascii_whitespace",
+      "coverage": "Every conversion rejects non-ASCII letters, combining marks, emoji, nonbreaking space, and em space with canonical error metadata."
+    },
+    {
+      "test": "entire_ascii_domain_obeys_conversion_character_rules",
+      "coverage": "All 128 ASCII bytes in interior positions under every case, with explicit allowed ranges and rejection of punctuation and unsupported controls."
+    },
+    {
+      "test": "long_names_and_many_words_have_no_artificial_length_limit",
+      "coverage": "65536-byte names under every policy and 1024 repeated acronym-containing segments."
+    },
+    {
+      "test": "default_policy_and_empty_lists_preserve_the_contract",
+      "coverage": "Frozen defaults, empty lists under all twelve policy combinations, and exact preservation of ASCII and Unicode sources."
+    },
+    {
+      "test": "resolution_retains_declaration_order_source_and_owned_output",
+      "coverage": "Unsorted declaration order, exact source retention, expected snake outputs, source immutability, and independent owned results after source mutation."
+    },
+    {
+      "test": "repeated_sources_collide_under_every_policy",
+      "coverage": "Nonadjacent duplicate sources fail with DuplicateObjectKey under all twelve policies without mutating input."
+    },
+    {
+      "test": "distinct_sources_with_identical_converted_names_collide",
+      "coverage": "Acronym, separator, whitespace, and digit collisions in every conversion policy, plus camel and Pascal collisions caused by separator removal."
+    },
+    {
+      "test": "case_insensitive_comparison_does_not_recase_emitted_names",
+      "coverage": "Case-sensitive Preserve permits distinct ASCII spellings; case-insensitive Preserve rejects them; Pascal results retain emitted casing."
+    },
+    {
+      "test": "collision_comparison_folds_only_ascii_and_uses_complete_names",
+      "coverage": "Prefixes, punctuation, Unicode case distinctions, combining marks, and embedded NUL; ASCII letters are folded even within Unicode and NUL-containing strings."
+    },
+    {
+      "test": "resolution_rejects_invalid_names_without_mutating_sources",
+      "coverage": "Invalid and empty sources across every policy propagate ConstraintViolation and retain the original source list."
+    },
+    {
+      "test": "resolution_errors_follow_declaration_order",
+      "coverage": "An earlier duplicate takes precedence over a later invalid name; an earlier invalid name takes precedence over a later duplicate; repeated failures are deterministic."
+    },
+    {
+      "test": "method_names_accept_identifier_boundaries_without_recasing",
+      "coverage": "Valid letter, underscore, digit-tail, acronym, and mixed-case identifiers, exact case distinctions, and 65536-byte components."
+    },
+    {
+      "test": "method_names_reject_invalid_components_in_either_position",
+      "coverage": "Empty and lone-underscore components, digit starts, dots, punctuation, surrounding whitespace, controls, Unicode, and invalid service precedence."
+    },
+    {
+      "test": "method_identifier_grammar_covers_every_ascii_byte",
+      "coverage": "All 128 ASCII bytes in leading and trailing positions for both service and endpoint components, including the lone-underscore exception."
+    },
+    {
+      "test": "method_keys_match_registry_lookup_exactly",
+      "coverage": "A valid boundary-ID model resolves the same borrowed endpoint by the emitted method key; recased and dotted alternatives miss."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Manual source and frozen-contract review only. Twenty inline tests are provided but were not executed. No cargo, rustc, rustfmt, build, check, or git commit command was run.",
+    "scope": "Only crates/jmax-endpoint-model/src/wire_names.rs and reports/wave3/W3-23.json were written."
+  }
+}

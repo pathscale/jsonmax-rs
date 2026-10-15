@@ -1,0 +1,55 @@
+{
+  "worker_id": "W3-09",
+  "wave": 3,
+  "crate": "jmax-string",
+  "file": "crates/jmax-string/src/length.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "decoded_length",
+      "signature": "pub fn decoded_length(input: &[u8], content: Span32) -> Result<StringLengths>",
+      "behavior": "Validates caller-provided content spans and measures decoded UTF-8 bytes and Unicode scalars without retaining output. Shares the public escape decoder and scanner discovery primitive, validates bounded raw UTF-8 runs, and preserves unescape counts, error metadata, and first-error precedence. Escape lookahead ends at the content boundary."
+    },
+    {
+      "name": "utf8_length",
+      "signature": "pub fn utf8_length(text: &str) -> Result<StringLengths>",
+      "behavior": "Measures actual UTF-8 byte length and chars().count() directly. Accepts all valid str contents without JSON syntax restrictions or normalization. Rejects oversized text with PayloadTooLarge, source Decode, at u32::MAX before traversing scalars."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests in crates/jmax-string/src/length.rs",
+    "test_count": 21,
+    "coverage": [
+      "Empty, ASCII, multibyte UTF-8, combining marks, regional indicators, variation selectors, joined emoji, BOM, and U+10FFFF with explicit byte and scalar counts",
+      "Plain UTF-8 measurement accepts controls, quotes, and backslashes while decoded JSON content rejects their raw forms",
+      "All eight simple escape spellings with one decoded byte and scalar each",
+      "Mixed-case Unicode hex and every UTF-8 scalar-width boundary, including NUL, U+D7FF, U+E000, U+FFFF, U+10000, and U+10FFFF",
+      "All 65536 BMP code units, with isolated surrogate units rejected",
+      "Every high surrogate paired with both low-surrogate endpoints, and every low surrogate paired with both high-surrogate endpoints",
+      "Mixed raw and escaped content, embedded NUL, escaped backslashes, combining sequences, and exact decoded counts independent of source spelling",
+      "Raw runs of zero through 128 bytes at starting offsets zero through 16, ending with an escaped Euro sign and an excluded quote",
+      "Empty spans at all short offsets, nonzero offsets, invalid surrounding bytes, span arithmetic overflow, and out-of-bounds spans",
+      "Every partial surrogate-pair boundary, truncated simple and Unicode escapes, and absolute EOF positions with completing bytes outside the span",
+      "UTF-8 sequences split at either span boundary for two-, three-, and four-byte scalars",
+      "All 256 raw byte values and all invalid escape-letter byte values",
+      "Malformed UTF-8 continuation bytes, overlong encodings, truncated sequences, encoded surrogates, invalid lead bytes, and values beyond U+10FFFF",
+      "Invalid hex at every digit position in both surrogate units, including an invalid digit immediately before bounded EOF",
+      "Missing surrogate partners, incomplete or wrong adjacent prefixes, and complete second units outside the low-surrogate range",
+      "First-error precedence after decoded prefixes and exact equality with unescape error metadata",
+      "All 729 three-byte inputs over a fixed nine-byte alphabet, measured across all ten valid subspans and compared with unescape",
+      "Wave 1 scanner integration, excluded wrapper quotes, and strict rejection of invalid escapes accepted by discovery",
+      "Synthetic text-size boundaries at u32::MAX and above where usize permits, without large allocation",
+      "Synthetic byte and scalar counter overflow, exact-limit success for each scalar width, atomic counter updates, and source-offset preservation"
+    ],
+    "execution": "Not run. The task prohibits cargo, rustc, rustfmt, and all build/check commands. Implementation and test vectors were reviewed directly against the frozen contract and prior wave source."
+  },
+  "status": {
+    "state": "implemented_unexecuted",
+    "reasoning": "high",
+    "validation": "Manual source review only. No build, check, test, formatting, or commit command was run.",
+    "allocation": "Production functions allocate no memory and retain no decoded output. Tests use fixed stack buffers.",
+    "dependencies": "Uses core and frozen jmax-string root types, content_bytes, scan::first_special, and unescape::decode_escape. No manifest changes or new dependencies.",
+    "ownership": "Only crates/jmax-string/src/length.rs and reports/wave3/W3-09.json were written."
+  }
+}

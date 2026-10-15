@@ -1,0 +1,57 @@
+{
+  "worker_id": "W3-17",
+  "wave": 3,
+  "crate": "jmax-schema-compile",
+  "file": "crates/jmax-schema-compile/src/patterns.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<PatternProgram>",
+      "description": "Iterative Unicode-scalar Thompson compiler with fallible allocation, linked patch lists, source-order emission, canonical merged classes, explicit syntax errors, inclusive state limits, and one final Accept. Empty expressions emit a Jump followed by their continuation. Parser storage is bounded by the checked u32 source byte length."
+    },
+    {
+      "signature": "pub fn validate(program: &PatternProgram, max_states: u32) -> Result<()>",
+      "description": "Validates version, positive execution allowance, instruction count, start, every outgoing target, Unicode scalars, canonical ranges, and structural Accept reachability. Checks unreachable instructions and permits epsilon cycles and empty classes."
+    },
+    {
+      "signature": "pub fn is_match(program: &PatternProgram, text: &str, steps_left: &mut u64) -> Result<bool>",
+      "description": "Validates the entire raw program before execution, then performs unanchored scalar-boundary search using generation-marked closures. Charges local and caller allowances for start injections, instruction visits, transition tests, and class-search comparisons. Preserves caller budget across invocations and propagates exhaustion as BudgetExhausted."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-schema-compile/src/patterns.rs::tests",
+    "execution": "Not run. The task prohibits all build and check commands.",
+    "coverage": [
+      "Exact deterministic operation layouts for the empty pattern, a|bc, and a*b?.",
+      "Concatenation, grouping, precedence, alternation, optionality, star, and plus acceptance and rejection vectors.",
+      "Empty patterns, groups, alternatives, and nested epsilon cycles.",
+      "Absolute anchors, end-boundary injection, and no special final-newline behavior.",
+      "Dot excludes LF, CR, U+2028, and U+2029 while consuming exactly one Unicode scalar.",
+      "Multibyte literals, supplementary scalars, NUL, no normalization, and scalar range boundaries through U+10FFFF.",
+      "Sorted merged class ranges, negation, escaped class metacharacters, literal hyphens, empty classes, and full scalar-domain classes.",
+      "Supported escapes and explicit rejection of unsupported escapes, counted forms, backreferences, special groups, lazy forms, and possessive forms.",
+      "Broken syntax, reversed ranges, misplaced and repeated quantifiers, inclusive state limits, and zero execution configuration.",
+      "16,384 nested groups and 2,048 alternation separators without recursive parsing or recursive destruction.",
+      "Malformed versions, starts, allowances, all target-bearing instruction variants, unreachable invalid instructions, missing reachable Accept, and invalid scalar endpoints.",
+      "Canonical raw range checks, legal cyclic graphs, duplicate targets, multiple Accept instructions, and structurally reachable but semantically impossible matches.",
+      "Exact caller and local execution cutoffs, shared-budget reuse, zero caller budget, instruction and transition charges, and metered class comparisons.",
+      "100,000-scalar nonmatches and ambiguous repetition that must exhaust budgets instead of returning false.",
+      "Exhaustive strings of length zero through five over a, b, accented e, and LF compared with independent predicates for seven pattern languages.",
+      "Repeated compilation equality, arithmetic overflow, impossible allocation requests, and checked closure generation overflow."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Manual source review only; compilation and test results are unverified.",
+    "scope": "Only the assigned Rust source file and this handoff report were written.",
+    "dependencies": "Uses core, alloc, and frozen parent-module types and error helpers; no new crate dependencies.",
+    "integration_notes": [
+      "Structural raw-program validation precedes execution metering so malformed unreachable instructions cannot be hidden by an early match or exhausted caller budget.",
+      "Empty expressions have an explicit Jump; the completely empty compiled pattern therefore occupies two instructions including Accept.",
+      "Empty positive classes match no scalar; empty negated classes match every valid scalar.",
+      "Lazy and possessive postfix pairs produce UnsupportedSchemaFeature; other repeated postfix forms produce ConstraintViolation.",
+      "No unsafe code, prohibited commands, dependency edits, root-module edits, or other worker-file edits were used."
+    ]
+  }
+}

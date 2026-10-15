@@ -1,0 +1,176 @@
+{
+  "worker_id": "W3-20",
+  "wave": 3,
+  "crate": "jmax-encode",
+  "file": "crates/jmax-encode/src/raw.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "validate(bytes: &[u8], limits: EncodeLimits) -> Result<RawFragment<'_>>",
+    "emit(writer: &mut JsonWriter<'_>, fragment: RawFragment<'_>) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "name": "roots_record_category_depth_and_the_exact_original_borrow",
+      "vector": "All six root categories, surrounding whitespace, duplicate keys, nested containers and preserved escape/exponent spelling",
+      "expected": "Correct FragmentKind, maximum simultaneously open containers and identical input slice pointer and contents"
+    },
+    {
+      "name": "only_the_four_json_whitespace_bytes_are_ignored",
+      "vector": "Space, TAB, LF and CR in grammar positions; controls, DEL, BOM, NBSP and Unicode line separators outside strings",
+      "expected": "Only JSON whitespace ignored; other bytes rejected outside strings and valid Unicode preserved inside strings"
+    },
+    {
+      "name": "incomplete_values_report_eof_at_the_input_end",
+      "vector": "Empty input, whitespace, partial literals, signs, fractions, exponents, strings, escapes, surrogate pairs and containers",
+      "expected": "Encode/UnexpectedEof with byte_offset equal to the supplied input length"
+    },
+    {
+      "name": "malformed_container_grammar_has_exact_offsets",
+      "vector": "Mismatched closes, missing values, trailing/doubled commas, missing separators/colons, unquoted keys and comments",
+      "expected": "Encode/InvalidSyntax at the first invalid grammar byte"
+    },
+    {
+      "name": "complete_roots_reject_second_values_and_trailing_garbage",
+      "vector": "Adjacent or whitespace-separated roots, stray delimiters, comments and trailing nonwhitespace",
+      "expected": "Encode/TrailingContent at the first byte following the completed value and allowed whitespace"
+    },
+    {
+      "name": "literal_spelling_is_case_sensitive_and_exact",
+      "vector": "Incorrect case and misspellings of null, true and false, including nested literals",
+      "expected": "Encode/InvalidSyntax at the mismatching byte"
+    },
+    {
+      "name": "number_vectors_preserve_arbitrary_precision_and_exponents",
+      "vector": "Signed zero, fractions, signed/padded exponents, integers beyond u128 and very large exponents; 90 deterministic sign/integer/fraction/exponent combinations at root and in arrays",
+      "expected": "Valid grammar accepted without machine numeric conversion and exact spelling preserved"
+    },
+    {
+      "name": "invalid_number_grammar_identifies_the_first_bad_byte",
+      "vector": "Leading plus/zeros, NaN, Infinity, repeated signs, missing fraction/exponent digits, hexadecimal, underscores and illegal suffixes",
+      "expected": "Encode/InvalidNumber at the first invalid number byte"
+    },
+    {
+      "name": "string_escapes_are_legal_and_unescaped_controls_are_rejected",
+      "vector": "All 128 ASCII bytes as unescaped string content, all legal short escapes, illegal escapes and malformed hexadecimal digits",
+      "expected": "Exact ControlCharInString, InvalidEscape, UnexpectedEof or TrailingContent diagnostics; legal contents accepted"
+    },
+    {
+      "name": "utf8_validation_rejects_invalid_scalars_and_truncated_sequences",
+      "vector": "All single bytes 0x80 through 0xFF, overlong encodings, UTF-8 surrogate encodings, out-of-range scalars, truncated sequences and Unicode encoding-width boundaries",
+      "expected": "Encode/InvalidUtf8 at valid_up_to for malformed UTF-8; valid boundary scalars fit exact decoded byte budgets"
+    },
+    {
+      "name": "surrogate_pairs_cover_both_extremes_and_reject_unpaired_units",
+      "vector": "U+10000, emoji, U+10FFFF, mixed-case pairs, standalone high/low surrogates, invalid second units and malformed low-unit hexadecimal digits",
+      "expected": "Pairs accepted; unpaired units yield LoneSurrogate; malformed hex yields InvalidEscape with precise fragment offsets"
+    },
+    {
+      "name": "decoded_byte_limits_use_codepoint_width_instead_of_escape_spelling",
+      "vector": "Empty string, escaped UTF-8 width boundaries, surrogate pairs, eight short escapes and literal/escaped a plus accented text plus CJK plus emoji",
+      "expected": "Inclusive decoded UTF-8 byte budgets of zero through ten; one-byte-short budgets fail with BudgetExhausted"
+    },
+    {
+      "name": "escaped_controls_each_decode_to_one_byte_and_keys_share_string_limits",
+      "vector": "All 32 escaped controls, empty keys/values, escaped ASCII keys and surrogate-pair keys",
+      "expected": "Controls cost one decoded byte; property names obey the same decoded string limits as values"
+    },
+    {
+      "name": "whole_input_budget_includes_all_whitespace_and_is_inclusive",
+      "vector": "Scalars, escaped strings and containers at exact and one-byte-short output limits; zero budget and invalid UTF-8 beyond that budget",
+      "expected": "Whole input size checked before parsing; exact limits accepted and excess size yields PayloadTooLarge"
+    },
+    {
+      "name": "number_length_counts_sign_fraction_and_exponent_but_not_whitespace",
+      "vector": "0, -0 and 12.30E-04 at exact and short token budgets; nested numbers; zero budget; a 1025-digit integer",
+      "expected": "Every number token byte counted once, whitespace excluded, first excess byte reported and arbitrary precision accepted when budget permits"
+    },
+    {
+      "name": "depth_limits_are_relative_inclusive_and_independent_of_sibling_count",
+      "vector": "Scalars at depth zero, root containers, sibling containers and depth-two/depth-three objects and arrays",
+      "expected": "Scalars have depth zero; maximum open container count determines depth; excess opener yields DepthLimitExceeded"
+    },
+    {
+      "name": "full_u16_depth_uses_heap_frames_without_host_stack_recursion",
+      "vector": "65535 nested arrays and a second vector with one additional opener",
+      "expected": "Full u16 depth accepted iteratively; extra depth rejected at offset 65535 before another frame allocation"
+    },
+    {
+      "name": "container_counts_are_per_container_and_duplicate_keys_are_legal",
+      "vector": "Empty containers, nested single-member containers, two-item containers and duplicate keys under limits zero, one and two",
+      "expected": "Independent inclusive counts, duplicates allowed and children counted only once in their parent"
+    },
+    {
+      "name": "counter_overflow_boundaries_fail_without_wrapping_or_advancing",
+      "vector": "Private item counter seeded at u32::MAX minus one and decoded byte counts at u32::MAX",
+      "expected": "Last allowable count accepted; further increment and decoded count overflow return BudgetExhausted without wrapping"
+    },
+    {
+      "name": "every_proper_prefix_of_a_container_document_is_rejected",
+      "vector": "Every proper prefix of an object containing all literal categories, an exponent, a surrogate pair and nested containers",
+      "expected": "UnexpectedEof at each prefix length; only the complete document accepted"
+    },
+    {
+      "name": "emit_preserves_root_bytes_and_excludes_a_preexisting_sink_prefix",
+      "vector": "Whitespace-wrapped object with duplicate keys, exponent and Unicode escape appended after prefix:",
+      "expected": "Exact fragment bytes preserved; finish length and output allowance exclude the existing prefix"
+    },
+    {
+      "name": "emit_participates_in_parent_syntax_and_counts_one_surrounding_value",
+      "vector": "Repeated array fragments inside an array and object property; second value under parent item limit one",
+      "expected": "Writer supplies exact separators, each fragment is one parent value and count errors poison the writer"
+    },
+    {
+      "name": "emit_output_budget_includes_the_parent_comma_and_closing_delimiter",
+      "vector": "Whitespace-wrapped null following array element zero with output limits eight, nine and ten",
+      "expected": "Limit eight rejects before comma, nine accepts fragment but rejects closing bracket, ten produces the complete ten-byte document"
+    },
+    {
+      "name": "emit_revalidates_every_resource_under_the_writers_limits",
+      "vector": "Loosely validated fragments violating current depth, array/object count, decoded value/key bytes, number bytes or whole output bytes",
+      "expected": "Exact current validator error propagated before output; writer permanently poisoned"
+    },
+    {
+      "name": "emit_rebases_fragment_depth_and_poisoning_cannot_be_bypassed",
+      "vector": "Depth-two fragment inside a writer array, then scalar emission after failure; scalar at maximum allowed writer nesting",
+      "expected": "Combined depth enforced, poisoned writer rejects continuation and scalar adds no depth"
+    },
+    {
+      "name": "emit_rejects_missing_object_keys_and_a_second_root",
+      "vector": "Raw emission into an object expecting a key and after a completed root",
+      "expected": "InvalidSyntax with no additional output and InternalError on finish"
+    },
+    {
+      "name": "emit_revalidates_bytes_instead_of_trusting_internal_fragment_metadata",
+      "vector": "Crate-private malformed fragment [0,] carrying false kind/depth metadata",
+      "expected": "Exact raw parser error propagated; metadata cannot bypass strict validation"
+    },
+    {
+      "name": "emit_preserves_external_error_metadata_and_visible_partial_output",
+      "vector": "Sink fails reservation or appends two bytes before returning a transport error with schema and field context",
+      "expected": "Original sink error preserved, visible prefix retained and all subsequent writer operations fail"
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Manually reviewed against contracts/jmax-encode.md, frozen encode and ABI roots, canonical error and ByteSink definitions, and prior sink.rs and writer.rs implementations",
+    "inline_tests": 28,
+    "tests_executed": false,
+    "reason_tests_not_run": "User explicitly prohibited cargo, rustc, rustfmt and all build/check commands",
+    "scope": "Only crates/jmax-encode/src/raw.rs and reports/wave3/W3-20.json written",
+    "dependencies_added": false,
+    "implementation_notes": [
+      "Uses only the frozen crate root plus core and alloc; no new dependency APIs",
+      "Iterative parser uses fallible Vec frame reservation and no recursive container traversal",
+      "String and number validation allocates no decoded text or numeric values",
+      "emit delegates exactly to JsonWriter::raw for surrounding syntax, revalidation, resource enforcement and failure behavior",
+      "No unsafe code or validation proof construction",
+      "The ABI u32 diagnostic offset saturates at u32::MAX when explicitly permitted input exceeds the ABI offset range"
+    ],
+    "integration_dependencies": [
+      "Existing Wave 1 ByteSink implementations and frozen checked_output_len helper",
+      "Existing Wave 2 JsonWriter::raw for revalidation and emission"
+    ]
+  }
+}

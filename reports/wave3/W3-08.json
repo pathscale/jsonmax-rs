@@ -1,0 +1,80 @@
+{
+  "worker_id": "W3-08",
+  "wave": 3,
+  "crate": "jmax-utf8",
+  "file": "crates/jmax-utf8/src/proof.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn validate(bytes: &[u8]) -> Result<Utf8Proof<'_>>",
+    "#[cfg(feature = \"alloc\")] pub fn validate_span<'a>(owner: &'a Payload, span: Span32) -> Result<Utf8Proof<'a>>",
+    "pub fn slice<'a>(proof: &Utf8Proof<'a>, span: Span32) -> Result<&'a str>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "empty_and_every_ascii_byte_have_exact_borrowed_summaries",
+      "coverage": "Empty input, every ASCII byte including NUL and DEL, literal JSON escapes, pointer identity, copied proofs, and exact summaries."
+    },
+    {
+      "test": "scalar_limits_and_unmodified_unicode_are_counted_exactly",
+      "coverage": "UTF-8 width boundaries, surrogate-adjacent scalars, noncharacters, U+10FFFF, mixed widths, BOM, combining marks, replacement characters, and emoji joiners."
+    },
+    {
+      "test": "malformed_and_truncated_inputs_never_issue_a_proof",
+      "coverage": "Isolated continuations, invalid leaders, overlong encodings, surrogates, out-of-range scalars, truncated sequences, invalid continuations, multibyte prefixes, first-error precedence, and unchanged canonical validator errors."
+    },
+    {
+      "test": "every_one_and_two_byte_input_matches_core",
+      "coverage": "All 256 single-byte and 65536 two-byte inputs compared with core UTF-8 validation, exact summaries, and malformed-sequence offsets."
+    },
+    {
+      "test": "all_slice_endpoints_follow_scalar_boundaries_and_bounds_precedence",
+      "coverage": "Every ordered pair of byte endpoints in mixed one-, two-, three-, and four-byte text, empty ranges, both non-boundary endpoints, first offending endpoint, end-of-input, out-of-bounds precedence, and borrowed pointer identity."
+    },
+    {
+      "test": "overflow_is_distinct_from_out_of_bounds",
+      "coverage": "Span overflow, exact u32::MAX arithmetic, oversized but nonoverflowing spans, empty spans outside input, and arithmetic-only maximum-length coverage without fabricated slices."
+    },
+    {
+      "test": "oversized_owner_guard_precedes_span_arithmetic",
+      "coverage": "On 64-bit targets, arithmetic-only oversized owner lengths verify the shared range guard and length-error precedence without allocating oversized payloads."
+    },
+    {
+      "test": "returned_views_outlive_proof_values_and_remain_bound_to_input",
+      "coverage": "Views outlive local proof values, proof copies retain original input borrows, independently owned equal-length buffers stay distinct, and equal-length malformed input cannot receive a proof."
+    },
+    {
+      "test": "unaligned_subslices_validate_only_selected_bytes",
+      "coverage": "Offsets around 64- and 128-byte boundaries with malformed surrounding storage, exact borrowed sub-slices, and relative errors immediately after selected bytes."
+    },
+    {
+      "test": "payload_subspan_has_relative_summary_and_exact_owner_borrow",
+      "coverage": "Both Payload storage variants, nonzero owner offsets, relative summaries and slice errors, payload-bound views outliving local proofs, and exact owner pointers."
+    },
+    {
+      "test": "every_payload_subspan_matches_independent_validation",
+      "coverage": "All ordered subspans of mixed-width payload bytes with malformed surrounding bytes; continuation starts, truncated ends, empty spans inside scalars, exact summaries, and owner-relative error rebasing."
+    },
+    {
+      "test": "payload_bounds_overflow_and_empty_ranges",
+      "coverage": "Empty and malformed payloads, every in-bounds empty range, EOF, out-of-bounds spans, arithmetic overflow, and error precedence before UTF-8 validation."
+    },
+    {
+      "test": "error_rebasing_is_checked_and_preserves_diagnostics",
+      "coverage": "Exact maximum absolute offset, rebasing overflow, canonical metadata and diagnostic preservation, and unchanged non-UTF-8 errors."
+    },
+    {
+      "test": "validate documentation compile_fail example",
+      "coverage": "A borrowed proof cannot outlive the local byte array it validates."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "source_review": "Reviewed against contracts/jmax-utf8.md, the frozen UTF-8 root, Wave 1 validation, Wave 2 streaming, and canonical ABI payload, span, and error definitions.",
+    "test_execution": "Not run, as explicitly instructed. Thirteen inline unit tests and one compile-fail documentation example are authored but unexecuted.",
+    "build_validation": "No cargo, rustc, rustfmt, build, or check command was run. Compilation and runtime validation remain unverified.",
+    "implementation_notes": "Safe immutable string borrows, allocation-free proof issuance, exact scalar summaries, checked owner lengths and span arithmetic, safe scalar-boundary slicing, checked owner-relative UTF-8 errors, and no additional dependencies.",
+    "ownership": "Only crates/jmax-utf8/src/proof.rs and reports/wave3/W3-08.json were written. No commit was created."
+  }
+}

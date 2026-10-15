@@ -1,0 +1,35 @@
+{
+  "worker_id": "W3-18",
+  "wave": 3,
+  "crate": "jmax-schema-vm",
+  "file": "crates/jmax-schema-vm/src/constraints.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn check_scalar(program: &ValidatedProgram, state: Option<StateId>, value: ScalarInput<'_>, budget: &mut VmBudget) -> Result<SlotValue>",
+    "pub fn check_count(constraints: &ConstraintSet, count: u32, offset: u32) -> Result<()>",
+    "pub fn check_pattern(program: &PatternProgram, text: &str, budget: &mut VmBudget, offset: u32) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Inclusive count bounds, absent bounds, reversed bounds, zero and u32::MAX, with raw closing-offset diagnostics.",
+    "Null produces a present RawSpan; booleans preserve values; Any and None accept natural scalar representations; malformed literal metadata fails.",
+    "Integer zero, signed values, i64::MIN, i64::MAX, the unsigned sign boundary, u64::MAX, and both adjacent overflows.",
+    "Integer bounds widen to i128, including negative maximum bounds and large u64 values; schema minimum and maximum are inclusive.",
+    "Malformed number grammar, leading plus and zeros, incomplete fractions and exponents, whitespace, Unicode digits, suffixes, exponent overflow, and arbitrarily many exponent leading zeros.",
+    "Number always produces F64Bits; unconstrained integral overflow uses floating conversion; nonfinite results obey NumericPolicy.",
+    "Negative zero in integer, fraction, exponent, and floating underflow forms; relaxed negative-zero policy; zero exponent-magnitude boundary.",
+    "Quoted integers require opt-in, validate decoded strict integer grammar, accept escaped digits, and reject malformed text or noninteger grammar.",
+    "String length uses Unicode scalar counts for multibyte characters, emoji, and combining marks while preserving raw or decoded owner references.",
+    "All JSON escapes, paired UTF-16 surrogates, unpaired surrogates, malformed escapes, raw control characters, embedded quotes, and disagreement between raw tokens and decoded strings.",
+    "Overflowing and out-of-bounds spans, missing or unexpected decoded references, incorrect scalar counts, invalid UTF-8, invalid state IDs, and scalar/container type mismatches.",
+    "Exact decimal rescaling, inclusive bounds at different scales, precision overflow, tick failures, inexact rescale rejection, disabled exponents, arithmetic overflow, and raw token offsets.",
+    "Explicit decimal truncation toward zero, both i128 coefficient endpoints, exponent rescaling, zero-disabled ticks under the canonical decimal contract, and invalid negative ticks.",
+    "Decimal schemas accept decoded JSON strings including escaped digits and reject unquoted JSON numbers; decoded error positions are never added to raw offsets.",
+    "Unicode patterns, unanchored search, anchors, empty matches, character classes, newline exclusions, malformed programs, and scratch release on match and nonmatch.",
+    "Pattern execution uses the same remaining VM steps across calls, preserves local-pattern and caller budget failures, and enforces a scratch ceiling.",
+    "All ten format identifiers, custom hex case/prefix/length, NanoId length, base64 padding and canonical bits, format input limits, and escaped-input raw-token diagnostics.",
+    "Combined string checks execute length, pattern, then format validation without silently skipping a failure.",
+    "Zero scalar work allowance, numeric work exhaustion, an exact format-work boundary, shared-budget depletion, and decimal work exhaustion never publish a slot."
+  ],
+  "status": "Implementation complete with 19 inline deterministic tests and manual source review. Tests were not executed. No cargo, rustc, rustfmt, build, check, or commit commands were run. Only the assigned source and report were written. Uses frozen root and ABI types, no unsafe code, and only permitted dependencies. Runtime string-byte and numeric-digit ceilings remain enforced by the existing execute module, whose VmLimits are not part of the frozen constraint signatures. Pattern scratch reservation was aligned with the available patterns::is_match implementation. Integration relies on the frozen Wave 4 image-validation, extraction, and format-registry modules, which were not present during this task."
+}

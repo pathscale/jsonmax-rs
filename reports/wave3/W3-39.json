@@ -1,0 +1,24 @@
+{
+  "worker_id": "W3-39",
+  "wave": 3,
+  "crate": "jsonmax",
+  "file": "crates/jsonmax/src/encode.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "to_vec",
+    "to_string",
+    "to_sink",
+    "document_to_vec",
+    "escape_string"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "valid scalar and nested typed JSON output",
+    "malformed syntax, trailing content, invalid UTF-8, and empty output errors with Encode source and offsets",
+    "output cap and exact escaping-boundary behavior",
+    "destination unchanged on encoder and validation failures; appends after reserve on success",
+    "minimal quote, reverse-solidus, control, slash, and Unicode escaping",
+    "document rebuild/table mismatch and decoded-string emission"
+  ],
+  "status": "implemented; no build or tests run per instruction"
+}

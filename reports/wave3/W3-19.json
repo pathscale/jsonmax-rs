@@ -1,0 +1,77 @@
+{
+  "worker_id": "W3-19",
+  "wave": 3,
+  "crate": "jmax-format",
+  "file": "crates/jmax-format/src/identity.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_nanoid(input: &[u8], len: u8) -> FormatResult<()>",
+    "pub fn validate_address(input: &[u8]) -> FormatResult<()>",
+    "pub fn validate_transaction_hash(input: &[u8]) -> FormatResult<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 12,
+    "execution": "Not run. The task prohibits cargo, rustc, rustfmt, and all build/check commands. Source and deterministic test vectors were reviewed by reading only.",
+    "implementation_properties": [
+      "Only the assigned module and this handoff report were written; frozen root definitions, contracts, dependencies, and ABI files were preserved.",
+      "Validators use the frozen FormatResult, FormatFailure, FormatFailureKind, HexPolicy, and HexCase types.",
+      "NanoId requires a nonzero configured byte length and accepts exactly ASCII letters, decimal digits, underscore, and hyphen.",
+      "Address and transaction hash delegate to binary::validate_hex with prefix=true, case=Any, and exact_bytes=20 or 32 respectively, mapping the successful count to unit and preserving failures.",
+      "Length failures precede content failures and use the input-end index; content failures name the first invalid byte relative to the supplied slice. FormatFailure::new supplies saturating index conversion.",
+      "Validation uses no allocations, unsafe code, external dependencies, decoding, platform services, or mutable global state, and runs in linear time with constant auxiliary memory.",
+      "Public documentation limits acceptance to lexical validity and makes no entropy, uniqueness, chain, checksum, signature, existence, or authorization claim."
+    ],
+    "cases": [
+      {
+        "test": "nanoid_accepts_deterministic_vectors_and_the_complete_alphabet",
+        "coverage": "Single-character category boundaries, _-0123456789aAzZ, V1StGXR8_Z5jdHi6B-myT, repeated underscores, all 64 alphabet bytes, and 255 repeated hyphens."
+      },
+      {
+        "test": "nanoid_checks_every_configured_length_and_all_nearby_input_lengths",
+        "coverage": "Every configured length 1 through 255 against every input length 0 through 256, using both valid and invalid contents; verifies exact-length acceptance and length-before-content error precedence."
+      },
+      {
+        "test": "nanoid_zero_length_is_always_invalid",
+        "coverage": "Zero configured length against input lengths 0 through 256, including empty and invalid-byte inputs; all fail with InvalidLength at the slice end."
+      },
+      {
+        "test": "nanoid_checks_every_byte_at_every_position_in_boundary_lengths",
+        "coverage": "All 256 byte values at every position of lengths 1, 21, and 255, with membership determined independently from the complete alphabet and exact error indices."
+      },
+      {
+        "test": "nanoid_rejects_unicode_raw_escapes_quotes_and_whitespace",
+        "coverage": "Leading, trailing, and embedded whitespace, CRLF, NUL, invalid UTF-8, accented and fullwidth letters, emoji, nonbreaking space, raw JSON escape spelling, JSON quotes, and base64-only punctuation; confirms lengths count bytes."
+      },
+      {
+        "test": "nanoid_reports_the_first_invalid_byte_after_the_length_check",
+        "coverage": "Competing invalid bytes, failures at the first and last byte, and a wrong-length input containing multiple invalid bytes."
+      },
+      {
+        "test": "fixed_formats_accept_zero_maximum_and_unrestricted_hex_cases",
+        "coverage": "Concrete 40-digit address and 64-digit hash vectors, zero values, all lowercase and uppercase maximum values, and arbitrary mixed-case hex without checksum enforcement."
+      },
+      {
+        "test": "fixed_formats_reject_all_wrong_lengths_before_prefix_or_digits",
+        "coverage": "Every length 0 through 132 for each fixed format, with both a correct and incorrect first prefix byte; verifies exact 42-byte and 66-byte totals and length failure indices."
+      },
+      {
+        "test": "fixed_formats_check_every_byte_in_both_prefix_and_all_digit_positions",
+        "coverage": "All 256 byte values at each of all 42 address and 66 hash positions, including exact lowercase prefix enforcement, all hex cases, non-ASCII bytes, controls, separators, and punctuation."
+      },
+      {
+        "test": "fixed_formats_reject_wrappers_missing_prefix_and_extra_content",
+        "coverage": "Missing prefix, prefix-only and empty inputs, appended space, newline and NUL, quoted values, prepended whitespace, and rejection when an address is supplied as a hash or a hash as an address."
+      },
+      {
+        "test": "fixed_formats_report_the_first_prefix_or_digit_failure",
+        "coverage": "Multiple simultaneous errors at both prefix bytes, the first digit, and the last digit, corrected in sequence to verify deterministic first-error indices."
+      },
+      {
+        "test": "validators_observe_subslice_boundaries_and_relative_error_indices",
+        "coverage": "NanoId, address, and hash slices surrounded by invalid sentinels; truncated and empty slices; relative prefix and digit error indices; fixed-format inputs ending exactly at the backing-array boundary."
+      }
+    ]
+  },
+  "status": "implemented; source reviewed manually; tests not run per task restriction"
+}

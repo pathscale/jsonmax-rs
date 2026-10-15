@@ -1,0 +1,35 @@
+{
+  "worker_id": "W3-07",
+  "wave": 3,
+  "crate": "jmax-scan-avx512",
+  "file": "crates/jmax-scan-avx512/src/structural.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks"
+  ],
+  "unsafe_justifications": [
+    "The public safe entry point calls the private target-feature function only on x86 or x86_64 after the root is_supported function establishes AVX-512F and AVX-512BW support. The root checks OS-enabled state with std and statically enabled features without std.",
+    "The private AVX-512 implementation uses one unaligned 64-byte load from a complete borrowed [u8; BLOCK_BYTES] array. No alignment, extra padding, or out-of-bounds access is required. The load has an explicit unsafe block, satisfying the root unsafe_op_in_unsafe_fn policy.",
+    "AVX-512 byte comparisons use native 64-bit predicate masks and only AVX-512F plus AVX-512BW. Architecture-specific imports and implementation are cfg-gated. The scalar fallback is local, allocation-free, safe, and available on every target.",
+    "Tests directly call the private SIMD implementation only after the same CPU and OS support check. Alignment test arrays are created by safe slice-to-array reference conversion."
+  ],
+  "test_vectors": [
+    "Exact ten-field literal mask expectations and frozen public function signature.",
+    "All 256 uniform byte values, including all-zero, all-high-bit, and unclassified blocks.",
+    "Every byte value independently at every one of 64 positions, compared against an independent predicate oracle for scalar, safe dispatch, and supported SIMD paths.",
+    "Adjacent masks around positions 1, 8, 16, 32, 48, and 63, plus alternating digit and high-byte masks.",
+    "256 deterministic odd-stride byte permutations and 512 fixed-seed mixed blocks.",
+    "Whitespace/control overlap and unsigned boundaries at 0x1f/0x20, 0x2f/0x30, 0x39/0x3a, and 0x7f/0x80.",
+    "Raw punctuation inside quotes, invalid escapes, invalid UTF-8, and non-ASCII whitespace and digit encodings.",
+    "All 64 address offsets modulo vector alignment, exact array references, endpoint masks, and input preservation.",
+    "Root assembly integration for lengths 0 through 64, padding clipping, raw-mask preservation, and string exclusion.",
+    "Root assembly error paths for lengths 65, 127, 128, 255, 256, and usize::MAX, asserting canonical error metadata and unchanged raw masks. The structural classifier itself has no error path."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "written, not executed",
+    "validation": "Source reviewed against the frozen contract and prior-wave modules. No build, check, formatting, compiler, or test command was run, as requested.",
+    "scope": "Only the assigned structural.rs and this report were written.",
+    "integration": "Uses root-owned StructuralMasks, BLOCK_BYTES, and is_supported without ABI or manifest changes. Wave 4 tails.rs remains owned by its assigned worker."
+  }
+}

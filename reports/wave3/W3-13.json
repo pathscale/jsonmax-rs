@@ -1,0 +1,98 @@
+{
+  "worker_id": "W3-13",
+  "wave": 3,
+  "crate": "jmax-cursor",
+  "file": "crates/jmax-cursor/src/select.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn extract(payload: Payload, plan: &SelectorPlan, mode: SkipMode, limits: Limits) -> Result<SelectedValues>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "root_terminals_cover_all_kinds_and_exclude_surrounding_whitespace",
+      "coverage": "All six value kinds, empty containers and strings, complete root spans, surrounding whitespace, strict/query validation flags, and out-of-range accessors."
+    },
+    {
+      "test": "shared_prefixes_capture_ancestors_descendants_and_multiple_terminal_slots",
+      "coverage": "Root, array, object, and descendant terminals share one traversal; multiple slots retain identical decoded string references."
+    },
+    {
+      "test": "indices_count_immediate_children_and_missing_is_distinct_from_null",
+      "coverage": "Nested containers count as one array element; first, last, absent, and u32::MAX indices; present null differs from missing."
+    },
+    {
+      "test": "segment_type_mismatches_are_missing_paths",
+      "coverage": "Key/index type mismatches and paths through scalars, empty arrays, and empty objects produce missing slots."
+    },
+    {
+      "test": "decoded_keys_match_exactly_without_normalization_or_string_coercion",
+      "coverage": "Escaped ASCII, composed and decomposed Unicode, empty keys, NUL, surrogate pairs, numeric text keys, and case sensitivity."
+    },
+    {
+      "test": "string_references_are_preserved_and_survive_all_input_and_plan_owners",
+      "coverage": "Raw and decoded references match the canonical event stream; decoded key arena prefixes, Unicode, control escapes, empty strings, owned input, and cloned output lifetimes."
+    },
+    {
+      "test": "duplicate_members_fill_each_slot_at_its_first_complete_match",
+      "coverage": "Permitted duplicate decoded keys preserve earlier complete selections while later members fill previously missing descendant slots."
+    },
+    {
+      "test": "shared_dag_targets_follow_document_order_not_graph_order",
+      "coverage": "Object and array selector parents share a target; input order determines each slot's first complete value independently."
+    },
+    {
+      "test": "query_stops_only_after_a_complete_match_and_keeps_the_entire_payload",
+      "coverage": "Query preserves the original payload owner and malformed unconsumed suffix, waits for complete containers, and rejects malformed selected values; strict mode propagates suffix errors."
+    },
+    {
+      "test": "zero_slots_query_is_unvalidated_but_still_enforces_payload_limits",
+      "coverage": "Zero-slot queries accept unconsumed empty or malformed input with a false validation flag; strict mode validates; zero payload limits remain enforced."
+    },
+    {
+      "test": "missing_slots_force_query_to_validate_the_suffix",
+      "coverage": "Missing selections require complete validation in both modes, including trailing content and malformed unselected subtrees."
+    },
+    {
+      "test": "syntax_errors_preserve_exact_source_offset_and_detail",
+      "coverage": "Empty and truncated documents, malformed delimiters, literals and numbers, invalid escapes, lone surrogates, invalid UTF-8, control bytes, duplicate keys, and trailing content preserve exact parser errors."
+    },
+    {
+      "test": "inclusive_limits_apply_even_to_unselected_values",
+      "coverage": "Inclusive payload, depth, array item, object field, string byte, number digit, and decoded arena limits, including zero boundaries."
+    },
+    {
+      "test": "deep_selector_and_container_paths_use_an_iterative_stack",
+      "coverage": "1,024 nested arrays and selector edges with a terminal at every level verify complete ancestor spans without recursive traversal."
+    },
+    {
+      "test": "maximum_slot_count_and_many_alias_slots_capture_the_same_value",
+      "coverage": "65,536 slots on one terminal, identical results, final valid slot, and first out-of-range slot in both modes."
+    },
+    {
+      "test": "container_span_arithmetic_checks_representation_boundaries",
+      "coverage": "Minimum container spans, u32::MAX exclusive end, overflow, reversed delimiters, and exact local error source and offset."
+    },
+    {
+      "test": "allocation_capacity_failure_preserves_storage_and_reports_current_offset",
+      "coverage": "Deterministic Vec capacity overflow maps to BudgetExhausted without a large allocation, preserving storage and the absolute error offset."
+    },
+    {
+      "test": "impossible_graph_and_capture_states_return_local_errors",
+      "coverage": "Invalid graph dimensions, non-advancing and out-of-range targets, invalid terminal slots, remaining-slot underflow, and capture idempotence."
+    },
+    {
+      "test": "impossible_value_order_and_array_counter_overflow_are_errors",
+      "coverage": "Repeated roots, object values without keys, array counter overflow, and pending unmatched keys."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Source and test vectors reviewed by inspection against frozen cursor and ABI interfaces and prior cursor wave modules.",
+    "test_execution": "Not run, as explicitly instructed.",
+    "build_execution": "No cargo, rustc, rustfmt, build, check, or commit commands were run.",
+    "scope": "Only crates/jmax-cursor/src/select.rs and reports/wave3/W3-13.json were written.",
+    "integration": "Uses the frozen walk and SyntaxState APIs; no dependency, root, contract, ABI, or ownership file changes."
+  }
+}

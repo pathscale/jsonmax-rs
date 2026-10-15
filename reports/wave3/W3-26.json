@@ -1,0 +1,89 @@
+{
+  "worker_id": "W3-26",
+  "wave": 3,
+  "crate": "jmax-codegen-spec",
+  "file": "crates/jmax-codegen-spec/src/protocol.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn openapi(services: &[ServiceSpec], registry: &TypeRegistry, visibility: Visibility<'_>, options: &DocumentOptions) -> Result<GeneratedDocument>",
+    "pub fn asyncapi(services: &[ServiceSpec], registry: &TypeRegistry, visibility: Visibility<'_>, options: &DocumentOptions) -> Result<GeneratedDocument>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "empty_catalogs_have_exact_deterministic_documents",
+      "coverage": "Exact OpenAPI 3.1.0 and AsyncAPI 3.0.0 JSON bytes, media types, omitted servers, and one final newline."
+    },
+    {
+      "test": "openapi_projects_closed_request_and_immediate_response_separately",
+      "coverage": "Ordered POST paths, shared tool identities, descriptions, service tags, required JSON requests, closed field schemas, response 200, streaming extensions, u32::MAX codes, exact i64 limits, and absent stream omission."
+    },
+    {
+      "test": "asyncapi_only_exposes_streams_with_resolving_channel_and_message_references",
+      "coverage": "Streaming-only channel and operation order, RPC addresses, result payloads, send actions, and JSON Pointer resolution to channels and result messages."
+    },
+    {
+      "test": "visibility_is_exact_preserves_order_and_never_leaks_hidden_metadata",
+      "coverage": "Public, All, exact role intersection, case sensitivity, empty role grants, hidden metadata exclusion, and unary-only AsyncAPI catalogs."
+    },
+    {
+      "test": "every_generated_byte_is_charged_including_unicode_references_and_final_newline",
+      "coverage": "Exact output limit succeeds, one byte less fails, zero and small limits fail, UTF-8 byte accounting, escaping expansion, server data, and recursive reference overhead."
+    },
+    {
+      "test": "recursive_definitions_resolve_at_every_distinct_embedded_schema_location",
+      "coverage": "Self and mutual recursion, struct tables, reachable local definitions, escaped OpenAPI path and content-type pointer components, distinct request/response/stream locations, and AsyncAPI payload locations."
+    },
+    {
+      "test": "inline_definitions_are_catalog_wide_and_only_reachable_definitions_are_emitted",
+      "coverage": "Visible schemas resolve named definitions declared in hidden endpoints, while unrelated definitions and hidden endpoint metadata remain absent."
+    },
+    {
+      "test": "all_wire_types_match_the_shared_json_schema_projection",
+      "coverage": "Every EndpointType variant, NanoId lengths 1 and 255, optional arrays, registered inline definitions, enum signed extrema, prefixed enum names, and schema equivalence with Wave 2 after reference relocation."
+    },
+    {
+      "test": "malformed_catalogs_are_rejected_before_any_visibility_or_stream_filtering",
+      "coverage": "Hidden unresolved references, invalid NanoId length, duplicate codes and fields, and endpoint service mismatches return canonical errors."
+    },
+    {
+      "test": "registry_kinds_duplicates_conflicts_and_unresolved_edges_use_canonical_errors",
+      "coverage": "Wrong registry kinds, invalid identifiers, duplicate definitions and fields, duplicate enum values, missing and wrong-kind references, accepted exact registered copies, and rejected conflicting or repeated inline definitions."
+    },
+    {
+      "test": "inline_depth_boundaries_and_large_limits_do_not_overflow",
+      "coverage": "Zero depth rejection, depth-one primitives, hidden depth violations, exact nested depth success, u16::MAX options, and nonwrapping child-depth arithmetic."
+    },
+    {
+      "test": "deeply_nested_structures_use_explicit_stacks_and_named_cycles_do_not_add_depth",
+      "coverage": "256 owned array wrappers, exact structural depth limits, explicit traversal, and named recursion within a depth-two registry."
+    },
+    {
+      "test": "valid_server_urls_preserve_openapi_urls_and_split_asyncapi_authorities",
+      "coverage": "HTTP and HTTPS, case-insensitive schemes, ports 0 and 65535, IPv4, bracketed IPv6, IPv4-mapped IPv6, userinfo, percent escapes, base path retention, and host extraction independent of query and fragment."
+    },
+    {
+      "test": "malformed_or_unsupported_server_urls_are_always_rejected",
+      "coverage": "Relative and empty URLs, unsupported schemes, missing hosts, malformed ports, controls, spaces, backslashes, malformed percent escapes, malformed IP literals, duplicate authority separators, and repeated fragment delimiters."
+    },
+    {
+      "test": "full_json_string_escaping_preserves_every_control_and_unicode_value",
+      "coverage": "All ASCII control characters, quote and backslash escapes, Unicode and emoji metadata, arbitrary field keys, and JSON Pointer token escaping."
+    },
+    {
+      "test": "writer_enforces_append_bounds_and_exact_signed_integer_text",
+      "coverage": "Exact signed integer text, u32::MAX, atomic rejected appends, UTF-8 byte boundaries, empty appends at capacity, and allocation failure error classification."
+    },
+    {
+      "test": "stable_input_preserves_service_endpoint_role_and_field_order_without_mutation",
+      "coverage": "Repeated byte stability, multiple services, endpoint and field order, role order, outer optionality, nested nullable array items, and input immutability."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "17 test functions written; not executed",
+    "validation": "Source reviewed against the frozen contract, ABI, and prior-wave schema behavior. No build, check, compiler, formatter, test, or commit command was run, as instructed.",
+    "scope": "Only protocol.rs and this handoff report were written.",
+    "runtime": "no_std plus alloc; no new dependencies, I/O, global state, or unsafe code"
+  }
+}

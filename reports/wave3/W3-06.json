@@ -1,0 +1,86 @@
+{
+  "worker_id": "W3-06",
+  "wave": 3,
+  "crate": "jmax-scan-avx2",
+  "file": "crates/jmax-scan-avx2/src/structural.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks"
+  ],
+  "unsafe_justifications": [
+    {
+      "site": "classify_structural -> classify_avx2",
+      "justification": "The safe entry point independently calls the root is_supported detector before entering AVX2 code. Architecture imports and target-feature helpers are private and cfg-gated to x86 and x86_64. Unsupported targets use the local, allocation-free scalar implementation."
+    },
+    {
+      "site": "classify_avx2",
+      "justification": "The fixed-array reference guarantees 64 readable bytes. Two unaligned 32-byte loads at offsets 0 and 32 remain entirely inside that array. Pointer addition stays within the object. Both lane calls inherit the established AVX2 precondition."
+    },
+    {
+      "site": "classify_lane",
+      "justification": "This private target-feature helper uses only AVX2 value intrinsics and accesses no memory. Unsigned byte minima implement control and digit range predicates, wrapping byte subtraction normalizes ASCII digits, and the input sign bits identify non-ASCII bytes. Each signed movemask converts through u32 before widening to u64, preventing lane sign extension."
+    },
+    {
+      "site": "tests::assert_paths",
+      "justification": "Direct AVX2 comparisons are compiled only on x86 architectures and guarded by is_supported. Every test input is a complete 64-byte array. The scalar implementation is exercised explicitly on every target."
+    }
+  ],
+  "test_vectors": [
+    {
+      "test": "exact_signature_and_known_masks",
+      "coverage": "Frozen function signature and explicit expected values for all ten masks in a mixed ASCII, control, digit, and non-ASCII block."
+    },
+    {
+      "test": "every_uniform_byte_value_matches_all_paths",
+      "coverage": "All 256 uniform byte blocks, including explicit all-zero, all-0xff, and unclassified ASCII expectations."
+    },
+    {
+      "test": "every_byte_at_every_position_is_isolated",
+      "coverage": "All 256 byte values at all 64 positions, totaling 16384 isolated byte cases compared with an independent predicate oracle."
+    },
+    {
+      "test": "lane_sign_bits_and_endpoints_do_not_contaminate_other_positions",
+      "coverage": "Pairs involving positions 0, 31, 32, and 63, plus independently filled low and high lanes for each class."
+    },
+    {
+      "test": "unsigned_range_boundaries_and_whitespace_overlap_are_exact",
+      "coverage": "Control, whitespace, digit, DEL, and high-bit boundaries; tab, CR, and LF overlap; exclusion of high-bit aliases from ASCII classes."
+    },
+    {
+      "test": "rotated_byte_ramps_and_deterministic_mixed_blocks_match",
+      "coverage": "256 wrapping byte ramps and 512 deterministic mixed blocks using xorshift seed 0x8d124f6a39c7b5e1."
+    },
+    {
+      "test": "all_vector_alignments_use_only_the_borrowed_block",
+      "coverage": "All 32 address alignments, surrounding punctuation sentinels, exact endpoint masks, and unchanged input storage."
+    },
+    {
+      "test": "quotes_backslashes_and_unicode_classes_are_not_structural_classes",
+      "coverage": "Quotes, backslashes, other nonclass ASCII bytes, UTF-8 NBSP and em space, Arabic-Indic zero, and fullwidth nine."
+    },
+    {
+      "test": "malformed_json_and_utf8_remain_infallible_raw_classification",
+      "coverage": "Malformed punctuation, unfinished strings, invalid escapes, embedded controls, overlong UTF-8, surrogate encoding, and invalid high bytes."
+    },
+    {
+      "test": "raw_classes_inside_strings_survive_pipeline_filtering",
+      "coverage": "Raw masks remain present inside quoted content while the enclosing scanner filters structural punctuation and preserves opaque UTF-8 carry."
+    },
+    {
+      "test": "every_pipeline_length_clips_all_raw_classes_and_zero_padding",
+      "coverage": "Every length from 0 through 64 for mixed, unclassified ASCII, and zero blocks; all ten raw masks clip to the real length."
+    },
+    {
+      "test": "enclosing_scanner_errors_preserve_carry_and_error_metadata",
+      "coverage": "The structural API has no error path by contract. Integration assertions cover oversized input, noncanonical quote carry, length-error precedence, scanner error metadata, and unchanged carry on failure."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "12 tests written; not executed",
+    "review": "Source and deterministic expectations reviewed by inspection against the frozen contract, root definitions, canonical ABI, and prior-wave implementations.",
+    "execution": "No cargo, rustc, rustfmt, build, check, test, or git commit command was run.",
+    "integration": "The root declares the separately owned Wave 4 tails module. Its source was absent when the crate directory was inspected; no replacement or stub was created.",
+    "scope": "Only crates/jmax-scan-avx2/src/structural.rs and reports/wave3/W3-06.json were written."
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "worker_id": "W3-32",
+  "wave": 3,
+  "crate": "jmax-exchange",
+  "file": "crates/jmax-exchange/src/snapshot.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub const SLOT_LAST_UPDATE_ID: usize = 0",
+    "pub const SLOT_BIDS: usize = 1",
+    "pub const SLOT_ASKS: usize = 2",
+    "pub const SLOT_COUNT: usize = 3",
+    "pub fn schema_ir() -> SchemaIr",
+    "pub fn decode_snapshot(payload: Payload, profile: &ExchangeProfile, validator: &mut dyn ExchangeValidator) -> Result<SnapshotMessage>",
+    "pub fn unwrap_payload(payload: Payload, policy: WrapperPolicy, limits: Limits) -> Result<UnwrappedPayload>"
+  ],
+  "unsafe_justifications": [
+    {
+      "site": "decode_snapshot: ParsedMessage::new_proven",
+      "justification": "The validator receives the complete original payload. Original bytes, proof payload and decoded lengths, profile fingerprint, decoded arena budget, exact slot count and kinds, and checked raw spans are verified before publication. Independent strict traversal through EOF validates the complete wrapper and snapshot, binds each asserted slot to its wire value or absolute book span, and validates every book level using the existing depth helper and supplied decimal policies. Original validator payload, decoded arena and proof move intact into the message. SnapshotValues emits no StrRef and owns every Decimal128 book value, retaining no cursor, scratch or inner-payload reference."
+    },
+    {
+      "site": "tests::TestValidator::validate: ValidationProof::issue_unchecked",
+      "justification": "Only the test validator issues proofs. Strict extraction and semantic inspection complete successfully before proof issuance, checked conversions establish exact buffer lengths, the cursor validates decoded strings, and the same payload, decoded arena and slots are returned under the frozen snapshot/profile fingerprint. Production code never issues a proof."
+    }
+  ],
+  "test_vectors": {
+    "inline_test_count": 24,
+    "execution": "Not executed. The task prohibits build, test, formatting, and check commands.",
+    "coverage": [
+      "Frozen spot_rest_depth_v1 schema, SNAPSHOT_SCHEMA_ID, field IDs, required membership, scalar kinds, and absent optional constraints",
+      "REST fixture with lastUpdateId 1027024, exact eight-place prices and quantities, and retained zero ask quantity",
+      "Original Shared and Bytes payload pointer identity and schema fingerprint retention",
+      "Empty sides, update ID zero, source level order, duplicate levels, and normalized negative-zero quantities",
+      "u64::MAX acceptance; empty, signed, fractional, exponent, leading-zero, overflowing, and invalid-span integer failures with offsets",
+      "Reordered and escaped field names and escaped numeric strings",
+      "Combined-stream member order, escaped wrapper keys and stream names, original absolute book spans, and Either acceptance",
+      "Every bid and ask level checked for exact two-string array shape, JSON type, decimal grammar, positive price and nonnegative quantity",
+      "Decimal precision, exact scale, price and quantity ticks, exponent policies, truncation toward zero, 38-digit coefficients and overflow",
+      "Profile validation and payload byte ceilings precede validator invocation; exact payload boundary succeeds",
+      "Independent side ceilings, two-item level arrays, inclusive depth, object field counts and number digit limits",
+      "Missing, extra, empty, wrong-kind, mismatched, swapped, empty-span and out-of-range slots rejected",
+      "Changed original owners, same-length changed payload bytes, proof length mismatch and incorrect fingerprints rejected",
+      "Original decoded arena allocation retained and decoded arena byte ceiling enforced",
+      "Validator error code, source, byte offset and schema/field context preserved",
+      "Required wire members, wrong token kinds, unknown keys and duplicate decoded keys rejected even with permissive key flags",
+      "Independent traversal rejects mismatched ID assertions and every nonwhitespace trailing suffix without issuing a new proof",
+      "Bare utility returns original allocation and whitespace with no synthesized stream",
+      "Wrapped utility copies exactly the lexical data object and owns the decoded stream; separate Bare decoding succeeds",
+      "Utility validates JSON and wrapper structure while leaving exchange schema and decimal validation to a subsequent decode",
+      "Malformed wrappers, missing keys, empty or wrong-type streams, nonobject data, extra keys and duplicate escaped keys never fall back to bare",
+      "Wrapper depth, field counts, stream string bytes, payload bytes, nested array items and number digits honor Limits",
+      "Unicode stream decoding, surrogate pairs, UTF-8 byte/scalar distinction and exact decoded arena byte boundaries",
+      "Unselected nested syntax, invalid UTF-8, lone surrogates, duplicate-key policy, malformed roots and strict end-of-input handling"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Source manually reviewed against contracts/jmax-exchange.md, the frozen exchange and ABI roots, prior depth/trade modules, cursor traversal and subtree APIs, and decimal policy interfaces.",
+    "validation": "No cargo, rustc, rustfmt, build, test, check, or git commit commands were run. Compilation and test execution remain unverified by instruction.",
+    "scope": "Only crates/jmax-exchange/src/snapshot.rs and reports/wave3/W3-32.json were written.",
+    "integration": "Uses the existing crate-private depth::read_book_levels helper and the frozen profiles::validate_profile, profiles::schema_fingerprint and profiles::validate_level interfaces. profiles.rs belongs to Wave 4 and was absent at handoff.",
+    "allocation": "Book storage uses the depth helper's fallible reservation. Wrapper stream strings and copied inner payload bytes use fallible reservation. Bare output retains its original payload allocation. Cursor traversal uses its own bounded storage for strict validation.",
+    "dependencies": "Only frozen exchange/ABI types, the allowed jmax-cursor dependency and the prior-wave depth helper are referenced. No manifest or shared root changes were made."
+  }
+}

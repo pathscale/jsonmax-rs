@@ -1,0 +1,30 @@
+{
+  "worker_id": "W3-03",
+  "wave": 3,
+  "crate": "jmax-dispatch",
+  "file": "crates/jmax-dispatch/src/portable.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn scalar() -> Dispatch",
+    "pub fn resolve(backend: BackendId) -> Result<Dispatch>"
+  ],
+  "unsafe_justifications": [
+    "No unsafe code; the module forbids unsafe_code.",
+    "Scalar construction directly binds jmax_scan_scalar::classify::classify without detection.",
+    "Every non-scalar resolution checks fresh detect::is_available before binding the corresponding safe module classifier. Backend entry points retain their independent native-execution safety checks."
+  ],
+  "test_vectors": [
+    "Explicit 17-byte vector asserts every BlockMasks field, escaped quotes, punctuation inside strings, control bytes, non-ASCII bytes, and opaque UTF-8 state through both scalar constructors.",
+    "All four backend IDs resolved three times against fresh availability, with exact unavailable-backend error metadata and no silent fallback. At least one incompatible architecture backend must be rejected.",
+    "Empty blocks with all four canonical quote-carry combinations preserve carry and dispatch identity while returning Scalar-tagged empty masks.",
+    "All block lengths 0 through 64 and all four canonical quote-carry combinations compare every mask and outgoing carry against scalar through both Dispatch::classify and the exported safe ABI pointer.",
+    "All 256 byte values with all four canonical quote-carry combinations exercise classification without syntax or UTF-8 validation.",
+    "Lengths 1, 15, 16, 17, 31, 32, 33, 63, and 64 assert exact padding masks and bit 63 behavior.",
+    "A string and odd backslash run span full 64-byte blocks and an intervening empty block before an escaped quote and closing delimiter.",
+    "Oversized lengths 65, 255, 256, 257, and 1024 preserve exact direct-backend errors and carry through both call paths; length errors precede invalid-carry errors and subsequent valid calls succeed.",
+    "Invalid carry values 2, 3, 255, 256, 2^63, and u64::MAX in either or both quote fields at lengths 0, 1, 63, and 64 preserve exact direct-backend errors and unchanged state.",
+    "Copied scalar dispatches support interleaved independent stream state.",
+    "Native classifier tests execute only for backends reported available by actual detection; no synthetic capabilities authorize execution."
+  ],
+  "status": "Implementation complete with 10 inline tests authored. Tests, compilation, formatting tools, and all build/check commands were not run, as requested. Only the assigned source and report paths were written."
+}

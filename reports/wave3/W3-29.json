@@ -1,0 +1,87 @@
+{
+  "worker_id": "W3-29",
+  "wave": 3,
+  "crate": "jmax-nagoya",
+  "file": "crates/jmax-nagoya/src/admission.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "Admission::new(AdmissionLimits) -> Result<Self>",
+    "Admission::limits(&self) -> AdmissionLimits",
+    "Admission::snapshot(&self) -> AdmissionSnapshot",
+    "Admission::try_acquire(&self, ResourceRequest) -> Result<AdmissionLease>",
+    "Admission::try_scratch(&self, ResourceRequest) -> Result<ScratchLease>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits build, check, formatting, and test commands. Source was reviewed manually against the frozen contract and root types.",
+    "inline_test_count": 16,
+    "cases": [
+      {
+        "test": "constructor_rejects_zero_jobs_and_preserves_valid_limits",
+        "coverage": "Reject max_jobs=0; accept jobs in [1,7,usize::MAX] and independent byte limits in [0,1,usize::MAX]; preserve limits and initial zero usage."
+      },
+      {
+        "test": "zero_job_requests_fail_before_any_capacity_reservation",
+        "coverage": "Both acquisition APIs reject jobs=0, including a full pool and maximum byte weights; canonical Decode errors retain zero offset and identifiers."
+      },
+      {
+        "test": "zero_byte_capacities_admit_only_zero_weights",
+        "coverage": "Zero byte limits reject positive retained or scratch weights; zero-weight requests consume only job credits and release independently."
+      },
+      {
+        "test": "exact_limits_release_and_reacquire_without_leaking_credits",
+        "coverage": "Sixteen acquire, reject, release, and reacquire cycles at limits (3,11,17), with differently sized simultaneous leases."
+      },
+      {
+        "test": "each_failure_stage_rolls_back_without_touching_existing_leases",
+        "coverage": "Job, byte, and scratch capacity or overflow failures with a live (2,3,5) lease; both APIs restore counters and Arc owner counts and permit exact remaining capacity."
+      },
+      {
+        "test": "maximum_weights_are_accounting_only_and_addition_never_wraps",
+        "coverage": "All counters accept usize::MAX without scratch allocation; overflowing additions fail and roll back; exact maximum sums and subsequent subtraction preserve accounting."
+      },
+      {
+        "test": "exhaustive_small_requests_match_checked_capacity_arithmetic",
+        "coverage": "Enumerate job limits 1..=3, byte limits 0..=2, every legal existing lease, and candidate requests from zero through each limit plus one. Compare all outcomes and post-drop snapshots to arithmetic expectations."
+      },
+      {
+        "test": "clones_share_usage_but_separate_pools_are_independent",
+        "coverage": "Clones observe and compete for one pool; independently constructed pools with identical limits retain separate counters."
+      },
+      {
+        "test": "lease_keeps_state_alive_after_every_pool_handle_is_dropped",
+        "coverage": "A lease preserves the shared state after dropping its Admission handle; the final lease drop removes the last strong owner."
+      },
+      {
+        "test": "scratch_is_fresh_and_clear_retains_capacities_and_reservation",
+        "coverage": "Fresh scratch has zero capacities; fallible small allocations populate all three buffers; clear resets lengths while preserving capacities and reservations; reacquisition receives fresh empty scratch."
+      },
+      {
+        "test": "simultaneously_held_scratch_leases_have_independent_state",
+        "coverage": "Mutating one scratch buffer does not affect another; dropping either lease releases only its own declared resources."
+      },
+      {
+        "test": "admitted_value_drops_before_its_reservation_is_released",
+        "coverage": "A result destructor observes its full live reservation and runs exactly once before counters return to zero."
+      },
+      {
+        "test": "moving_and_transferring_a_reservation_never_releases_it_early",
+        "coverage": "Admitted::into_parts and Option ownership transfers preserve all credits until the transferred lease drops."
+      },
+      {
+        "test": "reservations_are_released_on_early_error_return",
+        "coverage": "A post-acquisition error drops scratch and its reservation; all capacity can be reacquired."
+      },
+      {
+        "test": "public_owners_support_the_required_send_boundary",
+        "coverage": "Type assertions for Send + Sync Admission and Send + 'static plain leases, scratch leases, and admitted owned values."
+      },
+      {
+        "test": "unwinding_releases_plain_and_scratch_leases",
+        "coverage": "When panic unwinding is enabled, a deliberate panic with both lease types restores every counter and permits full reacquisition."
+      }
+    ],
+    "limitations": "Tests are deterministic and do not create workers. Actual concurrent CAS retry schedules have not been executed. No compilation or automated validation was performed."
+  },
+  "status": "Implementation and handoff complete; uncompiled and tests unexecuted as instructed. Checked CAS reserves jobs, retained bytes, then scratch bytes. An internal partial lease uses the frozen root Drop for exact rollback, and only complete leases are returned. Snapshots use Acquire loads. Production code uses no unsafe operations or additional dependencies and preserves no_std + alloc support. Only the assigned source and report were written."
+}

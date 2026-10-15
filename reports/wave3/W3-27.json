@@ -1,0 +1,86 @@
+{
+  "worker_id": "W3-27",
+  "wave": 3,
+  "crate": "jmax-wire",
+  "file": "crates/jmax-wire/src/dispatch.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn resolve_route<'a>(services: &'a [ServiceSpec], code: u32, roles: &[String]) -> Result<Route<'a>>",
+      "behavior": "Validates the complete registry before lookup: unique service IDs and names, globally unique endpoint codes and service/name identities, matching containing service, and nonempty unique endpoint and caller role entries. Public endpoints allow all valid role lists; protected endpoints require an exact any-role intersection. Returns borrowed original metadata only after authorization. Uses allocation-free pairwise comparisons."
+    },
+    {
+      "signature": "pub fn validate_params(request: &OwnedEnvelope, route: Route<'_>, validator: &dyn ParameterValidator) -> Result<ValidatedSlots>",
+      "behavior": "Requires EndpointRequest, sequence, code, and an in-bounds complete object span; rejects response-only fields, mismatched route code/service, and a present decoded method unequal to service.endpoint. Copies the exact raw object bytes through a fallibly reserved vector into an independent Payload. Invokes the endpoint validator once, propagates its errors unchanged, and rejects changed returned bytes or mismatched payload/decoded proof lengths with InternalError. Identical independently owned copies are accepted according to the ABI proof contract."
+    },
+    {
+      "signature": "pub fn decode_params<T: JsonDecode + SchemaProvider>(slots: &ValidatedSlots) -> Result<T>",
+      "behavior": "Compares the requested type's schema fingerprint with the slots proof before invoking decoding. Mismatch is SchemaImageInvalid. Matching decoder errors propagate unchanged."
+    },
+    {
+      "signature": "pub fn dispatch(request: &OwnedEnvelope, services: &[ServiceSpec], context: RequestContext<'_>, validator: &dyn ParameterValidator, handler: &dyn EndpointHandler) -> Result<Box<dyn JsonEncode + Send + Sync>>",
+      "behavior": "Preflights nonzero CPU, retained-byte, and timeout budgets and exact coverage of the whole request payload, then validates request shape, resolves and authorizes the route, validates parameters, and invokes the handler once. Preserves the original context and typed owned result. Does not retry, spawn, wait, perform I/O, or attempt synchronous timeout preemption."
+    }
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "dispatch.rs inline tests: ValueValidator::validate",
+      "operation": "ValidationProof::issue_unchecked",
+      "justification": "The sole unsafe block is test-only. Complete strict jmax-cursor traversal establishes whole-input syntax, UTF-8, and backing buffers. A one-field schema state machine requires exactly one string field named value and rejects unknown and duplicate keys. The retained payload and decoded arena are exact copies of cursor buffers, the sole StrRef resolves with an explicitly verified scalar count, and both proof lengths use checked u32 conversions. Negative ownership tests mutate safe public fields only after genuinely valid evidence has been issued. Production dispatch code contains no unsafe operations and never issues proofs."
+    }
+  ],
+  "test_vectors": [
+    {
+      "tests": [
+        "public_and_any_role_routes_borrow_the_original_metadata",
+        "distinct_service_identities_may_reuse_endpoint_names",
+        "complete_registry_is_validated_before_lookup_or_authorization",
+        "role_entries_are_nonempty_unique_and_exact"
+      ],
+      "coverage": "Public routes, any required role, unrelated grants, borrowed metadata identity, empty registries/services, zero and maximum IDs/codes, unknown codes, exact case/whitespace/wildcard handling, distinct services reusing endpoint names, repeated IDs/names/codes/identities, mismatched endpoint service, malformed unrelated metadata, duplicate or empty required and caller roles, and composed versus decomposed Unicode roles."
+    },
+    {
+      "tests": [
+        "exact_parameter_bytes_are_copied_and_survive_all_input_owners",
+        "raw_and_decoded_string_slots_include_empty_and_unicode_boundaries",
+        "methods_are_optional_exact_and_compared_after_unicode_decoding",
+        "wrong_route_code_and_service_are_rejected_before_validation"
+      ],
+      "coverage": "Both ABI payload storage variants, independent parameter allocation, preserved internal whitespace and escape spelling, owners surviving request destruction, empty/raw/escaped strings, embedded NUL, maximum Unicode scalar, surrogate pairs, escaped application keys, decoded arena offsets and scalar lengths, absent/raw/escaped methods, Unicode service and endpoint names, exact method separators and suffixes, and rejection before validator invocation for mismatched route code/service/method."
+    },
+    {
+      "tests": [
+        "request_shape_and_owner_checks_reject_inconsistent_internal_metadata",
+        "schema_unknown_missing_and_wrong_type_failures_preserve_validator_errors",
+        "duplicate_parameter_keys_and_escaped_aliases_never_reach_dispatch"
+      ],
+      "coverage": "All six endpoint response kinds and four MCP kinds rejected as requests, absent required fields, checked span overflow and out-of-bounds/empty/non-object spans, response-only fields, invalid method owners in both address spaces, required application fields, unknown keys before or after valid fields, scalar/container type mismatches, duplicate keys and escaped aliases, complete validator error metadata, and absence of handler calls on validation failure."
+    },
+    {
+      "tests": [
+        "altered_owners_are_rejected_but_identical_owned_copies_are_accepted",
+        "schema_fingerprints_gate_decoding_and_decoder_errors_are_unchanged"
+      ],
+      "coverage": "Same-length changed payload bytes, reformatted payloads, unchanged exact input bytes paired with shorter or longer genuinely issued proof lengths, extra decoded bytes, truncated nonempty decoded arenas, accepted identical copies in both ABI storage variants, schema mismatch rejected before a decoder sentinel, matching typed decoding, and unchanged decode errors."
+    },
+    {
+      "tests": [
+        "dispatch_calls_once_preserves_context_and_returns_an_owned_typed_encoder",
+        "dispatch_preserves_zero_and_full_width_request_identifiers",
+        "every_budget_boundary_is_enforced_before_routing_validation_or_handling",
+        "authorization_metadata_unknown_routes_and_methods_stop_before_extensions",
+        "validator_and_handler_failures_propagate_without_retry_or_wrapping"
+      ],
+      "coverage": "Single validator and handler calls, original roles/budget/route metadata, owned typed encoders and retained slots surviving all request/context/metadata owners, exact JSON output, zero and maximum sequence/code values, zero budgets, retained-byte limit minus one and exact request length, maximum budgets, budget failure before invalid route lookup, authorization and registry failures before extension calls, actual response envelopes rejected, and complete validator/handler error metadata preserved without retries. Actual allocator exhaustion is not induced."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source reviewed against contracts/jmax-wire.md, the shared wire root, canonical ABI root and relevant ABI modules, prior envelope/framed modules, and cursor traversal interfaces.",
+    "tests": "18 inline deterministic tests authored. Compilation and tests were not executed, as explicitly instructed.",
+    "commands": "No cargo, rustc, rustfmt, build, check, or git commit command was run.",
+    "scope": "Only crates/jmax-wire/src/dispatch.rs and reports/wave3/W3-27.json were written.",
+    "dependencies": "Production uses core, alloc, existing root helpers, and canonical ABI reexports. Inline tests additionally use the allowed jmax-cursor dependency. No manifest, shared root, ABI, contract, ownership file, or other worker file was edited.",
+    "integration": "Compilation and execution remain for the integration owner. ParameterValidator implementations remain responsible for complete endpoint-schema validation, rejection of unknown and duplicate keys, and correct slot/proof issuance. The dispatch boundary checks exact retained payload bytes and proof lengths; the frozen endpoint metadata has no independent schema fingerprint to compare with validator output. CPU and timeout values remain metadata for host accounting."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "worker_id": "W3-02",
+  "wave": 3,
+  "crate": "jmax-error",
+  "file": "crates/jmax-error/src/diagnostic.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "diagnostic::locate(input: &[u8], byte_offset: u32) -> Result<SourceLocation>",
+    "diagnostic::context(input: &[u8], byte_offset: u32, limits: ContextLimits) -> Result<ByteContext>",
+    "diagnostic::build(error: Error, input: &[u8], limits: ContextLimits) -> Result<Diagnostic>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "LF-only line advancement, including a boundary on LF and CR treated as an ordinary byte",
+    "Byte columns for invalid UTF-8 and multibyte byte sequences",
+    "Empty input and EOF locations",
+    "Out-of-range offsets return Cursor/InvalidToken at the requested offset",
+    "Context before/after window boundaries and exact span/focus coordinates",
+    "Start, EOF, and zero-width context windows, including focus equal to context length",
+    "Raw invalid UTF-8 preservation in owned context",
+    "Build preserves all original error fields, attaches location/context, and leaves paths absent",
+    "Build propagates location errors and stores only the bounded context copy"
+  ],
+  "status": "implemented; tests included but not run per instruction"
+}

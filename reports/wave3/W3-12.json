@@ -1,0 +1,122 @@
+{
+  "worker_id": "W3-12",
+  "wave": 3,
+  "crate": "jmax-syntax",
+  "file": "crates/jmax-syntax/src/feed.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn push(state: &mut SyntaxState, bytes: &[u8]) -> Result<()>",
+      "behavior": "Retains the complete chunk after checked payload growth and fallible reservation. Does not parse. Empty chunks are accepted before EOF. All pushes after EOF or successful finish fail, and the first error remains sticky."
+    },
+    {
+      "signature": "pub fn next(state: &mut SyntaxState) -> Result<ScanStep>",
+      "behavior": "Resumes monotonic token-boundary discovery, validates complete tokens, consumes silent punctuation through machine and frames, and emits exactly one event with the cursor immediately after its token. Handles strict JSON numbers and literals, UTF-8, string escapes, surrogate pairs, raw and decoded ownership, resource limits, EOF classification, and idempotent completion."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "push and sticky lifecycle",
+      "tests": [
+        "push_only_retains_bytes_and_empty_chunks_are_harmless",
+        "payload_growth_is_inclusive_atomic_and_sticky",
+        "eof_rejects_even_empty_pushes_and_finished_next_is_idempotent",
+        "first_failure_including_context_wins_over_flags_and_new_bytes"
+      ],
+      "coverage": "Unparsed invalid chunks, empty chunks, zero and exact payload ceilings, rejected growth without appended bytes, EOF and finished behavior, repeated completion, and preservation of original error metadata including schema and field context."
+    },
+    {
+      "area": "event and cursor integration",
+      "tests": [
+        "exact_events_offsets_and_silent_punctuation",
+        "pending_cursor_stays_after_consumed_colon_and_whitespace"
+      ],
+      "coverage": "Exact nested object/array/key/scalar events, spans, delimiter offsets, frame depth, silent commas and colons, whitespace consumption, and an incomplete number held at its start while scan_offset advances."
+    },
+    {
+      "area": "incremental boundaries",
+      "tests": [
+        "every_two_chunk_split_matches_the_complete_document",
+        "one_byte_feeds_preserve_carry_parity_and_decode_once",
+        "growing_plain_string_keeps_monotonic_scan_position",
+        "atoms_wait_for_boundaries_or_confirmed_eof"
+      ],
+      "coverage": "Every two-chunk split of scalar and nested documents, one-byte feeds splitting UTF-8 and UTF-16 escape pairs, odd and even backslash runs, a 1024-byte growing string, repeated NeedMore without arena mutation, and number/keyword boundary waiting."
+    },
+    {
+      "area": "string decoding and ownership",
+      "tests": [
+        "raw_and_escaped_strings_have_exact_owners_and_scalar_counts",
+        "references_survive_input_and_arena_growth"
+      ],
+      "coverage": "Empty strings, all JSON escapes, embedded NUL, Unicode scalar-width boundaries, mixed raw UTF-8 and escapes, minimum and maximum surrogate pairs, exact scalar counts, raw versus arena references, and reference stability through 512 subsequent escaped values."
+    },
+    {
+      "area": "strict atom grammar",
+      "tests": [
+        "strict_number_vectors_remain_raw_without_numeric_conversion",
+        "literal_spelling_and_boundaries_are_exact"
+      ],
+      "coverage": "Large raw integers and exponents, fractions, signs, leading zeros, malformed exponent and fraction forms, forbidden numeric spellings, exact lowercase literals, adjacent token suffixes, all four JSON whitespace bytes, and non-JSON whitespace rejection. Quoted digit sequences remain strings."
+    },
+    {
+      "area": "lexical string diagnostics",
+      "tests": [
+        "malformed_escapes_surrogates_and_controls_have_precise_offsets",
+        "all_keys_and_nested_values_are_lexically_validated",
+        "utf8_rejects_overlong_surrogate_out_of_range_and_truncated_sequences"
+      ],
+      "coverage": "Invalid escapes and hex digits, lone low and high surrogates, invalid pairs, every unescaped control byte, malformed keys and nested values, invalid UTF-8 lead and continuation bytes, overlong encodings, encoded surrogates, code points above U+10FFFF, and truncated UTF-8."
+    },
+    {
+      "area": "EOF and structural errors",
+      "tests": [
+        "eof_distinguishes_open_documents_strings_and_truncated_atoms",
+        "known_lexical_errors_win_over_missing_closing_quote_or_eof",
+        "trailing_content_wins_before_lexing_after_a_completed_root",
+        "structural_errors_and_missing_separators_are_not_accepted"
+      ],
+      "coverage": "Empty documents, open containers, missing values, unfinished literals and numbers, truncated escapes, unclosed strings, lexical-error precedence, trailing garbage, missing separators, mismatched delimiters, unquoted keys, and trailing commas."
+    },
+    {
+      "area": "inclusive resource ceilings",
+      "tests": [
+        "string_limits_count_raw_bytes_including_escape_spelling",
+        "arena_limit_is_cumulative_inclusive_and_does_not_charge_raw_strings",
+        "arena_overflow_identifies_the_exact_raw_utf8_byte",
+        "number_digit_limits_include_exponents_and_exclude_signs_and_punctuation",
+        "frame_limits_and_decoded_duplicate_keys_are_enforced"
+      ],
+      "coverage": "Zero and exact string limits, raw escape spelling lengths, incomplete oversized strings, key byte limits, cumulative arena budgets, multi-byte arena boundaries, all exponent digits, the exact u16 maximum number-digit count and one additional digit, depth zero, empty containers under zero count limits, and decoded duplicate-key equality."
+    },
+    {
+      "area": "error atomicity and chunk independence",
+      "tests": [
+        "rejected_strings_never_leave_partial_or_unpublished_arena_bytes",
+        "malformed_inputs_have_identical_errors_at_every_chunk_split"
+      ],
+      "coverage": "Lexical failures leave no partial decoded string, rejected escaped duplicate keys roll back unpublished arena bytes, frame counters and phases remain unchanged on rejection, and every split of representative malformed documents produces the same sticky error."
+    },
+    {
+      "area": "allocation and arithmetic failures",
+      "tests": [
+        "reservation_and_arena_arithmetic_boundaries_are_fallible",
+        "inconsistent_internal_carry_and_cursor_fail_without_indexing"
+      ],
+      "coverage": "Deterministic usize capacity overflow, unchanged storage contents, zero reservations, exact u32 arena end, checked arena overflow, configured arena ceilings, and defensive InternalError handling for inconsistent carry and cursor bounds."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "inline_test_count": 30,
+    "tests": "written, not executed",
+    "review": "Manually reviewed source against contracts/jmax-syntax.md, the syntax root, the ABI root and supporting error/span/syntax definitions, and the prior machine and frames implementations.",
+    "commands": "No cargo, rustc, rustfmt, build, check, test runner, or git commit command was run.",
+    "scope": "Only crates/jmax-syntax/src/feed.rs and reports/wave3/W3-12.json were written.",
+    "dependencies": "Uses the frozen root imports, existing machine and frames modules, core, and the existing alloc Vec. No dependencies added and no unsafe code or stubs introduced.",
+    "limitations": "Compilation and runtime behavior remain unverified under the requested command restriction. Reservation tests exercise deterministic capacity overflow; real allocator exhaustion is not injected.",
+    "integration": "The future finish module owns setting final_input. Feed never marks EOF itself and returns Finished only after an accepted root, empty frame stack, no pending token, and consumed trailing whitespace. Tests set the frozen EOF flag directly to remain independent of Wave 4. Escaped-scalar arena overflow offsets identify the source backslash; literal UTF-8 overflow offsets identify the exact excess raw byte. No schema validation proof is created."
+  }
+}

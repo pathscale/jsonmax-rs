@@ -1,0 +1,22 @@
+{
+  "worker_id": "W3-34",
+  "wave": 3,
+  "crate": "jmax-gen-cli",
+  "file": "crates/jmax-gen-cli/src/check.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "pub fn compare(output: &Path, plan: &GenerationPlan) -> CliResult<CheckReport>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Clean raw-byte comparisons in canonical manifest path order",
+    "Missing output root and missing normal ancestor produce Missing drift without filesystem creation",
+    "Exact, short, long, empty, and same-length-different byte sequences",
+    "Read sizes around the 8192-byte internal buffer boundary",
+    "Empty externally supplied plan compares cleanly with compared = 0",
+    "Case-colliding plan validation fails before output inspection",
+    "Output root file, destination directory, symlink destination, and symlink ancestor are rejected",
+    "Lexically invalid artifact path is rejected before destination reads"
+  ],
+  "status": "implemented; build and test commands were not run per instruction"
+}

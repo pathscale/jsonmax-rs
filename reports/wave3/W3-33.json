@@ -1,0 +1,59 @@
+{
+  "worker_id": "W3-33",
+  "wave": 3,
+  "crate": "jmax-compat",
+  "file": "crates/jmax-compat/src/schema.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn import_schema(input: &[u8], codec: &mut dyn LegacySchemaCodec, options: CompatOptions) -> Result<Conversion<SchemaIr>>",
+    "pub fn export_schema(schema: &SchemaIr, description: &str, codec: &mut dyn LegacySchemaCodec, options: CompatOptions) -> Result<Payload>",
+    "pub fn import_documentation(document: LegacyDocumentation, options: CompatOptions) -> Result<Conversion<LegacyDocumentation>>",
+    "pub fn export_documentation(title: &str, body: &str, options: CompatOptions) -> Result<LegacyDocumentation>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-compat/src/schema.rs::tests",
+    "inline_test_count": 25,
+    "execution": "Not executed, as instructed. No compiler, formatter, build, test, check, or commit command was run.",
+    "coverage": [
+      "Exact import preserves schema name, schema ID, required_count, reject_unknown, field order, full-width field IDs, required flags, scalar tags, supplied formats, and every numeric constraint.",
+      "Import transfers the original owned IR allocations and forwards the exact borrowed input pointer, all bytes, and the complete Limits value to the application codec.",
+      "Export supplies a separately owned exact LegacySchema with its description, preserves opaque NUL and non-UTF-8 output bytes, and does not apply JSON payload limits to schema artifacts.",
+      "Nonempty descriptions, including whitespace-only and Unicode descriptions, fail under Reject and produce exactly the contracted description warning under AllowDocumented; Conversion::map retains the warning.",
+      "Versions 0, 2, 255, and 65535 fail under both loss policies across all adapters; invalid option versions prevent codec invocation, and invalid codec/document wrapper versions cannot override valid options.",
+      "Empty schema and field names fail with MissingRequiredField; whitespace and exact case are preserved without trimming or normalization.",
+      "Nonadjacent duplicate FieldIds and field names fail with DuplicateObjectKey, including permissive duplicate-key settings and both loss policies.",
+      "Incorrect required_count values are rejected without repair; empty schemas accept zero required fields; 65535 required fields succeed and 65536 fail through checked counting. Total optional fields can exceed the u16 required-count range.",
+      "Inverted length and integer bounds and empty supplied format names fail with ConstraintViolation and schema/field context.",
+      "Inclusive equal bounds, absent bounds, lower-only and upper-only bounds, zero, u32::MAX, i64::MIN, and i64::MAX remain exact through import and export.",
+      "All five ScalarKind variants and None, absent formats, custom Unicode format names, and nonempty whitespace formats are preserved without synthesizing or interpreting constraints.",
+      "Schema input ceilings 0, 1, and 4 accept their exact boundary and reject one byte more before decoding; max_output_bytes does not constrain schema import.",
+      "Codec UnsupportedSchemaFeature, InvalidUtf8, TrailingContent, DepthLimitExceeded, DecodedArenaOverflow, BudgetExhausted, and Cancelled errors retain canonical codes, offsets, IDs, and static details while using SchemaCompile source.",
+      "Opaque schema output accepts exact and zero-byte ceilings, rejects excess, and supports a u32::MAX ceiling without eagerly allocating it.",
+      "Ignored or replaced sink write/reserve failures remain fatal; checked usize length overflow, subsequent empty operations, reservation length semantics, incremental writes, and unchanged storage after failure are asserted.",
+      "Documentation round trips preserve UTF-8 bytes, composed and decomposed Unicode, Markdown punctuation, CRLF and LF, NUL, tabs, spaces, empty bodies, and the imported String owners without warnings.",
+      "Documentation title and body share the byte budget: the two-byte title e-acute plus the three-byte body cat ideograph succeeds at five bytes and fails at four, independently testing import payload and output ceilings.",
+      "Empty documentation titles fail with MissingRequiredField even at a zero byte ceiling; nonempty titles fail zero ceilings; documentation export is bounded by output size without an input payload ceiling.",
+      "Documentation checked arithmetic handles zero, inclusive limits, u32::MAX, usize::MAX additions, and one-past-u32 limits without allocating huge strings.",
+      "Deterministic Vec capacity overflow returns BudgetExhausted without changing existing data; schema export/import fixture round trips isolate description loss from exact IR preservation."
+    ],
+    "limitations": [
+      "Tests are present but intentionally unexecuted under the task restrictions.",
+      "The codec fixture scripts model returns and opaque output, since the frozen API delegates legacy grammar, full-input consumption, UTF-8, nesting, and decoded-memory enforcement to the application codec.",
+      "Allocator exhaustion is not induced nondeterministically; allocation error mapping uses fallible reservations and deterministic capacity-overflow coverage."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source manually reviewed against contracts/jmax-compat.md, the frozen crate root, ABI schema/error/buffer/limits definitions, and prior-wave serde and endpoint adapters.",
+    "verification": "Execution intentionally omitted. No cargo, rustc, rustfmt, build/check command, or git commit was run.",
+    "scope": "Only crates/jmax-compat/src/schema.rs and reports/wave3/W3-33.json were written.",
+    "notes": [
+      "Public signatures and shared types remain frozen; no manifest, root, ABI, ownership, contract, or other worker file was edited.",
+      "Implementation uses only core, alloc, and the allowed jmax-abi dependency; no unsafe code, prohibited dependencies, worker threads, global state, or placeholder implementations were introduced.",
+      "Schema validation uses fallible scratch allocation and sorting of borrowed field references, preserving native order with O(n log n) comparison work.",
+      "Schema and codec failures use SchemaCompile source. Documentation input validation uses Decode source for both import and wrapper construction.",
+      "Output storage is exclusively the root BoundedSink, wrapped to retain the first error. No JSON proof is issued or asserted for opaque schema artifacts."
+    ]
+  }
+}

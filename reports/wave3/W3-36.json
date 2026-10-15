@@ -1,0 +1,44 @@
+{
+  "worker_id": "W3-36",
+  "wave": 3,
+  "crate": "jmax-runner",
+  "file": "crates/jmax-runner/src/coverage.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn required_coverage(services: &[ServiceSpec]) -> Result<alloc::collections::BTreeSet<CoverageKey>>",
+    "pub fn planned_coverage(scenarios: &[Scenario]) -> Result<alloc::collections::BTreeSet<CoverageKey>>",
+    "pub fn observed_coverage(reports: &[RunReport]) -> alloc::collections::BTreeSet<CoverageKey>",
+    "pub fn compare_coverage(required: &alloc::collections::BTreeSet<CoverageKey>, observed: &alloc::collections::BTreeSet<CoverageKey>) -> CoverageReport"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits compiler, formatter, build, check, and test commands.",
+    "inline_module": "crates/jmax-runner/src/coverage.rs::tests",
+    "test_count": 21,
+    "coverage": [
+      "Empty catalogs, empty services, empty scenario suites, empty scenarios, empty reports, and complete empty comparisons",
+      "All declared role/endpoint pairs, anonymous fallback only for empty role lists, explicit anonymous roles, mixed anonymous and named roles, and unchanged service inputs",
+      "Exact case, whitespace, Unicode, and composed versus decomposed role spellings; deterministic role-first and numeric endpoint ordering; zero and maximum service IDs and endpoint codes",
+      "Duplicate service IDs and names, including empty names and services with no endpoints; duplicate endpoint codes within and across services with disjoint roles; repeated named, anonymous, Unicode, and nonadjacent roles",
+      "Catalog, endpoint, and role permutations preserve successful sets and deterministic duplicate diagnostics; endpoint-code errors precede repeated-role errors",
+      "Concurrent connections, case-sensitive and Unicode connection names, close and reopen with changed roles, anonymous calls, optional final closes, and numeric endpoint boundaries",
+      "Repeated calls and same-role connections deduplicate across scenarios; scenario names do not affect union membership; connection state resets between scenarios; receives, assertions, and unused connects contribute no pairs",
+      "Whole-suite scenario validation before collection, later-scenario failures, original JSON errors, zero timeout, empty scenario name, duplicate active connections, inactive calls, reused response names, invalid paths, unknown responses, and duplicate-key parameters",
+      "Inclusive MAX_STEPS and the first excess step, maximum timeout, and reverse insertion of 64 independent connection names",
+      "Positive-only report membership, zero counters, one and maximum u64 counters, repeated maximum counters without summation, same scenario names, report-order independence, duplicate reports, and unchanged report fields",
+      "Exact required/intersection/difference sets, preserved inputs, missing versus unexpected pairs, empty sides, identical sets, and completeness unaffected by unexpected pairs",
+      "All 256 combinations of required and observed subsets of a four-key universe verify membership, partition sizes, and completeness laws",
+      "Plans remain separate from execution evidence; returned sets retain owned role strings after catalogs, scenarios, and reports are dropped",
+      "Deterministic vector capacity overflow returns canonical BudgetExhausted metadata without modifying the vector; zero reservation, empty strings, Unicode string copies, defensive connection lookup, and sanitized diagnostics"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "manual_source_review_only; tests_not_executed_per_instruction",
+    "reasoning": "high",
+    "compatibility": "Uses the frozen runner and ABI types, alloc collections, and the existing scenario validator; supports alloc without std and adds no dependencies",
+    "allocation": "Intermediate vectors and fallible role-string copies report reservation failures. BTreeSet node allocations and the mandated infallible APIs use the standard alloc collection behavior.",
+    "ownership": "Only crates/jmax-runner/src/coverage.rs and reports/wave3/W3-36.json were written",
+    "commands": "No compiler, formatter, build, check, test, or commit commands were run"
+  }
+}
