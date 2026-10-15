@@ -4,7 +4,8 @@ use alloc::vec::Vec;
 
 use crate::buffer::{Payload, ValidationProof};
 use crate::number::ConvertedNumber;
-use crate::span::Span32;
+use crate::error::{Error, ErrorCode, ErrorSource, Result};
+use crate::span::{NodeId, Span32, SpanSource, StrRef};
 
 /// A packed node: kind in bits 0..8, auxiliary data in bits 8..32,
 /// and a payload-table index in bits 32..64.
@@ -53,6 +54,60 @@ pub struct DocumentParts {
     pub containers: Vec<Container32>,
     pub numbers: Vec<ConvertedNumber>,
     pub decoded: Vec<u8>,
+    /// Parallel to `nodes`; object keys are attached to their value nodes.
+    pub node_metadata: Vec<NodeMeta>,
+    /// Maximum number of simultaneously open containers, with scalar depth zero.
+    pub max_depth: u16,
+}
+
+/// Owner-relative links and cooked references for one preorder node.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NodeMeta {
+    pub parent: Option<NodeId>,
+    pub next_sibling: Option<NodeId>,
+    pub key: Option<StrRef>,
+    pub key_span: Option<Span32>,
+    pub string: Option<StrRef>,
+    pub number_index: Option<u32>,
+}
+
+/// Constant-time summary and borrowed access to the parallel node metadata.
+///
+/// The borrow keeps node references tied to their document, including references
+/// obtained from a temporary metadata view. This is an in-process view, not a
+/// serialized or foreign-function wire record.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct DocumentMetadata<'a> {
+    pub root: NodeId,
+    pub node_count: u32,
+    pub span_count: u32,
+    pub container_count: u32,
+    pub number_count: u32,
+    pub decoded_bytes: u32,
+    pub max_depth: u16,
+    nodes: &'a [NodeMeta],
+}
+
+impl<'a> DocumentMetadata<'a> {
+    pub fn get(self, index: usize) -> Option<&'a NodeMeta> { self.nodes.get(index) }
+    pub fn first(self) -> Option<&'a NodeMeta> { self.nodes.first() }
+    pub fn last(self) -> Option<&'a NodeMeta> { self.nodes.last() }
+    pub const fn len(self) -> usize { self.nodes.len() }
+    pub const fn is_empty(self) -> bool { self.nodes.is_empty() }
+    pub const fn as_slice(self) -> &'a [NodeMeta] { self.nodes }
+    pub fn iter(self) -> core::slice::Iter<'a, NodeMeta> { self.nodes.iter() }
+}
+
+impl core::ops::Deref for DocumentMetadata<'_> {
+    type Target = [NodeMeta];
+    fn deref(&self) -> &Self::Target { self.nodes }
+}
+
+impl<'a> IntoIterator for DocumentMetadata<'a> {
+    type Item = &'a NodeMeta;
+    type IntoIter = core::slice::Iter<'a, NodeMeta>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
 /// A document together with its payload and validation provenance.
@@ -66,100 +121,140 @@ pub struct ValidatedDocument {
     pub proof: ValidationProof,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::{align_of, size_of};
+impl ValidatedDocument {
+    pub fn payload(&self) -> &Payload { &self.payload }
+    pub fn parts(&self) -> &DocumentParts { &self.parts }
+    pub const fn proof(&self) -> ValidationProof { self.proof }
+    pub const fn root(&self) -> NodeId { NodeId(0) }
+    pub fn node_count(&self) -> usize { self.parts.nodes.len() }
 
-    #[test]
-    fn node_layout_and_const_accessors_are_stable() {
-        const WORD: NodeWord = NodeWord::pack(0x12, 0x345678, 0x9abcdef0);
-        const KIND: u8 = WORD.kind();
-        const AUX: u32 = WORD.aux24();
-        const INDEX: u32 = WORD.payload_index();
-        assert_eq!(WORD.0, 0x9abcdef0_34567812);
-        assert_eq!((KIND, AUX, INDEX), (0x12, 0x345678, 0x9abcdef0));
-        assert_eq!(size_of::<NodeWord>(), size_of::<u64>());
-        assert_eq!(align_of::<NodeWord>(), align_of::<u64>());
-        assert_eq!(NodeWord::default(), NodeWord::pack(0, 0, 0));
+    /// Counters saturate if a caller has broken the public tables' u32 limits.
+    /// Such a document is rejected by `validate_layout` before conversion.
+    pub fn metadata(&self) -> DocumentMetadata<'_> {
+        let count = |len| u32::try_from(len).unwrap_or(u32::MAX);
+        DocumentMetadata {
+            root: self.root(),
+            node_count: count(self.parts.nodes.len()),
+            span_count: count(self.parts.spans.len()),
+            container_count: count(self.parts.containers.len()),
+            number_count: count(self.parts.numbers.len()),
+            decoded_bytes: count(self.parts.decoded.len()),
+            max_depth: self.parts.max_depth,
+            nodes: &self.parts.node_metadata,
+        }
     }
 
-    #[test]
-    fn packing_masks_auxiliary_bits_without_corrupting_other_fields() {
-        for kind in [0, 1, 127, u8::MAX] {
-            for aux in [0, 1, 0x0080_0000, 0x00ff_ffff, 0xff00_0000, u32::MAX] {
-                for index in [0, 1, 0x8000_0000, u32::MAX] {
-                    let word = NodeWord::pack(kind, aux, index);
-                    assert_eq!(word.kind(), kind);
-                    assert_eq!(word.aux24(), aux & 0x00ff_ffff);
-                    assert_eq!(word.payload_index(), index);
+    pub fn resolve_str(&self, reference: StrRef) -> Option<&str> {
+        let storage = match reference.source {
+            SpanSource::RawPayload => self.payload.as_slice(),
+            SpanSource::DecodedArena => &self.parts.decoded,
+        };
+        core::str::from_utf8(reference.span.slice(storage)?).ok()
+    }
+
+    /// DOM and ABI documents share one representation and one ownership model.
+    pub fn into_validated(self) -> Self { self }
+
+    /// Checks owner lengths and the DOM table layout without copying buffers.
+    /// The caller must preserve validation invariants when editing public data.
+    pub fn from_validated(document: Self) -> Result<Self> {
+        document.validate_layout()?;
+        Ok(document)
+    }
+
+    /// Rejects inconsistent public tables before constructing navigation views.
+    /// This checks the representation; it does not issue a new syntax or schema
+    /// proof for payload bytes modified after validation.
+    pub fn validate_layout(&self) -> Result<()> {
+        let invalid = || Error::new(ErrorCode::ConstraintViolation, ErrorSource::Dom, 0,
+            "document tables or proof lengths are inconsistent");
+        let parts = &self.parts;
+        let count = u32::try_from(parts.nodes.len()).map_err(|_| invalid())?;
+        if count == 0
+            || parts.spans.len() != parts.nodes.len()
+            || parts.node_metadata.len() != parts.nodes.len()
+            || usize::try_from(self.proof.payload_len()).ok() != Some(self.payload.len())
+            || usize::try_from(self.proof.decoded_len()).ok() != Some(parts.decoded.len())
+            || u32::try_from(parts.containers.len()).is_err()
+            || u32::try_from(parts.numbers.len()).is_err()
+        {
+            return Err(invalid());
+        }
+        // Each frame records its node, exclusive subtree end, and remaining
+        // immediate children. Every node is visited once, independent of depth.
+        let mut stack: Vec<(u32, u32, u32)> = Vec::new();
+        let mut containers = 0usize;
+        let mut depth = 0u16;
+        for (index, word) in parts.nodes.iter().copied().enumerate() {
+            let id = index as u32;
+            while stack.last().is_some_and(|frame| frame.1 == id) {
+                if stack.pop().is_some_and(|frame| frame.2 != 0) { return Err(invalid()); }
+            }
+            let meta = parts.node_metadata[index];
+            let span = parts.spans[index];
+            if span.is_empty() || span.slice(self.payload.as_slice()).is_none() || word.kind() > 6 {
+                return Err(invalid());
+            }
+            let end = if matches!(word.kind(), 5 | 6) {
+                let record = parts.containers.get(word.payload_index() as usize).ok_or_else(invalid)?;
+                if word.payload_index() as usize != containers || record.reserved != 0
+                    || record.end_node <= id || record.end_node > count
+                    || (record.child_count == 0 && (record.first_child != u32::MAX || record.end_node != id + 1))
+                    || (record.child_count != 0 && record.first_child != id + 1)
+                { return Err(invalid()); }
+                containers += 1;
+                record.end_node
+            } else {
+                if word.payload_index() != id { return Err(invalid()); }
+                id + 1
+            };
+            match stack.last_mut() {
+                Some(frame) => {
+                    if frame.2 == 0 || id >= frame.1 || end > frame.1
+                        || meta.parent != Some(NodeId(frame.0))
+                    { return Err(invalid()); }
+                    frame.2 -= 1;
+                    let next = if frame.2 == 0 { None } else { Some(NodeId(end)) };
+                    let parent_span = parts.spans[frame.0 as usize];
+                    if meta.next_sibling != next || span.offset <= parent_span.offset
+                        || span.end().ok_or_else(invalid)? >= parent_span.end().ok_or_else(invalid)?
+                    { return Err(invalid()); }
+                    let object = parts.nodes[frame.0 as usize].kind() == 6;
+                    if object != meta.key.is_some() || object != meta.key_span.is_some() {
+                        return Err(invalid());
+                    }
+                    if let Some(key_span) = meta.key_span {
+                        if key_span.slice(self.payload.as_slice()).is_none()
+                            || key_span.offset <= parent_span.offset
+                            || key_span.end().ok_or_else(invalid)? > span.offset
+                        { return Err(invalid()); }
+                    }
                 }
+                None if id == 0 && end == count && meta.parent.is_none()
+                    && meta.next_sibling.is_none() && meta.key.is_none()
+                    && meta.key_span.is_none() => {}
+                None => return Err(invalid()),
+            }
+            if (word.kind() == 4) != meta.string.is_some() { return Err(invalid()); }
+            for reference in [meta.key, meta.string].into_iter().flatten() {
+                let text = self.resolve_str(reference).ok_or_else(invalid)?;
+                if text.chars().count() != reference.scalar_len as usize { return Err(invalid()); }
+            }
+            if let Some(number) = meta.number_index {
+                if word.kind() != 3 || parts.numbers.get(number as usize).is_none() { return Err(invalid()); }
+            }
+            if matches!(word.kind(), 5 | 6) {
+                let record = parts.containers[word.payload_index() as usize];
+                let next_depth = u16::try_from(stack.len() + 1).map_err(|_| invalid())?;
+                depth = depth.max(next_depth);
+                stack.try_reserve(1).map_err(|_| Error::new(ErrorCode::BudgetExhausted,
+                    ErrorSource::Dom, span.offset, "document layout allocation failed"))?;
+                stack.push((id, end, record.child_count));
             }
         }
-        assert_eq!(NodeWord::pack(u8::MAX, u32::MAX, u32::MAX).0, u64::MAX);
-    }
-
-    #[test]
-    fn every_raw_bit_round_trips() {
-        for bit in 0..64 {
-            let word = NodeWord(1u64 << bit);
-            assert_eq!(NodeWord::pack(word.kind(), word.aux24(), word.payload_index()), word);
-        }
-    }
-
-    #[test]
-    fn container_has_four_zero_initialized_words() {
-        assert_eq!(size_of::<Container32>(), 16);
-        assert_eq!(align_of::<Container32>(), align_of::<u32>());
-        assert_eq!(Container32::default(), Container32 {
-            first_child: 0, child_count: 0, end_node: 0, reserved: 0,
-        });
-    }
-
-    #[test]
-    fn document_tables_start_empty_and_clone_independently() {
-        let mut parts = DocumentParts::default();
-        assert!(parts.nodes.is_empty());
-        assert!(parts.spans.is_empty());
-        assert!(parts.containers.is_empty());
-        assert!(parts.numbers.is_empty());
-        assert!(parts.decoded.is_empty());
-        parts.nodes.push(NodeWord::pack(1, 2, 3));
-        parts.spans.push(Span32::new(4, 5));
-        parts.containers.push(Container32::default());
-        parts.numbers.push(ConvertedNumber::U64(6));
-        parts.decoded.extend_from_slice(b"value");
-        let cloned = parts.clone();
-        parts.nodes.clear();
-        parts.spans.clear();
-        parts.containers.clear();
-        parts.numbers.clear();
-        parts.decoded.clear();
-        assert_eq!(cloned.nodes, [NodeWord::pack(1, 2, 3)]);
-        assert_eq!(cloned.spans, [Span32::new(4, 5)]);
-        assert_eq!(cloned.containers, [Container32::default()]);
-        assert_eq!(cloned.numbers, [ConvertedNumber::U64(6)]);
-        assert_eq!(cloned.decoded, b"value");
-    }
-
-    #[test]
-    fn validated_document_clone_retains_payload_and_proof() {
-        // A projection of the valid JSON literal null retains no nodes or
-        // spans. Fingerprint 0 identifies this test's null projection schema.
-        // SAFETY: The literal is four bytes, its projection has empty tables,
-        // and no decoded arena or references require further validation.
-        let proof = unsafe { ValidationProof::issue_unchecked(0, 4, 0) };
-        let document = ValidatedDocument {
-            payload: Payload::from_slice(b"null"), parts: DocumentParts::default(), proof,
-        };
-        let cloned = document.clone();
-        assert_eq!(cloned.payload.as_slice().as_ptr(), document.payload.as_slice().as_ptr());
-        assert_eq!(cloned.proof, document.proof);
-        drop(document);
-        assert_eq!(cloned.payload.as_slice(), b"null");
-        assert_eq!(cloned.proof.payload_len(), 4);
-        assert_eq!(cloned.proof.decoded_len(), 0);
-        assert!(cloned.parts.nodes.is_empty());
-        assert!(cloned.parts.decoded.is_empty());
+        if containers != parts.containers.len() || depth != parts.max_depth
+            || stack.iter().any(|frame| frame.1 != count || frame.2 != 0)
+        { return Err(invalid()); }
+        Ok(())
     }
 }

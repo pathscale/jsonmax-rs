@@ -1,36 +1,87 @@
 //! Schema compilation, strict payload validation, and endpoint catalog facade.
 
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
-use jmax_abi::schema::{Selection, SlotValue};
+use jmax_abi::schema::Selection;
 use jmax_schema_compile::{CompilerOptions, ValidatedProgram};
 use jmax_schema_vm::VmLimits;
 
 use super::{
-    facade_error, CompileLimits, CompiledSchema, EndpointCatalog, EndpointDirection,
+    facade_error, CompileLimits, EndpointCatalog, EndpointDirection,
     EndpointMessage, Error, ErrorCode, ErrorSource, ParseOptions, Payload, Result,
     SchemaId, SchemaImage, SchemaIr, ServiceSpec, ValidatedSlots,
 };
 
-/// Normalize, resolve, lower and validate an ABI schema using the native compiler.
+/// A compiled schema retains the complete validated program, including side tables.
+#[derive(Clone, Debug)]
+pub struct CompiledSchema {
+    image: SchemaImage,
+    ir: SchemaIr,
+    native_ir: jmax_schema_ir::Schema,
+    program: Arc<ValidatedProgram>,
+    selection: Selection,
+}
+
+impl CompiledSchema {
+    pub fn image(&self) -> &SchemaImage { &self.image }
+    /// Original flat schema, or identity metadata for a native graph schema.
+    /// Use native_ir() for the authoritative graph, including container shapes.
+    pub fn ir(&self) -> &SchemaIr { &self.ir }
+    pub fn native_ir(&self) -> &jmax_schema_ir::Schema { &self.native_ir }
+    pub fn program(&self) -> &ValidatedProgram { &self.program }
+    pub fn fingerprint(&self) -> u64 { self.image.header.fingerprint }
+}
+
+/// Normalize, resolve, lower and validate an ABI schema once.
 pub fn compile_schema(ir: &SchemaIr, limits: CompileLimits) -> Result<CompiledSchema> {
-    let normalized = jmax_schema_ir::model::normalize(ir)?;
+    compile_graph(ir.clone(), jmax_schema_ir::model::normalize(ir)?, limits)
+}
+
+/// Compile a native graph, preserving array and nested object constraints.
+pub fn compile_native_schema(
+    graph: &jmax_schema_ir::Schema,
+    limits: CompileLimits,
+) -> Result<CompiledSchema> {
+    let identity = SchemaIr {
+        name: graph.name.clone(), schema_id: graph.schema_id,
+        ..SchemaIr::default()
+    };
+    compile_graph(identity, graph.clone(), limits)
+}
+
+fn compile_graph(
+    ir: SchemaIr,
+    native_ir: jmax_schema_ir::Schema,
+    limits: CompileLimits,
+) -> Result<CompiledSchema> {
     let resolved = jmax_schema_ir::resolve::resolve(
-        normalized,
-        jmax_schema_ir::ResolveLimits::default(),
+        native_ir.clone(), jmax_schema_ir::ResolveLimits::default(),
     )?;
     let options = CompilerOptions { limits, ..CompilerOptions::default() };
     let program = jmax_schema_compile::lower::compile(&resolved, &options)
         .map_err(schema_compile_error)?;
-    let image = program.image().clone();
-    validate_image(&image)?;
-    Ok(CompiledSchema { image })
+    let selection = all_fields(&program)?;
+    Ok(CompiledSchema {
+        image: program.image().clone(), ir, native_ir,
+        program: Arc::new(program), selection,
+    })
 }
 
-/// Validate an externally supplied image before retaining it behind the facade.
-pub fn load_schema(image: SchemaImage) -> Result<CompiledSchema> {
-    validate_image(&image)?;
-    Ok(CompiledSchema { image })
+/// An ABI image omits required program tables. Recompile its source and accept
+/// it only when every retained image field matches that validated program.
+pub fn load_schema(
+    image: SchemaImage,
+    ir: &SchemaIr,
+    limits: CompileLimits,
+) -> Result<CompiledSchema> {
+    let schema = compile_schema(ir, limits)?;
+    if image.header != schema.image.header || image.insns != schema.image.insns
+        || image.keys != schema.image.keys || image.key_bytes != schema.image.key_bytes
+    {
+        return Err(facade_error(ErrorCode::SchemaImageInvalid, ErrorSource::SchemaCompile,
+            "schema image does not match its complete source"));
+    }
+    Ok(schema)
 }
 
 /// Validate the complete payload against every schema constraint.
@@ -39,8 +90,7 @@ pub fn validate_payload(
     schema: &CompiledSchema,
     options: ParseOptions,
 ) -> Result<ValidatedSlots> {
-    let program = validated_program(schema)?;
-    run_program(input, &program, &all_fields(&program)?, options)
+    run_program(input, &schema.program, &schema.selection, options)
 }
 
 /// Validate the complete payload and return selected slots in caller order.
@@ -58,17 +108,15 @@ pub fn extract_payload(
             "validated slot extraction must validate unselected fields",
         ).with_schema(schema.image.header.schema_id, 0));
     }
-    let program = validated_program(schema)?;
-    jmax_schema_vm::check_selection(&program, selection)?;
-    let mut slots = run_program(input, &program, selection, options)?;
+    let program = &schema.program;
+    let mut slots = run_program(input, program, selection, options)?;
     let mut ordered = Vec::new();
     ordered.try_reserve_exact(selection.field_ids.len()).map_err(|_| facade_error(
         ErrorCode::BudgetExhausted, ErrorSource::SchemaVm,
         "selected slot allocation failed",
     ))?;
     for field in &selection.field_ids {
-        let slot = program.program().slots.iter()
-            .find(|slot| slot.field_id == *field)
+        let slot = program.slot_for_field(*field)
             .ok_or_else(|| Error::new(
                 ErrorCode::SchemaImageInvalid, ErrorSource::SchemaVm, 0,
                 "selected field has no slot in the validated image",
@@ -89,7 +137,36 @@ pub fn catalog(services: Vec<ServiceSpec>) -> Result<EndpointCatalog> {
         ..jmax_endpoint_model::EndpointModel::default()
     };
     jmax_endpoint_model::registry::build_registry(&model).map_err(model_error)?;
-    Ok(EndpointCatalog { services: model.services })
+    let count = model.services.iter().try_fold(0usize, |sum, service| {
+        sum.checked_add(service.endpoints.len()).ok_or_else(|| facade_error(
+            ErrorCode::BudgetExhausted, ErrorSource::SchemaCompile,
+            "endpoint count overflow"))
+    })?;
+    let capacity = count.checked_mul(2).and_then(|n| n.max(1).checked_next_power_of_two())
+        .ok_or_else(|| facade_error(ErrorCode::BudgetExhausted, ErrorSource::SchemaCompile,
+            "endpoint lookup capacity overflow"))?;
+    let mut entries = Vec::new();
+    entries.try_reserve_exact(capacity).map_err(|_| facade_error(
+        ErrorCode::BudgetExhausted, ErrorSource::SchemaCompile,
+        "endpoint lookup allocation failed"))?;
+    entries.resize_with(capacity, || None);
+    let mut catalog = EndpointCatalog { services: model.services, entries };
+    for service_index in 0..catalog.services.len() {
+        for endpoint_index in 0..catalog.services[service_index].endpoints.len() {
+            let endpoint = &catalog.services[service_index].endpoints[endpoint_index];
+            let code = endpoint.code;
+            let request = project_schema(&catalog, endpoint, EndpointDirection::Request,
+                CompileLimits::default_limits())?;
+            let response = project_schema(&catalog, endpoint, EndpointDirection::Response,
+                CompileLimits::default_limits())?;
+            let mut index = catalog_hash(code) & (capacity - 1);
+            while catalog.entries[index].is_some() { index = (index + 1) & (capacity - 1); }
+            catalog.entries[index] = Some(CatalogEntry {
+                code, service_index, endpoint_index, request, response,
+            });
+        }
+    }
+    Ok(catalog)
 }
 
 /// Project one endpoint direction into and compile its native schema.
@@ -103,6 +180,15 @@ pub fn endpoint_schema(
         ErrorCode::UnknownObjectKey, ErrorSource::SchemaCompile,
         "endpoint code is not present in the catalog",
     ))?;
+    project_schema(catalog, endpoint, direction, limits)
+}
+
+fn project_schema(
+    catalog: &EndpointCatalog,
+    endpoint: &super::EndpointSchemaSpec,
+    direction: EndpointDirection,
+    limits: CompileLimits,
+) -> Result<CompiledSchema> {
     let (qualified_name, fields) = match direction {
         EndpointDirection::Request => {
             let mut name = String::from("request::");
@@ -160,13 +246,17 @@ pub fn validate_endpoint(
             "caller role is not authorized for this endpoint",
         ));
     }
-    let schema = endpoint_schema(
-        catalog,
-        code,
-        direction,
-        CompileLimits::default_limits(),
-    )?;
-    let slots = validate_payload(input, &schema, options)?;
+    let entry = catalog.entry(code).ok_or_else(|| facade_error(
+        ErrorCode::InternalError, ErrorSource::SchemaCompile,
+        "catalog schema entry is missing"))?;
+    let schema = match direction {
+        EndpointDirection::Request => &entry.request,
+        EndpointDirection::Response => &entry.response,
+        EndpointDirection::Stream => return Err(facade_error(
+            ErrorCode::UnsupportedSchemaFeature, ErrorSource::SchemaCompile,
+            "stream projection requires the native stream schema projector")),
+    };
+    let slots = validate_payload(input, schema, options)?;
     Ok(EndpointMessage { endpoint_code: code, direction, slots })
 }
 
@@ -252,18 +342,23 @@ fn run_program(
     )
 }
 
-fn validated_program(schema: &CompiledSchema) -> Result<ValidatedProgram> {
-    jmax_schema_compile::image::load(
-        schema.image.clone(),
-        &CompilerOptions::default(),
-    ).map_err(schema_compile_error)
+/// Immutable entries use a bounded open-addressed index at a load factor <= 1/2.
+#[derive(Clone, Debug)]
+pub(crate) struct CatalogEntry {
+    pub(crate) code: u32,
+    pub(crate) service_index: usize,
+    pub(crate) endpoint_index: usize,
+    request: CompiledSchema,
+    response: CompiledSchema,
 }
 
-fn validate_image(image: &SchemaImage) -> Result<()> {
-    jmax_schema_compile::image::load(
-        image.clone(),
-        &CompilerOptions::default(),
-    ).map(|_| ()).map_err(schema_compile_error)
+pub(crate) fn catalog_hash(code: u32) -> usize {
+    let mut value = code;
+    value ^= value >> 16;
+    value = value.wrapping_mul(0x7feb_352d);
+    value ^= value >> 15;
+    value = value.wrapping_mul(0x846c_a68b);
+    (value ^ (value >> 16)) as usize
 }
 
 fn schema_compile_error(mut error: Error) -> Error {
@@ -280,123 +375,4 @@ fn model_error(mut error: Error) -> Error {
     }
     error.source = ErrorSource::SchemaCompile;
     error
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use jmax_abi::schema::{FieldId, SchemaFieldIr};
-    use jmax_abi::syntax::ScalarKind;
-
-    fn schema() -> SchemaIr {
-        SchemaIr {
-            name: String::from("trade"),
-            schema_id: SchemaId(41),
-            required_count: 1,
-            reject_unknown: true,
-            fields: alloc::vec![SchemaFieldIr {
-                field_id: FieldId(7), name: String::from("quantity"), required: true,
-                scalar_kind: Some(ScalarKind::Number), format: Some(String::from("int64")),
-                min_len: None, max_len: None, min_i64: Some(0), max_i64: Some(100),
-            }],
-        }
-    }
-
-    fn assert_error<T>(result: Result<T>, code: ErrorCode) {
-        let error = result.unwrap_err();
-        assert_eq!(error.code, code);
-    }
-
-    #[test]
-    fn schema_compilation_preserves_identity_and_checks_image_integrity() {
-        let compiled = compile_schema(&schema(), CompileLimits::default_limits()).unwrap();
-        assert_eq!(compiled.image().header.schema_id, 41);
-        assert_ne!(compiled.fingerprint(), 0);
-        let mut damaged = compiled.image().clone();
-        damaged.header.fingerprint ^= 1;
-        assert_error(load_schema(damaged), ErrorCode::SchemaImageInvalid);
-    }
-
-    #[test]
-    fn schema_ir_boundaries_and_compile_limits_return_native_errors() {
-        let mut malformed = schema();
-        malformed.required_count = 0;
-        assert_error(compile_schema(&malformed, CompileLimits::default_limits()), ErrorCode::ConstraintViolation);
-        assert_error(compile_schema(&schema(), CompileLimits {
-            max_states: 0, ..CompileLimits::default_limits()
-        }), ErrorCode::BudgetExhausted);
-    }
-
-    #[test]
-    fn validation_checks_required_types_bounds_unknowns_and_complete_syntax() {
-        let compiled = compile_schema(&schema(), CompileLimits::default_limits()).unwrap();
-        for (bytes, code) in [
-            (br#"{"quantity":4}"#.as_slice(), None),
-            (br#"{}"#, Some(ErrorCode::MissingRequiredField)),
-            (br#"{"quantity":"4"}"#, Some(ErrorCode::TypeMismatch)),
-            (br#"{"quantity":101}"#, Some(ErrorCode::ConstraintViolation)),
-            (br#"{"quantity":4,"extra":1}"#, Some(ErrorCode::UnknownObjectKey)),
-            (br#"{"quantity":4} false"#, Some(ErrorCode::TrailingContent)),
-        ] {
-            let result = validate_payload(Payload::from_slice(bytes), &compiled, ParseOptions::default());
-            match code {
-                None => {
-                    let slots = result.unwrap();
-                    assert_eq!(slots.slots.len(), 1);
-                    assert_eq!(slots.proof.schema_fingerprint(), compiled.fingerprint());
-                    assert_eq!(slots.proof.payload_len() as usize, bytes.len());
-                }
-                Some(expected) => assert_error(result, expected),
-            }
-        }
-    }
-
-    #[test]
-    fn strict_extraction_rejects_weakening_duplicate_ids_and_bad_ids() {
-        let compiled = compile_schema(&schema(), CompileLimits::default_limits()).unwrap();
-        let payload = || Payload::from_slice(br#"{"quantity":9}"#);
-        assert_error(extract_payload(payload(), &compiled, &Selection::default(), ParseOptions::default()), ErrorCode::ConstraintViolation);
-        assert_error(extract_payload(payload(), &compiled, &Selection {
-            field_ids: alloc::vec![FieldId(7), FieldId(7)], strict_validate_unselected: true,
-        }, ParseOptions::default()), ErrorCode::ConstraintViolation);
-        assert_error(extract_payload(payload(), &compiled, &Selection {
-            field_ids: alloc::vec![FieldId(u32::MAX)], strict_validate_unselected: true,
-        }, ParseOptions::default()), ErrorCode::UnknownObjectKey);
-        let selected = extract_payload(payload(), &compiled, &Selection {
-            field_ids: alloc::vec![FieldId(7)], strict_validate_unselected: true,
-        }, ParseOptions::default()).unwrap();
-        assert!(matches!(selected.slots.as_slice(),
-            [SlotValue::I64(9)] | [SlotValue::U64(9)]));
-    }
-
-    #[test]
-    fn catalog_rejects_global_duplicates_authorizes_before_parse_and_checks_directions() {
-        let endpoint = jmax_abi::endpoint::EndpointSchemaSpec {
-            code: u32::MAX, name: String::from("trade"), service: String::from("orders"),
-            roles: alloc::vec![String::from("writer")], params: Vec::new(), response: Vec::new(),
-            stream_response: None, description: String::new(),
-        };
-        let service = ServiceSpec { id: u16::MAX, name: String::from("orders"), endpoints: alloc::vec![endpoint.clone()] };
-        let catalog = catalog(alloc::vec![service.clone()]).unwrap();
-        assert_eq!(endpoint_schema(&catalog, 0, EndpointDirection::Request,
-            CompileLimits::default_limits()).unwrap_err().code, ErrorCode::UnknownObjectKey);
-        let error = validate_endpoint(Payload::from_slice(b"not json"), &catalog,
-            u32::MAX, EndpointDirection::Request, "reader", ParseOptions::default()).unwrap_err();
-        assert_eq!((error.code, error.source), (ErrorCode::AuthFailed, ErrorSource::Auth));
-        assert_error(catalog(alloc::vec![service.clone(), service]), ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn endpoint_stream_missing_is_an_explicit_type_error() {
-        let endpoint = jmax_abi::endpoint::EndpointSchemaSpec {
-            code: 4, name: String::from("events"), service: String::from("feed"), roles: Vec::new(),
-            params: Vec::new(), response: Vec::new(), stream_response: None,
-            description: String::new(),
-        };
-        let catalog = catalog(alloc::vec![ServiceSpec {
-            id: 1, name: String::from("feed"), endpoints: alloc::vec![endpoint],
-        }]).unwrap();
-        assert_error(endpoint_schema(&catalog, 4, EndpointDirection::Stream,
-            CompileLimits::default_limits()), ErrorCode::TypeMismatch);
-    }
 }

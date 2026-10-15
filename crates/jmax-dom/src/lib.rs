@@ -1,6 +1,6 @@
 //! Immutable flat JSON documents with owner-bound navigation and scalar views.
 #![no_std]
-#![forbid(unsafe_code)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 extern crate alloc;
 
@@ -10,9 +10,9 @@ pub mod navigate;
 pub mod scalar;
 pub mod rebuild;
 
-pub use jmax_abi::buffer::Payload;
+pub use jmax_abi::buffer::{Payload, ValidationProof};
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
-pub use jmax_abi::node::{Container32, DocumentParts, NodeWord, ValidatedDocument};
+pub use jmax_abi::node::{Container32, DocumentMetadata, DocumentParts, NodeMeta, NodeWord, ValidatedDocument};
 pub use jmax_abi::number::ConvertedNumber;
 pub use jmax_abi::span::{NodeId, Span32, SpanSource, StrRef};
 pub use jmax_abi::syntax::Limits;
@@ -44,38 +44,12 @@ impl NodeKind {
     }
 }
 
-/// Parallel to nodes. Keys belong to their value node and are never nodes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct NodeMeta {
-    pub parent: Option<NodeId>,
-    pub next_sibling: Option<NodeId>,
-    pub key: Option<StrRef>,
-    pub key_span: Option<Span32>,
-    pub string: Option<StrRef>,
-    pub number_index: Option<u32>,
-}
-
-/// Construction validates the complete payload. No schema proof is fabricated.
-#[derive(Clone, Debug)]
-pub struct Document {
-    pub(crate) payload: Payload,
-    pub(crate) parts: DocumentParts,
-    pub(crate) metadata: Vec<NodeMeta>,
-}
-
-impl Document {
-    pub fn payload(&self) -> &Payload { &self.payload }
-    pub fn parts(&self) -> &DocumentParts { &self.parts }
-    pub fn metadata(&self) -> &[NodeMeta] { &self.metadata }
-    pub fn node_count(&self) -> usize { self.parts.nodes.len() }
-    pub fn resolve_str(&self, reference: StrRef) -> Option<&str> {
-        let bytes = match reference.source {
-            SpanSource::RawPayload => reference.span.slice(self.payload.as_slice())?,
-            SpanSource::DecodedArena => reference.span.slice(&self.parts.decoded)?,
-        };
-        core::str::from_utf8(bytes).ok()
-    }
-}
+/// The native DOM and public ABI retain exactly the same tables and owners.
+///
+/// `into_validated` is an ownership-preserving identity operation, and
+/// `from_validated` checks the table layout. The standard identity `From<T> for
+/// T` implementation also supplies `From<Document> for ValidatedDocument`.
+pub type Document = ValidatedDocument;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Node<'a> {

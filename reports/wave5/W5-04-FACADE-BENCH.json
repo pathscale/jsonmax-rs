@@ -1,0 +1,71 @@
+{
+  "task": "W5-04-FACADE-BENCH",
+  "status": "complete",
+  "date": "2026-10-15",
+  "scope": [
+    "crates/jsonmax/Cargo.toml",
+    "crates/jsonmax/src/lib.rs",
+    "crates/jsonmax/src/parse.rs",
+    "crates/jsonmax/src/query.rs",
+    "crates/jsonmax/src/encode.rs",
+    "crates/jsonmax/src/endpoint.rs",
+    "crates/jmax-bench/Cargo.toml",
+    "crates/jmax-bench/src/lib.rs",
+    "crates/jmax-bench/src/corpus.rs",
+    "crates/jmax-bench/src/parse.rs",
+    "crates/jmax-bench/src/serialize.rs",
+    "crates/jmax-bench/src/service.rs",
+    "crates/jmax-bench/src/bin/jmax_bench.rs"
+  ],
+  "changes": [
+    "Added facade schema-IR and number dependencies, benchmark DOM, dispatch and native schema-IR dependencies, std feature forwarding, and the std-gated jmax_bench binary target.",
+    "Unified the facade Document export with the native DOM/ABI representation. Parsing uses parse_with_numeric and into_validated, with no post-construction DOM traversal or facade floating-point string parser.",
+    "Moved CompiledSchema into the endpoint module and re-exported it at the crate root. It retains the original flat IR, authoritative native graph, ABI image, Arc<ValidatedProgram>, and a precomputed full-field selection.",
+    "Payload validation and extraction execute the retained program through CursorInput. Extraction uses the validated program field index and returns selected values in caller order.",
+    "Catalog construction compiles request and response projections once and builds an immutable open-addressed endpoint-code index at a maximum load factor of one half. validate_endpoint performs expected constant-time endpoint and schema lookup without schema recompilation.",
+    "Removed complete output revalidation from typed, document, and string encoding. Document encoding directly traverses validated native tables without rebuilding the input DOM.",
+    "Workload retains its CompiledSchema. The scalar workloads retain their original flat schemas; NumberArray, DepthBook and Nested now have exact native container graphs so all seven workload kinds support schema validation.",
+    "Extract invokes extract_payload with the cached program and workload selection. Full document and slot digests are computed before measurement; timed result consumption uses fixed-size summaries and black_box.",
+    "Serialization caches retained-document accounting during preparation and splits immutable documents from mutable sink state, removing the conflicting borrow and quadratic corpus-retention walk. Timed output consumption is constant-size; full round-trip verification remains untimed.",
+    "Added a deterministic CLI covering all 28 workload/mode pairs, explicit SIMD dispatch reporting, bounded configurable warmup and measurement counts, corpus dimensions and budgets, decimal or hexadecimal seeds, help, contextual errors, and broken-pipe handling. It retains summaries instead of all sample vectors between modes."
+  ],
+  "requirements": {
+    "JM-01": "implemented",
+    "JM-02": "implemented",
+    "JM-03": "implemented",
+    "JM-04": "facade integrated with shared CursorInput API",
+    "JM-05": "implemented",
+    "JM-06": "implemented",
+    "PERF-03": "post-parse numeric walk removed; policy delegated to numeric-aware scanner",
+    "PERF-04": "catalog programs cached; extraction uses indexed field lookup",
+    "PERF-05": "redundant input reconstruction and output re-parsing removed",
+    "PERF-06": "timing distortions removed and CLI added"
+  },
+  "api_notes": [
+    "jsonmax::CompiledSchema remains available; jsonmax::endpoint::CompiledSchema is also public.",
+    "load_schema now accepts (SchemaImage, &SchemaIr, CompileLimits). The ABI image does not contain enough data to recreate a complete validated program. The function recompiles the supplied source once and verifies every image field before accepting it; request and benchmark paths never call it.",
+    "compile_native_schema supports rich graph schemas. For graph compilation, ir() exposes identity metadata and native_ir() preserves the authoritative graph.",
+    "NumberArray and Nested have array roots. The current schema slot model captures object properties and rejects capture below potentially repeated arrays. These two workloads therefore use empty strict selections; their Extract mode still invokes extract_payload and validates the complete native shape. The CLI states this explicitly.",
+    "The pre-existing unsupported stream-projection behavior remains explicit. Cached catalog entries cover request and response directions.",
+    "Timing percentiles and Payload Bytes describe complete corpus passes. Throughput uses decimal MB; Msg/sec counts individual documents. Zero-duration samples produce n/a rates rather than infinity.",
+    "Encoded document callers must preserve public ABI table and proof invariants. JsonEncode implementations must honor their valid-JSON contract."
+  ],
+  "shared_api_integration": {
+    "observed_available": [
+      "jmax_dom::Document aliases jmax_abi::node::ValidatedDocument and exposes parts(), payload(), metadata(), proof(), and into_validated().",
+      "jmax_dom::build::parse_with_numeric(Payload, Limits, NumericPolicy) returns Result<Document>.",
+      "jmax_schema_vm::input::CursorInput::new(Payload, Limits, NumericPolicy) returns a strict EventInput adapter.",
+      "jmax_schema_compile::ValidatedProgram::slot_for_field(FieldId) provides indexed extraction lookup."
+    ],
+    "coordinator_follow_up": [
+      "At the last source inspection, jmax-cursor/src/walk.rs had not yet exposed from_payload_with_numeric(Payload, Limits, SkipMode, NumericPolicy) -> Result<Cursor>. Both the shared DOM parse_with_numeric implementation and facade validate_syntax require that W5 scanner/cursor API. Complete the API in its owned wave task before integration builds."
+    ]
+  },
+  "verification": {
+    "performed": "Read the audit and all assigned files before editing; inspected supporting ABI, DOM, cursor, compiler, VM, encoder, endpoint model and dispatch APIs; reviewed source diffs, timing boundaries, field lookup, ownership and CLI arithmetic. Inspected owned sources for the forbidden constructs with no matches.",
+    "build_or_checks": "Not run, per instruction. No build, compiler, formatter, test, check, or git commit command was invoked.",
+    "runtime_results": "None. No executable or benchmark was built or run.",
+    "ownership": "Only assigned source/manifests, the assigned new binary, and this handoff report were written. Existing workspace edits were preserved. query.rs and service.rs were inspected and needed no additional edits."
+  },
+  "cli_example": "jmax_bench --warmup 3 --iterations 20 --documents 128 --items 32 --seed 0x4a4d415842454e43"
+}

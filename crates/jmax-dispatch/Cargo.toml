@@ -8,7 +8,14 @@ publish.workspace = true
 [features]
 default = ["std"]
 alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+std = [
+    "alloc",
+    "jmax-abi/std",
+    "jmax-scan-scalar/std",
+    "jmax-scan-neon/std",
+    "jmax-scan-avx2/std",
+    "jmax-scan-avx512/std",
+]
 
 [dependencies]
 jmax-abi = { workspace = true }

@@ -1,0 +1,91 @@
+{
+  "task_id": "W5-01-SIMD-SYNTAX",
+  "wave": 5,
+  "priority": "P0",
+  "implementation_status": "complete_in_assigned_files",
+  "validation_status": "source_inspection_only_not_compiled_or_executed",
+  "audit_read": "/Users/revenge/code/AUDIT-jsonmax-rs-2026-10-15.md",
+  "files_changed": [
+    "crates/jmax-dispatch/Cargo.toml",
+    "crates/jmax-utf8/src/validate.rs",
+    "crates/jmax-syntax/src/lib.rs",
+    "crates/jmax-syntax/src/frames.rs",
+    "crates/jmax-syntax/src/feed.rs",
+    "crates/jmax-syntax/src/finish.rs",
+    "crates/jmax-cursor/src/lib.rs",
+    "crates/jmax-cursor/src/walk.rs",
+    "crates/jmax-cursor/src/skip.rs",
+    "crates/jmax-cursor/src/select.rs",
+    "crates/jmax-cursor/src/resume.rs",
+    "reports/wave5/W5-01-SIMD-SYNTAX.json"
+  ],
+  "owned_files_inspected_without_changes": [
+    "crates/jmax-utf8/Cargo.toml"
+  ],
+  "repairs": {
+    "PERF-01": {
+      "dispatch_features": "jmax-dispatch/std forwards std to scalar, NEON, AVX2, and AVX-512 scanner crates.",
+      "actual_dispatch_api": "jmax_dispatch::dispatch(input_len, DispatchPolicy::default()) selects a checked Dispatch. Dispatch::classify accepts the original input slice; the requested classify_block and select_classifier convenience APIs do not exist in the inspected dispatch crate.",
+      "block_scanning": "The syntax feed caches BlockMasks for consecutive blocks of at most 64 bytes. It passes &state.input[block_start..block_end] directly without a parser-side block copy or padding array. Selection uses the whole retained input length and is reused until input grows.",
+      "mask_consumers": "Whitespace skipping uses complemented whitespace masks, occupied-lane masks, and trailing_zeros. String boundaries use quote_mask and in_string_mask; the first escape uses backslash_mask.trailing_zeros. Atom delimiters use structural masks and trailing_zeros, with raw punctuation masks preserving diagnostics for malformed atoms. Digit masks enforce digit limits, while non-ASCII and control masks distinguish strings requiring detailed validation.",
+      "incremental_carry": "The cached partial block retains its incoming ScanCarry. Appending bytes restores that carry and reclassifies the extended tail; full blocks remain cached. Pending token offsets and flags retain progress across feeds, EOF, suspension, and subtree skips.",
+      "string_fast_path": "Unescaped ASCII strings without control bytes return validated raw StrRef spans directly. Escaped, non-ASCII, and control-bearing strings retain strict escape, surrogate, UTF-8, raw-string, decoded-string, and arena validation. Escape discovery does not rescan the string with contains.",
+      "number_validation": "Every completed numeric token is grammar-checked once through jmax_number::lex::lex_number before event emission. The old duplicate number grammar machine was removed. Digit-limit diagnostics use mask counts and the first excess digit offset. Syntax permits negative zero and large grammatical exponents; only the lexer's specifically identified exponent-policy error is ignored after that lexer has validated the complete grammar. Conversion policies remain the responsibility of numeric consumers.",
+      "payload_ownership": "SyntaxState stores either the original complete Payload or an incremental Vec. Cursor directly retains a Payload handle and syntax retains a shared handle to the same bytes. Complete traversal, subtree skipping, selection, suspension, validated output, and partial output do not clone the entire input buffer. Output and selection also move the decoded arena instead of copying it.",
+      "public_compatibility": "Existing public function signatures and canonical ABI event/reference types remain intact. Added SyntaxState::from_payload, SyntaxState::into_storage, and Cursor::payload. No lifetime parameters or self-referential borrows were introduced. Partial storage transfer does not establish validation."
+    },
+    "PERF-02": {
+      "representation": "Power-of-two open-addressed tables store a 64-bit FNV-1a hash with final mixing, a StrRef, and a generation marker. SyntaxState retains a table per nesting depth for reuse by sibling containers.",
+      "complexity": "Expected amortized constant-time table operations at a maximum one-half load, plus hashing the key bytes. Full raw or decoded byte comparisons occur only after a 64-bit hash match. Hash collisions cannot produce false duplicate results.",
+      "allocations": "No owned key byte vectors and no separate allocation for each key. Table buffers grow geometrically using fallible reservations; existing input and decoded arena offsets survive buffer growth. Escaped keys use the existing shared decoded arena.",
+      "reuse": "Generation increments reset sibling tables in constant time without scanning their retained capacity. Generation overflow clears slot generations before reuse. Parent tables remain independent of nested objects.",
+      "failure_behavior": "Limits, duplicate lookup, and all reservations precede phase/count/key commits. Duplicate keys and allocation failures retain sticky parser errors; rejected keys do not publish decoded arena bytes."
+    },
+    "JM-07": {
+      "change": "The optional UTF-8 path imports simdutf8::compat::from_utf8 using the dependency's actual library target name.",
+      "diagnostics": "The compat entry point preserves valid_up_to and error_len diagnostics without a second validation pass. The existing optional ps-simdutf8 workspace dependency and simd-utf8 feature remain unchanged."
+    }
+  },
+  "source_review": [
+    "Read all assigned source and manifests, dispatch source, number source, relevant scanner and ABI contracts, and downstream cursor consumers.",
+    "Inspected partial-tail carry restoration, lane-63 backslashes, escaped quotes, empty strings, raw byte limits, and final unclosed-string handling.",
+    "Inspected number EOF handling, malformed suffixes, digit-limit offsets, negative zero, and exponents exceeding the conversion-policy representation.",
+    "Inspected raw-versus-decoded key identity, empty keys, probing collisions, growth, nested table independence, sibling generation reuse, and generation overflow.",
+    "Inspected ownership transfers for complete and incremental input, partial queries, shared extraction, suspended cursors, and skipped subtrees.",
+    "Source searches found no prohibited stub, asynchronous runtime, thread, inline-test, obsolete crate import, nested key-vector, or em-dash constructs in the assigned Rust files."
+  ],
+  "execution": {
+    "builds_run": false,
+    "checks_run": false,
+    "tests_run": false,
+    "formatters_run": false,
+    "benchmarks_run": false,
+    "commits_created": false,
+    "subagents_spawned": false,
+    "unsafe_code_added": false,
+    "files_outside_assignment_written": false
+  },
+  "integration_followups": [
+    {
+      "scope": "Standalone syntax and cursor std feature propagation",
+      "files_outside_ownership": [
+        "crates/jmax-syntax/Cargo.toml",
+        "crates/jmax-cursor/Cargo.toml"
+      ],
+      "finding": "These manifests still enable only alloc and jmax-abi/std. Workspace dependencies disable default features, so standalone syntax/cursor std does not itself activate jmax-dispatch/std. The currently inspected jsonmax/std and jmax-bench/std features already forward jmax-dispatch/std, enabling runtime SIMD through those entry points.",
+      "required_owner_action": "Forward jmax-syntax/std to jmax-dispatch/std and jmax-cursor/std to jmax-syntax/std if standalone std consumers must automatically receive runtime native detection."
+    },
+    {
+      "scope": "Number implementation internals",
+      "files_outside_ownership": [
+        "crates/jmax-number/src/lex.rs",
+        "crates/jmax-number/src/float.rs"
+      ],
+      "finding": "The required existing lex_number API is now called once per scanned number. Its inspected grammar implementation remains scalar, and its float converter uses core decimal parsing. This assignment does not implement or claim an Eisel-Lemire algorithm inside the unowned number crate."
+    },
+    {
+      "scope": "Backend internal block loading",
+      "finding": "The parser passes slices directly as required. Existing scanner slice entry points internally load padded arrays, including for full blocks; changing those backend internals or adding dispatch full-array entry points is outside the assigned files."
+    }
+  ]
+}

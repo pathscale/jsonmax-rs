@@ -49,7 +49,49 @@ pub(crate) struct PendingToken {
     pub kind: PendingKind,
     pub start: u32,
     pub scan_offset: u32,
-    pub escaped: bool,
+    pub first_escape: Option<u32>,
+    pub non_ascii: bool,
+    pub control: bool,
+    pub digits: u32,
+    pub excess_digit: Option<u32>,
+}
+
+/// Complete input retains its original shared owner. Only incremental input
+/// needs a growable byte buffer; neither traversal nor finalization copies it.
+#[derive(Debug)]
+pub(crate) enum InputStorage {
+    Incremental(Vec<u8>),
+    Complete(Payload),
+}
+
+impl InputStorage {
+    pub(crate) fn into_payload(self) -> Payload {
+        match self {
+            Self::Incremental(bytes) => Payload::from_vec(bytes),
+            Self::Complete(payload) => payload,
+        }
+    }
+}
+
+impl core::ops::Deref for InputStorage {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        match self {
+            Self::Incremental(bytes) => bytes,
+            Self::Complete(payload) => payload.as_slice(),
+        }
+    }
+}
+
+/// One cached block, including the carry needed to extend a partial tail after
+/// another feed. Classification may look ahead, but never consumes an event.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ClassifiedBlock {
+    pub start: u32,
+    pub end: u32,
+    pub before: jmax_dispatch::ScanCarry,
+    pub masks: jmax_dispatch::BlockMasks,
 }
 
 /// Root is represented separately and does not consume container depth.
@@ -59,7 +101,6 @@ pub struct Frame {
     pub(crate) phase: FramePhase,
     pub(crate) start_offset: u32,
     pub(crate) count: u32,
-    pub(crate) seen_keys: Vec<Vec<u8>>,
 }
 
 impl Frame {
@@ -69,12 +110,12 @@ impl Frame {
     pub const fn count(&self) -> u32 { self.count }
 }
 
-/// Retains all input so previously emitted references survive further feeds.
+/// Retains input ownership so previously emitted references survive further feeds.
 /// Once an error is recorded, every mutating operation returns that error.
 #[derive(Debug)]
 pub struct SyntaxState {
     pub(crate) limits: Limits,
-    pub(crate) input: Vec<u8>,
+    pub(crate) input: InputStorage,
     pub(crate) decoded: Vec<u8>,
     pub(crate) frames: Vec<Frame>,
     pub(crate) root_phase: FramePhase,
@@ -83,13 +124,31 @@ pub struct SyntaxState {
     pub(crate) finished: bool,
     pub(crate) failure: Option<Error>,
     pub(crate) pending: Option<PendingToken>,
+    pub(crate) key_tables: Vec<frames::KeyTable>,
+    pub(crate) dispatch: Option<jmax_dispatch::Dispatch>,
+    pub(crate) block: Option<ClassifiedBlock>,
+    pub(crate) scan_offset: u32,
+    pub(crate) scan_carry: jmax_dispatch::ScanCarry,
 }
 
 impl SyntaxState {
     pub fn new(limits: Limits) -> Self {
-        Self { limits, input: Vec::new(), decoded: Vec::new(), frames: Vec::new(),
+        Self { limits, input: InputStorage::Incremental(Vec::new()),
+            decoded: Vec::new(), frames: Vec::new(),
             root_phase: FramePhase::RootStart, byte_offset: 0, final_input: false,
-            finished: false, failure: None, pending: None }
+            finished: false, failure: None, pending: None, key_tables: Vec::new(),
+            dispatch: None, block: None, scan_offset: 0,
+            scan_carry: jmax_dispatch::ScanCarry::default() }
+    }
+
+    /// Retains a complete payload without copying its bytes and declares EOF.
+    /// Syntax errors are diagnosed lazily as events are consumed.
+    pub fn from_payload(payload: Payload, limits: Limits) -> Result<Self> {
+        frames::check_payload_growth(0, payload.len(), limits)?;
+        let mut state = Self::new(limits);
+        state.input = InputStorage::Complete(payload);
+        state.final_input = true;
+        Ok(state)
     }
     pub const fn limits(&self) -> Limits { self.limits }
     pub fn raw_bytes(&self) -> &[u8] { &self.input }
@@ -103,18 +162,32 @@ impl SyntaxState {
             finished: self.finished }
     }
     pub fn resolve_str(&self, reference: StrRef) -> Option<&str> {
-        let bytes = match reference.source {
-            SpanSource::RawPayload => reference.span.slice(&self.input)?,
-            SpanSource::DecodedArena => reference.span.slice(&self.decoded)?,
-        };
+        let bytes = self.resolve_bytes(reference)?;
         core::str::from_utf8(bytes).ok()
+    }
+    pub(crate) fn resolve_bytes(&self, reference: StrRef) -> Option<&[u8]> {
+        match reference.source {
+            SpanSource::RawPayload => reference.span.slice(&self.input),
+            SpanSource::DecodedArena => reference.span.slice(&self.decoded),
+        }
+    }
+
+    /// Transfers backing storage without consuming or validating more events.
+    /// The caller must retain its own record of whether traversal reached EOF.
+    pub fn into_storage(self) -> Result<SyntaxOutput> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        Ok(SyntaxOutput { payload: self.input.into_payload(), decoded: self.decoded })
     }
     pub(crate) fn fail(&mut self, error: Error) -> Error {
         self.failure.get_or_insert(error).clone()
     }
 }
 
-/// Completed syntax ownership, without any schema validation claim.
+/// Syntax backing storage, without a syntax or schema validation claim.
+/// `finish::into_output` validates before returning this type; `into_storage`
+/// deliberately permits callers to retain a partially traversed query input.
 #[derive(Clone, Debug)]
 pub struct SyntaxOutput {
     pub payload: Payload,

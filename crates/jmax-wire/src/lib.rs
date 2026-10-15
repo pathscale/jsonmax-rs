@@ -48,12 +48,15 @@ pub struct OwnedEnvelope {
     pub(crate) payload: Payload,
     pub(crate) decoded: Box<[u8]>,
     pub(crate) view: WireEnvelopeView,
+    pub(crate) method_code: Option<u32>,
 }
 
 impl OwnedEnvelope {
     pub fn payload(&self) -> &Payload { &self.payload }
     pub fn decoded_bytes(&self) -> &[u8] { &self.decoded }
     pub fn view(&self) -> WireEnvelopeView { self.view }
+    /// Numeric endpoint method identifier from the endpoint-libs dialect.
+    pub fn method_code(&self) -> Option<u32> { self.method_code }
     pub fn resolve(&self, span: Span32) -> Option<&[u8]> { span.slice(self.payload.as_slice()) }
     pub fn method(&self) -> Option<&str> {
         let reference = self.view.method?;
@@ -88,6 +91,8 @@ pub struct FrameDecoder {
 #[derive(Clone, Copy, Debug)]
 pub struct RequestContext<'a> {
     pub roles: &'a [String],
+    /// Numeric role identifiers accepted by endpoint-libs callers.
+    pub role_ids: &'a [u32],
     pub budget: ResourceBudget,
 }
 
@@ -127,6 +132,9 @@ pub enum Response<'a> {
     Forwarded { seq: u64, code: u32, target: &'a str },
     Close { seq: Option<u64>, reason: &'a str },
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResponseDialect { Native, EndpointLibs }
 
 /// Fallible, bounded output shared with protocol adapters.
 #[derive(Clone, Debug)]
@@ -193,6 +201,25 @@ pub fn write_json_string(value: &str, sink: &mut dyn ByteSink) -> Result<()> {
 
 pub fn role_allowed(endpoint: &EndpointSchemaSpec, roles: &[String]) -> bool {
     endpoint.roles.is_empty() || endpoint.roles.iter().any(|required| roles.contains(required))
+}
+
+/// Checks named roles and numeric IDs. A numeric requirement is represented
+/// in endpoint metadata by its canonical decimal string, preserving the ABI's
+/// existing role schema while allowing numeric callers to authorize it.
+pub fn role_allowed_with_ids(endpoint: &EndpointSchemaSpec, roles: &[String], role_ids: &[u32]) -> bool {
+    endpoint.roles.is_empty() || endpoint.roles.iter().any(|required| {
+        roles.contains(required) || required.parse::<u32>().ok().is_some_and(|id| role_ids.contains(&id))
+    })
+}
+
+/// u16 counterpart for callers whose role identifiers use the compact ABI
+/// representation. Both widths compare against the same decimal metadata IDs.
+pub fn role_allowed_with_u16_ids(
+    endpoint: &EndpointSchemaSpec, roles: &[String], role_ids: &[u16],
+) -> bool {
+    endpoint.roles.is_empty() || endpoint.roles.iter().any(|required| {
+        roles.contains(required) || required.parse::<u16>().ok().is_some_and(|id| role_ids.contains(&id))
+    })
 }
 
 pub(crate) const fn wire_error(code: ErrorCode, detail: &'static str) -> Error {

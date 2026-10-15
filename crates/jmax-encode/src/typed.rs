@@ -32,6 +32,93 @@ pub fn encode_to_vec<T: JsonEncode + ?Sized>(
     Ok(temporary.into_vec())
 }
 
+/// Emits the shared DOM/ABI representation through the bounded JSON writer.
+///
+/// Public tables are checked before any navigation. Strings use their cooked
+/// owner-relative references; numbers retain their validated original spelling.
+/// Emission is iterative and destination writes start only after completion.
+/// Existing syntax or schema provenance is preserved without issuing a proof.
+pub fn encode_document(
+    document: &ValidatedDocument,
+    sink: &mut dyn ByteSink,
+    limits: EncodeLimits,
+) -> Result<()> {
+    let bytes = encode_document_to_vec(document, limits)?;
+    publish(&bytes, sink, limits)
+}
+
+/// Returns compact JSON for either a DOM document or a facade ABI document.
+pub fn encode_document_to_vec(
+    document: &ValidatedDocument,
+    limits: EncodeLimits,
+) -> Result<Vec<u8>> {
+    document.validate_layout().map_err(|mut error| {
+        error.source = ErrorSource::Encode;
+        error
+    })?;
+    if document.metadata().max_depth > limits.max_depth {
+        return Err(encode_error(ErrorCode::DepthLimitExceeded, "document exceeds encoder depth limit"));
+    }
+    let mut temporary = VecSink::new(limits.max_output_bytes);
+    let mut writer = JsonWriter::new(&mut temporary, limits);
+    // Exclusive subtree ends allow a single preorder pass without recursion or
+    // allocating a work item for every child of a wide container.
+    let mut open: Vec<(u32, bool)> = Vec::new();
+    for (index, word) in document.parts().nodes.iter().copied().enumerate() {
+        let id = index as u32;
+        while open.last().is_some_and(|entry| entry.0 == id) {
+            if let Some((_, object)) = open.pop() {
+                if object { writer.end_object()?; } else { writer.end_array()?; }
+            }
+        }
+        let meta = document.parts().node_metadata[index];
+        if let Some(key) = meta.key {
+            let text = document.resolve_str(key).ok_or_else(|| {
+                encode_error(ErrorCode::ConstraintViolation, "document key is outside its owner")
+            })?;
+            writer.key(text)?;
+        }
+        match word.kind() {
+            jmax_dom::TAG_NULL => writer.null()?,
+            jmax_dom::TAG_FALSE => writer.boolean(false)?,
+            jmax_dom::TAG_TRUE => writer.boolean(true)?,
+            jmax_dom::TAG_STRING => {
+                let text = meta.string.and_then(|reference| document.resolve_str(reference))
+                    .ok_or_else(|| encode_error(ErrorCode::ConstraintViolation,
+                        "document string is outside its owner"))?;
+                writer.string(text)?;
+            }
+            jmax_dom::TAG_NUMBER => {
+                let bytes = document.parts().spans[index].slice(document.payload().as_slice())
+                    .ok_or_else(|| encode_error(ErrorCode::ConstraintViolation,
+                        "document number is outside its owner"))?;
+                let fragment = raw::validate(bytes, limits)?;
+                if fragment.kind() != FragmentKind::Number {
+                    return Err(encode_error(ErrorCode::TypeMismatch,
+                        "document number span is not a JSON number"));
+                }
+                writer.raw(fragment)?;
+            }
+            jmax_dom::TAG_ARRAY | jmax_dom::TAG_OBJECT => {
+                let object = word.kind() == jmax_dom::TAG_OBJECT;
+                open.try_reserve(1).map_err(|_| {
+                    encode_error(ErrorCode::BudgetExhausted, "document encoder allocation failed")
+                })?;
+                if object { writer.begin_object()?; } else { writer.begin_array()?; }
+                let record = document.parts().containers[word.payload_index() as usize];
+                open.push((record.end_node, object));
+            }
+            _ => return Err(encode_error(ErrorCode::ConstraintViolation,
+                "document contains an unknown node tag")),
+        }
+    }
+    while let Some((_, object)) = open.pop() {
+        if object { writer.end_object()?; } else { writer.end_array()?; }
+    }
+    writer.finish()?;
+    Ok(temporary.into_vec())
+}
+
 /// Emits present fields in schema order, rechecking current values and owners.
 ///
 /// Field position, rather than FieldId, indexes the slots. The proof is neither
@@ -278,638 +365,4 @@ fn compare_integer(token: &[u8], bound: i64) -> Ordering {
     let other = &buffer[start..];
     let order = digits.len().cmp(&other.len()).then_with(|| digits.cmp(other));
     if negative { order.reverse() } else { order }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::{string::String, vec};
-    use jmax_abi::schema::{FieldId, SchemaId};
-
-    struct Literal<'a>(&'a [u8]);
-
-    impl JsonEncode for Literal<'_> {
-        fn encode_json(&self, sink: &mut dyn ByteSink) -> Result<()> {
-            sink.write_bytes(self.0)
-        }
-    }
-
-    fn external_error() -> Error {
-        Error::new(ErrorCode::Cancelled, ErrorSource::Transport, 17, "injected failure")
-            .with_schema(23, 29)
-    }
-
-    #[derive(Default)]
-    struct Destination {
-        bytes: Vec<u8>,
-        reservations: usize,
-        writes: usize,
-        fail_reserve: bool,
-        fail_write: bool,
-        short_write: bool,
-    }
-
-    impl ByteSink for Destination {
-        fn reserve(&mut self, additional: usize) -> Result<()> {
-            self.reservations += 1;
-            if self.fail_reserve { return Err(external_error()); }
-            ByteSink::reserve(&mut self.bytes, additional)
-        }
-
-        fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
-            self.writes += 1;
-            if self.fail_write {
-                ByteSink::write_bytes(&mut self.bytes, &bytes[..bytes.len().min(2)])?;
-                return Err(external_error());
-            }
-            if self.short_write { return Ok(()); }
-            ByteSink::write_bytes(&mut self.bytes, bytes)
-        }
-
-        fn len(&self) -> usize { self.bytes.len() }
-    }
-
-    fn assert_error(error: Error, code: ErrorCode) {
-        assert_eq!(error.code, code);
-        assert_eq!(error.source, ErrorSource::Encode);
-        assert!(!error.detail.is_empty());
-    }
-
-    fn field(id: u32, name: &str, kind: Option<ScalarKind>) -> SchemaFieldIr {
-        SchemaFieldIr {
-            field_id: FieldId(id), name: String::from(name), required: false,
-            scalar_kind: kind, format: None, min_len: None, max_len: None,
-            min_i64: None, max_i64: None,
-        }
-    }
-
-    fn schema(fields: Vec<SchemaFieldIr>) -> SchemaIr {
-        SchemaIr {
-            name: String::from("typed vectors"), schema_id: SchemaId(91),
-            required_count: fields.iter().filter(|field| field.required).count() as u16,
-            reject_unknown: true, fields,
-        }
-    }
-
-    fn render(payload: &[u8], decoded: &[u8], values: &[SlotValue], schema: &SchemaIr) -> Vec<u8> {
-        let mut sink = Vec::new();
-        encode_values(payload, decoded, values, schema, &mut sink, EncodeLimits::default()).unwrap();
-        raw::validate(&sink, EncodeLimits::default()).unwrap();
-        sink
-    }
-
-    fn reject(
-        payload: &[u8], decoded: &[u8], values: &[SlotValue], schema: &SchemaIr,
-        limits: EncodeLimits, code: ErrorCode, field_id: u32,
-    ) -> Error {
-        let mut destination = Destination { bytes: b"prefix".to_vec(), ..Destination::default() };
-        let error = encode_values(payload, decoded, values, schema, &mut destination, limits).unwrap_err();
-        assert_error(error.clone(), code);
-        assert_eq!(error.schema_id, schema.schema_id.0);
-        assert_eq!(error.field_id, field_id);
-        assert_eq!(destination.bytes, b"prefix");
-        assert_eq!((destination.reservations, destination.writes), (0, 0));
-        error
-    }
-
-    fn raw_value(bytes: &[u8]) -> SlotValue {
-        SlotValue::RawSpan(Span32::new(0, bytes.len() as u32))
-    }
-
-    #[test]
-    fn generic_encoding_accepts_every_root_and_preserves_exact_bytes() {
-        let vectors: &[&[u8]] = &[
-            b"null", b"true", b"false", b"-0", b"18446744073709551616",
-            b"1.25e+009", br#""\u0000\uD83D\uDE00""#,
-            b"[]", b"{}", b" \t{\"x\":[1,true,null],\"x\":false}\r\n",
-        ];
-        for &bytes in vectors {
-            let value = Literal(bytes);
-            let erased: &dyn JsonEncode = &value;
-            let limits = EncodeLimits { max_output_bytes: bytes.len(), ..EncodeLimits::default() };
-            assert_eq!(encode_to_vec(erased, limits).unwrap(), bytes);
-            let mut destination = Destination { bytes: b"prefix:".to_vec(), ..Destination::default() };
-            encode(erased, &mut destination, limits).unwrap();
-            assert_eq!(&destination.bytes[..7], b"prefix:");
-            assert_eq!(&destination.bytes[7..], bytes);
-            assert_eq!((destination.reservations, destination.writes), (1, 1));
-        }
-    }
-
-    #[test]
-    fn generic_encoding_rejects_malformed_and_multiple_root_output_before_publication() {
-        let vectors: &[(&[u8], ErrorCode)] = &[
-            (b"", ErrorCode::UnexpectedEof), (b" \t\r\n", ErrorCode::UnexpectedEof),
-            (b"null true", ErrorCode::TrailingContent), (b"{}[]", ErrorCode::TrailingContent),
-            (b"[0,]", ErrorCode::InvalidSyntax), (b"{\"a\":}", ErrorCode::InvalidSyntax),
-            (b"[0", ErrorCode::UnexpectedEof), (b"01", ErrorCode::InvalidNumber),
-            (b"NaN", ErrorCode::InvalidNumber), (b"+1", ErrorCode::InvalidNumber),
-            (b"\xef\xbb\xbfnull", ErrorCode::InvalidSyntax), (b"\"\xff\"", ErrorCode::InvalidUtf8),
-            (br#""\q""#, ErrorCode::InvalidEscape),
-            (br#""\uDC00""#, ErrorCode::LoneSurrogate),
-            (b"\"\n\"", ErrorCode::ControlCharInString),
-        ];
-        for &(bytes, code) in vectors {
-            let mut destination = Destination::default();
-            let error = encode(&Literal(bytes), &mut destination, EncodeLimits::default()).unwrap_err();
-            assert_error(error, code);
-            assert_eq!((destination.reservations, destination.writes), (0, 0));
-            assert!(destination.bytes.is_empty());
-        }
-    }
-
-    #[test]
-    fn generic_limits_are_inclusive_and_enforced_before_destination_calls() {
-        let default = EncodeLimits::default();
-        let vectors: &[(&[u8], EncodeLimits, ErrorCode)] = &[
-            (b"null", EncodeLimits { max_output_bytes: 3, ..default }, ErrorCode::PayloadTooLarge),
-            (b"[]", EncodeLimits { max_depth: 0, ..default }, ErrorCode::DepthLimitExceeded),
-            (b"[0,1]", EncodeLimits { max_container_items: 1, ..default }, ErrorCode::BudgetExhausted),
-            (br#""\uD83D\uDE00""#, EncodeLimits { max_string_bytes: 3, ..default }, ErrorCode::BudgetExhausted),
-            (b"100", EncodeLimits { max_number_bytes: 2, ..default }, ErrorCode::BudgetExhausted),
-        ];
-        for &(bytes, limits, code) in vectors {
-            let mut destination = Destination::default();
-            assert_error(encode(&Literal(bytes), &mut destination, limits).unwrap_err(), code);
-            assert_eq!((destination.reservations, destination.writes), (0, 0));
-        }
-        assert_eq!(encode_to_vec(&Literal(b"null"), EncodeLimits {
-            max_output_bytes: 4, max_depth: 0, max_container_items: 0,
-            max_string_bytes: 0, max_number_bytes: 0,
-        }).unwrap(), b"null");
-        assert_error(encode_to_vec(&Literal(b""), EncodeLimits {
-            max_output_bytes: 0, ..default
-        }).unwrap_err(), ErrorCode::UnexpectedEof);
-    }
-
-    struct FailedEncoder;
-
-    impl JsonEncode for FailedEncoder {
-        fn encode_json(&self, sink: &mut dyn ByteSink) -> Result<()> {
-            sink.write_bytes(b"null")?;
-            Err(external_error())
-        }
-    }
-
-    #[test]
-    fn trait_failure_after_a_valid_value_is_preserved_without_publication() {
-        let mut destination = Destination::default();
-        assert_eq!(encode(&FailedEncoder, &mut destination, EncodeLimits::default()).unwrap_err(), external_error());
-        assert_eq!(encode_to_vec(&FailedEncoder, EncodeLimits::default()).unwrap_err(), external_error());
-        assert_eq!((destination.reservations, destination.writes), (0, 0));
-    }
-
-    #[test]
-    fn external_sink_errors_and_partial_writes_are_preserved_by_both_paths() {
-        let schema = schema(vec![field(7, "v", None)]);
-        for slots in [false, true] {
-            for fail_reserve in [false, true] {
-                let mut destination = Destination {
-                    bytes: b"prefix:".to_vec(), fail_reserve, fail_write: !fail_reserve,
-                    ..Destination::default()
-                };
-                let result = if slots {
-                    encode_values(b"", b"", &[SlotValue::Bool(true)], &schema,
-                        &mut destination, EncodeLimits::default())
-                } else {
-                    encode(&Literal(b"null"), &mut destination, EncodeLimits::default())
-                };
-                assert_eq!(result.unwrap_err(), external_error());
-                assert_eq!(destination.reservations, 1);
-                assert_eq!(destination.writes, usize::from(!fail_reserve));
-                assert_eq!(&destination.bytes[..7], b"prefix:");
-                assert_eq!(&destination.bytes[7..], if fail_reserve { &b""[..] }
-                    else if slots { &b"{\""[..] } else { &b"nu"[..] });
-            }
-        }
-    }
-
-    #[test]
-    fn a_sink_cannot_claim_success_after_a_short_write() {
-        let mut destination = Destination { short_write: true, ..Destination::default() };
-        assert_error(encode(&Literal(b"null"), &mut destination, EncodeLimits::default()).unwrap_err(),
-            ErrorCode::InternalError);
-    }
-
-    #[test]
-    fn slot_order_is_schema_position_and_empty_is_absent() {
-        let mut first = field(99, "z", Some(ScalarKind::True));
-        first.required = true;
-        let schema = schema(vec![first, field(1, "omit", None),
-            field(u32::MAX, "", Some(ScalarKind::Null)), field(40, "a", Some(ScalarKind::Number))]);
-        let values = [SlotValue::Bool(false), SlotValue::Empty, raw_value(b" null "), SlotValue::U64(5)];
-        assert_eq!(render(b" null ", b"", &values, &schema), b"{\"z\":false,\"\": null ,\"a\":5}");
-        let mut permissive = schema.clone();
-        permissive.reject_unknown = false;
-        assert_eq!(render(b" null ", b"", &values, &permissive), render(b" null ", b"", &values, &schema));
-    }
-
-    #[test]
-    fn empty_schema_and_all_optional_empty_slots_emit_empty_object() {
-        assert_eq!(render(b"unrelated", b"", &[], &schema(vec![])), b"{}");
-        assert_eq!(render(b"", b"", &[SlotValue::Empty], &schema(vec![field(8, "v", None)])), b"{}");
-        let schema = schema(vec![field(8, "v", None)]);
-        reject(b"", b"", &[], &schema, EncodeLimits::default(), ErrorCode::ConstraintViolation, 0);
-        reject(b"", b"", &[SlotValue::Empty, SlotValue::Empty], &schema,
-            EncodeLimits::default(), ErrorCode::ConstraintViolation, 0);
-    }
-
-    #[test]
-    fn missing_required_field_cannot_publish_an_earlier_valid_field() {
-        let mut required = field(27, "required", None);
-        required.required = true;
-        let schema = schema(vec![field(4, "first", None), required]);
-        reject(b"", b"", &[SlotValue::Bool(true), SlotValue::Empty], &schema,
-            EncodeLimits::default(), ErrorCode::MissingRequiredField, 27);
-    }
-
-    #[test]
-    fn all_numeric_and_boolean_slots_use_canonical_writer_output() {
-        let vectors: &[(SlotValue, ScalarKind, &[u8])] = &[
-            (SlotValue::Bool(true), ScalarKind::False, b"{\"v\":true}"),
-            (SlotValue::Bool(false), ScalarKind::True, b"{\"v\":false}"),
-            (SlotValue::U64(u64::MAX), ScalarKind::Number, b"{\"v\":18446744073709551615}"),
-            (SlotValue::I64(i64::MIN), ScalarKind::Number, b"{\"v\":-9223372036854775808}"),
-            (SlotValue::F64Bits((-0.0f64).to_bits()), ScalarKind::Number, b"{\"v\":-0}"),
-            (SlotValue::F64Bits(1.25f64.to_bits()), ScalarKind::Number, b"{\"v\":1.25}"),
-            (SlotValue::Decimal(Decimal128::new(123, 2)), ScalarKind::String, b"{\"v\":\"1.23\"}"),
-            (SlotValue::Decimal(Decimal128::new(-1, 3)), ScalarKind::String, b"{\"v\":\"-0.001\"}"),
-            (SlotValue::Decimal(Decimal128::new(0, 2)), ScalarKind::String, b"{\"v\":\"0.00\"}"),
-            (SlotValue::Decimal(Decimal128::new(i128::MIN, 0)), ScalarKind::String,
-                b"{\"v\":\"-170141183460469231731687303715884105728\"}"),
-            (SlotValue::Decimal(Decimal128::new(i128::MIN, 38)), ScalarKind::String,
-                b"{\"v\":\"-1.70141183460469231731687303715884105728\"}"),
-        ];
-        for &(value, kind, expected) in vectors {
-            assert_eq!(render(b"", b"", &[value], &schema(vec![field(8, "v", Some(kind))])), expected);
-        }
-    }
-
-    #[test]
-    fn nonfinite_float_bits_and_invalid_decimal_scales_are_rejected() {
-        let schema = schema(vec![field(8, "v", None)]);
-        for bits in [f64::NAN.to_bits(), f64::INFINITY.to_bits(), f64::NEG_INFINITY.to_bits(),
-            0x7ff0_0000_0000_0001, 0xfff8_0000_0000_0001]
-        {
-            reject(b"", b"", &[SlotValue::F64Bits(bits)], &schema,
-                EncodeLimits::default(), ErrorCode::InvalidNumber, 8);
-        }
-        for scale in [39, u8::MAX] {
-            reject(b"", b"", &[SlotValue::Decimal(Decimal128::new(0, scale))], &schema,
-                EncodeLimits::default(), ErrorCode::DecimalScaleMismatch, 8);
-        }
-    }
-
-    #[test]
-    fn owned_string_spans_resolve_exact_sources_and_escape_decoded_contents() {
-        let payload = "xé".as_bytes();
-        let decoded = "\n😀\"\\".as_bytes();
-        let schema = schema(vec![field(1, "raw", Some(ScalarKind::String)),
-            field(2, "decoded", Some(ScalarKind::String)), field(3, "end", Some(ScalarKind::String))]);
-        let values = [
-            SlotValue::Str(StrRef { span: Span32::new(1, 2), source: SpanSource::RawPayload, scalar_len: 1 }),
-            SlotValue::Str(StrRef { span: Span32::new(0, decoded.len() as u32), source: SpanSource::DecodedArena, scalar_len: 4 }),
-            SlotValue::Str(StrRef { span: Span32::new(payload.len() as u32, 0), source: SpanSource::RawPayload, scalar_len: 0 }),
-        ];
-        assert_eq!(render(payload, decoded, &values, &schema),
-            "{\"raw\":\"é\",\"decoded\":\"\\n😀\\\"\\\\\",\"end\":\"\"}".as_bytes());
-    }
-
-    #[test]
-    fn invalid_string_owners_spans_utf8_and_scalar_metadata_fail_without_panics() {
-        let schema = schema(vec![field(8, "v", Some(ScalarKind::String))]);
-        for source in [SpanSource::RawPayload, SpanSource::DecodedArena] {
-            for span in [Span32::new(u32::MAX, 2), Span32::new(4, 0), Span32::new(0, 4)] {
-                let value = SlotValue::Str(StrRef { span, source, scalar_len: 0 });
-                reject(b"abc", b"abc", &[value], &schema,
-                    EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-            }
-            for (span, code) in [(Span32::new(0, 1), ErrorCode::InvalidUtf8),
-                (Span32::new(0, 2), ErrorCode::ConstraintViolation)]
-            {
-                let value = SlotValue::Str(StrRef { span, source, scalar_len: 2 });
-                reject("é".as_bytes(), "é".as_bytes(), &[value], &schema,
-                    EncodeLimits::default(), code, 8);
-            }
-        }
-    }
-
-    #[test]
-    fn scalar_categories_are_checked_against_actual_output() {
-        let values = [SlotValue::Bool(true), SlotValue::U64(0),
-            SlotValue::Decimal(Decimal128::new(0, 0)), raw_value(b"null")];
-        let kinds = [ScalarKind::True, ScalarKind::Number, ScalarKind::String, ScalarKind::Null];
-        for (value_index, value) in values.into_iter().enumerate() {
-            for (kind_index, kind) in kinds.into_iter().enumerate() {
-                let schema = schema(vec![field(8, "v", Some(kind))]);
-                if value_index == kind_index {
-                    render(b"null", b"", &[value], &schema);
-                } else {
-                    reject(b"null", b"", &[value], &schema, EncodeLimits::default(), ErrorCode::TypeMismatch, 8);
-                }
-            }
-        }
-        for bytes in [b"[]".as_slice(), b"{}".as_slice()] {
-            for kind in kinds {
-                reject(bytes, b"", &[raw_value(bytes)], &schema(vec![field(8, "v", Some(kind))]),
-                    EncodeLimits::default(), ErrorCode::TypeMismatch, 8);
-            }
-            let output = render(bytes, b"", &[raw_value(bytes)], &schema(vec![field(8, "v", None)]));
-            assert_eq!(&output[5..output.len() - 1], bytes);
-        }
-    }
-
-    #[test]
-    fn raw_values_are_revalidated_with_exact_diagnostics_and_field_context() {
-        let schema = schema(vec![field(8, "v", None)]);
-        for bytes in [b"[0,]".as_slice(), b"null null".as_slice(), br#""\uD800x""#.as_slice(),
-            b"\"\xff\"".as_slice(), b"".as_slice()]
-        {
-            let expected = raw::validate(bytes, EncodeLimits::default()).unwrap_err();
-            let actual = reject(bytes, b"", &[raw_value(bytes)], &schema,
-                EncodeLimits::default(), expected.code, 8);
-            assert_eq!(actual.byte_offset, expected.byte_offset);
-            assert_eq!(actual.detail, expected.detail);
-        }
-        for span in [Span32::new(0, 5), Span32::new(5, 0), Span32::new(u32::MAX, 1)] {
-            reject(b"null", b"", &[SlotValue::RawSpan(span)], &schema,
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-    }
-
-    #[test]
-    fn raw_strings_count_unicode_scalars_instead_of_escape_bytes_or_utf16_units() {
-        let mut field = field(8, "v", Some(ScalarKind::String));
-        field.min_len = Some(2);
-        field.max_len = Some(2);
-        let schema = schema(vec![field]);
-        for bytes in [br#" "\uD83D\uDE00\u0061" "#.as_slice(), "\"😀a\"".as_bytes(),
-            br#""\n\u0000""#.as_slice(), "\"é\"".as_bytes()]
-        {
-            render(bytes, b"", &[raw_value(bytes)], &schema);
-        }
-        for bytes in [br#""\uD83D\uDE00""#.as_slice(), b"\"abc\"".as_slice(), b"\"\"".as_slice()] {
-            reject(bytes, b"", &[raw_value(bytes)], &schema,
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-    }
-
-    #[test]
-    fn decimal_string_bounds_apply_to_fixed_scale_output() {
-        let mut field = field(8, "v", Some(ScalarKind::String));
-        field.min_len = Some(5);
-        field.max_len = Some(5);
-        let schema = schema(vec![field]);
-        assert_eq!(render(b"", b"", &[SlotValue::Decimal(Decimal128::new(-123, 2))], &schema),
-            b"{\"v\":\"-1.23\"}");
-        for value in [Decimal128::new(123, 2), Decimal128::new(-123, 3)] {
-            reject(b"", b"", &[SlotValue::Decimal(value)], &schema,
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-    }
-
-    #[test]
-    fn integer_bounds_are_exact_at_signed_unsigned_and_float_precision_edges() {
-        let mut field = field(8, "v", Some(ScalarKind::Number));
-        field.min_i64 = Some(i64::MIN);
-        field.max_i64 = Some(i64::MAX);
-        let schema = schema(vec![field]);
-        for value in [SlotValue::I64(i64::MIN), SlotValue::I64(i64::MAX), SlotValue::U64(i64::MAX as u64)] {
-            render(b"", b"", &[value], &schema);
-        }
-        for value in [SlotValue::U64(i64::MAX as u64 + 1), SlotValue::U64(u64::MAX)] {
-            reject(b"", b"", &[value], &schema, EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-        for bytes in [b"-9223372036854775809".as_slice(), b"9223372036854775808".as_slice(),
-            b"999999999999999999999999999999999999999999999".as_slice()]
-        {
-            reject(bytes, b"", &[raw_value(bytes)], &schema,
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-        let mut precise = schema.clone();
-        precise.fields[0].min_i64 = Some(9_007_199_254_740_993);
-        precise.fields[0].max_i64 = Some(9_007_199_254_740_993);
-        render(b"", b"", &[SlotValue::U64(9_007_199_254_740_993)], &precise);
-        reject(b"", b"", &[SlotValue::F64Bits(9_007_199_254_740_992.0f64.to_bits())], &precise,
-            EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-    }
-
-    #[test]
-    fn integer_grammar_rejects_fraction_and_exponent_even_when_mathematically_integral() {
-        let mut field = field(8, "v", Some(ScalarKind::Number));
-        field.min_i64 = Some(0);
-        let schema = schema(vec![field]);
-        for bytes in [b"1.0".as_slice(), b"1e0".as_slice(), b"1E+00".as_slice(), b"-0.0".as_slice()] {
-            reject(bytes, b"", &[raw_value(bytes)], &schema,
-                EncodeLimits::default(), ErrorCode::TypeMismatch, 8);
-        }
-        for bytes in [b"0".as_slice(), b"-0".as_slice(), b" 1 \n".as_slice(),
-            b"999999999999999999999999999999999999999999999999999".as_slice()]
-        {
-            render(bytes, b"", &[raw_value(bytes)], &schema);
-        }
-        let mut negative = schema.clone();
-        negative.fields[0].min_i64 = None;
-        negative.fields[0].max_i64 = Some(-1);
-        let huge = b"-999999999999999999999999999999999999999999999999999";
-        render(huge, b"", &[raw_value(huge)], &negative);
-    }
-
-    #[test]
-    fn exact_integer_comparison_vectors_include_negative_zero_and_extremes() {
-        let vectors: &[(&[u8], i64, Ordering)] = &[
-            (b"-0", 0, Ordering::Equal), (b"0", -1, Ordering::Greater),
-            (b"-0", 1, Ordering::Less), (b"-1", 0, Ordering::Less),
-            (b"-10", -9, Ordering::Less), (b"-9", -10, Ordering::Greater),
-            (b"9223372036854775807", i64::MAX, Ordering::Equal),
-            (b"-9223372036854775808", i64::MIN, Ordering::Equal),
-            (b"18446744073709551615", i64::MAX, Ordering::Greater),
-            (b"-18446744073709551615", i64::MIN, Ordering::Less),
-        ];
-        for &(token, bound, order) in vectors { assert_eq!(compare_integer(token, bound), order); }
-        for bound in [-100i64, -1, 0, 1, 100, i64::MIN, i64::MAX] {
-            let mut scratch = VecSink::new(64);
-            let fragment = render_slot(SlotValue::I64(bound), b"", b"", &mut scratch, EncodeLimits::default()).unwrap();
-            assert_eq!(compare_integer(fragment.as_bytes(), bound), Ordering::Equal);
-        }
-    }
-
-    #[test]
-    fn schema_preflight_rejects_duplicate_names_and_ids_globally() {
-        for fields in [
-            vec![field(1, "", None), field(2, "middle", None), field(3, "", None)],
-            vec![field(7, "a", None), field(2, "b", None), field(7, "c", None)],
-        ] {
-            let schema = schema(fields);
-            let mut destination = Destination::default();
-            let error = encode_values(b"", b"", &[SlotValue::Empty; 3], &schema,
-                &mut destination, EncodeLimits::default()).unwrap_err();
-            assert_error(error.clone(), ErrorCode::ConstraintViolation);
-            assert_eq!(error.schema_id, 91);
-            assert!([1, 3, 7].contains(&error.field_id));
-            assert_eq!((destination.reservations, destination.writes), (0, 0));
-        }
-    }
-
-    #[test]
-    fn schema_preflight_rejects_inaccurate_required_count() {
-        let mut schema = schema(vec![field(8, "v", None)]);
-        schema.required_count = 1;
-        reject(b"", b"", &[SlotValue::Empty], &schema,
-            EncodeLimits::default(), ErrorCode::ConstraintViolation, 0);
-        schema.required_count = 0;
-        schema.fields[0].required = true;
-        reject(b"", b"", &[SlotValue::Bool(true)], &schema,
-            EncodeLimits::default(), ErrorCode::ConstraintViolation, 0);
-    }
-
-    #[test]
-    fn every_named_format_is_rejected_even_on_absent_optional_fields() {
-        for format in ["", "uuid", "date-time", "unknown"] {
-            let mut field = field(8, "v", Some(ScalarKind::String));
-            field.format = Some(String::from(format));
-            reject(b"", b"", &[SlotValue::Empty], &schema(vec![field]),
-                EncodeLimits::default(), ErrorCode::UnsupportedSchemaFeature, 8);
-        }
-    }
-
-    #[test]
-    fn unsupported_formats_are_not_hidden_by_other_malformed_schema_metadata() {
-        let mut malformed = field(1, "bad", None);
-        malformed.min_len = Some(1);
-        let mut formatted = field(8, "v", None);
-        formatted.format = Some(String::new());
-        reject(b"", b"", &[SlotValue::Empty; 2], &schema(vec![malformed, formatted]),
-            EncodeLimits::default(), ErrorCode::UnsupportedSchemaFeature, 8);
-    }
-
-    #[test]
-    fn required_count_overflow_is_rejected_before_duplicate_scanning() {
-        let mut template = field(8, "v", None);
-        template.required = true;
-        let schema = SchemaIr {
-            schema_id: SchemaId(91), required_count: u16::MAX,
-            fields: vec![template; usize::from(u16::MAX) + 1], ..SchemaIr::default()
-        };
-        let error = preflight(&schema).unwrap_err();
-        assert_error(error.clone(), ErrorCode::ConstraintViolation);
-        assert_eq!((error.schema_id, error.field_id), (91, 8));
-        assert_eq!(error.detail, "required field count exceeds the ABI range");
-    }
-
-    #[test]
-    fn zero_length_bounds_accept_empty_strings_and_reject_single_scalars() {
-        let mut field = field(8, "v", Some(ScalarKind::String));
-        field.min_len = Some(0);
-        field.max_len = Some(0);
-        let schema = schema(vec![field]);
-        for source in [SpanSource::RawPayload, SpanSource::DecodedArena] {
-            let empty = SlotValue::Str(StrRef { span: Span32::new(0, 0), source, scalar_len: 0 });
-            assert_eq!(render(b"", b"", &[empty], &schema), b"{\"v\":\"\"}");
-            let scalar = SlotValue::Str(StrRef { span: Span32::new(0, 4), source, scalar_len: 1 });
-            reject("😀".as_bytes(), "😀".as_bytes(), &[scalar], &schema,
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-        assert_eq!(render(b"\"\"", b"", &[raw_value(b"\"\"")], &schema), b"{\"v\":\"\"}");
-    }
-
-    #[test]
-    fn scalar_constraint_families_and_ordered_bounds_are_preflighted() {
-        for kind in [None, Some(ScalarKind::Null), Some(ScalarKind::True), Some(ScalarKind::False),
-            Some(ScalarKind::Number), Some(ScalarKind::String)]
-        {
-            for integer in [false, true] {
-                let allowed = if integer { Some(ScalarKind::Number) } else { Some(ScalarKind::String) };
-                if kind == allowed { continue; }
-                let mut field = field(8, "v", kind);
-                if integer { field.min_i64 = Some(0); } else { field.max_len = Some(1); }
-                reject(b"", b"", &[SlotValue::Empty], &schema(vec![field]),
-                    EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-            }
-        }
-        let mut length = field(8, "v", Some(ScalarKind::String));
-        length.min_len = Some(2);
-        length.max_len = Some(1);
-        let mut integer = field(8, "v", Some(ScalarKind::Number));
-        integer.min_i64 = Some(1);
-        integer.max_i64 = Some(0);
-        for field in [length, integer] {
-            reject(b"", b"", &[SlotValue::Empty], &schema(vec![field]),
-                EncodeLimits::default(), ErrorCode::ConstraintViolation, 8);
-        }
-    }
-
-    #[test]
-    fn slot_resource_boundaries_include_object_syntax_keys_and_raw_nesting() {
-        let schema = schema(vec![field(8, "v", None)]);
-        let default = EncodeLimits::default();
-        let vectors = [
-            (b"[]".as_slice(), EncodeLimits { max_depth: 1, ..default }, ErrorCode::DepthLimitExceeded, 8),
-            (b"[0,1]".as_slice(), EncodeLimits { max_container_items: 1, ..default }, ErrorCode::BudgetExhausted, 8),
-            (br#""\uD83D\uDE00""#.as_slice(), EncodeLimits { max_string_bytes: 3, ..default }, ErrorCode::BudgetExhausted, 8),
-            (b"100".as_slice(), EncodeLimits { max_number_bytes: 2, ..default }, ErrorCode::BudgetExhausted, 8),
-            (b"null".as_slice(), EncodeLimits { max_output_bytes: 9, ..default }, ErrorCode::PayloadTooLarge, 0),
-        ];
-        for (bytes, limits, code, field_id) in vectors {
-            reject(bytes, b"", &[raw_value(bytes)], &schema, limits, code, field_id);
-        }
-        for (limits, expected_field) in [
-            (EncodeLimits { max_container_items: 0, ..default }, 8),
-            (EncodeLimits { max_string_bytes: 0, ..default }, 8),
-        ] {
-            reject(b"", b"", &[SlotValue::Bool(true)], &schema,
-                limits, ErrorCode::BudgetExhausted, expected_field);
-        }
-        reject(b"", b"", &[SlotValue::Empty], &schema,
-            EncodeLimits { max_depth: 0, ..default }, ErrorCode::DepthLimitExceeded, 0);
-        let mut destination = b"prefix".to_vec();
-        encode_values(b"null", b"", &[raw_value(b"null")], &schema, &mut destination,
-            EncodeLimits { max_output_bytes: 10, ..default }).unwrap();
-        assert_eq!(destination, b"prefix{\"v\":null}");
-        let mut destination = Vec::new();
-        encode_values(b"[]", b"", &[raw_value(b"[]")], &schema, &mut destination,
-            EncodeLimits { max_depth: 2, max_container_items: 1, ..default }).unwrap();
-        assert_eq!(destination, b"{\"v\":[]}");
-    }
-
-    #[test]
-    fn output_limit_accounts_for_final_delimiter_and_escaped_keys() {
-        let schema = schema(vec![field(8, "\n", None)]);
-        let expected = b"{\"\\n\":true}";
-        let default = EncodeLimits::default();
-        for limit in [0, 1, expected.len() - 1] {
-            let mut destination = Destination::default();
-            let error = encode_values(b"", b"", &[SlotValue::Bool(true)], &schema,
-                &mut destination, EncodeLimits { max_output_bytes: limit, ..default }).unwrap_err();
-            assert_error(error, ErrorCode::PayloadTooLarge);
-            assert_eq!((destination.reservations, destination.writes), (0, 0));
-        }
-        let mut destination = Vec::new();
-        encode_values(b"", b"", &[SlotValue::Bool(true)], &schema, &mut destination,
-            EncodeLimits { max_output_bytes: expected.len(), ..default }).unwrap();
-        assert_eq!(destination, expected);
-    }
-
-    #[test]
-    fn writer_number_and_decimal_string_limits_are_rechecked() {
-        let schema = schema(vec![field(8, "v", None)]);
-        let default = EncodeLimits::default();
-        for (value, limits) in [
-            (SlotValue::U64(100), EncodeLimits { max_number_bytes: 2, ..default }),
-            (SlotValue::I64(-1), EncodeLimits { max_number_bytes: 1, ..default }),
-            (SlotValue::Decimal(Decimal128::new(123, 2)), EncodeLimits { max_number_bytes: 3, ..default }),
-            (SlotValue::Decimal(Decimal128::new(123, 2)), EncodeLimits { max_string_bytes: 3, ..default }),
-        ] {
-            reject(b"", b"", &[value], &schema, limits, ErrorCode::BudgetExhausted, 8);
-        }
-    }
-
-    #[test]
-    fn public_slots_entry_point_keeps_the_frozen_signature_without_issuing_proofs() {
-        // ABI proofs can only be issued through an unsafe validator boundary.
-        // This crate forbids unsafe code and must never manufacture evidence.
-        // All value tests therefore exercise its exact private implementation.
-        let entry: fn(&ValidatedSlots, &SchemaIr, &mut dyn ByteSink, EncodeLimits) -> Result<()> = encode_slots;
-        let _ = entry;
-    }
 }

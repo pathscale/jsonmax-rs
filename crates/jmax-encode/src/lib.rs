@@ -7,6 +7,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::number::Decimal128;
+pub use jmax_abi::node::ValidatedDocument;
 pub use jmax_abi::schema::{SchemaFieldIr, SchemaIr, SlotValue, ValidatedSlots};
 pub use jmax_abi::traits::{ByteSink, JsonEncode};
 
@@ -101,16 +102,18 @@ impl<'a> RawFragment<'a> {
 /// Exact quoted JSON length for the canonical minimal escaping used by the writer.
 pub fn escaped_string_len(text: &str) -> Result<usize> {
     let mut size = 2usize;
-    for &byte in text.as_bytes() {
-        let width = match byte {
+    let mut bytes = text.as_bytes();
+    let policy = jmax_string::EscapePolicy::default();
+    while let Some(index) = jmax_string::escape::find_escape(bytes, policy) {
+        let width = match bytes[index] {
             b'"' | b'\\' | b'\x08' | b'\x0c' | b'\n' | b'\r' | b'\t' => 2,
-            0..=0x1f => 6,
-            _ => 1,
+            _ => 6,
         };
-        size = size.checked_add(width).ok_or_else(||
-            encode_error(ErrorCode::PayloadTooLarge, "escaped string size overflow"))?;
+        size = checked_output_len(size, index, usize::MAX)?;
+        size = checked_output_len(size, width, usize::MAX)?;
+        bytes = &bytes[index + 1..];
     }
-    Ok(size)
+    checked_output_len(size, bytes.len(), usize::MAX)
 }
 
 pub fn checked_output_len(current: usize, additional: usize, limit: usize) -> Result<usize> {

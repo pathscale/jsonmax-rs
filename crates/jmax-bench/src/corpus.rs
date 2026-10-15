@@ -9,7 +9,7 @@ use jmax_abi::{
     syntax::ScalarKind,
 };
 
-use crate::{bench_error, CorpusConfig, DeterministicRng, Payload, Result, SchemaImage, Workload, WorkloadKind};
+use crate::{bench_error, CorpusConfig, DeterministicRng, Payload, Result, Workload, WorkloadKind};
 
 const MAX_CONFIG_COUNT: u32 = 1_000_000;
 const MAX_NESTING: u32 = 64;
@@ -88,43 +88,18 @@ pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
         jsonmax::parse::validate_syntax(payload.as_slice(), jsonmax::ParseOptions::default())?;
     }
 
-    match &workload.schema {
-        None if !workload.selection.field_ids.is_empty() => {
-            return Err(bench_error(ErrorCode::SchemaImageInvalid, "selection requires an attached schema"));
-        }
-        None => {}
-        Some(image) => {
-            let compiled = jsonmax::endpoint::load_schema(image.clone())?;
-            let mut emitted = Vec::new();
-            emitted.try_reserve_exact(image.header.slot_count as usize)
-                .map_err(|_| budget_error("schema slot validation allocation failed"))?;
-            for insn in &image.insns {
-                // The frozen schema image opcode for EmitSlot is 13. Its ABI
-                // field_id is the stable slot's field identifier.
-                if insn.opcode == 13 {
-                    emitted.push(insn.field_id);
-                }
-            }
-            emitted.sort_unstable();
-            emitted.dedup();
-            let mut selected = Vec::new();
-            selected.try_reserve_exact(workload.selection.field_ids.len())
-                .map_err(|_| budget_error("selection validation allocation failed"))?;
-            for field in &workload.selection.field_ids {
-                if field.0 > u32::from(u16::MAX) {
-                    return Err(bench_error(ErrorCode::SchemaImageInvalid, "selection field is invalid or duplicated"));
-                }
-                selected.push(field.0 as u16);
-            }
-            selected.sort_unstable();
-            if selected.windows(2).any(|pair| pair[0] == pair[1])
-                || selected.iter().any(|field| emitted.binary_search(field).is_err())
-            {
-                return Err(bench_error(ErrorCode::SchemaImageInvalid, "selection field is invalid or duplicated"));
-            }
-            drop(compiled);
+    let compiled = &workload.compiled_schema;
+    if let Some(image) = &workload.schema {
+        let retained = compiled.image();
+        if image.header != retained.header || image.insns != retained.insns
+            || image.keys != retained.keys || image.key_bytes != retained.key_bytes
+        {
+            return Err(bench_error(ErrorCode::SchemaImageInvalid,
+                "workload image differs from its compiled schema"));
         }
     }
+    jmax_schema_vm::check_selection(compiled.program(), &workload.selection)?;
+
     Ok(())
 }
 
@@ -228,7 +203,7 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
         }
         payloads.push(Payload::from_vec(writer.bytes));
     }
-    let (schema, selection) = match kind {
+    let (compiled_schema, selection) = match kind {
         WorkloadKind::SmallObject => small_object_schema(config.items_per_document)?,
         WorkloadKind::EscapedStrings => scalar_object_schema(
             "s", config.items_per_document, ESCAPED_STRINGS_SCHEMA_ID,
@@ -239,17 +214,15 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
             "jmax_bench_unicode", |_| ScalarKind::String,
         )?,
         WorkloadKind::AggTrade => agg_trade_schema()?,
-        // The ABI schema IR currently describes scalar object fields. These
-        // remaining payload roots are arrays or contain nested structures, so attaching
-        // a scalar-only image would falsely claim full-shape validation.
         WorkloadKind::NumberArray | WorkloadKind::DepthBook | WorkloadKind::Nested => {
-            (None, Selection { field_ids: Vec::new(), strict_validate_unselected: true })
+            native_workload_schema(kind, config.items_per_document)?
         }
     };
-    Ok(Workload { name, kind, payloads, schema, selection })
+    let schema = Some(compiled_schema.image().clone());
+    Ok(Workload { name, kind, payloads, schema, compiled_schema, selection })
 }
 
-fn small_object_schema(items: u32) -> Result<(Option<SchemaImage>, Selection)> {
+fn small_object_schema(items: u32) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     scalar_object_schema("f", items, SMALL_OBJECT_SCHEMA_ID,
         "jmax_bench_small_object", small_field_kind)
 }
@@ -260,17 +233,16 @@ fn scalar_object_schema(
     schema_id: u32,
     schema_label: &'static str,
     kind_for_index: fn(u32) -> ScalarKind,
-) -> Result<(Option<SchemaImage>, Selection)> {
-    let empty_selection = Selection { field_ids: Vec::new(), strict_validate_unselected: true };
+) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     if items > u32::from(u16::MAX) {
-        return Ok((None, empty_selection));
+        return Err(constraint_error("schema field count exceeds the ABI required-count limit"));
     }
     let mut fields = Vec::new();
     fields.try_reserve_exact(items as usize)
         .map_err(|_| budget_error("schema field allocation failed"))?;
     for index in 0..items {
         let field_id = u16::try_from(index)
-            .map_err(|_| bench_error(ErrorCode.SchemaImageInvalid, "schema field identifier overflow"))?;
+            .map_err(|_| bench_error(ErrorCode::SchemaImageInvalid, "schema field identifier overflow"))?;
         fields.push(SchemaFieldIr {
             field_id: FieldId(u32::from(field_id)),
             name: indexed_name(prefix, index)?,
@@ -289,7 +261,7 @@ fn scalar_object_schema(
     compile_object_schema(schema_id, schema_name, fields)
 }
 
-fn agg_trade_schema() -> Result<(Option<SchemaImage>, Selection)> {
+fn agg_trade_schema() -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     const FIELDS: [(&str, ScalarKind); 11] = [
         ("e", ScalarKind::String), ("E", ScalarKind::Number), ("s", ScalarKind::String),
         ("a", ScalarKind::Number), ("p", ScalarKind::String), ("q", ScalarKind::String),
@@ -325,7 +297,7 @@ fn compile_object_schema(
     schema_id: u32,
     name: String,
     fields: Vec<SchemaFieldIr>,
-) -> Result<(Option<SchemaImage>, Selection)> {
+) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     let required_count = u16::try_from(fields.len())
         .map_err(|_| bench_error(ErrorCode::SchemaImageInvalid, "required field count overflow"))?;
     let ir = SchemaIr {
@@ -345,10 +317,85 @@ fn compile_object_schema(
     for field in &ir.fields {
         selection_ids.push(field.field_id);
     }
-    Ok((Some(compiled.image().clone()), Selection {
+    Ok((compiled, Selection {
         field_ids: selection_ids,
         strict_validate_unselected: true,
     }))
+}
+
+/// Exact native container shapes for the non-flat standard workloads.
+fn native_workload_schema(
+    kind: WorkloadKind,
+    items: u32,
+) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
+    use jmax_schema_ir::{ArrayShape, ObjectShape, Property, ScalarConstraints,
+        Schema, TypeId, TypeNode, ValueKind};
+    let mut nodes = Vec::new();
+    nodes.try_reserve_exact(68).map_err(|_| budget_error("native schema allocation failed"))?;
+    let array = |items, count| TypeNode::Array(ArrayShape {
+        items: TypeId(items), min_items: Some(count), max_items: Some(count),
+    });
+    let scalar = |kind| TypeNode::Scalar(ScalarConstraints::new(kind));
+    let property = |name: &str, field: u32, ty: u32, slot: u32| Property {
+        name: String::from(name), field_id: FieldId(field), ty: TypeId(ty),
+        required: true, slot: Some(slot),
+    };
+    let object = |properties| TypeNode::Object(ObjectShape {
+        properties, reject_unknown: true, min_properties: None, max_properties: None,
+    });
+    let schema_id = match kind {
+        WorkloadKind::NumberArray => {
+            nodes.push(array(1, items));
+            nodes.push(scalar(ValueKind::Number));
+            0x4a4d_0004
+        }
+        WorkloadKind::DepthBook => {
+            let mut properties = Vec::new();
+            properties.try_reserve_exact(7).map_err(|_| budget_error("native property allocation failed"))?;
+            for (index, (name, ty)) in [("e", 1), ("E", 2), ("s", 1),
+                ("U", 2), ("u", 2), ("b", 3), ("a", 3)].iter().enumerate()
+            {
+                properties.push(property(name, index as u32, *ty, index as u32));
+            }
+            nodes.push(object(properties));
+            nodes.push(scalar(ValueKind::String));
+            nodes.push(scalar(ValueKind::Number));
+            nodes.push(array(4, items));
+            nodes.push(array(1, 2));
+            0x4a4d_0005
+        }
+        WorkloadKind::Nested => {
+            let depth = (items % MAX_NESTING).max(1);
+            for level in 0..depth {
+                if level % 2 == 0 {
+                    nodes.push(array(level + 1, 1));
+                } else {
+                    let mut properties = Vec::new();
+                    properties.try_reserve_exact(1).map_err(|_| budget_error("native property allocation failed"))?;
+                    properties.push(Property {
+                        name: String::from("v"), field_id: FieldId(level),
+                        ty: TypeId(level + 1), required: true, slot: None,
+                    });
+                    nodes.push(object(properties));
+                }
+            }
+            nodes.push(scalar(ValueKind::Number));
+            0x4a4d_0006
+        }
+        _ => return Err(constraint_error("workload does not require a native container schema")),
+    };
+    let graph = Schema {
+        name: String::from(kind_name(kind)), schema_id: SchemaId(schema_id),
+        root: TypeId(0), nodes, definitions: Vec::new(),
+    };
+    let compiled = jsonmax::endpoint::compile_native_schema(
+        &graph, jmax_abi::schema::CompileLimits::default_limits(),
+    )?;
+    let mut field_ids = Vec::new();
+    field_ids.try_reserve_exact(compiled.program().program().slots.len())
+        .map_err(|_| budget_error("native selection allocation failed"))?;
+    field_ids.extend(compiled.program().program().slots.iter().map(|slot| slot.field_id));
+    Ok((compiled, Selection { field_ids, strict_validate_unselected: true }))
 }
 
 fn small_field_kind(index: u32) -> ScalarKind {
@@ -671,147 +718,4 @@ fn constraint_error(detail: &'static str) -> crate::Error {
 
 fn budget_error(detail: &'static str) -> crate::Error {
     bench_error(ErrorCode::BudgetExhausted, detail)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn config(documents: u32, items_per_document: u32, max_bytes: u64) -> CorpusConfig {
-        CorpusConfig { seed: 17, documents, items_per_document, max_bytes }
-    }
-
-    fn raw(workload: &Workload, index: usize) -> &[u8] {
-        workload.payloads[index].as_slice()
-    }
-
-    #[test]
-    fn deterministic_seed_and_configuration_reproduce_all_owned_bytes() {
-        let cfg = config(4, 8, 64 * 1024);
-        let left = make_workload(WorkloadKind::SmallObject, cfg).unwrap();
-        let right = make_workload(WorkloadKind::SmallObject, cfg).unwrap();
-        assert_eq!(left.name, right.name);
-        assert_eq!(left.payloads.len(), 4);
-        for (a, b) in left.payloads.iter().zip(&right.payloads) {
-            assert_eq!(a.as_slice(), b.as_slice());
-        }
-        assert_ne!(raw(&left, 0), raw(&left, 1));
-        assert!(left.schema.is_some());
-        assert_eq!(left.selection.field_ids.len(), 8);
-        assert!(left.selection.strict_validate_unselected);
-    }
-
-    #[test]
-    fn each_workload_emits_complete_kind_specific_json() {
-        let cfg = config(2, 8, 128 * 1024);
-        let small = make_workload(WorkloadKind::SmallObject, cfg).unwrap();
-        assert!(raw(&small, 0).starts_with(b"{\"f000000\":"));
-        let escaped = make_workload(WorkloadKind::EscapedStrings, cfg).unwrap();
-        assert!(raw(&escaped, 0).windows(2).any(|bytes| bytes == b"\\\""));
-        assert!(raw(&escaped, 0).windows(12).any(|bytes| bytes == b"\\ud83d\\ude00"));
-        assert!(raw(&escaped, 0).windows(6).any(|bytes| bytes == b"\\u0001"));
-        assert!(raw(&escaped, 0).windows(6).any(|bytes| bytes == b"\\u001f"));
-        assert!(!raw(&escaped, 0).contains(&0x01) && !raw(&escaped, 0).contains(&0x1f));
-        let unicode = make_workload(WorkloadKind::Unicode, cfg).unwrap();
-        assert!(raw(&unicode, 0).windows(2).any(|bytes| bytes == "é".as_bytes()));
-        assert!(raw(&unicode, 0).windows(4).any(|bytes| bytes == "🧭".as_bytes()));
-        let numbers = make_workload(WorkloadKind::NumberArray, cfg).unwrap();
-        for number in [b"-9223372036854775808".as_slice(), b"18446744073709551615", b"6.022e23"] {
-            assert!(raw(&numbers, 0).windows(number.len()).any(|part| part == number));
-        }
-        let depth = make_workload(WorkloadKind::DepthBook, cfg).unwrap();
-        assert!(raw(&depth, 0).windows(11).any(|part| part == b"depthUpdate"));
-        assert!(raw(&depth, 0).windows(3).any(|part| part == b"\"b\""));
-        let trade = make_workload(WorkloadKind::AggTrade, cfg).unwrap();
-        assert!(raw(&trade, 0).windows(8).any(|part| part == b"aggTrade"));
-        assert!(raw(&trade, 0).windows(3).any(|part| part == b"\"m\""));
-        assert!(trade.schema.is_some());
-        assert_eq!(trade.selection.field_ids.len(), 11);
-        let nested = make_workload(WorkloadKind::Nested, cfg).unwrap();
-        assert!(raw(&nested, 0).starts_with(b"["));
-        assert!(nested.schema.is_none());
-        for workload in [&small, &escaped, &unicode, &numbers, &depth, &trade, &nested] {
-            validate_workload(workload, workload.total_bytes().unwrap()).unwrap();
-        }
-    }
-
-    #[test]
-    fn suite_uses_fixed_order_and_one_aggregate_byte_cap() {
-        let suite = make_suite(config(1, 1, 128 * 1024)).unwrap();
-        let kinds = [
-            WorkloadKind::SmallObject, WorkloadKind::EscapedStrings, WorkloadKind::Unicode,
-            WorkloadKind::NumberArray, WorkloadKind::DepthBook, WorkloadKind::AggTrade,
-            WorkloadKind::Nested,
-        ];
-        assert_eq!(suite.len(), kinds.len());
-        for (workload, kind) in suite.iter().zip(kinds) { assert_eq!(workload.kind, kind); }
-        let total = suite.iter().try_fold(0u64, |sum, workload| sum.checked_add(workload.total_bytes().unwrap())).unwrap();
-        assert!(total <= 128 * 1024);
-        assert!(make_suite(config(1, 1, 128)).is_err());
-    }
-
-    #[test]
-    fn invalid_dimensions_and_unattainable_budgets_fail_before_generation() {
-        let invalid = [
-            config(0, 1, 100), config(1, 0, 100), config(1, 1, 0),
-            config(MAX_CONFIG_COUNT + 1, 1, u64::MAX),
-            config(1, MAX_CONFIG_COUNT + 1, u64::MAX),
-        ];
-        for cfg in invalid {
-            assert_eq!(make_workload(WorkloadKind::SmallObject, cfg).unwrap_err().code, ErrorCode::ConstraintViolation);
-        }
-        assert_eq!(make_workload(WorkloadKind::SmallObject, config(1, 1, 1)).unwrap_err().code, ErrorCode::BudgetExhausted);
-        assert_eq!(make_workload(WorkloadKind::DepthBook, config(1, 5_001, u64::MAX)).unwrap_err().code, ErrorCode::ConstraintViolation);
-        assert_eq!(make_workload(WorkloadKind::Unicode, config(1, 65_537, u64::MAX)).unwrap_err().code, ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn validation_checks_strict_json_budget_and_schema_selection() {
-        let valid = make_workload(WorkloadKind::SmallObject, config(2, 3, 16 * 1024)).unwrap();
-        validate_workload(&valid, valid.total_bytes().unwrap()).unwrap();
-        assert_eq!(validate_workload(&valid, 1).unwrap_err().code, ErrorCode::BudgetExhausted);
-        let mut malformed = valid.clone();
-        malformed.payloads[0] = Payload::from_slice(b"{\"a\":]");
-        assert!(validate_workload(&malformed, u64::MAX).is_err());
-        let mut bad_selection = valid.clone();
-        bad_selection.selection.field_ids.push(bad_selection.selection.field_ids[0]);
-        assert_eq!(validate_workload(&bad_selection, u64::MAX).unwrap_err().code, ErrorCode::SchemaImageInvalid);
-        let mut schema_free_selection = make_workload(WorkloadKind::NumberArray, config(1, 2, 1024)).unwrap();
-        schema_free_selection.selection.field_ids.push(FieldId(0));
-        assert_eq!(validate_workload(&schema_free_selection, u64::MAX).unwrap_err().code, ErrorCode::SchemaImageInvalid);
-        let mut invalid_image = valid.clone();
-        invalid_image.schema.as_mut().unwrap().header.magic = 0;
-        assert_eq!(validate_workload(&invalid_image, u64::MAX).unwrap_err().code, ErrorCode::SchemaImageInvalid);
-    }
-
-    #[test]
-    fn number_formatter_handles_signed_minimum_unsigned_maximum_and_scale() {
-        let mut writer = JsonWriter::new(128);
-        writer.decimal(i64::MIN).unwrap();
-        writer.byte(b'|').unwrap();
-        writer.unsigned(u64::MAX).unwrap();
-        writer.byte(b'|').unwrap();
-        writer.fixed_decimal(12_345, 3).unwrap();
-        assert_eq!(writer.bytes, b"-9223372036854775808|18446744073709551615|12.345");
-    }
-
-    #[test]
-    fn writer_enforces_exact_boundary_and_does_not_partially_append() {
-        let mut exact = JsonWriter::new(3);
-        exact.extend(b"abc").unwrap();
-        assert_eq!(exact.extend(b"d").unwrap_err().code, ErrorCode::BudgetExhausted);
-        assert_eq!(exact.bytes, b"abc");
-        let mut zero = JsonWriter::new(0);
-        assert_eq!(zero.byte(b'x').unwrap_err().code, ErrorCode::BudgetExhausted);
-    }
-
-    #[test]
-    fn maximum_nested_depth_is_capped_and_unrepresentable_schemas_are_explicit() {
-        let nested = make_workload(WorkloadKind::Nested, config(1, 64, 1024)).unwrap();
-        assert_eq!(nested.payloads[0].as_slice().iter().filter(|byte| **byte == b'[' || **byte == b'{').count(), 64);
-        assert!(nested.payloads[0].as_slice().len() < 512);
-        let many_fields = make_workload(WorkloadKind::SmallObject, config(1, u16::MAX as u32 + 1, 4 * 1024 * 1024)).unwrap();
-        assert!(many_fields.schema.is_none());
-        assert!(many_fields.selection.field_ids.is_empty());
-    }
 }

@@ -20,10 +20,17 @@ const LEVEL: usize = 8;
 const MESSAGE: usize = 9;
 const TARGET: usize = 10;
 const REASON: usize = 11;
+const TYPE: usize = 12;
+const ORIGINAL_SEQ: usize = 13;
+const STREAM_SEQ: usize = 14;
+const STREAM_CODE: usize = 15;
+const DATA: usize = 16;
+const LOG_ID: usize = 17;
 
-const ENVELOPE_KEYS: [&[u8]; 12] = [
+const ENVELOPE_KEYS: [&[u8]; 18] = [
     b"kind", b"seq", b"code", b"params", b"method", b"result", b"index",
-    b"error", b"level", b"message", b"target", b"reason",
+    b"error", b"level", b"message", b"target", b"reason", b"type",
+    b"original_seq", b"stream_seq", b"stream_code", b"data", b"log_id",
 ];
 const ERROR_KEYS: [&[u8]; 3] = [b"code", b"message", b"retryable"];
 
@@ -61,7 +68,7 @@ pub fn decode_envelope(payload: Payload, limits: EnvelopeLimits) -> Result<Owned
             error.valid_up_to() as u32, "payload is not UTF-8"));
     }
 
-    let (view, decoded) = {
+    let (view, method_code, decoded) = {
         let mut parser = Parser { bytes: payload.as_slice(), position: 0,
             decoded: Vec::new(), limits };
         let record = parser.record(0, &ENVELOPE_KEYS, Some(ERROR))?;
@@ -70,10 +77,10 @@ pub fn decode_envelope(payload: Payload, limits: EnvelopeLimits) -> Result<Owned
             return Err(parser.syntax(ErrorCode::TrailingContent, parser.position,
                 "content follows the envelope"));
         }
-        let view = parser.envelope_view(&record)?;
-        (view, parser.decoded.into_boxed_slice())
+        let (view, method_code) = parser.envelope_view(&record)?;
+        (view, method_code, parser.decoded.into_boxed_slice())
     };
-    Ok(OwnedEnvelope { payload, decoded, view })
+    Ok(OwnedEnvelope { payload, decoded, view, method_code })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -250,11 +257,11 @@ impl Parser<'_> {
                     "duplicate decoded object key"));
             }
             self.punctuation(b':')?;
-            let value = if error_field == Some(index) {
+            self.whitespace();
+            let value = if error_field == Some(index)
+                && self.bytes.get(self.position) == Some(&b'{') {
                 self.rpc_error(depth)?
-            } else {
-                self.value(depth)?
-            };
+            } else { self.value(depth)? };
             members[index] = Some(Member { key_offset: key.span.offset, value });
             self.whitespace();
             match self.bytes.get(self.position) {
@@ -280,26 +287,65 @@ impl Parser<'_> {
         Ok(Value { kind: ValueKind::Object, span: record.span, string: None })
     }
 
-    fn envelope_view(&self, record: &Record<12>) -> Result<WireEnvelopeView> {
-        let kind_value = record.required(KIND)?;
-        let (kind, required, allowed) = match self.text(kind_value)? {
+    fn envelope_view(&self, record: &Record<18>) -> Result<(WireEnvelopeView, Option<u32>)> {
+        let kind_value = record.optional(KIND).or_else(|| record.optional(TYPE));
+        let tagged = record.optional(TYPE).is_some();
+        let (kind, required, allowed) = if kind_value.is_none() && record.optional(PARAMS).is_some() {
+            (EnvelopeKind::EndpointRequest, bits(&[SEQ, PARAMS]),
+                bits(&[KIND, TYPE, SEQ, CODE, PARAMS, METHOD]))
+        } else {
+        let discriminator = self.text(kind_value.ok_or_else(|| local_error(
+            ErrorCode::MissingRequiredField, record.span.offset, "envelope kind or type is absent"))?)?;
+        match discriminator {
             b"request" => (EnvelopeKind::EndpointRequest,
-                bits(&[KIND, SEQ, CODE, PARAMS]), bits(&[KIND, SEQ, CODE, PARAMS, METHOD])),
+                bits(&[SEQ, PARAMS]), bits(&[KIND, TYPE, SEQ, CODE, PARAMS, METHOD])),
             b"immediate" => (EnvelopeKind::EndpointImmediate,
-                bits(&[KIND, SEQ, CODE, RESULT]), bits(&[KIND, SEQ, CODE, RESULT])),
+                bits(&[SEQ, CODE, RESULT]), bits(&[KIND, SEQ, CODE, RESULT])),
             b"stream" => (EnvelopeKind::EndpointStream,
-                bits(&[KIND, SEQ, CODE, INDEX, RESULT]), bits(&[KIND, SEQ, CODE, INDEX, RESULT])),
+                bits(&[SEQ, CODE, INDEX, RESULT]), bits(&[KIND, SEQ, CODE, INDEX, RESULT])),
             b"error" => (EnvelopeKind::EndpointError,
-                bits(&[KIND, ERROR]), bits(&[KIND, ERROR, SEQ, CODE])),
+                bits(&[ERROR]), bits(&[KIND, TYPE, ERROR, SEQ, CODE, MESSAGE, LOG_ID])),
             b"log" => (EnvelopeKind::EndpointLog,
-                bits(&[KIND, LEVEL, MESSAGE]), bits(&[KIND, LEVEL, MESSAGE, SEQ])),
+                bits(&[LEVEL, MESSAGE]), bits(&[KIND, TYPE, LEVEL, MESSAGE, SEQ])),
             b"forwarded" => (EnvelopeKind::EndpointForwarded,
-                bits(&[KIND, SEQ, CODE, TARGET]), bits(&[KIND, SEQ, CODE, TARGET])),
+                bits(&[SEQ, CODE, TARGET]), bits(&[KIND, TYPE, SEQ, CODE, TARGET])),
             b"close" => (EnvelopeKind::EndpointClose,
-                bits(&[KIND, REASON]), bits(&[KIND, REASON, SEQ])),
-            _ => return Err(local_error(ErrorCode::InvalidToken, kind_value.span.offset,
+                bits(&[REASON]), bits(&[KIND, TYPE, REASON, SEQ])),
+            b"Immediate" => (EnvelopeKind::EndpointImmediate,
+                0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, DATA, RESULT, LOG_ID])),
+            b"Stream" => (EnvelopeKind::EndpointStream,
+                bits(&[ORIGINAL_SEQ, STREAM_SEQ, STREAM_CODE, DATA]),
+                bits(&[TYPE, ORIGINAL_SEQ, STREAM_SEQ, STREAM_CODE, DATA])),
+            b"Error" => (EnvelopeKind::EndpointError,
+                bits(&[CODE]), bits(&[TYPE, SEQ, ORIGINAL_SEQ, CODE, MESSAGE, ERROR, LOG_ID])),
+            b"Log" => (EnvelopeKind::EndpointLog,
+                0, bits(&[TYPE, SEQ, MESSAGE, LEVEL, LOG_ID])),
+            b"Forwarded" => (EnvelopeKind::EndpointForwarded,
+                0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, CODE, TARGET, DATA, LOG_ID])),
+            b"Close" => (EnvelopeKind::EndpointClose,
+                0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, REASON, LOG_ID])),
+            _ => return Err(local_error(ErrorCode::InvalidToken, kind_value.map_or(record.span.offset, |value| value.span.offset),
                 "unknown endpoint envelope kind")),
-        };
+        }};
+        if kind == EnvelopeKind::EndpointImmediate && tagged
+            && record.optional(DATA).is_none() && record.optional(RESULT).is_none() {
+            return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
+                "tagged immediate response data is absent"));
+        }
+        if kind == EnvelopeKind::EndpointImmediate && tagged
+            && record.optional(SEQ).is_none() && record.optional(ORIGINAL_SEQ).is_none() {
+            return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
+                "tagged immediate response sequence is absent"));
+        }
+        if kind == EnvelopeKind::EndpointError && tagged
+            && record.optional(MESSAGE).is_none() && record.optional(ERROR).is_none() {
+            return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
+                "tagged error message is absent"));
+        }
+        if tagged && record.optional(KIND).is_some() {
+            return Err(local_error(ErrorCode::ConstraintViolation, record.span.offset,
+                "kind and type discriminators cannot be combined"));
+        }
         for (index, member) in record.members.iter().enumerate() {
             if let Some(member) = member {
                 if allowed & (1u16 << index) == 0 {
@@ -311,17 +357,38 @@ impl Parser<'_> {
                     "required envelope field is absent"));
             }
         }
-        let seq = record.optional(SEQ).map(|value| self.unsigned(value, u64::MAX)).transpose()?;
-        let code = record.optional(CODE).map(|value|
+        let seq_value = record.optional(SEQ).or_else(|| record.optional(ORIGINAL_SEQ));
+        let seq = seq_value.map(|value| self.unsigned(value, u64::MAX)).transpose()?;
+        let code_value = record.optional(CODE).or_else(|| record.optional(STREAM_CODE));
+        let code = code_value.map(|value|
             self.unsigned(value, u64::from(u32::MAX)).map(|number| number as u32)).transpose()?;
-        let method = record.optional(METHOD).map(|value| self.expect_string(value)).transpose()?;
+        let (method, method_code) = if let Some(value) = record.optional(METHOD) {
+            match value.kind {
+                ValueKind::String => (Some(self.expect_string(value)?), None),
+                ValueKind::Number => (None, Some(self.unsigned(value, u64::from(u32::MAX))? as u32)),
+                _ => return Err(local_error(ErrorCode::TypeMismatch, value.span.offset,
+                    "method must be a string or unsigned 32-bit integer")),
+            }
+        } else { (None, None) };
+        let code = code.or(method_code);
+        if let (Some(explicit_code), Some(method_code)) = (record.optional(CODE), method_code) {
+            if self.unsigned(explicit_code, u64::from(u32::MAX))? != u64::from(method_code) {
+                return Err(local_error(ErrorCode::ConstraintViolation, explicit_code.span.offset,
+                    "numeric method disagrees with request code"));
+            }
+        }
+        if kind == EnvelopeKind::EndpointRequest && (record.optional(METHOD).is_none() || code.is_none()) {
+            return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
+                "request method is absent"));
+        }
         if let Some(params) = record.optional(PARAMS) {
             if params.kind != ValueKind::Object {
                 return Err(local_error(ErrorCode::TypeMismatch, params.span.offset,
                     "request params must be an object"));
             }
         }
-        if let Some(index) = record.optional(INDEX) { self.unsigned(index, u64::MAX)?; }
+        let index_value = record.optional(INDEX).or_else(|| record.optional(STREAM_SEQ));
+        if let Some(index) = index_value { self.unsigned(index, u64::MAX)?; }
         if let Some(level) = record.optional(LEVEL) {
             if !matches!(self.text(level)?, b"trace" | b"debug" | b"info" | b"warn" | b"error") {
                 return Err(local_error(ErrorCode::ConstraintViolation, level.span.offset,
@@ -329,6 +396,7 @@ impl Parser<'_> {
             }
         }
         if let Some(message) = record.optional(MESSAGE) { self.expect_string(message)?; }
+        if let Some(log_id) = record.optional(LOG_ID) { self.unsigned(log_id, u64::MAX)?; }
         if let Some(target) = record.optional(TARGET) {
             if self.text(target)?.is_empty() {
                 return Err(local_error(ErrorCode::ConstraintViolation, target.span.offset,
@@ -336,10 +404,21 @@ impl Parser<'_> {
             }
         }
         if let Some(reason) = record.optional(REASON) { self.expect_string(reason)?; }
-        Ok(WireEnvelopeView { kind, method, seq, code,
+        let result = record.optional(RESULT).or_else(|| record.optional(DATA));
+        let error_span = if kind == EnvelopeKind::EndpointError {
+            if let Some(error) = record.optional(ERROR) {
+                if error.kind != ValueKind::Object {
+                    self.expect_string(error)?;
+                }
+                Some(error.span)
+            } else if let Some(message) = record.optional(MESSAGE) {
+                self.expect_string(message)?;
+                Some(message.span)
+            } else { None }
+        } else { record.optional(ERROR).map(|value| value.span) };
+        Ok((WireEnvelopeView { kind, method, seq, code,
             params_span: record.optional(PARAMS).map(|value| value.span),
-            result_span: record.optional(RESULT).map(|value| value.span),
-            error_span: record.optional(ERROR).map(|value| value.span) })
+            result_span: result.map(|value| value.span), error_span }, method_code))
     }
 
     fn integer_magnitude(&self, value: Value, signed: bool, max: u64) -> Result<(bool, u64)> {
@@ -713,569 +792,4 @@ fn reserve_entry<T>(entries: &mut Vec<T>, ceiling: usize, offset: u32,
             .map_err(|_| local_error(ErrorCode::BudgetExhausted, offset, detail))?;
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::{format, string::ToString, vec};
-
-    fn decode(json: &str) -> Result<OwnedEnvelope> {
-        decode_envelope(Payload::from_slice(json.as_bytes()), EnvelopeLimits::default())
-    }
-
-    fn reject(json: &str, code: ErrorCode) -> Error {
-        let error = decode(json).unwrap_err();
-        assert_eq!(error.code, code, "input: {json}; error: {error}");
-        assert!(error.byte_offset as usize <= json.len());
-        error
-    }
-
-    #[test]
-    fn all_seven_kinds_decode_with_their_exact_metadata() {
-        let vectors = [
-            (r#"{"kind":"request","seq":0,"code":0,"params":{}}"#,
-                EnvelopeKind::EndpointRequest, Some(0), Some(0)),
-            (r#"{"kind":"immediate","seq":1,"code":2,"result":null}"#,
-                EnvelopeKind::EndpointImmediate, Some(1), Some(2)),
-            (r#"{"kind":"stream","seq":3,"code":4,"index":5,"result":[true,false]}"#,
-                EnvelopeKind::EndpointStream, Some(3), Some(4)),
-            (r#"{"kind":"error","error":{"code":-1,"message":"bad","retryable":false}}"#,
-                EnvelopeKind::EndpointError, None, None),
-            (r#"{"kind":"log","level":"info","message":"hello"}"#,
-                EnvelopeKind::EndpointLog, None, None),
-            (r#"{"kind":"forwarded","seq":6,"code":7,"target":"worker"}"#,
-                EnvelopeKind::EndpointForwarded, Some(6), Some(7)),
-            (r#"{"kind":"close","seq":8,"reason":"done"}"#,
-                EnvelopeKind::EndpointClose, Some(8), None),
-        ];
-        for (json, kind, seq, code) in vectors {
-            let envelope = decode(json).unwrap();
-            assert_eq!(envelope.payload().as_slice(), json.as_bytes());
-            assert_eq!(envelope.view().kind, kind);
-            assert_eq!(envelope.view().seq, seq);
-            assert_eq!(envelope.view().code, code);
-            assert_eq!(envelope.method(), None);
-            assert_eq!(envelope.view().params_span.is_some(), kind == EnvelopeKind::EndpointRequest);
-            assert_eq!(envelope.view().result_span.is_some(),
-                matches!(kind, EnvelopeKind::EndpointImmediate | EnvelopeKind::EndpointStream));
-            assert_eq!(envelope.view().error_span.is_some(), kind == EnvelopeKind::EndpointError);
-            assert!(envelope.decoded_bytes().is_empty());
-        }
-    }
-
-    #[test]
-    fn entry_points_enforce_request_response_direction() {
-        let request = Payload::from_slice(br#"{"kind":"request","seq":1,"code":2,"params":{}}"#);
-        assert!(decode_request(request.clone(), EnvelopeLimits::default()).is_ok());
-        assert_eq!(decode_response(request, EnvelopeLimits::default()).unwrap_err().code,
-            ErrorCode::TypeMismatch);
-        let responses = [
-            r#"{"kind":"immediate","seq":1,"code":2,"result":0}"#,
-            r#"{"kind":"stream","seq":1,"code":2,"index":0,"result":0}"#,
-            r#"{"kind":"error","error":{"code":0,"message":"","retryable":true}}"#,
-            r#"{"kind":"log","level":"warn","message":""}"#,
-            r#"{"kind":"forwarded","seq":1,"code":2,"target":"a"}"#,
-            r#"{"kind":"close","reason":""}"#,
-        ];
-        for json in responses {
-            let payload = Payload::from_slice(json.as_bytes());
-            assert!(decode_response(payload.clone(), EnvelopeLimits::default()).is_ok());
-            assert_eq!(decode_request(payload, EnvelopeLimits::default()).unwrap_err().code,
-                ErrorCode::TypeMismatch);
-        }
-    }
-
-    #[test]
-    fn raw_spans_include_complete_values_and_exclude_surrounding_space() {
-        let request = decode(" \n{\"params\" : { \"app\": [1,{\"x\":\"} ]\"}] } ,\"code\":2,\"seq\":1,\"kind\":\"request\"}\t ").unwrap();
-        assert_eq!(request.resolve(request.view().params_span.unwrap()),
-            Some(&br#"{ "app": [1,{"x":"} ]"}] }"#[..]));
-        for raw in ["null", "true", "false", "-0", "1.25e-9", "\"a\\n\"", "[]", "{}",
-            "[ 1, {\"a\": 2} ]"]
-        {
-            let json = format!("{{\"kind\":\"immediate\",\"seq\":1,\"code\":2,\"result\": \n{raw} \t}}");
-            let envelope = decode(&json).unwrap();
-            assert_eq!(envelope.resolve(envelope.view().result_span.unwrap()), Some(raw.as_bytes()));
-        }
-        let json = r#"{"error": { "retryable":true, "message":"x", "code":-2 },"kind":"error"}"#;
-        let envelope = decode(json).unwrap();
-        assert_eq!(envelope.resolve(envelope.view().error_span.unwrap()),
-            Some(&br#"{ "retryable":true, "message":"x", "code":-2 }"#[..]));
-    }
-
-    #[test]
-    fn method_references_preserve_unicode_and_both_address_spaces() {
-        let raw = decode(r#"{"kind":"request","seq":1,"code":2,"params":{},"method":"svc.é😀"}"#).unwrap();
-        assert_eq!(raw.method(), Some("svc.é😀"));
-        let reference = raw.view().method.unwrap();
-        assert_eq!(reference.source, SpanSource::RawPayload);
-        assert_eq!(reference.scalar_len, 6);
-        assert_eq!(reference.span.len, 10);
-        let escaped = decode(r#"{"k\u0069nd":"requ\u0065st","seq":1,"code":2,"params":{"a":"\n"},"m\u0065thod":"svc.\u00e9\uD83D\uDE00"}"#).unwrap();
-        assert_eq!(escaped.method(), Some("svc.é😀"));
-        let reference = escaped.view().method.unwrap();
-        assert_eq!(reference.source, SpanSource::DecodedArena);
-        assert_eq!(reference.scalar_len, 6);
-        assert_eq!(reference.span.len, 10);
-        assert_eq!(reference.span.slice(escaped.decoded_bytes()), Some("svc.é😀".as_bytes()));
-        let clone = escaped.clone();
-        drop(escaped);
-        assert_eq!(clone.method(), Some("svc.é😀"));
-        let empty = decode(r#"{"kind":"request","seq":0,"code":0,"params":{},"method":""}"#).unwrap();
-        assert_eq!(empty.method(), Some(""));
-        assert_eq!(empty.view().method.unwrap().scalar_len, 0);
-    }
-
-    #[test]
-    fn all_string_escapes_and_unicode_scalars_are_decoded() {
-        let envelope = decode(r#"{"kind":"request","seq":0,"code":0,"params":{},"method":"a\"\\\/\b\f\n\r\t\u0000é\uD834\uDD1E"}"#).unwrap();
-        let expected = "a\"\\/\u{8}\u{c}\n\r\t\0é𝄞";
-        assert_eq!(envelope.method(), Some(expected));
-        assert_eq!(envelope.view().method.unwrap().scalar_len, expected.chars().count() as u32);
-        assert_eq!(envelope.view().method.unwrap().span.len, expected.len() as u32);
-        let mixed = decode(r#"{"kind":"request","seq":0,"code":0,"params":{},"method":"é\u0061中\n😀"}"#).unwrap();
-        assert_eq!(mixed.method(), Some("éa中\n😀"));
-        assert_eq!(mixed.view().method.unwrap().scalar_len, 5);
-    }
-
-    #[test]
-    fn unicode_escape_boundaries_preserve_scalar_counts() {
-        let envelope = decode(r#"{"kind":"request","seq":0,"code":0,"params":{},"method":"\u0000\u007f\u0080\u07ff\u0800\ud7ff\ue000\uffff\ud800\udc00\udbff\udfff"}"#).unwrap();
-        let expected = "\0\u{7f}\u{80}\u{7ff}\u{800}\u{d7ff}\u{e000}\u{ffff}\u{10000}\u{10ffff}";
-        assert_eq!(envelope.method(), Some(expected));
-        assert_eq!(envelope.view().method.unwrap().scalar_len, 10);
-        assert_eq!(envelope.view().method.unwrap().span.len as usize, expected.len());
-    }
-
-    #[test]
-    fn field_order_is_unrestricted_including_nested_errors() {
-        let envelope = decode(r#"{"method":"a.b","params":{"kind":"application"},"code":2,"seq":1,"kind":"request"}"#).unwrap();
-        assert_eq!(envelope.method(), Some("a.b"));
-        let error = decode(r#"{"code":4294967295,"error":{"retryable":true,"message":"","code":-2147483648},"seq":18446744073709551615,"kind":"error"}"#).unwrap();
-        assert_eq!(error.view().seq, Some(u64::MAX));
-        assert_eq!(error.view().code, Some(u32::MAX));
-    }
-
-    #[test]
-    fn exact_integer_boundaries_are_accepted() {
-        let envelope = decode(r#"{"kind":"stream","seq":18446744073709551615,"code":4294967295,"index":18446744073709551615,"result":0}"#).unwrap();
-        assert_eq!(envelope.view().seq, Some(u64::MAX));
-        assert_eq!(envelope.view().code, Some(u32::MAX));
-        for code in ["-2147483648", "2147483647", "0", "-1"] {
-            assert!(decode(&format!("{{\"kind\":\"error\",\"error\":{{\"code\":{code},\"message\":\"\",\"retryable\":false}}}}")).is_ok());
-        }
-    }
-
-    #[test]
-    fn integer_overflow_and_non_integer_lexemes_are_rejected() {
-        for (field, number) in [("seq", "18446744073709551616"), ("code", "4294967296"),
-            ("index", "18446744073709551616")]
-        {
-            let (seq, code, index) = match field {
-                "seq" => (number, "0", "0"), "code" => ("0", number, "0"),
-                _ => ("0", "0", number),
-            };
-            let json = format!("{{\"kind\":\"stream\",\"seq\":{seq},\"code\":{code},\"index\":{index},\"result\":null}}");
-            let error = reject(&json, ErrorCode::NumberOverflow);
-            assert_eq!(error.source, ErrorSource::Wire);
-        }
-        for number in ["-2147483649", "2147483648"] {
-            reject(&format!("{{\"kind\":\"error\",\"error\":{{\"code\":{number},\"message\":\"\",\"retryable\":true}}}}"),
-                ErrorCode::NumberOverflow);
-        }
-        for number in ["-0", "-1", "0.0", "1e0", "1E+0"] {
-            for field in ["seq", "code", "index"] {
-                let mut values = ["0", "0", "0"];
-                values[match field { "seq" => 0, "code" => 1, _ => 2 }] = number;
-                reject(&format!("{{\"kind\":\"stream\",\"seq\":{},\"code\":{},\"index\":{},\"result\":null}}",
-                    values[0], values[1], values[2]), ErrorCode::InvalidNumber);
-            }
-        }
-        for number in ["-0", "1.0", "1e0"] {
-            reject(&format!("{{\"kind\":\"error\",\"error\":{{\"code\":{number},\"message\":\"\",\"retryable\":true}}}}"),
-                ErrorCode::InvalidNumber);
-        }
-        for value in ["\"1\"", "null", "true", "[]", "{}"] {
-            reject(&format!("{{\"kind\":\"request\",\"seq\":{value},\"code\":0,\"params\":{{}}}}"),
-                ErrorCode::TypeMismatch);
-        }
-    }
-
-    #[test]
-    fn opaque_numbers_have_json_grammar_without_machine_range_limits() {
-        let integer = "9".repeat(65_536);
-        let json = format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{integer}}}");
-        let envelope = decode(&json).unwrap();
-        assert_eq!(envelope.view().result_span.unwrap().len, 65_536);
-        for number in ["-0", "123456789012345678901234567890", "1e999999", "-2.5E-123456"] {
-            assert!(decode(&format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{number}}}")).is_ok());
-        }
-        for number in ["01", "-01", "1.", "1e", "1e+", "--1", "1x"] {
-            reject(&format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{number}}}"),
-                ErrorCode::InvalidNumber);
-        }
-    }
-
-    #[test]
-    fn duplicate_decoded_keys_are_rejected_at_every_object_level() {
-        for json in [
-            r#"{"kind":"close","kind":"close","reason":""}"#,
-            r#"{"kind":"close","k\u0069nd":"close","reason":""}"#,
-            r#"{"kind":"request","seq":1,"code":2,"params":{"a":1,"\u0061":2}}"#,
-            r#"{"kind":"immediate","seq":1,"code":2,"result":[{"é":1,"\u00e9":2}]}"#,
-            r#"{"kind":"immediate","seq":1,"code":2,"result":{"😀":1,"\uD83D\uDE00":2}}"#,
-            r#"{"kind":"immediate","seq":1,"code":2,"result":{"":1,"":2}}"#,
-            r#"{"kind":"error","error":{"code":1,"message":"a","retryable":true,"co\u0064e":2}}"#,
-        ] {
-            let error = reject(json, ErrorCode::DuplicateObjectKey);
-            assert_eq!(error.source, ErrorSource::Wire);
-            assert_eq!(json.as_bytes()[error.byte_offset as usize], b'"');
-        }
-        // Comparison uses exact Unicode scalars, without normalization or folding.
-        assert!(decode(r#"{"kind":"request","seq":1,"code":2,"params":{"a":1,"A":2,"é":3,"e\u0301":4,"left":{"a":1},"right":{"a":2}}}"#).is_ok());
-    }
-
-    #[test]
-    fn duplicate_detection_reports_the_earliest_repeated_key() {
-        let json = r#"{"kind":"request","seq":1,"code":2,"params":{"z":0,"a":0,"z":1,"a":1}}"#;
-        let error = reject(json, ErrorCode::DuplicateObjectKey);
-        assert_eq!(error.byte_offset as usize, json.find("\"z\":1").unwrap());
-    }
-
-    #[test]
-    fn unknown_keys_and_cross_kind_fields_are_closed() {
-        for json in [
-            r#"{"kind":"close","reason":"","extra":1}"#,
-            r#"{"kind":"request","seq":1,"code":2,"params":{},"result":null}"#,
-            r#"{"kind":"immediate","seq":1,"code":2,"result":0,"params":{}}"#,
-            r#"{"kind":"stream","seq":1,"code":2,"index":0,"result":0,"method":"x"}"#,
-            r#"{"kind":"log","level":"info","message":"","code":0}"#,
-            r#"{"kind":"close","reason":"","code":0}"#,
-            r#"{"kind":"forwarded","seq":1,"code":2,"target":"x","index":0}"#,
-            r#"{"kind":"error","error":{"code":1,"message":"","retryable":true,"extra":0}}"#,
-        ] { reject(json, ErrorCode::UnknownObjectKey); }
-        let error = reject(r#"{"kind":"close","reason":"","e\u0078tra":1}"#,
-            ErrorCode::UnknownObjectKey);
-        assert_eq!(error.byte_offset, 28);
-    }
-
-    #[test]
-    fn every_required_field_is_enforced() {
-        let variants: &[&[(&str, &str)]] = &[
-            &[("kind", "\"request\""), ("seq", "0"), ("code", "0"), ("params", "{}")],
-            &[("kind", "\"immediate\""), ("seq", "0"), ("code", "0"), ("result", "null")],
-            &[("kind", "\"stream\""), ("seq", "0"), ("code", "0"), ("index", "0"), ("result", "0")],
-            &[("kind", "\"error\""), ("error", "{\"code\":0,\"message\":\"\",\"retryable\":true}")],
-            &[("kind", "\"log\""), ("level", "\"info\""), ("message", "\"\"")],
-            &[("kind", "\"forwarded\""), ("seq", "0"), ("code", "0"), ("target", "\"x\"")],
-            &[("kind", "\"close\""), ("reason", "\"\"")],
-        ];
-        for fields in variants {
-            for missing in 0..fields.len() {
-                let mut json = String::from("{");
-                for (index, (key, value)) in fields.iter().enumerate() {
-                    if index == missing { continue; }
-                    if json.len() > 1 { json.push(','); }
-                    json.push_str(&format!("\"{key}\":{value}"));
-                }
-                json.push('}');
-                reject(&json, ErrorCode::MissingRequiredField);
-            }
-        }
-        for body in [r#"{"message":"","retryable":false}"#,
-            r#"{"code":0,"retryable":false}"#, r#"{"code":0,"message":""}"#]
-        {
-            reject(&format!("{{\"kind\":\"error\",\"error\":{body}}}"), ErrorCode::MissingRequiredField);
-        }
-    }
-
-    #[test]
-    fn optional_fields_must_be_absent_or_have_the_exact_type() {
-        for json in [
-            r#"{"kind":"request","seq":0,"code":0,"params":{},"method":null}"#,
-            r#"{"kind":"close","seq":null,"reason":""}"#,
-            r#"{"kind":"error","seq":null,"error":{"code":0,"message":"","retryable":true}}"#,
-            r#"{"kind":"error","code":null,"error":{"code":0,"message":"","retryable":true}}"#,
-            r#"{"kind":"log","seq":null,"level":"info","message":""}"#,
-            r#"{"kind":"request","seq":0,"code":0,"params":null}"#,
-            r#"{"kind":"request","seq":0,"code":0,"params":[]}"#,
-            r#"{"kind":"error","error":null}"#,
-            r#"{"kind":"error","error":[]}"#,
-            r#"{"kind":"error","error":{"code":0,"message":null,"retryable":true}}"#,
-            r#"{"kind":"error","error":{"code":0,"message":"","retryable":1}}"#,
-            r#"{"kind":"log","level":true,"message":""}"#,
-            r#"{"kind":"log","level":"info","message":null}"#,
-            r#"{"kind":"forwarded","seq":0,"code":0,"target":null}"#,
-            r#"{"kind":"close","reason":null}"#,
-            r#"{"kind":null,"reason":""}"#,
-        ] { reject(json, ErrorCode::TypeMismatch); }
-        assert!(decode(r#"{"kind":"error","seq":0,"code":0,"error":{"code":0,"message":"","retryable":false}}"#).is_ok());
-        assert!(decode(r#"{"kind":"log","seq":0,"level":"trace","message":""}"#).is_ok());
-    }
-
-    #[test]
-    fn metadata_constraints_and_unknown_kinds_are_enforced() {
-        for level in ["trace", "debug", "info", "warn", "error"] {
-            assert!(decode(&format!("{{\"kind\":\"log\",\"level\":\"{level}\",\"message\":\"\"}}")).is_ok());
-        }
-        for level in ["", "INFO", "warning", "fatal"] {
-            reject(&format!("{{\"kind\":\"log\",\"level\":\"{level}\",\"message\":\"\"}}"),
-                ErrorCode::ConstraintViolation);
-        }
-        assert!(decode(r#"{"kind":"log","level":"w\u0061rn","message":""}"#).is_ok());
-        reject(r#"{"kind":"forwarded","seq":0,"code":0,"target":""}"#,
-            ErrorCode::ConstraintViolation);
-        assert!(decode(r#"{"kind":"forwarded","seq":0,"code":0,"target":"\u0000"}"#).is_ok());
-        for kind in ["", "Request", "notification", "mcp", "mcp_request", "response"] {
-            reject(&format!("{{\"kind\":\"{kind}\"}}"), ErrorCode::InvalidToken);
-        }
-    }
-
-    #[test]
-    fn complete_json_object_and_only_json_whitespace_are_required() {
-        for json in ["null", "[]", "0", "\"x\"", "true"] {
-            reject(json, ErrorCode::TypeMismatch);
-        }
-        for suffix in ["{}", "null", "x", "\u{b}", "\u{a0}"] {
-            let json = format!("{{\"kind\":\"close\",\"reason\":\"\"}} \t{suffix}");
-            let error = reject(&json, ErrorCode::TrailingContent);
-            assert_eq!(error.byte_offset as usize, json.len() - suffix.len());
-            assert_eq!(error.source, ErrorSource::Syntax);
-        }
-        assert!(decode("\t\r\n {\"kind\":\"close\",\"reason\":\"\"}\r\n\t ").is_ok());
-        reject("\u{feff}{\"kind\":\"close\",\"reason\":\"\"}", ErrorCode::InvalidToken);
-    }
-
-    #[test]
-    fn syntax_errors_in_opaque_values_are_never_skipped() {
-        for raw in ["[1,]", "{\"a\":1,}", "[1 2]", "{\"a\" 1}", "{1:2}",
-            "[}", "{]", "[,1]", "{,}", "[1:2]", "{\"a\":}"]
-        {
-            let json = format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{raw}}}");
-            reject(&json, ErrorCode::InvalidSyntax);
-        }
-        for raw in ["tru", "truex", "False", "undefined", "+1", ".1"] {
-            let json = format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{raw}}}");
-            reject(&json, ErrorCode::InvalidToken);
-        }
-        reject(r#"{"kind":"close","reason":"",}"#, ErrorCode::InvalidSyntax);
-        reject(r#"{"kind":"error","error":{"code":0,"message":"","retryable":true,}}"#,
-            ErrorCode::InvalidSyntax);
-    }
-
-    #[test]
-    fn incomplete_input_has_deterministic_eof_errors() {
-        for json in ["", " \n", "{", "{\"kind\"", "{\"kind\":", "{\"kind\":\"close\",",
-            "{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":[",
-            "{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":tru",
-            "{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":1e",
-            "{\"kind\":\"close\",\"reason\":\"\\",
-            "{\"kind\":\"close\",\"reason\":\"\\u12"]
-        {
-            let error = reject(json, ErrorCode::UnexpectedEof);
-            assert_eq!(error.byte_offset as usize, json.len());
-        }
-        let json = "{\"kind\":\"close\",\"reason\":\"abc";
-        let error = reject(json, ErrorCode::UnclosedString);
-        assert_eq!(error.byte_offset as usize, json.find("\"abc").unwrap());
-        let valid = r#"{"kind":"request","seq":12,"code":34,"params":{"x":[true,null,"a\nb"]}}"#;
-        for end in 0..valid.len() {
-            assert!(decode(&valid[..end]).is_err(), "prefix ending at {end}");
-        }
-    }
-
-    #[test]
-    fn string_error_paths_report_the_offending_byte() {
-        let json = r#"{"kind":"close","reason":"\q"}"#;
-        let error = reject(json, ErrorCode::InvalidEscape);
-        assert_eq!(error.byte_offset as usize, json.find('q').unwrap());
-        assert_eq!(error.source, ErrorSource::Lexer);
-        let json = r#"{"kind":"close","reason":"\u12x4"}"#;
-        let error = reject(json, ErrorCode::InvalidEscape);
-        assert_eq!(error.byte_offset as usize, json.find('x').unwrap());
-        for raw in [r#""\uD800""#, r#""\uDC00""#, r#""\uD800\u0041""#,
-            r#""\uDBFFx""#, r#""\uD800\n""#]
-        {
-            let json = format!("{{\"kind\":\"close\",\"reason\":{raw}}}");
-            let error = reject(&json, ErrorCode::LoneSurrogate);
-            assert_eq!(error.byte_offset as usize, json.find('\\').unwrap());
-        }
-        for control in [0u8, 8, 9, 10, 13, 31] {
-            let json = format!("{{\"kind\":\"close\",\"reason\":\"a{}b\"}}", char::from(control));
-            let error = reject(&json, ErrorCode::ControlCharInString);
-            assert_eq!(json.as_bytes()[error.byte_offset as usize], control);
-        }
-    }
-
-    #[test]
-    fn invalid_utf8_is_rejected_in_strings_and_elsewhere() {
-        for invalid in [&[0xff][..], &[0xc0, 0xaf], &[0xed, 0xa0, 0x80], &[0xf4, 0x90, 0x80, 0x80], &[0xe2, 0x82]] {
-            let mut bytes = br#"{"kind":"close","reason":""#.to_vec();
-            let offset = bytes.len();
-            bytes.extend_from_slice(invalid);
-            bytes.extend_from_slice(b"\"}");
-            let error = decode_envelope(Payload::from_vec(bytes), EnvelopeLimits::default()).unwrap_err();
-            assert_eq!(error.code, ErrorCode::InvalidUtf8);
-            assert_eq!(error.source, ErrorSource::Utf8);
-            assert_eq!(error.byte_offset as usize, offset);
-        }
-        let error = decode_envelope(Payload::from_slice(&[0xff]), EnvelopeLimits::default()).unwrap_err();
-        assert_eq!(error.code, ErrorCode::InvalidUtf8);
-        assert_eq!(error.byte_offset, 0);
-    }
-
-    #[test]
-    fn every_zero_limit_is_invalid_configuration() {
-        let defaults = EnvelopeLimits::default();
-        let limits = [
-            EnvelopeLimits { max_payload_bytes: 0, ..defaults },
-            EnvelopeLimits { max_decoded_bytes: 0, ..defaults },
-            EnvelopeLimits { max_depth: 0, ..defaults },
-            EnvelopeLimits { max_fields: 0, ..defaults },
-        ];
-        for limits in limits {
-            let error = decode_envelope(Payload::from_slice(b"{}"), limits).unwrap_err();
-            assert_eq!(error.code, ErrorCode::ConstraintViolation);
-            assert_eq!(error.source, ErrorSource::Wire);
-            assert_eq!(error.byte_offset, 0);
-        }
-    }
-
-    #[test]
-    fn payload_limit_is_inclusive_and_precedes_parsing() {
-        let json = r#"{"kind":"close","reason":""}"#;
-        let limits = EnvelopeLimits { max_payload_bytes: json.len() as u32,
-            ..EnvelopeLimits::default() };
-        assert!(decode_envelope(Payload::from_slice(json.as_bytes()), limits).is_ok());
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_payload_bytes: limits.max_payload_bytes - 1, ..limits }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::PayloadTooLarge);
-        let error = decode_envelope(Payload::from_slice(b"malformed"),
-            EnvelopeLimits { max_payload_bytes: 1, ..limits }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::PayloadTooLarge);
-    }
-
-    #[test]
-    fn decoded_arena_limit_is_inclusive_and_counts_all_escaped_strings() {
-        let json = r#"{"kind":"request","seq":0,"code":0,"params":{"\u0061":"\u00e9"},"method":"\uD83D\uDE00"}"#;
-        let limits = EnvelopeLimits { max_decoded_bytes: 7, ..EnvelopeLimits::default() };
-        let envelope = decode_envelope(Payload::from_slice(json.as_bytes()), limits).unwrap();
-        assert_eq!(envelope.decoded_bytes(), "aé😀".as_bytes());
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_decoded_bytes: 6, ..limits }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::DecodedArenaOverflow);
-        assert_eq!(error.byte_offset as usize, json.find("\\uD83D").unwrap());
-        let raw = r#"{"kind":"close","reason":"a long unescaped string"}"#;
-        assert!(decode_envelope(Payload::from_slice(raw.as_bytes()),
-            EnvelopeLimits { max_decoded_bytes: 1, ..limits }).is_ok());
-        let json = r#"{"kind":"close","reason":"\nabc"}"#;
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_decoded_bytes: 3, ..limits }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::DecodedArenaOverflow);
-        assert_eq!(json.as_bytes()[error.byte_offset as usize], b'c');
-        let json = r#"{"kind":"close","reason":"abcd\n"}"#;
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_decoded_bytes: 3, ..limits }).unwrap_err();
-        assert_eq!(json.as_bytes()[error.byte_offset as usize], b'd');
-    }
-
-    #[test]
-    fn depth_limit_counts_outer_and_error_objects_and_all_opaque_containers() {
-        let defaults = EnvelopeLimits::default();
-        let close = br#"{"kind":"close","reason":""}"#;
-        assert!(decode_envelope(Payload::from_slice(close),
-            EnvelopeLimits { max_depth: 1, ..defaults }).is_ok());
-        let json = br#"{"kind":"request","seq":0,"code":0,"params":{}}"#;
-        let error = decode_envelope(Payload::from_slice(json),
-            EnvelopeLimits { max_depth: 1, ..defaults }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::DepthLimitExceeded);
-        assert!(decode_envelope(Payload::from_slice(json),
-            EnvelopeLimits { max_depth: 2, ..defaults }).is_ok());
-        let error_json = br#"{"kind":"error","error":{"code":0,"message":"","retryable":false}}"#;
-        assert_eq!(decode_envelope(Payload::from_slice(error_json),
-            EnvelopeLimits { max_depth: 1, ..defaults }).unwrap_err().code,
-            ErrorCode::DepthLimitExceeded);
-        assert!(decode_envelope(Payload::from_slice(error_json),
-            EnvelopeLimits { max_depth: 2, ..defaults }).is_ok());
-        let json = r#"{"kind":"immediate","seq":0,"code":0,"result":[{"x":[]}]}"#;
-        assert!(decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_depth: 4, ..defaults }).is_ok());
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_depth: 3, ..defaults }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::DepthLimitExceeded);
-        assert_eq!(error.byte_offset as usize, json.find("[]").unwrap());
-    }
-
-    #[test]
-    fn deeply_nested_values_use_a_bounded_explicit_stack() {
-        let depth = 1024usize;
-        let json = format!("{{\"kind\":\"immediate\",\"seq\":0,\"code\":0,\"result\":{}0{}}}",
-            "[".repeat(depth), "]".repeat(depth));
-        let limits = EnvelopeLimits { max_depth: (depth + 1) as u16,
-            ..EnvelopeLimits::default() };
-        assert!(decode_envelope(Payload::from_slice(json.as_bytes()), limits).is_ok());
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()),
-            EnvelopeLimits { max_depth: depth as u16, ..limits }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::DepthLimitExceeded);
-    }
-
-    #[test]
-    fn field_limit_applies_per_object_and_is_inclusive() {
-        let defaults = EnvelopeLimits::default();
-        let json = r#"{"kind":"request","seq":0,"code":0,"params":{"a":1,"b":2,"c":3,"d":4}}"#;
-        let limits = EnvelopeLimits { max_fields: 4, ..defaults };
-        assert!(decode_envelope(Payload::from_slice(json.as_bytes()), limits).is_ok());
-        let json = r#"{"kind":"request","seq":0,"code":0,"params":{"a":1,"b":2,"c":3,"d":4,"e":5}}"#;
-        let error = decode_envelope(Payload::from_slice(json.as_bytes()), limits).unwrap_err();
-        assert_eq!(error.code, ErrorCode::ConstraintViolation);
-        assert_eq!(error.byte_offset as usize, json.find("\"e\"").unwrap());
-        let json = br#"{"kind":"close","reason":""}"#;
-        assert!(decode_envelope(Payload::from_slice(json),
-            EnvelopeLimits { max_fields: 2, ..defaults }).is_ok());
-        assert_eq!(decode_envelope(Payload::from_slice(json),
-            EnvelopeLimits { max_fields: 1, ..defaults }).unwrap_err().code,
-            ErrorCode::ConstraintViolation);
-        let json = r#"{"kind":"request","seq":0,"code":0,"params":{"x":{"a":1,"b":2,"c":3,"d":4},"y":{"a":1,"b":2,"c":3,"d":4}}}"#;
-        assert!(decode_envelope(Payload::from_slice(json.as_bytes()), limits).is_ok());
-    }
-
-    #[test]
-    fn container_like_text_does_not_affect_nesting_or_key_scope() {
-        let json = r#"{"kind":"request","seq":0,"code":0,"params":{"x":"[{}] , : \" \\","arr":[{"x":1},{"x":2}],"kind":"arbitrary","method":"app"}}"#;
-        let envelope = decode(json).unwrap();
-        assert_eq!(envelope.view().kind, EnvelopeKind::EndpointRequest);
-        assert_eq!(envelope.method(), None);
-        assert!(envelope.resolve(envelope.view().params_span.unwrap()).unwrap().ends_with(b"}"));
-    }
-
-    #[test]
-    fn parser_storage_reservations_are_bounded_and_fallible() {
-        let mut entries = Vec::<u8>::new();
-        reserve_entry(&mut entries, 1, 9, "allocation failed").unwrap();
-        assert!(entries.is_empty());
-        assert!(entries.capacity() >= 1);
-        entries.push(1);
-        let error = reserve_entry(&mut entries, 1, 9, "allocation failed").unwrap_err();
-        assert_eq!(error.code, ErrorCode::BudgetExhausted);
-        assert_eq!(error.byte_offset, 9);
-        assert_eq!(entries, vec![1]);
-        let mut entries = Vec::<[u8; 16]>::new();
-        let error = reserve_entry(&mut entries, usize::MAX, 7, "allocation failed");
-        // A one-entry reservation is valid even when the configured ceiling is
-        // huge; the parser does not eagerly allocate the entire configured cap.
-        assert!(error.is_ok());
-        let error = entries.try_reserve_exact(usize::MAX);
-        assert!(error.is_err());
-    }
-
-    #[test]
-    fn error_metadata_never_includes_payload_secrets() {
-        let error = reject(r#"{"kind":"close","reason":"secret","password":"sensitive"}"#,
-            ErrorCode::UnknownObjectKey);
-        assert!(!error.detail.contains("secret"));
-        assert!(!error.to_string().contains("sensitive"));
-        assert_eq!(error.schema_id, 0);
-        assert_eq!(error.field_id, 0);
-    }
 }

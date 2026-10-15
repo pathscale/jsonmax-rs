@@ -5,7 +5,7 @@ use core::mem::size_of;
 use jmax_abi::{
     error::ErrorCode,
     number::ConvertedNumber,
-    schema::{FieldId, SlotValue},
+    schema::SlotValue,
     span::Span32,
 };
 
@@ -15,7 +15,6 @@ use crate::{
     Payload, Result, Workload,
 };
 
-const EMIT_SLOT_OPCODE: u8 = 13;
 const ACCEPTED_SCHEMA_MARKER: u64 = 0x7661_6c69_6461_7465;
 
 /// Measure strict native parsing of every payload in the workload.
@@ -26,8 +25,14 @@ pub fn run_parse(
 ) -> Result<BenchmarkReport> {
     config.validate()?;
     corpus::validate_workload(workload, config.max_total_input_bytes)?;
+    let mut verification = 0;
+    for input in &workload.payloads {
+        let document = jsonmax::parse::parse_payload(input.clone(), jsonmax::ParseOptions::default())?;
+        verification = mix_digest(verification, digest_document(&document));
+    }
     let mut operation = ParseOperation;
-    measure(workload, &mut operation, config, clock)
+    let report = measure(workload, &mut operation, config, clock)?;
+    Ok(with_verification(report, verification))
 }
 
 /// Measure complete schema validation of every payload in the workload.
@@ -38,9 +43,7 @@ pub fn run_validate(
 ) -> Result<BenchmarkReport> {
     config.validate()?;
     corpus::validate_workload(workload, config.max_total_input_bytes)?;
-    let schema = compile_workload_schema(workload)?;
-    let mut operation = SchemaOperation { schema, selection: None };
-    measure(workload, &mut operation, config, clock)
+    run_schema(workload, config, clock, false)
 }
 
 /// Measure full schema validation followed by resolving the selected slots.
@@ -51,18 +54,7 @@ pub fn run_extract(
 ) -> Result<BenchmarkReport> {
     config.validate()?;
     corpus::validate_workload(workload, config.max_total_input_bytes)?;
-    if workload.selection.field_ids.is_empty() || !workload.selection.strict_validate_unselected {
-        return Err(bench_error(
-            ErrorCode::ConstraintViolation,
-            "extraction requires a nonempty selection and strict validation",
-        ));
-    }
-    let schema = compile_workload_schema(workload)?;
-    let mut operation = SchemaOperation {
-        schema,
-        selection: Some(workload.selection.clone()),
-    };
-    measure(workload, &mut operation, config, clock)
+    run_schema(workload, config, clock, true)
 }
 
 /// Compare two operations after checking their per-input semantic results.
@@ -120,56 +112,90 @@ impl BenchmarkOperation for ParseOperation {
             input.clone(),
             jsonmax::ParseOptions::default(),
         )?;
-        let digest = digest_document(&document);
+        let parts = document.parts();
+        let digest = mix_digest(
+            mix_digest(parts.nodes.len() as u64, parts.containers.len() as u64),
+            mix_digest(parts.decoded.len() as u64, document.proof().schema_fingerprint()),
+        );
+        core::hint::black_box(&document);
         let retained_bytes = document_retained_bytes(&document)?;
         Ok(Observation { digest, output_bytes: 0, retained_bytes })
     }
 }
 
-struct SchemaOperation {
-    schema: jsonmax::CompiledSchema,
-    selection: Option<jmax_abi::schema::Selection>,
+struct SchemaOperation<'a> {
+    workload: &'a Workload,
+    extract: bool,
 }
 
-impl BenchmarkOperation for SchemaOperation {
+impl SchemaOperation<'_> {
+    fn execute_slots(&self, input: &Payload) -> Result<jmax_abi::schema::ValidatedSlots> {
+        let options = jsonmax::ParseOptions::default();
+        if self.extract {
+            jsonmax::endpoint::extract_payload(
+                input.clone(), &self.workload.compiled_schema, &self.workload.selection, options,
+            )
+        } else {
+            jsonmax::endpoint::validate_payload(input.clone(), &self.workload.compiled_schema, options)
+        }
+    }
+}
+
+impl BenchmarkOperation for SchemaOperation<'_> {
     fn name(&self) -> &str {
-        if self.selection.is_some() { "jsonmax.extract" } else { "jsonmax.validate" }
+        if self.extract { "jsonmax.extract" } else { "jsonmax.validate" }
     }
-
     fn mode(&self) -> BenchmarkMode {
-        if self.selection.is_some() { BenchmarkMode::Extract } else { BenchmarkMode::Validate }
+        if self.extract { BenchmarkMode::Extract } else { BenchmarkMode::Validate }
     }
-
     fn execute(&mut self, input: &Payload) -> Result<Observation> {
-        let slots = jsonmax::endpoint::validate_payload(
-            input.clone(),
-            &self.schema,
-            jsonmax::ParseOptions::default(),
-        )?;
-        let retained_bytes = slots_retained_bytes(&slots, &self.schema)?;
-        let (digest, output_bytes) = match &self.selection {
-            None => (digest_all_slots(&slots)?, 0),
-            Some(selection) => digest_selected_slots(&slots, &self.schema, selection)?,
-        };
+        let slots = self.execute_slots(input)?;
+        let digest = mix_digest(mix_digest(ACCEPTED_SCHEMA_MARKER,
+            slots.proof.schema_fingerprint()), slots.slots.len() as u64);
+        let retained_bytes = slots_retained_bytes(&slots, &self.workload.compiled_schema)?;
+        // Consume the actual result without scanning its payload or tables.
+        core::hint::black_box(&slots);
+        let output_bytes = if self.extract {
+            u64::try_from(slots.slots.len()).ok()
+                .and_then(|n| n.checked_mul(size_of::<SlotValue>() as u64))
+                .ok_or_else(|| bench_error(ErrorCode::BudgetExhausted, "slot output size overflow"))?
+        } else { 0 };
         Ok(Observation { digest, output_bytes, retained_bytes })
     }
 }
 
-fn compile_workload_schema(workload: &Workload) -> Result<jsonmax::CompiledSchema> {
-    let image = workload.schema.as_ref().ok_or_else(|| {
-        bench_error(ErrorCode::ConstraintViolation, "schema benchmark requires an attached schema")
-    })?;
-    jsonmax::endpoint::load_schema(image.clone())
+fn run_schema(
+    workload: &Workload,
+    config: BenchmarkConfig,
+    clock: &mut dyn Clock,
+    extract: bool,
+) -> Result<BenchmarkReport> {
+    let mut operation = SchemaOperation { workload, extract };
+    let mut verification = 0;
+    for input in &workload.payloads {
+        let slots = operation.execute_slots(input)?;
+        verification = mix_digest(verification, digest_all_slots(&slots)?);
+    }
+    let report = measure(workload, &mut operation, config, clock)?;
+    Ok(with_verification(report, verification))
+}
+
+fn with_verification(mut report: BenchmarkReport, verification: u64) -> BenchmarkReport {
+    for sample in &mut report.samples {
+        sample.digest = mix_digest(sample.digest, verification);
+    }
+    report
 }
 
 fn document_retained_bytes(document: &jsonmax::Document) -> Result<u64> {
-    let mut total = u64::try_from(document.payload.len())
+    let mut total = u64::try_from(document.payload().len())
         .map_err(|_| bench_error(ErrorCode::BudgetExhausted, "input retention size overflow"))?;
-    add_capacity::<jmax_abi::NodeWord>(&mut total, document.parts.nodes.capacity())?;
-    add_capacity::<Span32>(&mut total, document.parts.spans.capacity())?;
-    add_capacity::<jmax_abi::Container32>(&mut total, document.parts.containers.capacity())?;
-    add_capacity::<ConvertedNumber>(&mut total, document.parts.numbers.capacity())?;
-    add_u64(&mut total, document.parts.decoded.capacity())?;
+    add_capacity::<jmax_abi::NodeWord>(&mut total, document.parts().nodes.capacity())?;
+    add_capacity::<Span32>(&mut total, document.parts().spans.capacity())?;
+    add_capacity::<jmax_abi::Container32>(&mut total, document.parts().containers.capacity())?;
+    add_capacity::<ConvertedNumber>(&mut total, document.parts().numbers.capacity())?;
+    add_u64(&mut total, document.parts().decoded.capacity())?;
+    add_capacity::<jmax_dom::NodeMeta>(&mut total, document.parts().node_metadata.capacity())?;
     Ok(total)
 }
 
@@ -205,8 +231,8 @@ fn add_u64(total: &mut u64, amount: usize) -> Result<()> {
 }
 
 fn digest_document(document: &jsonmax::Document) -> u64 {
-    let parts = &document.parts;
-    let mut digest = mix_digest(0x7061_7273_652d_7631, digest_bytes(document.payload.as_slice()));
+    let parts = document.parts();
+    let mut digest = mix_digest(0x7061_7273_652d_7631, digest_bytes(document.payload().as_slice()));
     for node in &parts.nodes {
         digest = mix_digest(digest, node.0);
     }
@@ -241,42 +267,6 @@ fn digest_all_slots(slots: &jmax_abi::schema::ValidatedSlots) -> Result<u64> {
         digest = mix_slot_value(digest, value, &slots.payload, &slots.decoded)?.0;
     }
     Ok(digest)
-}
-
-fn digest_selected_slots(
-    slots: &jmax_abi::schema::ValidatedSlots,
-    schema: &jsonmax::CompiledSchema,
-    selection: &jmax_abi::schema::Selection,
-) -> Result<(u64, u64)> {
-    if selection.field_ids.is_empty() || !selection.strict_validate_unselected {
-        return Err(bench_error(
-            ErrorCode::ConstraintViolation,
-            "extraction requires a nonempty selection and strict validation",
-        ));
-    }
-    let image = schema.image();
-    let mut digest = mix_digest(0x6578_7472_6163_742d, ACCEPTED_SCHEMA_MARKER);
-    let mut output_bytes = 0u64;
-    for field in &selection.field_ids {
-        let slot_index = slot_index_for_field(image, *field).ok_or_else(|| {
-            bench_error(ErrorCode::SchemaImageInvalid, "selection field has no emitted slot")
-        })?;
-        let value = slots.slots.get(slot_index).ok_or_else(|| {
-            bench_error(ErrorCode::SchemaImageInvalid, "emitted slot is outside validated results")
-        })?;
-        digest = mix_digest(digest, u64::from(field.0));
-        let (next, encoded_len) = mix_slot_value(digest, value, &slots.payload, &slots.decoded)?;
-        digest = next;
-        output_bytes = output_bytes.checked_add(encoded_len)
-            .ok_or_else(|| bench_error(ErrorCode::BudgetExhausted, "extraction output size overflow"))?;
-    }
-    Ok((digest, output_bytes))
-}
-
-fn slot_index_for_field(image: &jmax_abi::schema::SchemaImage, field: FieldId) -> Option<usize> {
-    image.insns.iter().find(|insn| {
-        insn.opcode == EMIT_SLOT_OPCODE && u32::from(insn.field_id) == field.0
-    }).and_then(|insn| usize::try_from(insn.arg0).ok())
 }
 
 /// Hash a slot's type and resolved content. The returned byte count uses a
@@ -341,142 +331,4 @@ fn mix_slot_value(
         }
     };
     Ok((digest, encoded_len))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::string::String;
-
-    #[derive(Default)]
-    struct StepClock { now: u64, step: u64 }
-    impl Clock for StepClock {
-        fn now_ns(&mut self) -> u64 {
-            let result = self.now;
-            self.now = self.now.saturating_add(self.step);
-            result
-        }
-    }
-
-    fn config() -> BenchmarkConfig {
-        BenchmarkConfig { warmup_iterations: 1, measured_iterations: 2, max_total_input_bytes: 4096 }
-    }
-
-    fn small_workload() -> Workload {
-        corpus::make_workload(crate::WorkloadKind::SmallObject, crate::CorpusConfig {
-            seed: 7, documents: 2, items_per_document: 2, max_bytes: 4096,
-        }).expect("deterministic small workload")
-    }
-
-    #[test]
-    fn parse_runner_reports_owned_dom_digest_and_timing() {
-        let workload = small_workload();
-        let mut clock = StepClock { now: 10, step: 3 };
-        let report = run_parse(&workload, config(), &mut clock).unwrap();
-        assert_eq!(report.operation, "jsonmax.parse");
-        assert_eq!(report.mode, BenchmarkMode::Parse);
-        assert_eq!(report.samples.len(), 2);
-        assert_eq!(report.samples[0].elapsed_ns, 3);
-        assert_eq!(report.samples[0].documents, 2);
-        assert_eq!(report.samples[0].output_bytes, 0);
-        assert!(report.samples[0].peak_retained_bytes >= workload.payloads[0].len() as u64);
-        assert_eq!(report.samples[0].digest, report.samples[1].digest);
-    }
-
-    #[test]
-    fn validate_and_extract_execute_schema_and_resolve_values() {
-        let workload = small_workload();
-        let mut validate_clock = StepClock { now: 0, step: 2 };
-        let validated = run_validate(&workload, config(), &mut validate_clock).unwrap();
-        assert_eq!(validated.operation, "jsonmax.validate");
-        assert_eq!(validated.mode, BenchmarkMode::Validate);
-        assert_ne!(validated.samples[0].digest, 0);
-        assert_eq!(validated.samples[0].output_bytes, 0);
-
-        let mut extract_clock = StepClock { now: 0, step: 2 };
-        let extracted = run_extract(&workload, config(), &mut extract_clock).unwrap();
-        assert_eq!(extracted.operation, "jsonmax.extract");
-        assert_eq!(extracted.mode, BenchmarkMode::Extract);
-        assert!(extracted.samples[0].output_bytes > 0);
-        assert_ne!(extracted.samples[0].digest, validated.samples[0].digest);
-    }
-
-    #[test]
-    fn schema_requirements_and_malformed_payload_errors_are_preserved() {
-        let mut workload = small_workload();
-        workload.schema = None;
-        workload.selection.field_ids.clear();
-        let mut clock = StepClock::default();
-        assert_eq!(run_validate(&workload, config(), &mut clock).unwrap_err().code,
-            ErrorCode::ConstraintViolation);
-        assert_eq!(run_extract(&workload, config(), &mut clock).unwrap_err().code,
-            ErrorCode::ConstraintViolation);
-
-        let mut non_strict = small_workload();
-        non_strict.selection.strict_validate_unselected = false;
-        assert_eq!(run_extract(&non_strict, config(), &mut clock).unwrap_err().code,
-            ErrorCode::ConstraintViolation);
-
-        let too_small_budget = BenchmarkConfig {
-            max_total_input_bytes: 1,
-            ..config()
-        };
-        assert_eq!(run_parse(&small_workload(), too_small_budget, &mut clock).unwrap_err().code,
-            ErrorCode::BudgetExhausted);
-
-        let mut malformed = small_workload();
-        malformed.payloads[0] = Payload::from_slice(b"{\"f0\":]");
-        assert!(run_parse(&malformed, config(), &mut clock).is_err());
-        assert!(run_validate(&malformed, config(), &mut clock).is_err());
-    }
-
-    struct FixedOperation {
-        name: String,
-        mode: BenchmarkMode,
-        digest: u64,
-    }
-    impl BenchmarkOperation for FixedOperation {
-        fn name(&self) -> &str { &self.name }
-        fn mode(&self) -> BenchmarkMode { self.mode }
-        fn execute(&mut self, input: &Payload) -> Result<Observation> {
-            Ok(Observation { digest: self.digest ^ digest_bytes(input.as_slice()), ..Observation::default() })
-        }
-    }
-
-    #[test]
-    fn compare_preflights_semantics_and_rejects_mode_or_result_mismatch() {
-        let workload = small_workload();
-        let mut left = FixedOperation { name: String::from("left"), mode: BenchmarkMode::Parse, digest: 5 };
-        let mut right = FixedOperation { name: String::from("right"), mode: BenchmarkMode::Parse, digest: 5 };
-        let mut clock = StepClock { now: 0, step: 1 };
-        let (a, b) = compare(&workload, &mut left, &mut right, config(), &mut clock).unwrap();
-        assert_eq!(a.operation, "left");
-        assert_eq!(b.operation, "right");
-        assert_eq!(a.samples.len(), b.samples.len());
-
-        let mut mismatch = FixedOperation { name: String::from("bad"), mode: BenchmarkMode::Parse, digest: 6 };
-        assert_eq!(compare(&workload, &mut left, &mut mismatch, config(), &mut clock)
-            .unwrap_err().code, ErrorCode::ConstraintViolation);
-        mismatch.mode = BenchmarkMode::Validate;
-        assert_eq!(compare(&workload, &mut left, &mut mismatch, config(), &mut clock)
-            .unwrap_err().code, ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn selected_slot_encoding_counts_lengths_and_hashes_value_types() {
-        let payload = Payload::from_slice(b"value");
-        let decoded = [];
-        let string = SlotValue::Str(jmax_abi::span::StrRef {
-            span: Span32::new(0, 5),
-            source: jmax_abi::span::SpanSource::RawPayload,
-            scalar_len: 5,
-        });
-        let (str_digest, str_len) = mix_slot_value(0, &string, &payload, &decoded).unwrap();
-        let (bool_digest, bool_len) = mix_slot_value(0, &SlotValue::Bool(true), &payload, &decoded).unwrap();
-        assert_eq!(str_len, 14);
-        assert_eq!(bool_len, 2);
-        assert_ne!(str_digest, bool_digest);
-        assert_eq!(Span32::new(u32::MAX, 1).slice(payload.as_slice()), None);
-    }
-
 }

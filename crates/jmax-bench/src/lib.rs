@@ -41,6 +41,7 @@ pub struct Workload {
     pub kind: WorkloadKind,
     pub payloads: Vec<Payload>,
     pub schema: Option<SchemaImage>,
+    pub compiled_schema: jsonmax::endpoint::CompiledSchema,
     pub selection: Selection,
 }
 impl Workload {

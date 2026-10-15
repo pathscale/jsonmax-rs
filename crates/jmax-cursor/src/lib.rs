@@ -133,6 +133,9 @@ impl SelectorPlan {
 #[derive(Debug)]
 pub struct Cursor {
     pub(crate) syntax: SyntaxState,
+    /// Complete input keeps a shared owner directly on the cursor. Syntax
+    /// retains a second cheap handle to the same immutable byte allocation.
+    pub(crate) payload: Option<Payload>,
     pub(crate) mode: SkipMode,
     pub(crate) current: Option<Event>,
     pub(crate) skipping: Option<SkipProgress>,
@@ -140,12 +143,14 @@ pub struct Cursor {
 
 impl Cursor {
     pub fn new(limits: Limits, mode: SkipMode) -> Self {
-        Self { syntax: SyntaxState::new(limits), mode, current: None, skipping: None }
+        Self { syntax: SyntaxState::new(limits), payload: None,
+            mode, current: None, skipping: None }
     }
     pub const fn mode(&self) -> SkipMode { self.mode }
     pub fn state(&self) -> CursorState { self.syntax.state() }
     pub const fn current(&self) -> Option<Event> { self.current }
     pub fn raw_bytes(&self) -> &[u8] { self.syntax.raw_bytes() }
+    pub fn payload(&self) -> Option<&Payload> { self.payload.as_ref() }
     pub fn decoded_bytes(&self) -> &[u8] { self.syntax.decoded_bytes() }
     pub fn resolve_str(&self, reference: StrRef) -> Option<&str> {
         self.syntax.resolve_str(reference)

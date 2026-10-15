@@ -250,6 +250,18 @@ fn serialize(program: &CompiledProgram, writer: &mut Writer<'_>) -> Result<()> {
                 writer.length(slots.len())?;
                 for &slot in slots { writer.u32(slot)?; }
             }
+            KeyStrategy::BucketedPerfectHash { seed, buckets, slots } => {
+                writer.u8(2)?;
+                writer.u64(*seed)?;
+                writer.length(buckets.len())?;
+                for bucket in buckets {
+                    writer.u64(bucket.seed)?;
+                    writer.u32(bucket.first_slot)?;
+                    writer.u32(bucket.slot_count)?;
+                }
+                writer.length(slots.len())?;
+                for &slot in slots { writer.u32(slot)?; }
+            }
         }
     }
     writer.length(program.patterns.len())?;
@@ -592,6 +604,20 @@ fn read_program(reader: &mut Reader<'_>, options: &CompilerOptions) -> Result<Co
                 let slots = r.exact_vector(4, capacity, Reader::u32)?;
                 KeyStrategy::PerfectHash { seed, slots }
             }
+            2 => {
+                let seed = r.u64()?;
+                if key_count == 0 || key_count > options.limits.max_keys {
+                    return Err(r.error_at(position, "invalid bucketed key count"));
+                }
+                let capacity = key_count.checked_mul(2).and_then(u32::checked_next_power_of_two)
+                    .ok_or_else(budget)?;
+                let buckets = r.exact_vector(16, capacity, |r| Ok(HashBucket {
+                    seed: r.u64()?, first_slot: r.u32()?, slot_count: r.u32()?,
+                }))?;
+                let slot_limit = key_count.checked_mul(8).ok_or_else(budget)?;
+                let slots = r.vector(4, slot_limit, Reader::u32)?;
+                KeyStrategy::BucketedPerfectHash { seed, buckets, slots }
+            }
             _ => return Err(r.error_at(position, "unknown key strategy")),
         };
         Ok(KeyTable { first_key, key_count, strategy })
@@ -723,7 +749,7 @@ fn inspect(program: &CompiledProgram, options: &CompilerOptions) -> Result<()> {
     limited(program.patterns.len(), options.limits.max_states)?;
     limited(encoded_len(program)?, options.max_image_bytes)?;
     if program.policy != options.policy || program.format_options != FormatOptions::default() {
-        return Err(invalid("image policy or version-one format options mismatch"));
+        return Err(invalid("image policy or default format options mismatch"));
     }
     if header.root_state != 0 || program.states.is_empty()
         || header.insn_count != count(image.insns.len())?
@@ -797,7 +823,10 @@ fn inspect(program: &CompiledProgram, options: &CompilerOptions) -> Result<()> {
         }
         byte_end = key.span.end().ok_or_else(|| invalid("key byte range overflow"))?;
     }
-    if byte_end != count(image.key_bytes.len())? { return Err(invalid("trailing unowned key bytes")); }
+    let (names, canonical) = schema_capsule(image, options.max_image_bytes)?;
+    if byte_end as usize != names.len() || canonical != program.canonical_schema {
+        return Err(invalid("key bytes or schema capsule differ from their owners"));
+    }
     for (number, slot) in program.slots.iter().enumerate() {
         if slot.slot != count(number)? || slot.state.0 >= state_count || slot.field_id.0 > u32::from(u16::MAX) {
             return Err(invalid("invalid slot mapping").with_schema(header.schema_id, slot.field_id.0));
@@ -839,994 +868,82 @@ pub fn validate(program: CompiledProgram, options: &CompilerOptions) -> Result<V
         error.schema_id = program.image.header.schema_id;
         error
     })?;
-    Ok(ValidatedProgram { program })
+    let indexes = build_indexes(&program).map_err(|error| error.with_schema(program.image.header.schema_id, 0))?;
+    Ok(ValidatedProgram { program: Arc::new(program), indexes: Arc::new(indexes) })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::{format, vec};
-    use jmax_schema_ir::NamedType;
+// A standalone ABI image has no side-table fields. Version two retains the
+// canonical graph after the key-name prefix, followed by length and magic.
+// Key spans continue to address only names. Full wire images encode this
+// capsule too, and canonical validation checks its exact bytes.
+const CAPSULE_MAGIC: &[u8; 8] = b"JMXSCM02";
+const CAPSULE_FOOTER: usize = 12;
 
-    const SCHEMA_ID: u32 = 0x0102_0304;
-    const ANY_FINGERPRINT: u64 = 0xd42f_04ce_417a_2321;
+pub(crate) fn attach_schema_capsule(program: &mut CompiledProgram, max_bytes: u32) -> Result<()> {
+    let additional = program.canonical_schema.len().checked_add(CAPSULE_FOOTER).ok_or_else(budget)?;
+    let total = program.image.key_bytes.len().checked_add(additional).ok_or_else(budget)?;
+    limited(total, max_bytes)?;
+    let canonical_len = count(program.canonical_schema.len())?;
+    program.image.key_bytes.try_reserve_exact(additional).map_err(|_| budget())?;
+    program.image.key_bytes.extend_from_slice(&program.canonical_schema);
+    program.image.key_bytes.extend_from_slice(&canonical_len.to_le_bytes());
+    program.image.key_bytes.extend_from_slice(CAPSULE_MAGIC);
+    Ok(())
+}
 
-    // Independent frozen-grammar vectors: empty schema name, one Any node,
-    // default policy/options, schema ID 0x01020304, and root state zero.
-    const ANY_CANONICAL: &[u8] = &[
-        74, 77, 65, 88, 45, 83, 67, 72, 69, 77, 65, 0, 1, 0,
-        0, 0, 1, 1, 52, 1, 0, 1, 0, 16, 0, 0,
-        0, 0, 0, 0, 4, 3, 2, 1, 1, 0, 0, 0, 0,
-    ];
-    const ANY_WIRE: &[u8] = &[
-        0x4a, 0x4d, 0x41, 0x58, 0x01, 0x00, 0x00, 0x00, 0x04, 0x03, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x23, 0x7a, 0x41,
-        0xce, 0x04, 0x2f, 0xd4, 0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x34, 0x01, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00,
-        0x00, 0x00, 0x10, 0x00, 0x15, 0x00, 0x00, 0x00, 0x00, 0x27, 0x00, 0x00, 0x00, 0x4a, 0x4d, 0x41,
-        0x58, 0x2d, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x34,
-        0x01, 0x00, 0x01, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x03, 0x02, 0x01, 0x01,
-        0x00, 0x00, 0x00, 0x00,
-    ];
-
-    fn schema(nodes: Vec<TypeNode>) -> Schema {
-        Schema { name: String::new(), schema_id: SchemaId(SCHEMA_ID),
-            root: TypeId(0), nodes, definitions: Vec::new() }
+fn schema_capsule(image: &SchemaImage, max_bytes: u32) -> Result<(&[u8], &[u8])> {
+    limited(image.key_bytes.len(), max_bytes)?;
+    let bytes = &image.key_bytes;
+    let footer = bytes.len().checked_sub(CAPSULE_FOOTER).ok_or_else(|| invalid("schema capsule is missing"))?;
+    if bytes.get(footer + 4..) != Some(CAPSULE_MAGIC.as_slice()) {
+        return Err(invalid("schema capsule magic is invalid"));
     }
+    let mut encoded = [0u8; 4];
+    encoded.copy_from_slice(&bytes[footer..footer + 4]);
+    let len = index(u32::from_le_bytes(encoded))?;
+    let start = footer.checked_sub(len).ok_or_else(|| invalid("schema capsule length is invalid"))?;
+    Ok((&bytes[..start], &bytes[start..footer]))
+}
 
-    fn resolved(input: Schema) -> ResolvedSchema {
-        jmax_schema_ir::resolve::resolve(input, ResolveLimits {
-            max_name_bytes: DEFAULT_MAX_IMAGE_BYTES, ..ResolveLimits::default()
-        }).unwrap()
+/// Restore a complete witnessed program from a standalone version-two image.
+/// Both borrowed images and owned images are accepted for facade compatibility.
+/// Call once when loading a schema, then retain or cheaply clone the witness.
+pub fn load(image: impl core::borrow::Borrow<SchemaImage>, options: &CompilerOptions)
+    -> Result<ValidatedProgram>
+{
+    let image = image.borrow();
+    let result = (|| {
+        if image.header.magic != IMAGE_MAGIC || image.header.version != IMAGE_VERSION
+            || image.header.flags != IMAGE_FLAGS
+        { return Err(invalid("invalid image magic, version or flags")); }
+        limited(image.insns.len(), options.limits.max_insns)?;
+        limited(image.keys.len(), options.limits.max_keys)?;
+        let (_, canonical) = schema_capsule(image, options.max_image_bytes)?;
+        let resolved = reconstruct(canonical, options).map_err(image_error)?;
+        let expected = lower::lower(&resolved, options).map_err(image_error)?;
+        if expected.image.header != image.header || expected.image.insns != image.insns
+            || expected.image.keys != image.keys || expected.image.key_bytes != image.key_bytes
+        { return Err(invalid("standalone image differs from canonical lowering")); }
+        validate(expected, options)
+    })();
+    result.map_err(|mut error| { error.schema_id = image.header.schema_id; error })
+}
+
+fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
+    let field_count = program.slots.iter().map(|slot| slot.field_id.0 as usize + 1).max().unwrap_or(0);
+    let mut field_slots = reserved(field_count)?;
+    field_slots.resize(field_count, EMPTY_KEY_SLOT);
+    for slot in &program.slots {
+        let entry = field_slots.get_mut(slot.field_id.0 as usize).ok_or_else(|| invalid("invalid indexed field"))?;
+        if *entry != EMPTY_KEY_SLOT { return Err(invalid("duplicate indexed field")); }
+        *entry = slot.slot;
     }
-
-    fn raw(nodes: Vec<TypeNode>, options: &CompilerOptions) -> CompiledProgram {
-        lower::lower(&resolved(schema(nodes)), options).unwrap()
-    }
-
-    fn any() -> CompiledProgram { raw(vec![TypeNode::Any], &CompilerOptions::default()) }
-
-    fn property(name: &str, field: u32, ty: u32, required: bool, slot: Option<u32>) -> Property {
-        Property { name: String::from(name), field_id: FieldId(field),
-            ty: TypeId(ty), required, slot }
-    }
-
-    fn object(properties: Vec<Property>) -> TypeNode {
-        TypeNode::Object(ObjectShape { properties, reject_unknown: false,
-            min_properties: None, max_properties: None })
-    }
-
-    fn array(items: u32) -> TypeNode {
-        TypeNode::Array(ArrayShape { items: TypeId(items), min_items: None, max_items: None })
-    }
-
-    fn patterned(source: &str) -> TypeNode {
-        let mut constraints = ScalarConstraints::new(ValueKind::String);
-        constraints.pattern = Some(String::from(source));
-        TypeNode::Scalar(constraints)
-    }
-
-    fn fixture(options: &CompilerOptions) -> CompiledProgram {
-        let mut text = ScalarConstraints::new(ValueKind::String);
-        text.min_length = Some(0);
-        text.max_length = Some(32);
-        text.pattern = Some(String::from("^(a|é)*[0-9]?$"));
-        text.format = Some(String::from("uuid"));
-        let mut integer = ScalarConstraints::new(ValueKind::Integer);
-        integer.min_i64 = Some(i64::MIN);
-        integer.max_i64 = Some(i64::MAX);
-        let mut decimal = ScalarConstraints::new(ValueKind::Decimal);
-        decimal.decimal = Some(DecimalConstraints {
-            policy: DecimalPolicy::spot_8(), minimum: Some(Decimal128::new(-123, 8)),
-            maximum: Some(Decimal128::new(456, 8)),
-        });
-        raw(vec![
-            TypeNode::Object(ObjectShape {
-                properties: vec![property("g", 6, 8, false, None),
-                    property("f", 5, 7, false, None), property("e", 4, 6, false, Some(2)),
-                    property("d", 3, 5, false, None), property("c", 2, 3, false, None),
-                    property("b", u32::from(u16::MAX), 2, true, Some(0)),
-                    property("a", 0, 1, true, Some(1))],
-                reject_unknown: true, min_properties: Some(0), max_properties: Some(u32::MAX),
-            }),
-            TypeNode::Scalar(text), TypeNode::Scalar(integer),
-            TypeNode::Array(ArrayShape { items: TypeId(4), min_items: Some(0), max_items: Some(u32::MAX) }),
-            TypeNode::Scalar(decimal), object(Vec::new()), TypeNode::Any,
-            patterned("^(a|é)*[0-9]?$"), patterned("^.$"),
-        ], options)
-    }
-
-    fn error_is(error: Error, code: ErrorCode) -> Error {
-        assert_eq!(error.code, code, "{}", error.detail);
-        assert_eq!(error.source, ErrorSource::SchemaCompile);
-        assert!(!error.detail.is_empty());
-        error
-    }
-
-    fn same_program(left: &CompiledProgram, right: &CompiledProgram) {
-        assert_eq!(left.image.header, right.image.header);
-        assert_eq!(left.image.insns, right.image.insns);
-        assert_eq!(left.image.keys, right.image.keys);
-        assert_eq!(left.image.key_bytes, right.image.key_bytes);
-        assert_eq!(left.states, right.states);
-        assert_eq!(left.key_tables, right.key_tables);
-        assert_eq!(left.patterns, right.patterns);
-        assert_eq!(left.slots, right.slots);
-        assert_eq!(left.policy, right.policy);
-        assert_eq!(left.format_options, right.format_options);
-        assert_eq!(left.canonical_schema, right.canonical_schema);
-    }
-
-    fn roundtrip(program: CompiledProgram, options: &CompilerOptions) -> ValidatedProgram {
-        let len = encoded_len(&program).unwrap();
-        let validated = validate(program.clone(), options).unwrap();
-        let bytes = encode(&validated, options.max_image_bytes).unwrap();
-        assert_eq!(bytes.len(), len);
-        let decoded = decode(&bytes, options).unwrap();
-        same_program(&program, decoded.program());
-        assert_eq!(encode(&decoded, options.max_image_bytes).unwrap(), bytes);
-        assert_eq!(cache_key(&validated, options.max_image_bytes).unwrap(),
-            cache_key(&decoded, options.max_image_bytes).unwrap());
-        validated
-    }
-
-    fn reject_with(program: CompiledProgram, options: &CompilerOptions, code: ErrorCode) {
-        let bytes = encode_raw(&program, u32::MAX).unwrap();
-        let id = program.image.header.schema_id;
-        let error = error_is(validate(program, options).unwrap_err(), code);
-        assert_eq!(error.byte_offset, 0);
-        assert_eq!(error.schema_id, id);
-        error_is(decode(&bytes, options).unwrap_err(), code);
-    }
-
-    fn reject(program: CompiledProgram) {
-        reject_with(program, &CompilerOptions::default(), ErrorCode::SchemaImageInvalid);
-    }
-
-    fn refresh_fingerprint(program: &mut CompiledProgram) {
-        program.image.header.fingerprint =
-            jmax_schema_ir::canonical::fingerprint_bytes(&program.canonical_schema);
-    }
-
-    #[test]
-    fn exact_any_canonical_fingerprint_and_complete_wire_vector() {
-        let options = CompilerOptions::default();
-        let program = any();
-        assert_eq!(program.canonical_schema, ANY_CANONICAL);
-        assert_eq!(program.image.header.fingerprint, ANY_FINGERPRINT);
-        assert_eq!(encoded_len(&program).unwrap(), 164);
-        let witnessed = roundtrip(program, &options);
-        assert_eq!(encode(&witnessed, 164).unwrap(), ANY_WIRE);
-        same_program(witnessed.program(), decode(ANY_WIRE, &options).unwrap().program());
-        let key = cache_key(&witnessed, 164).unwrap();
-        assert_eq!(key.fingerprint, ANY_FINGERPRINT);
-        assert_eq!(key.image_version, 1);
-        assert_eq!(key.bytes, ANY_WIRE);
-    }
-
-    #[test]
-    fn mixed_graph_integrates_keys_patterns_slots_bounds_and_formats() {
-        let options = CompilerOptions::default();
-        let validated = roundtrip(fixture(&options), &options);
-        let program = validated.program();
-        assert_eq!(program.states.len(), 9);
-        assert_eq!(program.key_tables.len(), 2);
-        assert_eq!(program.patterns.len(), 2);
-        assert_eq!(program.slots.len(), 3);
-        assert_eq!(program.image.keys[1].field_id, u16::MAX);
-        assert_eq!(program.slots[0].field_id, FieldId(u32::from(u16::MAX)));
-        assert_eq!(program.states[1].constraints.pattern, Some(0));
-        assert_eq!(program.states[6].constraints.pattern, Some(0));
-        assert_eq!(program.states[1].constraints.format, Some(FormatId::Uuid));
-        assert_eq!(program.states[2].constraints.min_i64, Some(i64::MIN));
-        assert_eq!(program.states[2].constraints.max_i64, Some(i64::MAX));
-        for table in &program.key_tables { keys::validate(&program.image, table).unwrap(); }
-        let table = &program.key_tables[0];
-        assert_eq!(keys::lookup(&program.image, table, b"b").unwrap().unwrap().field_id, u16::MAX);
-        assert!(keys::lookup(&program.image, table, b"missing").unwrap().is_none());
-        for (text, expected) in [("", true), ("aé7", true), ("éé", true), ("b", false), ("12", false)] {
-            let mut steps = 100_000;
-            assert_eq!(patterns::is_match(&program.patterns[0], text, &mut steps).unwrap(), expected);
+    let mut table_states = reserved(program.key_tables.len())?;
+    for state in &program.states {
+        if let StateKind::Object { key_table, .. } = state.kind {
+            if key_table as usize != table_states.len() { return Err(invalid("unordered object table owner")); }
+            table_states.push(state.id);
         }
     }
-
-    #[test]
-    fn every_scalar_kind_and_extreme_constraint_representation_roundtrips() {
-        let options = CompilerOptions::default();
-        for kind in [ValueKind::Null, ValueKind::Boolean, ValueKind::Integer,
-            ValueKind::Number, ValueKind::Decimal, ValueKind::String]
-        {
-            let mut scalar = ScalarConstraints::new(kind);
-            match kind {
-                ValueKind::Integer => { scalar.min_i64 = Some(i64::MIN); scalar.max_i64 = Some(i64::MAX); }
-                ValueKind::Decimal => scalar.decimal = Some(DecimalConstraints {
-                    policy: DecimalPolicy { max_precision: 38, target_scale: 38,
-                        allow_exponent: true, reject_inexact_rescale: false, tick_step: 0 },
-                    minimum: Some(Decimal128::new(i128::MIN, 38)),
-                    maximum: Some(Decimal128::new(i128::MAX, 38)),
-                }),
-                ValueKind::String => { scalar.min_length = Some(0); scalar.max_length = Some(u32::MAX); }
-                _ => {}
-            }
-            let program = raw(vec![TypeNode::Scalar(scalar)], &options);
-            let validated = roundtrip(program, &options);
-            assert_eq!(validated.program().states[0].kind, StateKind::Scalar(kind));
-        }
-    }
-
-    #[test]
-    fn all_format_ids_and_unknown_annotations_preserve_identity() {
-        for number in 1u16..=10 {
-            let options = CompilerOptions::default();
-            let format = FormatId::from_u16(number).unwrap();
-            let mut scalar = ScalarConstraints::new(ValueKind::String);
-            scalar.format = Some(String::from(format.name()));
-            let validated = roundtrip(raw(vec![TypeNode::Scalar(scalar)], &options), &options);
-            assert_eq!(validated.program().states[0].constraints.format, Some(format));
-        }
-        let mut options = CompilerOptions::default();
-        options.policy.unknown_formats = UnknownFormatPolicy::Annotate;
-        let mut keys = Vec::new();
-        for name in ["", "UUID", "custom/é", "a-name-longer-than-the-format-registry-maximum-name-length-of-sixty-four-bytes"] {
-            let mut scalar = ScalarConstraints::new(ValueKind::String);
-            scalar.format = Some(String::from(name));
-            let validated = roundtrip(raw(vec![TypeNode::Scalar(scalar)], &options), &options);
-            assert_eq!(validated.program().states[0].constraints.format, None);
-            keys.push(cache_key(&validated, options.max_image_bytes).unwrap());
-        }
-        for pair in keys.windows(2) { assert_ne!(pair[0], pair[1]); }
-    }
-
-    #[test]
-    fn all_pattern_op_variants_survive_wire_encoding() {
-        let options = CompilerOptions::default();
-        let mut seen = [false; 8];
-        for source in ["", "^(()|a)*[é-ω]?$", "^(a|.)+$", "^[^a-z]*$", "[]", "[^]"] {
-            let program = roundtrip(raw(vec![patterned(source)], &options), &options);
-            for op in &program.program().patterns[0].ops {
-                seen[match op {
-                    PatternOp::Char { .. } => 0, PatternOp::Class { .. } => 1,
-                    PatternOp::Any { .. } => 2, PatternOp::Split { .. } => 3,
-                    PatternOp::Jump { .. } => 4, PatternOp::AssertStart { .. } => 5,
-                    PatternOp::AssertEnd { .. } => 6, PatternOp::Accept => 7,
-                }] = true;
-            }
-        }
-        assert_eq!(seen, [true; 8]);
-    }
-
-    #[test]
-    fn swar_phf_fallback_and_rebased_tables_have_exact_vectors() {
-        let mut options = CompilerOptions::default();
-        options.swar_threshold = 0;
-        let nodes = vec![object(vec![property("a", 1, 1, true, None), property("b", 2, 1, false, None)]),
-            object(vec![property("aa", 3, 2, false, None), property("d", 4, 2, true, None)]), TypeNode::Any];
-        let validated = roundtrip(raw(nodes.clone(), &options), &options);
-        let program = validated.program();
-        assert_eq!(program.key_tables[0].strategy, KeyStrategy::PerfectHash {
-            seed: 0, slots: vec![0, 1, EMPTY_KEY_SLOT, EMPTY_KEY_SLOT],
-        });
-        assert_eq!(program.key_tables[1].strategy, KeyStrategy::PerfectHash {
-            seed: 1, slots: vec![3, EMPTY_KEY_SLOT, 2, EMPTY_KEY_SLOT],
-        });
-        assert_eq!(program.image.key_bytes, b"abaad");
-        assert_eq!(program.image.keys[2].span, Span32::new(2, 2));
-        assert_eq!(keys::lookup(&program.image, &program.key_tables[1], b"aa").unwrap().unwrap().field_id, 3);
-        options.max_hash_attempts = 1;
-        let fallback = roundtrip(raw(nodes.clone(), &options), &options);
-        assert_eq!(fallback.program().key_tables[1].strategy, KeyStrategy::Swar);
-        options.max_hash_attempts = 0;
-        let swar = roundtrip(raw(nodes, &options), &options);
-        assert!(swar.program().key_tables.iter().all(|table| table.strategy == KeyStrategy::Swar));
-    }
-
-    #[test]
-    fn empty_unicode_nul_and_equal_swar_prefix_keys_roundtrip() {
-        let options = CompilerOptions::default();
-        let names = ["", "\0", "a", "a\0", "abcdefghx", "abcdefghy", "e\u{301}", "é", "😀"];
-        let properties = names.iter().enumerate().map(|(field, name)| {
-            property(name, u32::try_from(field).unwrap(), 1, field % 2 == 0, None)
-        }).collect();
-        let program = roundtrip(raw(vec![object(properties), TypeNode::Any], &options), &options);
-        for (field, name) in names.iter().enumerate() {
-            let entry = keys::lookup(program.image(), &program.program().key_tables[0], name.as_bytes()).unwrap().unwrap();
-            assert_eq!(usize::from(entry.field_id), field);
-        }
-        assert!(keys::lookup(program.image(), &program.program().key_tables[0], b"abcdefghz").unwrap().is_none());
-    }
-
-    #[test]
-    fn complete_u16_field_domain_and_required_sentinel_roundtrip() {
-        let mut options = CompilerOptions::default();
-        options.swar_threshold = u16::MAX;
-        options.max_hash_attempts = 0;
-        let mut properties = Vec::new();
-        for field in 0..=u32::from(u16::MAX) {
-            properties.push(property(&format!("p{field:05}"), field, 1,
-                field < u32::from(u16::MAX), None));
-        }
-        let validated = roundtrip(raw(vec![object(properties), TypeNode::Any], &options), &options);
-        assert_eq!(validated.image().header.key_count, 65_536);
-        assert!(matches!(validated.program().states[0].kind,
-            StateKind::Object { required_count: u16::MAX, .. }));
-        assert_eq!(validated.image().keys[65_534].required_bit, 65_534);
-        assert_eq!(validated.image().keys[65_535].required_bit, NO_REQUIRED_BIT);
-        assert_eq!(validated.image().keys[65_535].field_id, u16::MAX);
-    }
-
-    #[test]
-    fn aliases_sharing_recursion_and_property_permutations_are_canonical() {
-        let options = CompilerOptions::default();
-        let mut input = schema(vec![TypeNode::Ref(String::from("root")), TypeNode::Any,
-            object(vec![property("z", 1, 4, false, None), property("a", 2, 3, true, None)]),
-            array(2), TypeNode::Ref(String::from("text")),
-            TypeNode::Scalar(ScalarConstraints::new(ValueKind::String))]);
-        input.definitions = vec![NamedType { name: String::from("root"), ty: TypeId(2) },
-            NamedType { name: String::from("text"), ty: TypeId(5) }];
-        let first = roundtrip(lower::lower(&resolved(input.clone()), &options).unwrap(), &options);
-        assert_eq!(first.program().states.len(), 3);
-        assert_eq!(first.program().states[1].kind, StateKind::Array { items: StateId(0) });
-        if let TypeNode::Object(shape) = &mut input.nodes[2] { shape.properties.reverse(); }
-        input.definitions.reverse();
-        let second = roundtrip(lower::lower(&resolved(input), &options).unwrap(), &options);
-        assert_eq!(cache_key(&first, options.max_image_bytes).unwrap(), cache_key(&second, options.max_image_bytes).unwrap());
-        for nodes in [vec![array(0)], vec![object(vec![property("next", 99, 0, false, None)])]] {
-            roundtrip(raw(nodes, &options), &options);
-        }
-    }
-
-    #[test]
-    fn deep_graph_and_long_names_use_bounded_iterative_reconstruction() {
-        let options = CompilerOptions::default();
-        let mut nodes = Vec::new();
-        for target in 1..=2048 { nodes.push(array(target)); }
-        nodes.push(TypeNode::Any);
-        let program = roundtrip(raw(nodes, &options), &options);
-        assert_eq!(program.program().states.len(), 2049);
-        let name = "é".repeat(4097);
-        let mut input = schema(vec![object(vec![property(&name, 0, 1, true, Some(0))]), TypeNode::Any]);
-        input.name = name;
-        roundtrip(lower::lower(&resolved(input), &options).unwrap(), &options);
-    }
-
-    #[test]
-    fn byte_state_instruction_key_and_total_pattern_limits_are_inclusive() {
-        let default = CompilerOptions::default();
-        let baseline = fixture(&default);
-        let bytes = encode_raw(&baseline, default.max_image_bytes).unwrap();
-        let mut exact = default;
-        exact.max_image_bytes = u32::try_from(bytes.len()).unwrap();
-        exact.limits.max_states = u32::try_from(baseline.states.len()).unwrap();
-        exact.limits.max_insns = baseline.image.header.insn_count;
-        exact.limits.max_keys = baseline.image.header.key_count;
-        exact.limits.max_pattern_states = baseline.patterns.iter().map(|p| u32::try_from(p.ops.len()).unwrap()).sum();
-        let validated = roundtrip(baseline.clone(), &exact);
-        assert_eq!(encode(&validated, exact.max_image_bytes).unwrap(), bytes);
-        error_is(encode(&validated, exact.max_image_bytes - 1).unwrap_err(), ErrorCode::BudgetExhausted);
-        error_is(cache_key(&validated, exact.max_image_bytes - 1).unwrap_err(), ErrorCode::BudgetExhausted);
-        for component in 0..5 {
-            let mut short = exact;
-            match component {
-                0 => short.max_image_bytes -= 1, 1 => short.limits.max_states -= 1,
-                2 => short.limits.max_insns -= 1, 3 => short.limits.max_keys -= 1,
-                _ => short.limits.max_pattern_states -= 1,
-            }
-            reject_with(baseline.clone(), &short, ErrorCode::BudgetExhausted);
-        }
-    }
-
-    #[test]
-    fn zero_limits_reject_only_present_resources() {
-        let mut options = CompilerOptions::default();
-        options.limits.max_states = 1;
-        options.limits.max_insns = 1;
-        options.limits.max_keys = 0;
-        options.limits.max_pattern_states = 0;
-        options.max_pattern_steps = 0;
-        roundtrip(any(), &options);
-        options.limits.max_states = 0;
-        reject_with(any(), &options, ErrorCode::BudgetExhausted);
-        options.limits.max_states = 1;
-        options.limits.max_insns = 0;
-        reject_with(any(), &options, ErrorCode::BudgetExhausted);
-        options.limits.max_insns = 1;
-        options.max_image_bytes = 0;
-        reject_with(any(), &options, ErrorCode::BudgetExhausted);
-    }
-
-    #[test]
-    fn encoded_len_only_counts_even_semantically_invalid_programs() {
-        let mut program = any();
-        program.image.header.magic = 0;
-        program.image.insns[0].opcode = u8::MAX;
-        program.canonical_schema.clear();
-        assert_eq!(encoded_len(&program).unwrap(), ANY_WIRE.len() - ANY_CANONICAL.len());
-        program.image.key_bytes.extend_from_slice(b"abc");
-        assert_eq!(encoded_len(&program).unwrap(), ANY_WIRE.len() - ANY_CANONICAL.len() + 3);
-        assert_eq!(encode_raw(&program, u32::MAX).unwrap().len(), encoded_len(&program).unwrap());
-        reject(program);
-    }
-
-    #[test]
-    fn every_header_invariant_is_checked() {
-        for component in 0..8 {
-            let mut program = any();
-            match component {
-                0 => program.image.header.magic ^= 1, 1 => program.image.header.version += 1,
-                2 => program.image.header.flags = 1, 3 => program.image.header.root_state = 1,
-                4 => program.image.header.insn_count += 1, 5 => program.image.header.key_count += 1,
-                6 => program.image.header.slot_count += 1, _ => program.image.header.fingerprint ^= 1,
-            }
-            reject(program);
-        }
-        let mut program = any();
-        program.image.header.schema_id ^= 1;
-        reject(program);
-    }
-
-    #[test]
-    fn dense_states_nonempty_ranges_and_complete_coverage_are_required() {
-        for component in 0..7 {
-            let mut program = fixture(&CompilerOptions::default());
-            match component {
-                0 => program.states[1].id = StateId(0),
-                1 => program.states[0].insns.len = 0,
-                2 => program.states[1].insns.offset -= 1,
-                3 => program.states[1].insns.offset += 1,
-                4 => program.states[0].insns.len = u32::MAX,
-                5 => { program.states.pop(); }
-                _ => { program.image.insns.push(InsnWord::default()); program.image.header.insn_count += 1; }
-            }
-            reject(program);
-        }
-        let mut program = any();
-        program.states.clear();
-        reject(program);
-    }
-
-    #[test]
-    fn every_instruction_byte_and_operand_is_bound_to_canonical_lowering() {
-        let baseline = fixture(&CompilerOptions::default());
-        for index in 0..baseline.image.insns.len() {
-            for component in 0..5 {
-                let mut program = baseline.clone();
-                let word = &mut program.image.insns[index];
-                match component {
-                    0 => word.opcode = if word.opcode == opcode_byte(Opcode::CheckScalarKind) {
-                        opcode_byte(Opcode::EnterObject)
-                    } else { opcode_byte(Opcode::CheckScalarKind) },
-                    1 => word.flags = 1, 2 => word.field_id ^= 1,
-                    3 => word.arg0 ^= 1, _ => word.arg1 ^= 1,
-                }
-                reject(program);
-            }
-        }
-        let mut program = any();
-        program.image.insns[0].opcode = 255;
-        reject(program);
-    }
-
-    #[test]
-    fn instruction_order_cannot_be_changed_even_with_valid_opcodes() {
-        let mut program = fixture(&CompilerOptions::default());
-        let start = usize::try_from(program.states[1].insns.offset).unwrap();
-        program.image.insns.swap(start + 1, start + 2);
-        reject(program);
-    }
-
-    #[test]
-    fn key_table_ownership_required_counts_and_graph_edges_are_checked() {
-        for component in 0..8 {
-            let mut program = fixture(&CompilerOptions::default());
-            match component {
-                0 => program.key_tables[0].first_key = 1,
-                1 => program.key_tables[0].key_count -= 1,
-                2 => program.key_tables[1].first_key = 0,
-                3 => program.key_tables.push(KeyTable { first_key: 7, key_count: 0, strategy: KeyStrategy::Swar }),
-                4 => { if let StateKind::Object { required_count, .. } = &mut program.states[0].kind { *required_count += 1; } }
-                5 => { if let StateKind::Object { key_table, .. } = &mut program.states[0].kind { *key_table = 1; } }
-                6 => program.image.keys[0].target_state = u32::MAX,
-                _ => program.states[3].kind = StateKind::Array { items: StateId(u32::MAX) },
-            }
-            reject(program);
-        }
-    }
-
-    #[test]
-    fn key_metadata_and_entire_byte_storage_have_unique_owners() {
-        let baseline = fixture(&CompilerOptions::default());
-        for component in 0..9 {
-            let mut program = baseline.clone();
-            match component {
-                0 => program.image.keys[0].swar_head ^= 1,
-                1 => program.image.keys[0].span.offset = 1,
-                2 => program.image.keys[0].span.len = u32::MAX,
-                3 => program.image.keys[0].required_bit = 1,
-                4 => program.image.keys[2].field_id = program.image.keys[1].field_id,
-                5 => program.image.key_bytes.push(0),
-                6 => { program.image.key_bytes[0] = 0xff; program.image.keys[0].swar_head = 0xff; }
-                7 => { program.image.keys.swap(0, 1); }
-                _ => program.image.keys[0].target_state = program.image.keys[1].target_state,
-            }
-            reject(program);
-        }
-        // Duplicate FieldIds in different tables are invalid even when each
-        // individual table is otherwise locally well formed.
-        let options = CompilerOptions::default();
-        let mut program = raw(vec![object(vec![property("outer", 1, 1, false, None)]),
-            object(vec![property("inner", 2, 2, false, None)]), TypeNode::Any], &options);
-        program.image.keys[1].field_id = 1;
-        keys::validate(&program.image, &program.key_tables[1]).unwrap();
-        reject(program);
-    }
-
-    #[test]
-    fn structurally_valid_alternate_phf_seed_or_strategy_is_not_a_witness() {
-        let mut options = CompilerOptions::default();
-        options.swar_threshold = 0;
-        let baseline = raw(vec![object(vec![property("a", 1, 1, false, None)]), TypeNode::Any], &options);
-        let mut alternate = baseline.clone();
-        let mut slots = vec![EMPTY_KEY_SLOT; 2];
-        slots[usize::try_from(key_hash(b"a", 1) & 1).unwrap()] = 0;
-        alternate.key_tables[0].strategy = KeyStrategy::PerfectHash { seed: 1, slots };
-        keys::validate(&alternate.image, &alternate.key_tables[0]).unwrap();
-        reject_with(alternate, &options, ErrorCode::SchemaImageInvalid);
-        let mut swar = baseline;
-        swar.key_tables[0].strategy = KeyStrategy::Swar;
-        swar.image.insns[1].opcode = opcode_byte(Opcode::MatchKeySwar);
-        keys::validate(&swar.image, &swar.key_tables[0]).unwrap();
-        reject_with(swar, &options, ErrorCode::SchemaImageInvalid);
-    }
-
-    #[test]
-    fn malformed_phf_capacities_slots_and_seed_placement_are_rejected() {
-        let mut options = CompilerOptions::default();
-        options.swar_threshold = 0;
-        let baseline = raw(vec![object(vec![property("a", 1, 1, false, None)]), TypeNode::Any], &options);
-        for component in 0..5 {
-            let mut program = baseline.clone();
-            if let KeyStrategy::PerfectHash { slots, .. } = &mut program.key_tables[0].strategy {
-                match component {
-                    0 => slots.clear(), 1 => { slots.pop(); }
-                    2 => { slots.extend_from_slice(&[EMPTY_KEY_SLOT; 2]); }
-                    3 => slots.fill(0), _ => slots.fill(u32::MAX - 1),
-                }
-            }
-            reject_with(program, &options, ErrorCode::SchemaImageInvalid);
-        }
-    }
-
-    #[test]
-    fn slots_must_match_field_occurrences_and_dense_user_assignments() {
-        let baseline = fixture(&CompilerOptions::default());
-        for component in 0..6 {
-            let mut program = baseline.clone();
-            match component {
-                0 => program.slots[0].slot = 1,
-                1 => program.slots[0].field_id = FieldId(u32::MAX),
-                2 => program.slots[0].field_id = program.slots[1].field_id,
-                3 => program.slots[0].state = StateId(u32::MAX),
-                4 => program.slots[0].state = program.slots[1].state,
-                _ => { program.slots.swap(0, 1); }
-            }
-            reject(program);
-        }
-        let mut program = baseline;
-        program.slots.clear();
-        program.image.header.slot_count = 0;
-        reject(program);
-    }
-
-    #[test]
-    fn constraints_cannot_be_incompatible_contradictory_or_silently_changed() {
-        for component in 0..10 {
-            let mut program = fixture(&CompilerOptions::default());
-            match component {
-                0 => program.states[0].constraints.min_i64 = Some(0),
-                1 => program.states[1].constraints.min_count = Some(33),
-                2 => program.states[1].constraints.pattern = Some(u32::MAX),
-                3 => program.states[1].constraints.pattern = Some(1),
-                4 => program.states[1].constraints.format = Some(FormatId::Hex),
-                5 => program.states[2].constraints.min_i64 = Some(1),
-                6 => program.states[2].constraints.max_i64 = Some(i64::MIN),
-                7 => program.states[3].constraints.max_count = Some(0),
-                8 => program.states[8].constraints.decimal = None,
-                _ => { if let StateKind::Object { reject_unknown, .. } = &mut program.states[0].kind { *reject_unknown = false; } }
-            }
-            reject(program);
-        }
-    }
-
-    #[test]
-    fn policy_and_format_options_are_frozen_in_version_one() {
-        for component in 0..6 {
-            let mut program = any();
-            match component {
-                0 => program.policy.allow_recursive = false,
-                1 => program.format_options.max_input_bytes += 1,
-                2 => program.format_options.nanoid_len = 0,
-                3 => program.format_options.hex.case = HexCase::Upper,
-                4 => program.format_options.hex.exact_bytes = Some(0),
-                _ => program.format_options.base64_padding = Padding::Optional,
-            }
-            reject(program);
-        }
-        let mut options = CompilerOptions::default();
-        options.policy.dialect = Dialect::JsonSchema202012;
-        options.policy.numeric.allow_Quoted_int = true;
-        options.policy.numeric.reject_negative_zero = false;
-        options.policy.numeric.max_exponent_abs = 0;
-        options.policy.allow_recursive = false;
-        roundtrip(raw(vec![TypeNode::Any], &options), &options);
-    }
-
-    #[test]
-    fn malformed_patterns_and_valid_but_wrong_pattern_languages_are_rejected() {
-        let options = CompilerOptions::default();
-        let baseline = raw(vec![patterned("a")], &options);
-        for component in 0..7 {
-            let mut program = baseline.clone();
-            match component {
-                0 => program.patterns[0].version += 1,
-                1 => program.patterns[0].start = u32::MAX,
-                2 => program.patterns[0].max_steps = 0,
-                3 => program.patterns[0].max_steps -= 1,
-                4 => program.patterns[0].ops[0] = PatternOp::Char { scalar: 0xd800, next: 1 },
-                5 => program.patterns[0].ops[0] = PatternOp::Jump { next: u32::MAX },
-                _ => program.patterns[0] = patterns::compile("b", options.limits.max_pattern_states, options.max_pattern_steps).unwrap(),
-            }
-            reject(program);
-        }
-        let mut extra = baseline;
-        extra.patterns.push(patterns::compile("", 2, options.max_pattern_steps).unwrap());
-        reject(extra);
-    }
-
-    #[test]
-    fn fingerprint_equality_does_not_authenticate_executable_or_canonical_bytes() {
-        let mut changed_code = any();
-        changed_code.image.insns[0].arg1 = 0;
-        assert_eq!(changed_code.image.header.fingerprint, ANY_FINGERPRINT);
-        reject(changed_code);
-        let mut changed_canonical = any();
-        changed_canonical.canonical_schema[38] = 1;
-        refresh_fingerprint(&mut changed_canonical);
-        reject(changed_canonical);
-        let options = CompilerOptions::default();
-        let mut new_source = raw(vec![patterned("a")], &options);
-        let end = new_source.canonical_schema.len();
-        // Scalar pattern string is followed only by its absent format option.
-        assert_eq!(new_source.canonical_schema[end - 2], b'a');
-        new_source.canonical_schema[end - 2] = b'b';
-        refresh_fingerprint(&mut new_source);
-        patterns::validate(&new_source.patterns[0], options.limits.max_pattern_states).unwrap();
-        reject(new_source);
-    }
-
-    #[test]
-    fn canonical_compiler_failures_become_image_errors_with_field_context() {
-        let options = CompilerOptions::default();
-        for nodes in [
-            vec![array(1), object(vec![property("value", 99, 2, false, Some(0))]), TypeNode::Any],
-            vec![object(vec![property("value", 99, 1, false, Some(1))]), TypeNode::Any],
-            vec![object(vec![property("value", 65_536, 1, false, None)]), TypeNode::Any],
-        ] {
-            // These are valid IR graphs, but their capture paths, sparse slots,
-            // or field domain cannot be represented by the compiler ABI.
-            let canonical = jmax_schema_ir::canonical::canonicalize(&resolved(schema(nodes)), &options.policy).unwrap();
-            let mut program = any();
-            program.canonical_schema = canonical.bytes;
-            program.image.header.fingerprint = canonical.fingerprint;
-            let bytes = encode_raw(&program, options.max_image_bytes).unwrap();
-            let error = error_is(validate(program, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            assert!(error.field_id == 99 || error.field_id == 65_536);
-            assert_eq!(error.schema_id, SCHEMA_ID);
-            assert_eq!(error.byte_offset, 0);
-            error_is(decode(&bytes, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        }
-        for (original, replacement) in [("a", "("), ("aa", "\\d")] {
-            let mut program = raw(vec![patterned(original)], &options);
-            let end = program.canonical_schema.len() - 1;
-            program.canonical_schema[end - original.len()..end].copy_from_slice(replacement.as_bytes());
-            refresh_fingerprint(&mut program);
-            reject(program);
-        }
-    }
-
-    #[test]
-    fn canonical_prefix_version_tags_counts_and_utf8_are_strict() {
-        for component in 0..8 {
-            let mut program = any();
-            match component {
-                0 => program.canonical_schema[0] ^= 1,
-                1 => program.canonical_schema[12] = 2,
-                2 => program.canonical_schema[14] = 2,
-                3 => program.canonical_schema[15] = 2,
-                4 => program.canonical_schema[38] = 4,
-                5 => program.canonical_schema[34..38].copy_from_slice(&0u32.to_le_bytes()),
-                6 => program.canonical_schema[26..30].copy_from_slice(&u32::MAX.to_le_bytes()),
-                _ => program.canonical_schema.push(0),
-            }
-            refresh_fingerprint(&mut program);
-            reject(program);
-        }
-        let mut input = schema(vec![TypeNode::Any]);
-        input.name = String::from("x");
-        let mut program = lower::lower(&resolved(input), &CompilerOptions::default()).unwrap();
-        program.canonical_schema[30] = 0xff;
-        refresh_fingerprint(&mut program);
-        reject(program);
-    }
-
-    #[test]
-    fn unreachable_or_non_bfs_canonical_graphs_are_not_accepted() {
-        let mut unreachable = any();
-        unreachable.canonical_schema[34..38].copy_from_slice(&2u32.to_le_bytes());
-        unreachable.canonical_schema.push(0);
-        refresh_fingerprint(&mut unreachable);
-        reject(unreachable);
-        let options = CompilerOptions::default();
-        let mut reordered = raw(vec![array(1), TypeNode::Any], &options);
-        // Canonical node 0 is array(tag, target, absent min, absent max).
-        // Exchange the two records and retarget the array to Any at index 0.
-        let node_start = 38;
-        assert_eq!(reordered.canonical_schema[node_start], 3);
-        reordered.canonical_schema.splice(node_start.., [0, 3, 0, 0, 0, 0, 0, 0]);
-        refresh_fingerprint(&mut reordered);
-        reject(reordered);
-    }
-
-    #[test]
-    fn changed_canonical_slots_and_repeated_capture_paths_are_rejected() {
-        let options = CompilerOptions::default();
-        let mut selected = raw(vec![object(vec![property("next", 7, 1, false, Some(0))]), TypeNode::Any], &options);
-        // Object: tag, reject bool, two absent counts, property count;
-        // property: FieldId, string length, four name bytes, then target.
-        let target_offset = 38 + 8 + 4 + 4 + 4;
-        selected.canonical_schema[target_offset..target_offset + 4].copy_from_slice(&0u32.to_le_bytes());
-        // Drop the now unreachable Any record and make the canonical graph a
-        // one-node self-recursive object. Its selected occurrence can repeat.
-        selected.canonical_schema.pop();
-        selected.canonical_schema[34..38].copy_from_slice(&1u32.to_le_bytes());
-        refresh_fingerprint(&mut selected);
-        reject(selected);
-    }
-
-    #[test]
-    fn every_truncated_wire_prefix_and_trailing_byte_is_rejected() {
-        let options = CompilerOptions::default();
-        for bytes in [ANY_WIRE.to_vec(), encode_raw(&fixture(&options), options.max_image_bytes).unwrap()] {
-            for end in 0..bytes.len() {
-                error_is(decode(&bytes[..end], &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            }
-            let mut trailing = bytes.clone();
-            trailing.push(0);
-            let error = error_is(decode(&trailing, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            assert_eq!(usize::try_from(error.byte_offset).unwrap(), bytes.len());
-        }
-    }
-
-    #[test]
-    fn wire_unknown_tags_booleans_options_and_counts_fail_at_their_positions() {
-        let options = CompilerOptions::default();
-        // Positions in the independent Any wire vector, never native offsets.
-        for (position, value) in [(0, 0), (4, 2), (6, 1), (40, 255), (72, 4),
-            (81, 2), (100, 2), (101, 2), (106, 2), (107, 2), (117, 3),
-            (118, 2), (119, 2), (120, 3)]
-        {
-            let mut bytes = ANY_WIRE.to_vec();
-            bytes[position] = value;
-            let error = error_is(decode(&bytes, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            assert_eq!(usize::try_from(error.byte_offset).unwrap(), position);
-        }
-        for position in [36, 56, 60, 64, 88, 92, 96, 121] {
-            let mut bytes = ANY_WIRE.to_vec();
-            bytes[position..position + 4].copy_from_slice(&u32::MAX.to_le_bytes());
-            let error = error_is(decode(&bytes, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            assert_eq!(usize::try_from(error.byte_offset).unwrap(), position);
-        }
-        let mut short = options;
-        short.limits.max_insns = 0;
-        let error = error_is(decode(ANY_WIRE, &short).unwrap_err(), ErrorCode::BudgetExhausted);
-        assert_eq!(error.byte_offset, 36);
-        assert_eq!(error.schema_id, SCHEMA_ID);
-    }
-
-    #[test]
-    fn key_entry_wire_vector_has_no_native_padding_and_unknown_strategy_fails() {
-        let options = CompilerOptions::default();
-        let program = raw(vec![object(vec![property("a", 0x1234, 1, true, None)]), TypeNode::Any], &options);
-        let bytes = encode_raw(&program, options.max_image_bytes).unwrap();
-        // Header(36), instruction count(4), four 16-byte instructions,
-        // key count(4), then a 24-byte ABI entry in declaration order.
-        assert_eq!(program.image.insns.len(), 4);
-        assert_eq!(&bytes[108..132], &[
-            97, 0, 0, 0, 0, 0, 0, 0, // SWAR head
-            0, 0, 0, 0, 1, 0, 0, 0, // byte span
-            0x34, 0x12, 0, 0, 1, 0, 0, 0, // field, required bit, target
-        ]);
-        // Key bytes(5), states count(4), Object state(27), Any state(20),
-        // key table count(4), first_key/key_count(8), strategy tag.
-        let strategy_position = 132 + 5 + 4 + 27 + 20 + 4 + 8;
-        assert_eq!(bytes[strategy_position], 0);
-        let mut malformed = bytes;
-        malformed[strategy_position] = 2;
-        let error = error_is(decode(&malformed, &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(usize::try_from(error.byte_offset).unwrap(), strategy_position);
-    }
-
-    #[test]
-    fn schema_and_field_context_survive_truncated_wire_records() {
-        let options = CompilerOptions::default();
-        let bytes = encode_raw(&fixture(&options), options.max_image_bytes).unwrap();
-        // Every post-header truncation has a known schema identifier.
-        for end in [12, 35, 40, bytes.len() - 1] {
-            let error = error_is(decode(&bytes[..end], &options).unwrap_err(), ErrorCode::SchemaImageInvalid);
-            assert_eq!(error.schema_id, SCHEMA_ID);
-            assert!(usize::try_from(error.byte_offset).unwrap() <= end);
-        }
-        let mut reader = Reader::new(&[0, 0, 0, 0]);
-        reader.schema_id = SCHEMA_ID;
-        reader.field_id = 77;
-        reader.u32().unwrap();
-        let error = error_is(reader.u8().unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(error.byte_offset, 4);
-        assert_eq!(error.schema_id, SCHEMA_ID);
-        assert_eq!(error.field_id, 77);
-    }
-
-    #[test]
-    fn low_level_wire_enums_are_exhaustive_and_unknown_tags_fail() {
-        for value in [6, 255] {
-            error_is(Reader::new(&[value]).value_kind().unwrap_err(), ErrorCode::SchemaImageInvalid);
-        }
-        for value in [0u16, 11, u16::MAX] {
-            error_is(Reader::new(&value.to_le_bytes()).format_id().unwrap_err(), ErrorCode::SchemaImageInvalid);
-        }
-        for value in [8, 255] {
-            error_is(Reader::new(&[value]).pattern_op(1024).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        }
-        for value in [2, 255] {
-            error_is(Reader::new(&[value]).boolean().unwrap_err(), ErrorCode::SchemaImageInvalid);
-            error_is(Reader::new(&[value]).optional(Reader::u32).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        }
-        let state = [0, 0, 0, 0, 1, 6];
-        let error = error_is(Reader::new(&state).state().unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(error.byte_offset, 5);
-    }
-
-    #[test]
-    fn reader_rejects_noncanonical_derived_counts_before_allocation() {
-        let bytes = [3, 0, 0, 0, 10, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0];
-        let error = error_is(Reader::new(&bytes).exact_vector(4, 2, Reader::u32).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(error.byte_offset, 0);
-        assert_eq!(Reader::new(&bytes).exact_vector(4, 3, Reader::u32).unwrap(), [10, 20, 30]);
-        let mut reader = Reader::new(&bytes);
-        reader.schema_id = SCHEMA_ID;
-        reader.field_id = 99;
-        let error = error_is(reader.vector(4, 2, Reader::u32).unwrap_err(), ErrorCode::BudgetExhausted);
-        assert_eq!(error.schema_id, SCHEMA_ID);
-        assert_eq!(error.field_id, 99);
-        let impossible = [255; 4];
-        error_is(Reader::new(&impossible).vector(16, 0, Reader::u8).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        let malformed_utf8 = [2, 0, 0, 0, b'a', 0xff];
-        let error = error_is(Reader::new(&malformed_utf8).string(2).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(error.byte_offset, 5);
-    }
-
-    #[test]
-    fn primitive_signed_decimal_policy_and_option_vectors_are_portable() {
-        let mut writer = Writer { destination: Destination::Bytes(Vec::new()), position: 0 };
-        writer.i16(i16::MIN).unwrap();
-        writer.i64(i64::MIN).unwrap();
-        writer.i128(i128::MIN).unwrap();
-        writer.optional(Some(&u32::MAX), |w, value| w.u32(*value)).unwrap();
-        writer.optional::<u32>(None, |w, value| w.u32(*value)).unwrap();
-        let bytes = match writer.destination { Destination::Bytes(bytes) => bytes, _ => panic!("byte destination") };
-        let mut expected = vec![0, 128];
-        expected.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 128]);
-        expected.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128]);
-        expected.extend_from_slice(&[1, 255, 255, 255, 255, 0]);
-        assert_eq!(bytes, expected);
-        let mut reader = Reader::new(&bytes);
-        assert_eq!(reader.i16().unwrap(), i16::MIN);
-        assert_eq!(reader.i64().unwrap(), i64::MIN);
-        assert_eq!(reader.i128().unwrap(), i128::MIN);
-        assert_eq!(reader.optional(Reader::u32).unwrap(), Some(u32::MAX));
-        assert_eq!(reader.optional(Reader::u32).unwrap(), None);
-        reader.finish().unwrap();
-        let decimal = DecimalConstraints {
-            policy: DecimalPolicy { max_precision: 38, target_scale: 0, allow_exponent: true,
-                reject_inexact_rescale: false, tick_step: i128::MAX },
-            minimum: Some(Decimal128::new(i128::MIN, 0)), maximum: Some(Decimal128::new(i128::MAX, 38)),
-        };
-        let mut writer = Writer { destination: Destination::Bytes(Vec::new()), position: 0 };
-        writer.decimal(&decimal).unwrap();
-        let bytes = match writer.destination { Destination::Bytes(bytes) => bytes, _ => panic!("byte destination") };
-        assert_eq!(bytes.len(), 56);
-        assert_eq!(&bytes[..4], &[38, 0, 1, 0]);
-        assert_eq!(Reader::new(&bytes).decimal().unwrap(), decimal);
-    }
-
-    #[test]
-    fn all_hex_and_padding_wire_tags_follow_the_frozen_order() {
-        for (case, case_tag) in [(HexCase::Any, 0), (HexCase::Lower, 1), (HexCase::Upper, 2)] {
-            for (padding, padding_tag) in [(Padding::Required, 0), (Padding::Forbidden, 1), (Padding::Optional, 2)] {
-                let options = FormatOptions { max_input_bytes: u32::MAX, nanoid_len: 255,
-                    hex: HexPolicy { case, prefix: true, exact_bytes: Some(0) }, base64_padding: padding };
-                let mut writer = Writer { destination: Destination::Bytes(Vec::new()), position: 0 };
-                writer.format_options(&options).unwrap();
-                let bytes = match writer.destination { Destination::Bytes(bytes) => bytes, _ => panic!("byte destination") };
-                assert_eq!(bytes, [255, 255, 255, 255, 255, case_tag, 1, 1, 0, 0, 0, 0, padding_tag]);
-                assert_eq!(Reader::new(&bytes).format_options().unwrap(), options);
-            }
-        }
-    }
-
-    #[test]
-    fn cache_keys_compare_full_encoding_and_compiler_options() {
-        let mut swar_options = CompilerOptions::default();
-        swar_options.swar_threshold = 1;
-        let mut phf_options = swar_options;
-        phf_options.swar_threshold = 0;
-        let nodes = vec![object(vec![property("a", 1, 1, false, None)]), TypeNode::Any];
-        let swar = roundtrip(raw(nodes.clone(), &swar_options), &swar_options);
-        let phf = roundtrip(raw(nodes, &phf_options), &phf_options);
-        let first = cache_key(&swar, swar_options.max_image_bytes).unwrap();
-        let second = cache_key(&phf, phf_options.max_image_bytes).unwrap();
-        assert_eq!(first.fingerprint, second.fingerprint);
-        assert_eq!(first.image_version, second.image_version);
-        assert_ne!(first.bytes, second.bytes);
-        assert_ne!(first, second);
-        let mut collision = first.clone();
-        collision.bytes[40] ^= 1;
-        assert_eq!(collision.fingerprint, first.fingerprint);
-        assert_ne!(collision, first);
-        reject_with(phf.into_program(), &swar_options, ErrorCode::SchemaImageInvalid);
-    }
-
-    #[test]
-    fn deterministic_schema_corpus_roundtrips_and_repeats_exactly() {
-        let options = CompilerOptions::default();
-        for seed in 0u32..32 {
-            let mut properties = Vec::new();
-            for field in (0..seed % 9).rev() {
-                properties.push(property(&format!("key-{field:02}-é"), field, 1 + field % 3, field % 2 == 0, None));
-            }
-            let mut integer = ScalarConstraints::new(ValueKind::Integer);
-            integer.min_i64 = (seed % 2 == 0).then_some(-i64::from(seed));
-            integer.max_i64 = (seed % 3 == 0).then_some(i64::from(seed));
-            let mut nodes = vec![object(properties), TypeNode::Scalar(integer),
-                patterned(if seed % 2 == 0 { "^(a|é)*$" } else { "[0-9]+" }), array(1)];
-            let first = roundtrip(raw(nodes.clone(), &options), &options);
-            if let TypeNode::Object(shape) = &mut nodes[0] { shape.properties.reverse(); }
-            let repeated = roundtrip(raw(nodes, &options), &options);
-            assert_eq!(cache_key(&first, options.max_image_bytes).unwrap(), cache_key(&repeated, options.max_image_bytes).unwrap());
-        }
-    }
-
-    #[test]
-    fn checked_arithmetic_allocation_and_comparison_fail_without_panics() {
-        error_is(reserved::<u64>(usize::MAX).unwrap_err(), ErrorCode::BudgetExhausted);
-        let mut writer = Writer { destination: Destination::Count, position: usize::MAX };
-        error_is(writer.u8(0).unwrap_err(), ErrorCode::BudgetExhausted);
-        #[cfg(target_pointer_width = "64")]
-        {
-            error_is(count(u32::MAX as usize + 1).unwrap_err(), ErrorCode::BudgetExhausted);
-            let mut writer = Writer { destination: Destination::Count, position: u32::MAX as usize };
-            error_is(writer.u8(0).unwrap_err(), ErrorCode::BudgetExhausted);
-        }
-        let mut writer = Writer { destination: Destination::Compare(&[1, 2]), position: 0 };
-        writer.u8(1).unwrap();
-        error_is(writer.u8(3).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        assert_eq!(writer.position, 1);
-        writer.u8(2).unwrap();
-        error_is(writer.u8(0).unwrap_err(), ErrorCode::SchemaImageInvalid);
-        let mut reader = Reader::new(&[]);
-        reader.position = usize::MAX;
-        error_is(reader.take(1).unwrap_err(), ErrorCode::BudgetExhausted);
-    }
+    Ok(ProgramIndexes { field_slots, table_states })
 }

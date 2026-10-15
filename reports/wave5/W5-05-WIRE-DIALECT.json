@@ -1,0 +1,24 @@
+{
+  "task": "W5-05-WIRE-DIALECT",
+  "status": "complete",
+  "scope": [
+    "crates/jmax-wire/src/lib.rs",
+    "crates/jmax-wire/src/envelope.rs",
+    "crates/jmax-wire/src/dispatch.rs",
+    "crates/jmax-wire/src/responses.rs"
+  ],
+  "changes": [
+    "Added request decoding for native string methods and endpoint-libs numeric method IDs, including requests without a kind discriminator, arbitrary field order, and method_code access on OwnedEnvelope.",
+    "Normalized endpoint-libs tagged response variants and aliases into the existing ABI envelope view, including seq/original_seq, data/result, stream_seq/index, stream_code/code, and error/message forms.",
+    "Added selectable native and endpoint-libs response encoders and bounded payload encoding for both dialects.",
+    "Added role-ID-aware route resolution and request context support. Numeric role requirements use canonical decimal strings in the current ABI role metadata, and role IDs are accepted as u32 values (u16 IDs can be widened losslessly)."
+  ],
+  "verification": {
+    "performed": "Inspected owned wire sources and ABI wire definitions; reviewed the edited source paths and report contents.",
+    "build_or_checks": "Not run, per instruction. No cargo, rustc, rustfmt, or build/check command was invoked."
+  },
+  "limitations": [
+    "The shared jmax-abi WireEnvelopeView has no method_code field and was outside the assigned ownership, so the numeric method identifier is exposed through OwnedEnvelope::method_code().",
+    "Existing endpoint metadata stores roles as strings; numeric role requirements are matched through their canonical decimal representation."
+  ]
+}

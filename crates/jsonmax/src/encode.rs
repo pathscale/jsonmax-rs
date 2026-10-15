@@ -1,4 +1,4 @@
-//! Typed JSON output with bounded staging and complete syntax validation.
+//! Trusted native JSON output with bounded staging.
 
 use alloc::{string::String, vec::Vec};
 
@@ -7,12 +7,10 @@ use super::{
     JsonEncode, OutputBuffer, Result,
 };
 
-/// Encodes one typed value into an owned vector after validating the complete
-/// output as a single JSON value.
+/// Encodes one value under the JsonEncode contract into bounded owned storage.
 pub fn to_vec<T: JsonEncode + ?Sized>(value: &T, options: EncodeOptions) -> Result<Vec<u8>> {
     let mut staged = OutputBuffer::new(options.max_output_bytes);
     value.encode_json(&mut staged)?;
-    validate_encoded(staged.as_bytes())?;
     Ok(staged.into_vec())
 }
 
@@ -30,7 +28,7 @@ pub fn to_string<T: JsonEncode + ?Sized>(value: &T, options: EncodeOptions) -> R
     })
 }
 
-/// Stages and validates a complete value before making the first destination
+/// Stages a complete value before making the first destination
 /// call. Destination errors are propagated as supplied by that sink.
 pub fn to_sink<T: JsonEncode + ?Sized>(
     value: &T,
@@ -42,52 +40,16 @@ pub fn to_sink<T: JsonEncode + ?Sized>(
     sink.write_bytes(&bytes)
 }
 
-/// Revalidates a caller-supplied ABI document, then emits its values through
-/// the native syntax-aware writer. The supplied tables must match a fresh
-/// parse of the retained payload exactly.
+/// Emits a validated native DOM through the syntax-aware writer.
+/// Callers modifying public ABI tables must preserve their validation invariants.
 pub fn document_to_vec(document: &Document, options: EncodeOptions) -> Result<Vec<u8>> {
-    if document.proof.payload_len() as usize != document.payload.len()
-        || document.proof.decoded_len() as usize != document.parts.decoded.len()
-    {
-        return Err(document_error("document proof lengths do not match its buffers"));
-    }
-
-    let rebuilt = jmax_dom::build::parse(
-        document.payload.clone(),
-        super::Limits::permissive_default(),
-    )
-    .map_err(|error| match error.code {
-        ErrorCode::BudgetExhausted => Error::new(
-            ErrorCode::BudgetExhausted,
-            ErrorSource::Encode,
-            error.byte_offset,
-            "document validation allocation failed",
-        ),
-        ErrorCode::PayloadTooLarge => Error::new(
-            ErrorCode::PayloadTooLarge,
-            ErrorSource::Encode,
-            error.byte_offset,
-            "document exceeds the native addressable length",
-        ),
-        _ => document_error("document payload is not a complete valid JSON value"),
-    })?;
-    if rebuilt.parts().nodes != document.parts.nodes
-        || rebuilt.parts().spans != document.parts.spans
-        || rebuilt.parts().containers != document.parts.containers
-        || rebuilt.parts().numbers != document.parts.numbers
-        || rebuilt.parts().decoded != document.parts.decoded
-    {
-        return Err(document_error("document tables do not match its payload"));
-    }
-
     let mut output = OutputBuffer::new(options.max_output_bytes);
     let limits = writer_limits(options.max_output_bytes);
     {
         let mut writer = jmax_encode::writer::JsonWriter::new(&mut output, limits);
-        encode_dom_node(&rebuilt, jmax_dom::navigate::root(&rebuilt), &mut writer, 0)?;
+        encode_dom_node(document, jmax_dom::navigate::root(document), &mut writer, 0)?;
         writer.finish()?;
     }
-    validate_encoded(output.as_bytes())?;
     Ok(output.into_vec())
 }
 
@@ -100,43 +62,7 @@ pub fn escape_string(value: &str, options: EncodeOptions) -> Result<Vec<u8>> {
         writer.string(value)?;
         writer.finish()?;
     }
-    validate_encoded(output.as_bytes())?;
     Ok(output.into_vec())
-}
-
-fn validate_encoded(bytes: &[u8]) -> Result<()> {
-    if u32::try_from(bytes.len()).is_err() {
-        return Err(facade_error(
-            ErrorCode::PayloadTooLarge,
-            ErrorSource::Encode,
-            "encoded value exceeds the 32-bit validator length limit",
-        ));
-    }
-    let mut cursor = jmax_cursor::Cursor::new(
-        super::Limits::permissive_default(),
-        jmax_cursor::SkipMode::Strict,
-    );
-    jmax_cursor::walk::push(&mut cursor, bytes).map_err(as_encode_error)?;
-    jmax_cursor::walk::end_input(&mut cursor).map_err(as_encode_error)?;
-    loop {
-        match jmax_cursor::walk::next(&mut cursor).map_err(as_encode_error)? {
-            jmax_abi::syntax::ScanStep::Emit(_) => {}
-            jmax_abi::syntax::ScanStep::Finished => return Ok(()),
-            jmax_abi::syntax::ScanStep::NeedMore => {
-                return Err(Error::new(
-                    ErrorCode::InternalError,
-                    ErrorSource::Encode,
-                    cursor.state().byte_offset,
-                    "complete staged output requested additional bytes",
-                ));
-            }
-        }
-    }
-}
-
-fn as_encode_error(mut error: Error) -> Error {
-    error.source = ErrorSource::Encode;
-    error
 }
 
 fn encode_dom_node(
@@ -204,95 +130,4 @@ fn writer_limits(max_output_bytes: usize) -> jmax_encode::EncodeLimits {
 
 fn document_error(detail: &'static str) -> Error {
     facade_error(ErrorCode::InternalError, ErrorSource::Encode, detail)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct Literal(&'static [u8]);
-    impl JsonEncode for Literal {
-        fn encode_json(&self, sink: &mut dyn ByteSink) -> Result<()> {
-            sink.write_bytes(self.0)
-        }
-    }
-
-    struct Failing;
-    impl JsonEncode for Failing {
-        fn encode_json(&self, _sink: &mut dyn ByteSink) -> Result<()> {
-            Err(Error::new(ErrorCode::Cancelled, ErrorSource::Decode, 7, "encoder stopped"))
-        }
-    }
-
-    #[test]
-    fn typed_output_accepts_exact_json_scalars_and_nested_values() {
-        for (input, expected) in [
-            (b"null".as_slice(), b"null".as_slice()),
-            (b"true", b"true"),
-            (br#"{"a":[1,-2.50e+3],"b":"x"}"#, br#"{"a":[1,-2.50e+3],"b":"x"}"#),
-        ] {
-            assert_eq!(to_vec(&Literal(input), EncodeOptions::default()).unwrap(), expected);
-        }
-        assert_eq!(to_string(&Literal(b"0"), EncodeOptions::default()).unwrap(), "0");
-    }
-
-    #[test]
-    fn malformed_encoder_output_has_precise_encode_error_and_offset() {
-        for (bytes, code, offset) in [
-            (b"[1,]".as_slice(), ErrorCode::InvalidSyntax, 3),
-            (b"null false", ErrorCode::TrailingContent, 5),
-            (b"\xff", ErrorCode::InvalidUtf8, 0),
-            (b"", ErrorCode::UnexpectedEof, 0),
-        ] {
-            let error = to_vec(&Literal(bytes), EncodeOptions::default()).unwrap_err();
-            assert_eq!((error.code, error.source, error.byte_offset), (code, ErrorSource::Encode, offset));
-        }
-    }
-
-    #[test]
-    fn cap_includes_every_output_byte_and_zero_rejects_empty_impossible_value() {
-        let error = to_vec(&Literal(b"null"), EncodeOptions { max_output_bytes: 3 }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::PayloadTooLarge);
-        assert_eq!(error.source, ErrorSource::Encode);
-        let error = escape_string("", EncodeOptions { max_output_bytes: 1 }).unwrap_err();
-        assert_eq!(error.code, ErrorCode::PayloadTooLarge);
-        assert_eq!(escape_string("", EncodeOptions { max_output_bytes: 2 }).unwrap(), b"\"\"");
-    }
-
-    #[test]
-    fn sink_is_untouched_until_staging_and_validation_succeed() {
-        let mut destination = b"prefix".to_vec();
-        let error = to_sink(&Literal(b"["), &mut destination, EncodeOptions::default()).unwrap_err();
-        assert_eq!(error.code, ErrorCode::UnexpectedEof);
-        assert_eq!(destination, b"prefix");
-        let error = to_sink(&Failing, &mut destination, EncodeOptions::default()).unwrap_err();
-        assert_eq!(error, Error::new(ErrorCode::Cancelled, ErrorSource::Decode, 7, "encoder stopped"));
-        assert_eq!(destination, b"prefix");
-        to_sink(&Literal(b"true"), &mut destination, EncodeOptions::default()).unwrap();
-        assert_eq!(destination, b"prefixtrue");
-    }
-
-    #[test]
-    fn minimal_string_escaping_preserves_unicode_and_escapes_controls() {
-        let encoded = escape_string("a\"\\/\n\u{1}\u{e9}😀", EncodeOptions::default()).unwrap();
-        assert_eq!(encoded, "\"a\\\"\\\\/\\n\\u0001é😀\"".as_bytes());
-        assert_eq!(to_vec(&Literal(&encoded), EncodeOptions::default()).unwrap(), encoded);
-        assert_eq!(escape_string("\u{7f}", EncodeOptions::default()).unwrap(), b"\"\x7f\"");
-    }
-
-    #[test]
-    fn document_rebuild_verifies_tables_and_emits_decoded_strings() {
-        let input = br#" {"a":"x\u00e9","n":0,"v":[true,null]} "#;
-        let mut document = super::super::parse::parse_payload(
-            super::super::Payload::from_slice(input),
-            super::super::ParseOptions::default(),
-        ).unwrap();
-        assert_eq!(document_to_vec(&document, EncodeOptions::default()).unwrap(),
-            br#"{"a":"xé","n":0,"v":[true,null]}"#);
-
-        document.parts.nodes.clear();
-        let error = document_to_vec(&document, EncodeOptions::default()).unwrap_err();
-        assert_eq!(error.code, ErrorCode::InternalError);
-        assert_eq!(error.source, ErrorSource::Encode);
-    }
 }

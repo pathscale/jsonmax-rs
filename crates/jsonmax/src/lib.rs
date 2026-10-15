@@ -25,7 +25,9 @@ pub mod endpoint;
 
 pub const CONTRACT_VERSION: u32 = 1;
 pub const DEFAULT_MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
-pub type Document = ValidatedDocument;
+/// Native DOM and ABI document share their owner-bound tables and metadata.
+pub use jmax_dom::Document;
+pub use endpoint::CompiledSchema;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParseOptions {
@@ -89,12 +91,6 @@ impl QueryResult {
         self.matches.get(path_index)?.get(match_index)?.slice(self.payload.as_slice())
     }
 }
-#[derive(Clone, Debug)]
-pub struct CompiledSchema { image: SchemaImage }
-impl CompiledSchema {
-    pub fn image(&self) -> &SchemaImage { &self.image }
-    pub fn fingerprint(&self) -> u64 { self.image.header.fingerprint }
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EncodeOptions { pub max_output_bytes: usize }
 impl Default for EncodeOptions {
@@ -131,11 +127,28 @@ impl ByteSink for OutputBuffer {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EndpointDirection { Request, Response, Stream }
 #[derive(Clone, Debug)]
-pub struct EndpointCatalog { services: Vec<ServiceSpec> }
+pub struct EndpointCatalog {
+    services: Vec<ServiceSpec>,
+    entries: Vec<Option<endpoint::CatalogEntry>>,
+}
 impl EndpointCatalog {
     pub fn services(&self) -> &[ServiceSpec] { &self.services }
+    pub(crate) fn entry(&self, code: u32) -> Option<&endpoint::CatalogEntry> {
+        if self.entries.is_empty() { return None; }
+        let mask = self.entries.len() - 1;
+        let mut index = endpoint::catalog_hash(code) & mask;
+        for _ in 0..self.entries.len() {
+            match &self.entries[index] {
+                Some(entry) if entry.code == code => return Some(entry),
+                Some(_) => index = (index + 1) & mask,
+                None => return None,
+            }
+        }
+        None
+    }
     pub fn endpoint(&self, code: u32) -> Option<&EndpointSchemaSpec> {
-        self.services.iter().flat_map(|service| service.endpoints.iter()).find(|endpoint| endpoint.code == code)
+        let entry = self.entry(code)?;
+        self.services.get(entry.service_index)?.endpoints.get(entry.endpoint_index)
     }
 }
 #[derive(Clone, Debug)]

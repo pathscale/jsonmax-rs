@@ -1,0 +1,98 @@
+{
+  "task_id": "W5-03-SCHEMA-VM",
+  "wave": 5,
+  "priority": "P0",
+  "status": "complete_owned_scope",
+  "working_directory": "/Users/revenge/code/jsonmax-rs",
+  "audit_read": "/Users/revenge/code/AUDIT-jsonmax-rs-2026-10-15.md",
+  "endpoint_inspected": "crates/jsonmax/src/endpoint.rs",
+  "files_modified": [
+    "crates/jmax-schema-compile/src/lib.rs",
+    "crates/jmax-schema-compile/src/keys.rs",
+    "crates/jmax-schema-compile/src/image.rs",
+    "crates/jmax-schema-compile/src/lower.rs",
+    "crates/jmax-schema-vm/src/lib.rs",
+    "crates/jmax-schema-vm/src/execute.rs",
+    "crates/jmax-schema-vm/src/objects.rs",
+    "crates/jmax-schema-vm/src/constraints.rs",
+    "crates/jmax-schema-vm/src/extract.rs"
+  ],
+  "repairs": {
+    "JM-04": [
+      "Exposed input::CursorInput and the crate-root CursorInput re-export.",
+      "CursorInput::new accepts either Payload or a fresh borrowed strict jmax_cursor::Cursor, Limits, and NumericPolicy, returning Result<CursorInput>.",
+      "Implemented EventInput for owned CursorInput and &mut CursorInput, supporting both the inspected payload-based endpoint call and borrowed-cursor execution.",
+      "The adapter declares complete input, consumes real cursor events, rejects incomplete input, propagates sticky syntax failures, and exposes EOF only at ScanStep::Finished.",
+      "EventInput now permits append-only decoded arena growth and reallocation. Execution reads the live decoded slice after every event, requires monotonic arena lengths, enforces current limits, and revalidates retained references against final owners.",
+      "Publication transfers the completed cursor payload and final decoded arena. A borrowed cursor is replaced with a fresh strict cursor during successful ownership transfer.",
+      "Request numeric policy is applied using the shared VM work budget in addition to compiled schema policy."
+    ],
+    "JM-02_JM-03_support": [
+      "Re-exported lower::compile as jmax_schema_compile::compile.",
+      "ValidatedProgram shares immutable CompiledProgram and ProgramIndexes through Arc, providing constant-cost Clone and automatic Send + Sync for the contained owned data.",
+      "Program indexes are built once after full image validation; VM execution performs no lowering or image decoding.",
+      "Added image::load accepting a borrowed or owned SchemaImage through Borrow<SchemaImage>, restoring and validating the complete canonical program.",
+      "Standalone version-two images retain the canonical schema in a bounded capsule after the key-name prefix, with a checked length and magic footer. Loading reconstructs all states, constraints, patterns, key strategies, slots, and policy, then compares the exact standalone image before issuing a witness."
+    ],
+    "PERF-04": [
+      "Removed full-table validation from keys::lookup; keys::validate remains the explicit compile/load validation boundary.",
+      "Added lookup_unchecked_table with checked memory access and lookup_index returning the global key index directly.",
+      "Capped SWAR tables at eight candidates. Small PHF tables use one candidate probe; large or unsuccessful single-level tables use deterministic two-level perfect hashing with two hashes and one candidate probe.",
+      "Two-level tables have a linear-size primary directory, at most eight secondary slots per key in total, bounded seed searches, exact collision checks, and explicit resource errors instead of unbounded SWAR fallback.",
+      "Object dispatch derives the local seen-bit index by subtracting first_key from the returned global index, eliminating the image-key pointer scan.",
+      "ValidatedProgram::slot_for_field and table_state replace slot scans and object-table owner scans.",
+      "Selection IDs and duplicates are validated once into a budgeted slot bitset. Per-key capture membership is constant-time, with an allocation-free empty-selection fast path.",
+      "Removed the per-capture EmitSlot instruction scan. Canonical image validation establishes the operand mapping, and execution directly resolves the immutable indexed SlotSpec.",
+      "VM lookup work accounting now charges bounded probes and query bytes instead of full-table revalidation and a temporary full-domain bitmap."
+    ]
+  },
+  "public_api": [
+    "jmax_schema_compile::compile(&ResolvedSchema, &CompilerOptions) -> Result<ValidatedProgram>",
+    "jmax_schema_compile::image::load(impl Borrow<SchemaImage>, &CompilerOptions) -> Result<ValidatedProgram>",
+    "ValidatedProgram::slot_for_field(FieldId) -> Option<&SlotSpec>",
+    "ValidatedProgram::table_state(u32) -> Option<&ProgramState>",
+    "jmax_schema_compile::keys::lookup_unchecked_table(&SchemaImage, &KeyTable, &[u8]) -> Result<Option<&KeyEntry>>",
+    "jmax_schema_compile::keys::lookup_index(&SchemaImage, &KeyTable, &[u8]) -> Result<Option<u32>>",
+    "jmax_schema_vm::input::CursorInput::new(impl Into<execute::CursorSource>, Limits, NumericPolicy) -> Result<CursorInput>",
+    "jmax_schema_vm::extract::SelectionIndex::new(&ValidatedProgram, &Selection) -> Result<SelectionIndex>"
+  ],
+  "compatibility": [
+    "IMAGE_VERSION is now 2. Version-one images are rejected because they cannot carry complete standalone schema semantics. Regenerate persisted or generated images with the new compiler.",
+    "KeyStrategy adds BucketedPerfectHash and the wire codec adds strategy tag 2. External exhaustive matches must handle the new variant.",
+    "SchemaImage.key_bytes now consists of key names followed by the canonical capsule. Existing key spans remain valid; external validators must recognize the version-two suffix instead of requiring all bytes to belong to key names.",
+    "Raw keys::lookup no longer establishes structural validity of unrelated entries. Validate raw tables once or obtain a ValidatedProgram before using hot-path lookup.",
+    "objects::key and extract::selected now consume SelectionIndex; selected accepts a compiled slot index rather than a FieldId.",
+    "CompilerOptions.swar_threshold is capped at eight. Hash seed exhaustion for a larger table returns BudgetExhausted.",
+    "image::load must receive compiler policy and strategy options compatible with those used to produce the image.",
+    "ValidatedProgram::into_program moves uniquely owned data and clones data if the witness is shared, so mutating the returned program cannot invalidate other witnesses."
+  ],
+  "integration_handoff": [
+    {
+      "owner": "Facade task owning crates/jsonmax/src/lib.rs and endpoint.rs",
+      "action": "Store ValidatedProgram directly in CompiledSchema during compile_schema and load_schema. Borrow that stored witness for validate_payload and extract_payload. The inspected endpoint still discards the witness and calls image::load per request; those files are outside this task ownership.",
+      "slot_lookup": "Replace endpoint extraction slot iteration with program.slot_for_field(*field). VM entry already validates selections, so the separate facade check_selection call is optional."
+    },
+    {
+      "owner": "Benchmark and static-image consumers",
+      "action": "Retain the validated witness per schema or workload and update generated-image version handling and capsule ownership rules for version 2."
+    }
+  ],
+  "validation": {
+    "method": "Manual source inspection only, including the audit, endpoint signatures, cursor traversal/finalization APIs, ABI ownership records, compiler codec, and VM dispatch paths.",
+    "builds_run": false,
+    "checks_run": false,
+    "tests_run": false,
+    "formatters_run": false,
+    "commits_created": false,
+    "reason": "The task explicitly prohibited all build and check commands.",
+    "claims": "No compilation, runtime correctness, performance measurement, or tool-based verification is claimed."
+  },
+  "complexity": {
+    "key_lookup": "O(key byte length), independent of object schema key count; at most eight SWAR candidates or one exact PHF candidate.",
+    "slot_lookup": "O(1) using a field-indexed slot vector.",
+    "selection_membership": "O(1) using the request slot bitset.",
+    "selection_preparation": "O(slot_count / 64 + selected_field_count), skipped for an empty selection.",
+    "program_clone": "O(1), sharing both immutable allocations."
+  },
+  "scope_note": "Only the nine exclusively owned Rust files and this handoff report were written."
+}

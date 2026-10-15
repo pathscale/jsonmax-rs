@@ -16,6 +16,8 @@ pub use jmax_schema_compile::{CompiledProgram, ConstraintSet, KeyTable, PatternP
 pub use jmax_schema_ir::ValueKind;
 
 pub mod execute;
+pub mod input { pub use crate::execute::CursorInput; }
+pub use execute::CursorInput;
 pub mod objects;
 pub mod constraints;
 pub mod extract;
@@ -49,14 +51,18 @@ pub struct ScalarInput<'a> {
     pub arena: &'a [u8],
 }
 
-/// A complete, strictly parsed JSON event source tied to immutable owned buffers.
+/// A complete, strictly parsed JSON event source with stable raw bytes and an
+/// append-only decoded arena.
 ///
 /// # Safety
 /// Implementors must validate UTF-8 and the complete JSON grammar, emit every event
 /// in order exactly once, and report EOF only after one root and no trailing data.
-/// Every span and decoded scalar count must describe those exact buffers. Buffers
-/// must remain byte-for-byte unchanged, including through `into_buffers`, and that
-/// method must return the owners exposed by `raw_bytes` and `decoded_bytes`.
+/// Every span and decoded scalar count must describe the current buffers. Raw
+/// bytes and their allocation remain unchanged during traversal. The decoded arena may append bytes and
+/// reallocate during next_event, but all previously exposed bytes and offsets
+/// remain unchanged. Accessors expose the current arena after every event.
+/// into_buffers returns those exact contents, including all appended bytes;
+/// conversion to owned storage may move either allocation.
 /// Syntax failures, duplicate policy and all supplied limits must be enforced by
 /// the VM or source before publication. An event adapter must never trust caller
 /// supplied events or a proof for a different owner to establish these guarantees.
@@ -64,29 +70,13 @@ pub unsafe trait EventInput: Sized {
     fn raw_bytes(&self) -> &[u8];
     fn decoded_bytes(&self) -> &[u8];
     fn next_event(&mut self) -> Result<Option<Event>>;
+    fn numeric_policy(&self) -> Option<jmax_abi::number::NumericPolicy> { None }
     fn into_buffers(self) -> Result<InputBuffers>;
 }
 
 /// Extraction cannot weaken validation. False is a query-only request and is rejected.
 pub fn check_selection(program: &ValidatedProgram, selection: &Selection) -> Result<()> {
-    if !selection.strict_validate_unselected {
-        return Err(vm_error(ErrorCode::UnsupportedSchemaFeature, 0,
-            "proof publication requires validation of unselected fields")
-            .with_schema(program.image().header.schema_id, 0));
-    }
-    for (index, field) in selection.field_ids.iter().enumerate() {
-        if selection.field_ids[..index].contains(field) {
-            return Err(vm_error(ErrorCode::ConstraintViolation, 0,
-                "selection contains a duplicate field")
-                .with_schema(program.image().header.schema_id, field.0));
-        }
-        if !program.program().slots.iter().any(|slot| slot.field_id == *field) {
-            return Err(vm_error(ErrorCode::UnknownObjectKey, 0,
-                "selection field has no compiled slot").with_schema(
-                    program.image().header.schema_id, field.0));
-        }
-    }
-    Ok(())
+    extract::SelectionIndex::new(program, selection).map(|_| ())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -141,7 +131,7 @@ impl ValidatedRun {
 
 pub(crate) struct VmContext<'a> {
     pub program: &'a ValidatedProgram,
-    pub selection: &'a Selection,
+    pub selection: extract::SelectionIndex,
     pub limits: VmLimits,
     pub frames: Vec<VmFrame>,
     pub slots: Vec<SlotValue>,

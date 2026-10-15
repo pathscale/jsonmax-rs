@@ -1,0 +1,61 @@
+{
+  "task": "W5-02-DOM-ENCODE",
+  "status": "complete",
+  "scope": [
+    "crates/jmax-abi/src/node.rs",
+    "crates/jmax-dom/src/lib.rs",
+    "crates/jmax-dom/src/build.rs",
+    "crates/jmax-dom/src/navigate.rs",
+    "crates/jmax-dom/src/scalar.rs",
+    "crates/jmax-dom/src/rebuild.rs",
+    "crates/jmax-encode/src/lib.rs",
+    "crates/jmax-encode/src/writer.rs",
+    "crates/jmax-encode/src/typed.rs"
+  ],
+  "inspected_first": [
+    "/Users/revenge/code/AUDIT-jsonmax-rs-2026-10-15.md",
+    "crates/jsonmax/src/lib.rs",
+    "crates/jsonmax/src/parse.rs",
+    "crates/jsonmax/src/encode.rs",
+    "crates/jmax-bench/src/parse.rs",
+    "crates/jmax-bench/src/serialize.rs",
+    "crates/jmax-string/src/escape.rs"
+  ],
+  "repairs": {
+    "JM-01": [
+      "Made jmax_dom::Document an alias of jmax_abi::node::ValidatedDocument, matching the facade's Document alias and eliminating conversion and parameter type mismatches.",
+      "Kept payload, parts, and proof public and added payload(), parts(), proof(), metadata(), root(), node_count(), and resolve_str() accessors.",
+      "Moved NodeMeta into the ABI and re-exported it from jmax-dom. DocumentParts now owns the parallel node_metadata vector and max_depth.",
+      "Added a repr(C), Clone, Copy, Debug, PartialEq, Eq, Default DocumentMetadata borrowed view with root, node_count, span_count, container_count, number_count, decoded_bytes, and max_depth. Its lifetime-bound slice operations preserve existing benchmark get(), first(), len(), indexing, and iteration usage without allocation.",
+      "Added into_validated() and from_validated(document). The standard identity From<T> for T implementation supplies From<jmax_dom::Document> for ValidatedDocument because the types are identical.",
+      "Added iterative validate_layout() checks for proof lengths, parallel tables, node kinds, owner-relative strings, parent and sibling links, container records, subtree boundaries, child counts, and measured depth.",
+      "Updated DOM navigation, scalar access, and rebuilding to use the shared ABI metadata storage.",
+      "Issued schema-free syntax provenance only after strict cursor completion and checked owner lengths, using one documented unsafe proof issuance boundary. The DOM crate now uses the same unsafe_op_in_unsafe_fn denial policy as the schema VM proof publisher.",
+      "Added typed::encode_document and typed::encode_document_to_vec with bounded staging, iterative preorder traversal, canonical string escaping, preserved number spelling, structural preflight, and no full-output reparse.",
+      "Added build::parse_with_numeric to match the concurrently updated facade while preserving ordinary build::parse through its existing cursor entry point."
+    ],
+    "PERF-05": [
+      "Replaced JsonWriter::write_string byte-by-byte discovery with jmax_string::escape::find_escape and default mandatory JSON escape policy.",
+      "Wrote contiguous safe ASCII and UTF-8 runs through bulk sink.write_bytes calls. Only matched escape bytes enter escape spelling logic.",
+      "Updated escaped_string_len to use the same SIMD escape-run discovery, eliminating the scalar per-byte measurement pass while retaining checked usize output accounting.",
+      "Preserved short escapes, lowercase control escapes, unescaped solidus and Unicode, complete token reservation, sink error propagation, and writer poisoning behavior."
+    ]
+  },
+  "verification": {
+    "performed": "Source inspection and manual review of caller signatures, metadata borrow lifetimes, table ownership, layout traversal, writer reservation and error paths, empty strings, escape-dense strings, and mixed UTF-8 safe runs.",
+    "build_or_checks": "Not run, as instructed. No cargo, rustc, rustfmt, git commit, or build/check command was invoked.",
+    "runtime_or_performance_claims": "No execution or throughput measurement was performed. Compilation and runtime behavior remain unverified."
+  },
+  "integration_notes": [
+    "DocumentMetadata carries a document lifetime and a borrowed NodeMeta slice in addition to the requested summary fields so current benchmark callers remain source-compatible. It is documented as an in-process view, not a wire or foreign-function record.",
+    "number_count reports the converted-number table length; the DOM builder continues to retain raw numeric spellings without populating that optional table.",
+    "Code constructing DocumentParts with explicit field literals must supply node_metadata and max_depth or use Default. No such external construction was found in the inspected crate sources.",
+    "build::parse_with_numeric calls jmax_cursor::walk::from_payload_with_numeric(payload, limits, SkipMode::Strict, numeric), matching the cursor API already expected by the concurrently updated facade. That helper was absent from the last inspected cursor source and must be supplied by the cursor owner during Wave 5 integration.",
+    "The existing build::from_validated(document, limits) remains a separate explicit payload reparse operation; Document::from_validated(document) performs ownership-preserving layout validation and retains the original proof.",
+    "Public ABI field mutation must preserve the original syntax and proof invariants. validate_layout checks representation consistency and does not issue fresh syntax or schema evidence for modified payload bytes.",
+    "Facade changes that remove output reparsing and benchmark harness changes remain with their respective file owners."
+  ],
+  "untouched_owned_files": [
+    "crates/jmax-encode/src/raw.rs"
+  ]
+}

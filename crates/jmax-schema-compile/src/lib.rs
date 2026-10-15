@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::schema::{CompileLimits, FieldId, InsnWord, KeyEntry, Opcode,
     SchemaId, SchemaImage, SchemaImageHeader, StateId};
@@ -18,8 +18,11 @@ pub mod keys;
 pub mod patterns;
 pub mod image;
 
+pub use lower::compile;
+
 pub const IMAGE_MAGIC: u32 = 0x58414d4a;
-pub const IMAGE_VERSION: u16 = 1;
+/// Version two adds the standalone canonical capsule and two-level key tables.
+pub const IMAGE_VERSION: u16 = 2;
 pub const IMAGE_FLAGS: u16 = 0;
 pub const NO_REQUIRED_BIT: u16 = u16::MAX;
 pub const EMPTY_KEY_SLOT: u32 = u32::MAX;
@@ -32,7 +35,10 @@ pub struct CompilerOptions {
     pub policy: SchemaPolicy,
     pub max_image_bytes: u32,
     pub max_pattern_steps: u32,
+    /// Seed-search ceiling per hash level. Exhaustion returns a resource error
+    /// when a table cannot use the bounded SWAR strategy.
     pub max_hash_attempts: u32,
+    /// Preferred SWAR threshold, capped at keys::MAX_SWAR_KEYS.
     pub swar_threshold: u16,
 }
 
@@ -85,7 +91,12 @@ pub enum KeyStrategy {
     Swar,
     /// Slots contain global image key indices, or `EMPTY_KEY_SLOT`.
     PerfectHash { seed: u64, slots: Vec<u32> },
+    /// Two-level perfect hashing with one bounded secondary probe.
+    BucketedPerfectHash { seed: u64, buckets: Vec<HashBucket>, slots: Vec<u32> },
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HashBucket { pub seed: u64, pub first_slot: u32, pub slot_count: u32 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KeyTable { pub first_key: u32, pub key_count: u32, pub strategy: KeyStrategy }
@@ -135,9 +146,19 @@ pub struct CompiledProgram {
     pub canonical_schema: Vec<u8>,
 }
 
-/// Construction is restricted to image validation. Mutation drops the witness.
+/// Immutable, shared program and indexes constructed only by image validation.
+/// Cloning shares all tables and does not lower, decode, or copy the program.
 #[derive(Clone, Debug)]
-pub struct ValidatedProgram { pub(crate) program: CompiledProgram }
+pub struct ValidatedProgram {
+    pub(crate) program: Arc<CompiledProgram>,
+    pub(crate) indexes: Arc<ProgramIndexes>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ProgramIndexes {
+    pub field_slots: Vec<u32>,
+    pub table_states: Vec<StateId>,
+}
 
 impl ValidatedProgram {
     pub fn program(&self) -> &CompiledProgram { &self.program }
@@ -145,7 +166,24 @@ impl ValidatedProgram {
     pub fn state(&self, id: StateId) -> Option<&ProgramState> {
         self.program.states.get(id.0 as usize)
     }
-    pub fn into_program(self) -> CompiledProgram { self.program }
+    /// Constant-time field lookup; field identifiers outside the ABI domain miss.
+    pub fn slot_for_field(&self, field: FieldId) -> Option<&SlotSpec> {
+        let index = usize::try_from(field.0).ok()?;
+        let slot = *self.indexes.field_slots.get(index)?;
+        if slot == EMPTY_KEY_SLOT { return None; }
+        self.program.slots.get(slot as usize)
+    }
+    /// The unique object state owning a key table, indexed at validation time.
+    pub fn table_state(&self, table: u32) -> Option<&ProgramState> {
+        let index = usize::try_from(table).ok()?;
+        self.state(*self.indexes.table_states.get(index)?)
+    }
+    pub fn into_program(self) -> CompiledProgram {
+        match Arc::try_unwrap(self.program) {
+            Ok(program) => program,
+            Err(program) => (*program).clone(),
+        }
+    }
 }
 
 /// Includes the complete deterministic encoded program to disambiguate hash collisions.
@@ -190,7 +228,12 @@ pub fn key_hash(bytes: &[u8], seed: u64) -> u64 {
     for &byte in bytes {
         hash = (hash ^ u64::from(byte)).wrapping_mul(jmax_schema_ir::FINGERPRINT_PRIME);
     }
-    hash
+    // Avalanche all bits before masking a power-of-two bucket count. The seed
+    // participates in both the byte hash and the final independent mixing.
+    hash ^= seed.wrapping_mul(0x9e3779b97f4a7c15);
+    hash = (hash ^ (hash >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    hash = (hash ^ (hash >> 27)).wrapping_mul(0x94d049bb133111eb);
+    hash ^ (hash >> 31)
 }
 
 pub(crate) fn compile_error(code: ErrorCode, detail: &'static str) -> Error {

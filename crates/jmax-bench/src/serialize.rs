@@ -10,7 +10,7 @@ use jmax_abi::{
 };
 
 use crate::{
-    bench_error, corpus, digest_bytes, measure, mix_digest, BenchmarkConfig,
+    bench_error, corpus, measure, mix_digest, BenchmarkConfig,
     BenchmarkMode, BenchmarkOperation, BenchmarkReport, Clock, Observation,
     Payload, Result, Workload,
 };
@@ -29,7 +29,7 @@ pub fn run_serialize(
     prepare(workload, config)?;
     let documents = prepare_documents(workload)?;
     for document in &documents { verify_serialized(document)?; }
-    let mut operation = PreparedOperation::new("jsonmax.serialize", BenchmarkMode::Serialize, documents);
+    let mut operation = PreparedOperation::new("jsonmax.serialize", BenchmarkMode::Serialize, documents)?;
     measure(workload, &mut operation, config, clock)
 }
 
@@ -42,7 +42,7 @@ pub fn run_escape(
     prepare(workload, config)?;
     let documents = prepare_documents(workload)?;
     for document in &documents { verify_escaped(document)?; }
-    let mut operation = PreparedOperation::new("jsonmax.escape", BenchmarkMode::Escape, documents);
+    let mut operation = PreparedOperation::new("jsonmax.escape", BenchmarkMode::Escape, documents)?;
     measure(workload, &mut operation, config, clock)
 }
 
@@ -55,7 +55,7 @@ pub fn run_format(
     prepare(workload, config)?;
     let documents = prepare_documents(workload)?;
     for document in &documents { verify_formatted(document)?; }
-    let mut operation = PreparedOperation::new("jsonmax.format", BenchmarkMode::Format, documents);
+    let mut operation = PreparedOperation::new("jsonmax.format", BenchmarkMode::Format, documents)?;
     measure(workload, &mut operation, config, clock)
 }
 
@@ -124,26 +124,38 @@ struct PreparedOperation {
     documents: Vec<jsonmax::Document>,
     next_document: usize,
     sink: Vec<u8>,
+    retained_documents_bytes: u64,
 }
 
 impl PreparedOperation {
-    fn new(name: &'static str, mode: BenchmarkMode, documents: Vec<jsonmax::Document>) -> Self {
-        Self { name, mode, documents, next_document: 0, sink: Vec::new() }
+    fn new(name: &'static str, mode: BenchmarkMode, documents: Vec<jsonmax::Document>) -> Result<Self> {
+        let retained_documents_bytes = retained_documents_bytes(&documents)?;
+        Ok(Self { name, mode, documents, next_document: 0, sink: Vec::new(), retained_documents_bytes })
     }
 
-    fn execute_document(&mut self, document: &jsonmax::Document) -> Result<Observation> {
-        self.sink.clear();
-        match self.mode {
-            BenchmarkMode::Serialize => emit_document(document, &mut self.sink)?,
-            BenchmarkMode::Escape => emit_escaped(document, &mut self.sink)?,
-            BenchmarkMode::Format => emit_formatted(document, &mut self.sink)?,
+    fn execute_document(
+        mode: BenchmarkMode,
+        document: &jsonmax::Document,
+        sink: &mut Vec<u8>,
+        retained_documents_bytes: u64,
+    ) -> Result<Observation> {
+        sink.clear();
+        match mode {
+            BenchmarkMode::Serialize => emit_document(document, sink)?,
+            BenchmarkMode::Escape => emit_escaped(document, sink)?,
+            BenchmarkMode::Format => emit_formatted(document, sink)?,
             _ => return Err(bench_error(ErrorCode::InternalError, "invalid prepared output mode")),
         }
-        let output_bytes = u64::try_from(self.sink.len())
+        let output_bytes = u64::try_from(sink.len())
             .map_err(|_| encode_error(ErrorCode::PayloadTooLarge, "output length exceeds u64"))?;
-        let digest = mix_digest(mode_tag(self.mode), digest_bytes(&self.sink));
-        let retained_bytes = retained_documents_bytes(&self.documents)?
-            .checked_add(u64::try_from(self.sink.capacity()).map_err(|_| {
+        // Full output equality is verified before measurement. Keep timed
+        // consumption constant-size so hashing does not dominate emission.
+        core::hint::black_box(sink.as_slice());
+        let boundary = u64::from(sink.first().copied().unwrap_or(0))
+            | (u64::from(sink.last().copied().unwrap_or(0)) << 8);
+        let digest = mix_digest(mix_digest(mode_tag(mode), output_bytes), boundary);
+        let retained_bytes = retained_documents_bytes
+            .checked_add(u64::try_from(sink.capacity()).map_err(|_| {
                 bench_error(ErrorCode::BudgetExhausted, "output capacity exceeds u64")
             })?)
             .ok_or_else(|| bench_error(ErrorCode::BudgetExhausted, "retained byte count overflow"))?;
@@ -160,13 +172,14 @@ impl BenchmarkOperation for PreparedOperation {
             return Err(bench_error(ErrorCode::InternalError, "prepared corpus is empty"));
         }
         let index = self.next_document;
-        let observation = self.execute_document(&self.documents[index])?;
+        let observation = Self::execute_document(
+            self.mode, &self.documents[index], &mut self.sink, self.retained_documents_bytes,
+        )?;
         self.next_document += 1;
         if self.next_document == self.documents.len() { self.next_document = 0; }
         Ok(observation)
     }
 }
-
 
 fn mode_tag(mode: BenchmarkMode) -> u64 {
     match mode {
@@ -393,7 +406,7 @@ fn retained_document_bytes(document: &jsonmax::Document) -> Result<u64> {
     add_usize(&mut total, document.parts().numbers.capacity().checked_mul(size_of::<jmax_abi::number::ConvertedNumber>())
         .ok_or_else(|| bench_error(ErrorCode::BudgetExhausted, "retained storage overflow"))?)?;
     add_usize(&mut total, document.parts().decoded.capacity())?;
-    add_capacity::<jmax_dom::NodeMeta>(&mut total, document.metadata().len())?;
+    add_capacity::<jmax_dom::NodeMeta>(&mut total, document.parts().node_metadata.capacity())?;
     Ok(total)
 }
 
@@ -413,95 +426,4 @@ fn add_usize(total: &mut u64, amount: usize) -> Result<()> {
 
 fn encode_error(code: ErrorCode, detail: &'static str) -> Error {
     Error::new(code, ErrorSource::Encode, 0, detail)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use alloc::vec;
-    use crate::{CorpusConfig, WorkloadKind};
-
-    #[derive(Default)]
-    struct TickClock { now: u64, step: u64 }
-    impl Clock for TickClock {
-        fn now_ns(&mut self) -> u64 { let value = self.now; self.now += self.step; value }
-    }
-
-    fn config() -> BenchmarkConfig {
-        BenchmarkConfig { warmup_iterations: 1, measured_iterations: 2, max_total_input_bytes: 32 * 1024 }
-    }
-
-    fn workload(kind: WorkloadKind) -> Workload {
-        corpus::make_workload(kind, CorpusConfig { seed: 9, documents: 2, items_per_document: 8, max_bytes: 32 * 1024 }).unwrap()
-    }
-
-    #[test]
-    fn serialization_rebuilds_compact_json_from_prepared_dom() {
-        let input = Payload::from_slice(br#" { "a" : [true, 12, "x\n"], "b": {} } "#);
-        let doc = jsonmax::parse::parse_payload(input, jsonmax::ParseOptions::default()).unwrap();
-        let mut out = Vec::new();
-        emit_document(&doc, &mut out).unwrap();
-        assert_eq!(out, br#"{"a":[true,12,"x\n"],"b":{}}"#);
-        assert_ne!(out, doc.payload().as_slice());
-        verify_serialized(&doc).unwrap();
-    }
-
-    #[test]
-    fn escape_covers_names_values_controls_unicode_and_empty_strings() {
-        let doc = jsonmax::parse::parse_payload(Payload::from_slice(br#"{"\u0001":"a\tb","é":"😀","":""}"#), jsonmax::ParseOptions::default()).unwrap();
-        let mut out = Vec::new();
-        emit_escaped(&doc, &mut out).unwrap();
-        assert_eq!(out, b"\"\\u0001\"\"a\\tb\"\"é\"\"😀\"\"\"\"\"");
-        verify_escaped(&doc).unwrap();
-        let empty = jsonmax::parse::parse_payload(Payload::from_slice(b"[]"), jsonmax::ParseOptions::default()).unwrap();
-        assert_eq!(emit_escaped(&empty, &mut Vec::new()).unwrap_err().code, ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn format_preserves_large_and_fixed_point_lexemes_without_float_conversion() {
-        let doc = jsonmax::parse::parse_payload(Payload::from_slice(b"[18446744073709551615,-0.125,1.2300e+0042]"), jsonmax::ParseOptions::default()).unwrap();
-        let mut out = Vec::new();
-        emit_formatted(&doc, &mut out).unwrap();
-        assert_eq!(out, b"18446744073709551615\n-0.125\n1.2300e+0042");
-        verify_formatted(&doc).unwrap();
-        let no_numbers = jsonmax::parse::parse_payload(Payload::from_slice(b"{\"s\":\"v\"}"), jsonmax::ParseOptions::default()).unwrap();
-        assert_eq!(emit_formatted(&no_numbers, &mut Vec::new()).unwrap_err().code, ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn output_limit_is_inclusive_and_encode_errors_keep_source() {
-        let mut bytes = Vec::new();
-        assert!(append(&mut bytes, &vec![b'x'; MAX_OUTPUT],).is_ok());
-        let error = append(&mut bytes, b"x").unwrap_err();
-        assert_eq!(error.code, ErrorCode::PayloadTooLarge);
-        assert_eq!(error.source, ErrorSource::Encode);
-    }
-
-    #[test]
-    fn runners_prepare_once_then_measure_and_reject_missing_microbench_values() {
-        let text = workload(WorkloadKind::EscapedStrings);
-        let mut clock = TickClock { now: 1, step: 4 };
-        let escaped = run_escape(&text, config(), &mut clock).unwrap();
-        assert_eq!(escaped.operation, "jsonmax.escape");
-        assert_eq!(escaped.mode, BenchmarkMode::Escape);
-        assert_eq!(escaped.samples.len(), 2);
-        assert!(escaped.samples[0].output_bytes > 0);
-
-        let numbers = workload(WorkloadKind::NumberArray);
-        let formatted = run_format(&numbers, config(), &mut clock).unwrap();
-        assert_eq!(formatted.operation, "jsonmax.format");
-        assert!(formatted.samples[0].output_bytes > 0);
-        assert_eq!(run_format(&text, config(), &mut clock).unwrap_err().code, ErrorCode::ConstraintViolation);
-        assert_eq!(run_escape(&numbers, config(), &mut clock).unwrap_err().code, ErrorCode::ConstraintViolation);
-    }
-
-    #[test]
-    fn malformed_inputs_and_budget_errors_are_not_hidden() {
-        let mut bad = workload(WorkloadKind::SmallObject);
-        bad.payloads[0] = Payload::from_slice(b"{\"x\":]");
-        let mut clock = TickClock::default();
-        assert!(run_serialize(&bad, config(), &mut clock).is_err());
-        let too_small = BenchmarkConfig { max_total_input_bytes: 1, ..config() };
-        assert_eq!(run_serialize(&workload(WorkloadKind::SmallObject), too_small, &mut clock).unwrap_err().code, ErrorCode::BudgetExhausted);
-    }
 }

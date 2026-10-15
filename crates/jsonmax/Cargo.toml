@@ -8,7 +8,7 @@ publish.workspace = true
 [features]
 default = ["std"]
 alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+std = ["alloc", "jmax-abi/std", "jmax-dispatch/std"]
 
 [dependencies]
 jmax-abi = { workspace = true }
@@ -18,6 +18,8 @@ jmax-dispatch = { workspace = true }
 jmax-cursor = { workspace = true }
 jmax-path = { workspace = true }
 jmax-dom = { workspace = true }
+jmax-schema-ir = { workspace = true }
+jmax-number = { workspace = true }
 jmax-schema-compile = { workspace = true }
 jmax-schema-vm = { workspace = true }
 jmax-encode = { workspace = true }
