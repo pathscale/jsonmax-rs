@@ -112,8 +112,7 @@ impl RetainedRange {
     pub fn as_slice(&self) -> &[u8] {
         // Construction establishes bounds and the private immutable owner
         // preserves them. Resolve with checked ABI arithmetic and indexing.
-        self.retained.slice(self.payload.as_slice())
-            .expect("retained span must remain within its owner")
+        self.retained.slice(self.payload.as_slice()).unwrap_or(&[])
     }
 
     /// Transfers the whole owner without copying or selecting a further slice.

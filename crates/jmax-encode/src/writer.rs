@@ -104,6 +104,27 @@ impl<'a> JsonWriter<'a> {
         })
     }
 
+    /// Validates and emits one exact JSON number lexeme without conversion or
+    /// allocation. Whitespace, quoted numbers and multiple tokens are rejected.
+    pub fn number_lexeme(&mut self, bytes: &[u8]) -> Result<()> {
+        self.operation(|writer| {
+            writer.value_comma()?;
+            writer.check_number_len(bytes.len())?;
+            if !matches!(bytes.first(), Some(b'-' | b'0'..=b'9'))
+                || !bytes.last().is_some_and(u8::is_ascii_digit)
+            {
+                return Err(encode_error(ErrorCode::InvalidNumber, "expected a JSON number lexeme"));
+            }
+            // Starting with a number keeps fragment validation on its scalar
+            // path, which uses no heap storage and checks the complete grammar.
+            let validated = super::raw::validate(bytes, writer.limits)?;
+            if validated.kind() != FragmentKind::Number {
+                return Err(encode_error(ErrorCode::InvalidNumber, "expected a JSON number lexeme"));
+            }
+            writer.number_token(validated.as_bytes())
+        })
+    }
+
     /// Uses core's shortest-roundtrip formatting, choosing the shorter notation.
     pub fn f64(&mut self, value: f64) -> Result<()> {
         self.operation(|writer| {

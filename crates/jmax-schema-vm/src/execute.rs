@@ -185,6 +185,15 @@ pub fn run<I: EventInput>(
         let frame_bytes = allocation_bytes::<VmFrame>(context.frames.capacity(), lengths.0)?;
         drop(core::mem::take(&mut context.frames));
         context.budget.release(frame_bytes)?;
+        // Cached slot and arena capacities remain charged until document EOF.
+        let mut table_bytes = allocation_bytes::<UnknownKeyTable>(context.unknown_key_tables.capacity(), lengths.0)?;
+        for table in &context.unknown_key_tables {
+            context.budget.charge(1, lengths.0)?;
+            table_bytes = table_bytes.checked_add(table.scratch_bytes(lengths.0)?)
+                .ok_or_else(|| resource_error(lengths.0))?;
+        }
+        drop(core::mem::take(&mut context.unknown_key_tables));
+        context.budget.release(table_bytes)?;
         let buffers = input.into_buffers()?;
         // Ownership conversion may move an allocation. EventInput guarantees
         // exact contents; lengths and retained references are checked again.
@@ -275,7 +284,7 @@ fn new_context<'a>(program: &'a ValidatedProgram, selection: &'a Selection, limi
     reserve(&mut slots, slots_len, &mut budget, 0)?;
     slots.resize(slots_len, SlotValue::Empty);
     Ok(VmContext {
-        program, selection, limits, frames: Vec::new(), slots, budget,
+        program, selection, limits, frames: Vec::new(), unknown_key_tables: Vec::new(), slots, budget,
         root_started: false, root_done: false,
     })
 }
@@ -563,9 +572,22 @@ fn open(context: &mut VmContext<'_>, kind: ContainerKind, raw: &[u8], offset: u3
         }
         reserve(&mut context.frames, 1, &mut context.budget, offset)?;
         let frame_kind = match kind {
-            ContainerKind::Object => FrameKind::Object(objects::begin(
-                context.program, pending.state, &mut context.budget, offset,
-            )?),
+            ContainerKind::Object => {
+                if context.unknown_key_tables.len() < depth {
+                    let additional = depth - context.unknown_key_tables.len();
+                    reserve(&mut context.unknown_key_tables, additional, &mut context.budget, offset)?;
+                    while context.unknown_key_tables.len() < depth {
+                        context.unknown_key_tables.push(UnknownKeyTable::new());
+                    }
+                }
+                let reusable = context.unknown_key_tables.get_mut(depth - 1)
+                    .ok_or_else(|| internal(offset))?;
+                reusable.reset(&mut context.budget, offset)?;
+                let unknown_keys = core::mem::replace(reusable, UnknownKeyTable::new());
+                FrameKind::Object(objects::begin_with_unknown_keys(
+                    context.program, pending.state, unknown_keys, &mut context.budget, offset,
+                )?)
+            }
             ContainerKind::Array => FrameKind::Array { count: 0, items },
         };
         context.frames.push(VmFrame {
@@ -606,8 +628,8 @@ fn key(context: &mut VmContext<'_>, reference: StrRef, raw: &[u8], decoded: &[u8
             }
         } else if current.kind != StateKind::Any { return Err(internal(offset)); }
     }
-    let pending = objects::key(context.program, object, text, &context.selection,
-        &context.limits, &mut context.budget, offset)?;
+    let pending = objects::key_ref(context.program, object, text, reference, raw, decoded,
+        &context.selection, &context.limits, &mut context.budget, offset)?;
     // Image validation already proved the EmitSlot operand and owning object.
     // Resolve its immutable side-table entry directly instead of scanning code.
     if let Some(slot) = pending.slot {
@@ -724,23 +746,21 @@ fn close(context: &mut VmContext<'_>, kind: ContainerKind, raw: &[u8], offset: u
     }
     let frame = context.frames.pop().ok_or_else(|| internal(offset))?;
     if let FrameKind::Object(object) = frame.kind {
-        release_object(object, &mut context.budget, offset)?;
+        let table = release_object(object, &mut context.budget, offset)?;
+        let reusable = context.unknown_key_tables.get_mut(context.frames.len())
+            .ok_or_else(|| internal(offset))?;
+        *reusable = table;
     }
     if context.frames.is_empty() { context.root_done = true; }
     Ok(())
 }
 
-fn release_object(object: ObjectState, budget: &mut VmBudget, offset: u32) -> Result<()> {
-    let mut bytes = allocation_bytes::<u64>(object.seen_words.capacity(), offset)?
-        .checked_add(allocation_bytes::<Vec<u8>>(object.unknown_keys.capacity(), offset)?)
-        .ok_or_else(|| resource_error(offset))?;
-    for name in &object.unknown_keys {
-        budget.charge(1, offset)?;
-        bytes = bytes.checked_add(allocation_bytes::<u8>(name.capacity(), offset)?)
-            .ok_or_else(|| resource_error(offset))?;
-    }
-    drop(object);
-    budget.release(bytes)
+fn release_object(object: ObjectState, budget: &mut VmBudget, offset: u32) -> Result<UnknownKeyTable> {
+    let bytes = allocation_bytes::<u64>(object.seen_words.capacity(), offset)?;
+    drop(object.seen_words);
+    budget.release(bytes)?;
+    // The table's capacities stay charged while cached for the next sibling.
+    Ok(object.unknown_keys)
 }
 
 fn revalidate_slots(slots: &[SlotValue], raw: &[u8], decoded: &[u8], limits: &VmLimits,

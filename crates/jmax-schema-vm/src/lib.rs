@@ -90,11 +90,40 @@ pub struct PendingValue {
     pub slot: Option<u32>,
 }
 
+/// Open-addressed decoded-key identity with span-backed entries. Generations
+/// allow sibling objects to reuse slots without clearing the previous keys.
+#[derive(Clone, Debug)]
+pub struct UnknownKeyTable {
+    slots: Vec<UnknownKeySlot>,
+    len: usize,
+    generation: u32,
+    /// Used only by standalone objects::key calls, never by event execution.
+    arena: Vec<u8>,
+    input_backed: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct UnknownKeySlot {
+    hash: u64,
+    reference: StrRef,
+    generation: u32,
+}
+
+impl UnknownKeySlot {
+    const EMPTY: Self = Self {
+        hash: 0,
+        reference: StrRef {
+            span: Span32::new(0, 0), source: SpanSource::RawPayload, scalar_len: 0,
+        },
+        generation: 0,
+    };
+}
+
 #[derive(Clone, Debug)]
 pub struct ObjectState {
     pub table: Option<u32>,
     pub seen_words: Vec<u64>,
-    pub unknown_keys: Vec<Vec<u8>>,
+    pub unknown_keys: UnknownKeyTable,
     pub property_count: u32,
     pub pending: Option<PendingValue>,
 }
@@ -134,6 +163,8 @@ pub(crate) struct VmContext<'a> {
     pub selection: extract::SelectionIndex,
     pub limits: VmLimits,
     pub frames: Vec<VmFrame>,
+    /// Vacant while the corresponding depth's object owns its reusable table.
+    pub unknown_key_tables: Vec<UnknownKeyTable>,
     pub slots: Vec<SlotValue>,
     pub budget: VmBudget,
     pub root_started: bool,

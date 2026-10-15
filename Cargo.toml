@@ -50,7 +50,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
-bytes = { version = "1", default-features = false, features = ["alloc"] }
+bytes = { version = "1", default-features = false }
 ps-simdutf8 = { path = "../ps-simdutf8", default-features = false }
 nagoya = { path = "../nagoya", default-features = false, features = ["std"] }
 nago-http = { path = "../nago-http", default-features = false }

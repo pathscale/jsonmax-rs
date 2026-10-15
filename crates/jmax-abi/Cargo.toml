@@ -7,7 +7,7 @@ publish.workspace = true
 
 [features]
 default = ["alloc"]
-alloc = ["bytes/alloc"]
+alloc = []
 std = ["alloc", "bytes/std"]
 
 [dependencies]

@@ -1,7 +1,8 @@
 //! Per-object key dispatch, duplicate tracking, and required-field validation.
 //!
 //! Seen bits address entries within a key table, not dense required-field IDs.
-//! Each invocation owns its scratch, including for recursive schema instances.
+//! Active invocations own independent scratch, including recursive instances.
+//! The interpreter reuses unknown-key tables across sibling objects by depth.
 use super::*;
 use core::mem::size_of;
 use jmax_abi::schema::KeyEntry;
@@ -11,6 +12,16 @@ use jmax_schema_compile::{keys, KeyStrategy, NO_REQUIRED_BIT};
 pub fn begin(
     program: &ValidatedProgram,
     state: Option<StateId>,
+    budget: &mut VmBudget,
+    offset: u32,
+) -> Result<ObjectState> {
+    begin_with_unknown_keys(program, state, UnknownKeyTable::new(), budget, offset)
+}
+
+pub(crate) fn begin_with_unknown_keys(
+    program: &ValidatedProgram,
+    state: Option<StateId>,
+    unknown_keys: UnknownKeyTable,
     budget: &mut VmBudget,
     offset: u32,
 ) -> Result<ObjectState> {
@@ -35,7 +46,7 @@ pub fn begin(
     Ok(ObjectState {
         table: table_id,
         seen_words,
-        unknown_keys: Vec::new(),
+        unknown_keys,
         property_count: 0,
         pending: None,
     })
@@ -49,6 +60,38 @@ pub fn key(
     program: &ValidatedProgram,
     object: &mut ObjectState,
     key: &str,
+    selection: &extract::SelectionIndex,
+    limits: &VmLimits,
+    budget: &mut VmBudget,
+    offset: u32,
+) -> Result<PendingValue> {
+    key_inner(program, object, key, None, selection, limits, budget, offset)
+}
+
+/// Event execution supplies stable spans into its immutable raw payload or
+/// append-only decoded arena. No key bytes are copied into VM scratch.
+pub(crate) fn key_ref(
+    program: &ValidatedProgram,
+    object: &mut ObjectState,
+    key: &str,
+    reference: StrRef,
+    raw: &[u8],
+    decoded: &[u8],
+    selection: &extract::SelectionIndex,
+    limits: &VmLimits,
+    budget: &mut VmBudget,
+    offset: u32,
+) -> Result<PendingValue> {
+    // execute::key has already resolved and validated this exact reference.
+    key_inner(program, object, key, Some((reference, raw, decoded)),
+        selection, limits, budget, offset)
+}
+
+fn key_inner(
+    program: &ValidatedProgram,
+    object: &mut ObjectState,
+    key: &str,
+    input: Option<(StrRef, &[u8], &[u8])>,
     selection: &extract::SelectionIndex,
     limits: &VmLimits,
     budget: &mut VmBudget,
@@ -102,7 +145,7 @@ pub fn key(
     // Any and None have no whitelist. Runtime unknown-key rejection therefore
     // applies only when there actually is a compiled object table.
     if limits.syntax.reject_duplicate_keys {
-        retain_unknown(object, key.as_bytes(), budget, offset)?;
+        retain_unknown(&mut object.unknown_keys, key, input, budget, offset)?;
     }
     let pending = PendingValue { state: None, field_id: FieldId(0), slot: None };
     object.property_count = next_count;
@@ -119,7 +162,7 @@ pub fn take_value(object: &mut ObjectState, offset: u32) -> Result<PendingValue>
 /// Check required membership and inclusive schema property-count bounds.
 ///
 /// Scratch remains owned by `object`. The interpreter releases its actual
-/// vector capacities only when it destroys the completed frame.
+/// seen-mask capacity at close and retains reusable unknown-key storage.
 pub fn finish(
     program: &ValidatedProgram,
     state: Option<StateId>,
@@ -286,34 +329,175 @@ fn charge_lookup(table: &KeyTable, key_len: u32, budget: &mut VmBudget, offset: 
     budget.charge(work, offset)
 }
 
-fn retain_unknown(object: &mut ObjectState, key: &[u8], budget: &mut VmBudget, offset: u32)
-    -> Result<()>
-{
-    for previous in &object.unknown_keys {
-        budget.charge(1, offset)?;
-        if previous.len() == key.len() {
-            budget.charge(u64::try_from(key.len()).map_err(|_| resource_error(offset))?, offset)?;
-            if previous.as_slice() == key {
-                return Err(vm_error(ErrorCode::DuplicateObjectKey, offset,
-                    "unknown decoded object key occurs more than once"));
+impl UnknownKeyTable {
+    pub(crate) fn new() -> Self {
+        Self { slots: Vec::new(), len: 0, generation: 1, arena: Vec::new(), input_backed: false }
+    }
+
+    /// Siblings reuse capacity without clearing slots except at generation wrap.
+    pub(crate) fn reset(&mut self, budget: &mut VmBudget, offset: u32) -> Result<()> {
+        match self.generation.checked_add(1) {
+            Some(generation) => self.generation = generation,
+            None => {
+                budget.charge(u64::try_from(self.slots.len()).map_err(|_| resource_error(offset))?, offset)?;
+                self.slots.fill(UnknownKeySlot::EMPTY);
+                self.generation = 1;
             }
         }
+        self.len = 0;
+        self.arena.clear();
+        self.input_backed = false;
+        Ok(())
     }
-    let needed = object.unknown_keys.len().checked_add(1).ok_or_else(|| resource_error(offset))?;
-    // Grow first so a later name-allocation failure leaves only fully accounted
-    // capacity in the object, with no partially inserted name or pending value.
-    if needed > object.unknown_keys.capacity() {
-        let old_bytes = allocation_bytes::<Vec<u8>>(object.unknown_keys.capacity(), offset)?;
-        let mut replacement = allocate::<Vec<u8>>(needed, budget, offset)?;
-        replacement.append(&mut object.unknown_keys);
-        let old = core::mem::replace(&mut object.unknown_keys, replacement);
+
+    pub(crate) fn scratch_bytes(&self, offset: u32) -> Result<u32> {
+        allocation_bytes::<UnknownKeySlot>(self.slots.capacity(), offset)?
+            .checked_add(allocation_bytes::<u8>(self.arena.capacity(), offset)?)
+            .ok_or_else(|| resource_error(offset))
+    }
+
+    fn contains(&self, hash: u64, bytes: &[u8], raw: &[u8], decoded: &[u8],
+        budget: &mut VmBudget, offset: u32) -> Result<bool>
+    {
+        if self.slots.is_empty() { return Ok(false); }
+        let mask = self.slots.len() - 1;
+        let mut index = hash as usize & mask;
+        loop {
+            budget.charge(1, offset)?;
+            let slot = self.slots[index];
+            if slot.generation != self.generation { return Ok(false); }
+            if slot.hash == hash {
+                let owner = match slot.reference.source {
+                    SpanSource::RawPayload => raw,
+                    SpanSource::DecodedArena => decoded,
+                };
+                let previous = slot.reference.span.slice(owner)
+                    .ok_or_else(|| internal_error(offset))?;
+                if previous.len() == bytes.len() {
+                    budget.charge(u64::try_from(bytes.len()).map_err(|_| resource_error(offset))?, offset)?;
+                    if previous == bytes { return Ok(true); }
+                }
+            }
+            index = (index + 1) & mask;
+        }
+    }
+
+    /// Keep a power-of-two table at most half full. Rehashing is transactional:
+    /// a failed allocation or work charge preserves all active keys.
+    fn reserve_insert(&mut self, budget: &mut VmBudget, offset: u32) -> Result<()> {
+        if self.len < self.slots.len() / 2 { return Ok(()); }
+        let capacity = if self.slots.is_empty() { 8 } else {
+            self.slots.len().checked_mul(2).ok_or_else(|| resource_error(offset))?
+        };
+        budget.charge(u64::try_from(self.slots.len()).map_err(|_| resource_error(offset))?, offset)?;
+        let mut slots = allocate::<UnknownKeySlot>(capacity, budget, offset)?;
+        slots.resize(capacity, UnknownKeySlot::EMPTY);
+        let mask = capacity - 1;
+        let result: Result<()> = (|| {
+            for slot in &self.slots {
+                if slot.generation == self.generation {
+                    let mut index = slot.hash as usize & mask;
+                    loop {
+                        budget.charge(1, offset)?;
+                        if slots[index].generation != self.generation { break; }
+                        index = (index + 1) & mask;
+                    }
+                    slots[index] = *slot;
+                }
+            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            let bytes = allocation_bytes::<UnknownKeySlot>(slots.capacity(), offset)?;
+            drop(slots);
+            budget.release(bytes)?;
+            return Err(error);
+        }
+        let old_bytes = allocation_bytes::<UnknownKeySlot>(self.slots.capacity(), offset)?;
+        let old = core::mem::replace(&mut self.slots, slots);
         drop(old);
-        budget.release(old_bytes)?;
+        budget.release(old_bytes)
     }
-    let mut name = allocate::<u8>(key.len(), budget, offset)?;
-    name.extend_from_slice(key);
-    object.unknown_keys.push(name);
+
+    fn vacant(&self, hash: u64, budget: &mut VmBudget, offset: u32) -> Result<usize> {
+        let mask = self.slots.len() - 1;
+        let mut index = hash as usize & mask;
+        loop {
+            budget.charge(1, offset)?;
+            if self.slots[index].generation != self.generation { return Ok(index); }
+            index = (index + 1) & mask;
+        }
+    }
+
+    fn reserve_arena(&mut self, needed: usize, budget: &mut VmBudget, offset: u32) -> Result<()> {
+        if needed <= self.arena.capacity() { return Ok(()); }
+        let capacity = self.arena.capacity().checked_mul(2)
+            .ok_or_else(|| resource_error(offset))?.max(needed);
+        // Allocation work covers copying the old bytes as well as growth.
+        let mut arena = allocate::<u8>(capacity, budget, offset)?;
+        arena.extend_from_slice(&self.arena);
+        let old_bytes = allocation_bytes::<u8>(self.arena.capacity(), offset)?;
+        let old = core::mem::replace(&mut self.arena, arena);
+        drop(old);
+        budget.release(old_bytes)
+    }
+}
+
+fn retain_unknown(
+    table: &mut UnknownKeyTable,
+    key: &str,
+    input: Option<(StrRef, &[u8], &[u8])>,
+    budget: &mut VmBudget,
+    offset: u32,
+) -> Result<()> {
+    // One object uses a single backing domain. Standalone calls share its
+    // arena; event execution always supplies the live input's two buffers.
+    if table.len != 0 && table.input_backed != input.is_some() {
+        return Err(internal_error(offset));
+    }
+    let bytes = key.as_bytes();
+    budget.charge(u64::try_from(bytes.len()).map_err(|_| resource_error(offset))?, offset)?;
+    let hash = unknown_key_hash(bytes);
+    let (raw, decoded) = match input {
+        Some((_, raw, decoded)) => (raw, decoded),
+        None => (&[][..], table.arena.as_slice()),
+    };
+    if table.contains(hash, bytes, raw, decoded, budget, offset)? {
+        return Err(vm_error(ErrorCode::DuplicateObjectKey, offset,
+            "unknown decoded object key occurs more than once"));
+    }
+    table.reserve_insert(budget, offset)?;
+    let index = table.vacant(hash, budget, offset)?;
+    let reference = match input {
+        Some((reference, _, _)) => reference,
+        None => {
+            let start = u32::try_from(table.arena.len()).map_err(|_| resource_error(offset))?;
+            let len = u32::try_from(bytes.len()).map_err(|_| resource_error(offset))?;
+            let end = start.checked_add(len).ok_or_else(|| resource_error(offset))?;
+            // Charge copying and scalar counting before mutating the arena.
+            budget.charge(u64::from(len) * 2, offset)?;
+            let scalar_len = u32::try_from(key.chars().count()).map_err(|_| resource_error(offset))?;
+            table.reserve_arena(usize::try_from(end).map_err(|_| resource_error(offset))?, budget, offset)?;
+            table.arena.extend_from_slice(bytes);
+            StrRef { span: Span32::new(start, len), source: SpanSource::DecodedArena, scalar_len }
+        }
+    };
+    table.slots[index] = UnknownKeySlot { hash, reference, generation: table.generation };
+    table.len += 1;
+    table.input_backed = input.is_some();
     Ok(())
+}
+
+fn unknown_key_hash(bytes: &[u8]) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325u64;
+    for &byte in bytes {
+        hash = (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash ^= hash >> 33;
+    hash = hash.wrapping_mul(0xff51_afd7_ed55_8ccd);
+    hash ^= hash >> 33;
+    hash = hash.wrapping_mul(0xc4ce_b9fe_1a85_ec53);
+    hash ^ (hash >> 33)
 }
 
 fn allocation_bytes<T>(capacity: usize, offset: u32) -> Result<u32> {

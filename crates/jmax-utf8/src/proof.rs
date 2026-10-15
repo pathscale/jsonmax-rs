@@ -27,7 +27,8 @@ use super::Payload;
 /// let proof;
 /// {
 ///     let bytes = [b'a', b'b'];
-///     proof = jmax_utf8::proof::validate(&bytes).unwrap();
+///     let Ok(validated) = jmax_utf8::proof::validate(&bytes) else { return; };
+///     proof = validated;
 /// }
 /// assert_eq!(proof.as_str(), "ab");
 /// ```

@@ -8,6 +8,7 @@ use jmax_abi::{
     node::{Container32, NodeWord},
     span::{Span32, SpanSource, StrRef},
 };
+use jmax_encode::{EncodeLimits, JsonWriter};
 
 use crate::{
     bench_error, corpus, measure, mix_digest, BenchmarkConfig,
@@ -196,11 +197,13 @@ fn emit_document(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> 
     if nodes.is_empty() || metadata.len() != nodes.len() {
         return Err(encode_error(ErrorCode::InternalError, "prepared DOM tables are inconsistent"));
     }
-    emit_node(document, 0, out)?;
-    Ok(())
+    let limits = writer_limits(out)?;
+    let mut writer = JsonWriter::new(out, limits);
+    emit_node(document, 0, &mut writer)?;
+    writer.finish().map(|_| ())
 }
 
-fn emit_node(document: &jsonmax::Document, index: usize, out: &mut Vec<u8>) -> Result<usize> {
+fn emit_node(document: &jsonmax::Document, index: usize, writer: &mut JsonWriter<'_>) -> Result<usize> {
     let node = *document.parts().nodes.get(index).ok_or_else(|| {
         encode_error(ErrorCode::InternalError, "DOM node index is outside prepared tables")
     })?;
@@ -208,9 +211,9 @@ fn emit_node(document: &jsonmax::Document, index: usize, out: &mut Vec<u8>) -> R
         encode_error(ErrorCode::InternalError, "DOM metadata index is outside prepared tables")
     })?;
     match node.kind() {
-        jmax_dom::TAG_NULL => append(out, b"null")?,
-        jmax_dom::TAG_FALSE => append(out, b"false")?,
-        jmax_dom::TAG_TRUE => append(out, b"true")?,
+        jmax_dom::TAG_NULL => writer.null()?,
+        jmax_dom::TAG_FALSE => writer.boolean(false)?,
+        jmax_dom::TAG_TRUE => writer.boolean(true)?,
         jmax_dom::TAG_NUMBER => {
             let span = *document.parts().spans.get(index).ok_or_else(|| {
                 encode_error(ErrorCode::InternalError, "number node has no span")
@@ -218,34 +221,32 @@ fn emit_node(document: &jsonmax::Document, index: usize, out: &mut Vec<u8>) -> R
             let number = span.slice(document.payload().as_slice()).ok_or_else(|| {
                 encode_error(ErrorCode::InternalError, "number span is outside payload")
             })?;
-            append(out, number)?;
+            writer.number_lexeme(number)?;
         }
         jmax_dom::TAG_STRING => {
             let text = resolve_string(document, metadata.string.ok_or_else(|| {
                 encode_error(ErrorCode::InternalError, "string node has no decoded reference")
             })?)?;
-            append_quoted(out, text.as_bytes())?;
+            writer.string(text)?;
         }
         jmax_dom::TAG_ARRAY | jmax_dom::TAG_OBJECT => {
             let container = container_for(document, node)?;
             let object = node.kind() == jmax_dom::TAG_OBJECT;
-            append(out, if object { b"{" } else { b"[" })?;
+            if object { writer.begin_object()?; } else { writer.begin_array()?; }
             let mut child = if container.child_count == 0 { None } else { Some(container.first_child as usize) };
-            for child_index in 0..container.child_count {
+            for _ in 0..container.child_count {
                 let at = child.ok_or_else(|| encode_error(ErrorCode::InternalError, "container child link ended early"))?;
-                if child_index != 0 { append(out, b",")?; }
                 let child_meta = *document.metadata().get(at).ok_or_else(|| encode_error(ErrorCode::InternalError, "child metadata is missing"))?;
                 if object {
                     let key = resolve_string(document, child_meta.key.ok_or_else(|| encode_error(ErrorCode::InternalError, "object member has no key"))?)?;
-                    append_quoted(out, key.as_bytes())?;
-                    append(out, b":")?;
+                    writer.key(key)?;
                 }
-                let end = emit_node(document, at, out)?;
+                let end = emit_node(document, at, writer)?;
                 child = document.metadata().get(at).and_then(|meta| meta.next_sibling).map(|id| id.0 as usize);
                 if end <= at { return Err(encode_error(ErrorCode::InternalError, "child subtree has invalid extent")); }
             }
             if child.is_some() { return Err(encode_error(ErrorCode::InternalError, "container has excess child links")); }
-            append(out, if object { b"}" } else { b"]" })?;
+            if object { writer.end_object()?; } else { writer.end_array()?; }
             return Ok(container.end_node as usize);
         }
         _ => return Err(encode_error(ErrorCode::InternalError, "unknown prepared DOM node kind")),
@@ -340,7 +341,10 @@ fn verify_formatted(document: &jsonmax::Document) -> Result<()> {
 
 fn emit_ref_quoted(document: &jsonmax::Document, reference: StrRef, out: &mut Vec<u8>) -> Result<()> {
     let text = resolve_string(document, reference)?;
-    append_quoted(out, text.as_bytes())
+    let limits = writer_limits(out)?;
+    let mut writer = JsonWriter::new(out, limits);
+    writer.string(text)?;
+    writer.finish().map(|_| ())
 }
 
 fn resolve_string<'a>(document: &'a jsonmax::Document, reference: StrRef) -> Result<&'a str> {
@@ -356,26 +360,19 @@ fn container_for(document: &jsonmax::Document, node: NodeWord) -> Result<Contain
         .ok_or_else(|| encode_error(ErrorCode::InternalError, "container record is missing"))
 }
 
-fn append_quoted(out: &mut Vec<u8>, bytes: &[u8]) -> Result<()> {
-    append(out, b"\"")?;
-    for &byte in bytes {
-        match byte {
-            b'"' => append(out, b"\\\"")?,
-            b'\\' => append(out, b"\\\\")?,
-            0x08 => append(out, b"\\b")?,
-            0x0c => append(out, b"\\f")?,
-            b'\n' => append(out, b"\\n")?,
-            b'\r' => append(out, b"\\r")?,
-            b'\t' => append(out, b"\\t")?,
-            0..=0x1f => {
-                const HEX: &[u8; 16] = b"0123456789abcdef";
-                append(out, b"\\u00")?;
-                append(out, &[HEX[(byte >> 4) as usize], HEX[(byte & 0x0f) as usize]])?;
-            }
-            _ => append(out, &[byte])?,
-        }
-    }
-    append(out, b"\"")
+fn writer_limits(out: &[u8]) -> Result<EncodeLimits> {
+    let max_output_bytes = MAX_OUTPUT.checked_sub(out.len())
+        .ok_or_else(|| encode_error(ErrorCode::PayloadTooLarge, "output byte limit exceeded"))?;
+    // Prepared documents have already passed the parser's resource limits.
+    // Preserve the benchmark's single cumulative output ceiling, including
+    // strings emitted as separate roots by the escape operation.
+    Ok(EncodeLimits {
+        max_output_bytes,
+        max_depth: u16::MAX,
+        max_container_items: u32::MAX,
+        max_string_bytes: u32::MAX,
+        max_number_bytes: u32::MAX,
+    })
 }
 
 fn append(out: &mut Vec<u8>, bytes: &[u8]) -> Result<()> {

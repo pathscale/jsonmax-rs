@@ -25,8 +25,14 @@ pub fn node(document: &Document, id: NodeId) -> Option<Node<'_>> {
 
 /// Returns the value kind, with both boolean tags represented as `Bool`.
 pub fn kind(node: Node<'_>) -> NodeKind {
-    NodeKind::from_tag(node.document.parts.nodes[node.id.0 as usize].kind())
-        .expect("validated DOM nodes have known tags")
+    let raw_tag = node
+        .document
+        .parts
+        .nodes
+        .get(node.id.0 as usize)
+        .map(|n| n.kind())
+        .unwrap_or(0);
+    NodeKind::from_tag(raw_tag).unwrap_or(NodeKind::Null)
 }
 
 /// Returns the complete raw value span, including quotes or delimiters.
@@ -145,13 +151,20 @@ impl<'a> Iterator for Children<'a> {
             self.next = None;
             return None;
         }
-        let id = self.next.expect("validated DOM child links cover the child count");
+        let Some(id) = self.next else {
+            self.remaining = 0;
+            return None;
+        };
         self.remaining -= 1;
         // The count bounds the walk independently of the final sibling link.
         self.next = if self.remaining == 0 {
             None
         } else {
-            self.document.parts.node_metadata[id.0 as usize].next_sibling
+            self.document
+                .parts
+                .node_metadata
+                .get(id.0 as usize)
+                .and_then(|m| m.next_sibling)
         };
         Some(Node { document: self.document, id })
     }
@@ -170,10 +183,13 @@ impl<'a> Iterator for Members<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.children.next()?;
-        let reference = value.document.parts.node_metadata[value.id.0 as usize].key
-            .expect("validated DOM object children have member keys");
-        let key = value.document.resolve_str(reference)
-            .expect("validated DOM member keys resolve in their document");
+        let reference = value
+            .document
+            .parts
+            .node_metadata
+            .get(value.id.0 as usize)?
+            .key?;
+        let key = value.document.resolve_str(reference)?;
         Some(Member { key, value })
     }
 
