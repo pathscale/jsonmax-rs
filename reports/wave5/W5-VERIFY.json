@@ -1,0 +1,175 @@
+{
+  "task_id": "W5-VERIFY",
+  "wave": 5,
+  "date": "2026-10-15",
+  "status": "ALL P0/PERF/JM FINDINGS RESOLVED",
+  "verification_basis": "source_inspection_only",
+  "acceptance_scope": "The explicit W5-VERIFY criteria and current task restrictions supersede conflicting recommendations in the original audit.",
+  "audit": "/Users/revenge/code/AUDIT-jsonmax-rs-2026-10-15.md",
+  "repository": "/Users/revenge/code/jsonmax-rs",
+  "worker_reports_reviewed": [
+    "reports/wave5/W5-01-SIMD-SYNTAX.json",
+    "reports/wave5/W5-02-DOM-ENCODE.json",
+    "reports/wave5/W5-03-SCHEMA-VM.json",
+    "reports/wave5/W5-04-FACADE-BENCH.json",
+    "reports/wave5/W5-05-WIRE-DIALECT.json"
+  ],
+  "findings": {
+    "PERF-01": {
+      "status": "resolved_in_source",
+      "evidence": [
+        "crates/jmax-syntax/src/feed.rs:270: block_at selects dispatch using total input length and classifies original slices of at most 64 bytes.",
+        "crates/jmax-syntax/src/feed.rs:75: whitespace masks use trailing_zeros; quote, escape, delimiter and digit paths also walk masks.",
+        "crates/jmax-syntax/src/lib.rs:116: complete input retains Payload; incremental input alone uses a byte vector.",
+        "crates/jmax-cursor/src/walk.rs:13: cursor and syntax share Payload owners; next and subtree skipping consume the same syntax scanner.",
+        "crates/jmax-cursor/src/resume.rs:29: finalization moves original payload and decoded storage.",
+        "crates/jmax-dispatch/Cargo.toml: std forwards to scalar, NEON, AVX2 and AVX-512 scanners."
+      ],
+      "verification_repair": "Added syntax/std to dispatch/std and cursor/std to syntax/std feature propagation.",
+      "api_note": "The concrete API is jmax_dispatch::dispatch followed by Dispatch::classify, not a free classify_block function. SIMD availability is target- and policy-dependent."
+    },
+    "PERF-02": {
+      "status": "resolved_in_source",
+      "evidence": "crates/jmax-syntax/src/frames.rs:13: per-depth generation-tagged hash/span tables use geometric growth and at most one-half load; raw or decoded bytes are compared only on matching 64-bit hashes.",
+      "complexity": "Expected amortized O(1) in object key count, plus key bytes and hash-collision comparisons. Not worst-case constant time."
+    },
+    "PERF-03": {
+      "status": "resolved_for_requested_acceptance_criteria",
+      "evidence": "crates/jsonmax/src/parse.rs:26 delegates to parse_with_numeric with no post-parse DOM pass. crates/jmax-syntax/src/feed.rs:344 lexes each completed number before emission and applies supplied conversion policy to decimal/exponent tokens.",
+      "verification_repair": "Implemented the missing numeric-aware cursor and syntax constructors instead of dropping the policy argument."
+    },
+    "PERF-04": {
+      "status": "resolved_in_source",
+      "evidence": [
+        "crates/jmax-schema-compile/src/keys.rs:415: lookup does not call table validation; SWAR has at most eight candidates and hashing has bounded probes.",
+        "crates/jmax-schema-compile/src/image.rs:864: validation constructs immutable program indexes once.",
+        "crates/jmax-schema-vm/src/objects.rs:78: lookup_index returns a global key index, converted by subtraction to the local seen-bit index.",
+        "crates/jmax-schema-vm/src/objects.rs:198: slot_for_field replaces slot scans; table_state replaces owner scans."
+      ],
+      "complexity": "Known-key and slot lookup are constant in table size, plus hashing and comparing query-key bytes. Required-field checks at object completion remain linear once per object; defensive unknown-key duplicate tracking is separate."
+    },
+    "PERF-05": {
+      "status": "resolved_in_source",
+      "evidence": "crates/jmax-encode/src/writer.rs:308 uses SIMD-capable escape discovery and bulk safe-run writes. crates/jsonmax/src/encode.rs returns trusted typed and DOM output without full-output reparsing.",
+      "qualification": "DOM number emission retains local fragment validation; trusted JsonEncode implementations must honor their JSON contract."
+    },
+    "PERF-06": {
+      "status": "resolved_for_requested_acceptance_criteria",
+      "evidence": [
+        "crates/jmax-bench/src/parse.rs:135 invokes extract_payload with the retained CompiledSchema and Selection.",
+        "Full DOM and slot digests are computed before measure; timed result consumption uses fixed-size summaries and black_box.",
+        "crates/jmax-bench/src/serialize.rs:132 computes corpus retention during preparation; each timed document emission adds sink capacity in O(1).",
+        "crates/jmax-bench/src/bin/jmax_bench.rs covers seven workloads and Parse, Validate, Extract and Serialize; output includes decimal MB/s, ns/op and messages per second."
+      ],
+      "verification_repair": "Added ns/op as total elapsed nanoseconds divided by total measured documents, with zero guards.",
+      "scope_override": "No external comparison baseline was added because this task explicitly forbids that dependency."
+    },
+    "JM-01": {
+      "status": "resolved_in_source",
+      "contracts": [
+        "jmax_dom::Document = jmax_abi::node::ValidatedDocument; jsonmax::Document re-exports the same type.",
+        "parts(&self) -> &DocumentParts",
+        "payload(&self) -> &Payload",
+        "metadata(&self) -> DocumentMetadata<'_>",
+        "proof(&self) -> ValidationProof",
+        "jmax_dom::build::parse(Payload, Limits) -> Result<Document>",
+        "jmax_dom::build::parse_with_numeric(Payload, Limits, NumericPolicy) -> Result<Document>",
+        "jsonmax::parse::parse_payload(Payload, ParseOptions) -> Result<Document>"
+      ],
+      "evidence": "ABI accessors, DOM builders, facade parsing/encoding and benchmark parse/serialize consumers use identical types. DocumentMetadata::get consumes the borrowed view and returns a document-lifetime reference, supporting temporary metadata views."
+    },
+    "JM-02": {
+      "status": "resolved_in_source",
+      "contracts": [
+        "jmax_schema_compile::compile(&ResolvedSchema, &CompilerOptions) -> Result<ValidatedProgram>",
+        "image::validate(CompiledProgram, &CompilerOptions) -> Result<ValidatedProgram>",
+        "image::decode(&[u8], &CompilerOptions) -> Result<ValidatedProgram>",
+        "image::load(impl Borrow<SchemaImage>, &CompilerOptions) -> Result<ValidatedProgram>",
+        "jsonmax::endpoint::load_schema(SchemaImage, &SchemaIr, CompileLimits) -> Result<CompiledSchema>"
+      ],
+      "evidence": "Facade compile_graph retains Arc<ValidatedProgram>. Request validation never loads an image or recompiles a schema. The facade load API recompiles source once and compares the exact retained image."
+    },
+    "JM-03": {
+      "status": "resolved_in_source",
+      "evidence": "ValidatedProgram shares complete CompiledProgram and ProgramIndexes. CompiledSchema retains the witness through Arc and exposes program() -> &ValidatedProgram. Workload has compiled_schema: jsonmax::endpoint::CompiledSchema, populated by corpus construction and borrowed by parse operations."
+    },
+    "JM-04": {
+      "status": "resolved_in_source",
+      "contracts": [
+        "input::CursorInput re-exports execute::CursorInput<'a>.",
+        "CursorInput::new(impl Into<CursorSource<'a>>, Limits, NumericPolicy) -> Result<CursorInput<'a>>",
+        "execute::validate<I: EventInput>(&ValidatedProgram, I, &Selection, VmLimits) -> Result<ValidatedSlots>"
+      ],
+      "evidence": "crates/jsonmax/src/endpoint.rs:337 passes program, an owned Payload-based adapter, selection, then VmLimits, exactly matching the callee. VM execution obtains decoded bytes after each event, permits append-only arena reallocation, validates final owners, and publishes after strict EOF."
+    },
+    "JM-05": {
+      "status": "resolved_in_source",
+      "evidence": "Facade manifest includes jmax-schema-ir. Benchmark manifest includes jmax-dom, jmax-dispatch and jmax-schema-ir. The std-gated binary target is jmax_bench at src/bin/jmax_bench.rs."
+    },
+    "JM-06": {
+      "status": "resolved_in_source",
+      "evidence": "crates/jmax-bench/src/serialize.rs:175 calls an associated function without a mutable receiver, borrowing documents[index] immutably and sink mutably as disjoint fields."
+    },
+    "JM-07": {
+      "status": "resolved_in_source",
+      "evidence": "crates/jmax-utf8/src/validate.rs uses simdutf8::compat::from_utf8. The local optional dependency's Cargo manifest declares library name simdutf8. Both feature branches preserve UTF-8 error offsets."
+    },
+    "protocol_dialect_bridge": {
+      "status": "resolved_in_source",
+      "reference": "/Users/revenge/code/endpoint-libs/src/libs/ws/basics.rs",
+      "evidence": [
+        "Requests accept numeric u32 method IDs and normalize them for dispatch, including untagged method/seq/params requests.",
+        "Immediate supports method, seq and params; aliases data/result remain accepted.",
+        "Stream supports original_seq, method, stream_seq, stream_code and data with independent method and topic identifiers.",
+        "Error supports u32 status code, numeric method, seq, string log_id and arbitrary params; the signed legacy decoder extension remains accepted.",
+        "EndpointLibsResponse and responses::encode_endpoint_libs expose exact fields for all six canonical response variants.",
+        "OwnedEnvelope exposes method_code(), stream_seq() and stream_code(); view.seq normalizes original_seq and view.result_span normalizes data or Immediate params.",
+        "dispatch::resolve_route_with_role_ids and RequestContext accept u32 roles; ABI string metadata can contain decimal role IDs.",
+        "Presence masks are now u32 for all 18 envelope fields."
+      ]
+    },
+    "house_rule_cleanup": {
+      "status": "resolved_in_source",
+      "evidence": "Source searches over crate Rust files and manifests returned no prohibited inline test attributes, stubs, runtime/thread imports, comparison dependency or em-dash characters."
+    }
+  },
+  "integration_mismatches_fixed": [
+    "DOM parse_with_numeric and facade validate_syntax called a nonexistent cursor constructor; added the exact four-argument API and propagated policy into syntax scanning.",
+    "Standalone syntax/cursor std features did not activate runtime SIMD dispatch; completed the feature chain.",
+    "Wire presence masks used 16 bits for 18 fields; widened masks and shifts to u32.",
+    "Tagged response decoder and encoder disagreed with the local endpoint-libs fields; aligned Immediate, Stream, Error, Log, Forwarded and Close and added an exact canonical response API.",
+    "Tagged error code decoding treated status as endpoint ID; separated method routing from u32 status validation and retained the signed extension.",
+    "CLI lacked the audit's ns/op metric; added it without executing the binary."
+  ],
+  "files_changed": [
+    "crates/jmax-cursor/Cargo.toml",
+    "crates/jmax-cursor/src/walk.rs",
+    "crates/jmax-syntax/Cargo.toml",
+    "crates/jmax-syntax/src/lib.rs",
+    "crates/jmax-syntax/src/feed.rs",
+    "crates/jmax-wire/src/lib.rs",
+    "crates/jmax-wire/src/envelope.rs",
+    "crates/jmax-wire/src/responses.rs",
+    "crates/jmax-bench/src/bin/jmax_bench.rs",
+    "/Users/revenge/code/AUDIT-jsonmax-rs-2026-10-15.md",
+    "reports/wave5/W5-VERIFY.json"
+  ],
+  "qualifications": [
+    "No compilation, execution, benchmark result or measured speedup is claimed.",
+    "The number crate's lexer remains scalar and float conversion delegates to core decimal parsing. An Eisel-Lemire or SWAR numeric implementation is not claimed; the requested redundant DOM number scan is removed.",
+    "The original external comparison-baseline recommendation is superseded by this task's explicit dependency prohibition.",
+    "NumberArray and Nested use empty strict selections under the current object-property slot model, while validating the full document.",
+    "Existing native Response lacks separate method/topic IDs and log IDs. Its dialect conversion reuses the code for both stream identifiers and supplies empty/zero log IDs. EndpointLibsResponse preserves exact distinct values. Missing required native identifiers and out-of-range u32 conversions fail before emission.",
+    "Known-key schema lookup is bounded; defensive unknown-key duplicate tracking remains separate from indexed schema lookup."
+  ],
+  "execution": {
+    "build_commands_run": false,
+    "compiler_commands_run": false,
+    "check_commands_run": false,
+    "formatter_commands_run": false,
+    "tests_run": false,
+    "benchmarks_run": false,
+    "commits_created": false,
+    "subagents_spawned": false
+  }
+}

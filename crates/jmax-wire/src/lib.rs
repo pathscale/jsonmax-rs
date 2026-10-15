@@ -49,6 +49,8 @@ pub struct OwnedEnvelope {
     pub(crate) decoded: Box<[u8]>,
     pub(crate) view: WireEnvelopeView,
     pub(crate) method_code: Option<u32>,
+    pub(crate) stream_seq: Option<u64>,
+    pub(crate) stream_code: Option<u32>,
 }
 
 impl OwnedEnvelope {
@@ -57,6 +59,9 @@ impl OwnedEnvelope {
     pub fn view(&self) -> WireEnvelopeView { self.view }
     /// Numeric endpoint method identifier from the endpoint-libs dialect.
     pub fn method_code(&self) -> Option<u32> { self.method_code }
+    /// Stream sequence and topic code stay separate from the request method.
+    pub fn stream_seq(&self) -> Option<u64> { self.stream_seq }
+    pub fn stream_code(&self) -> Option<u32> { self.stream_code }
     pub fn resolve(&self, span: Span32) -> Option<&[u8]> { span.slice(self.payload.as_slice()) }
     pub fn method(&self) -> Option<&str> {
         let reference = self.view.method?;
@@ -135,6 +140,18 @@ pub enum Response<'a> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResponseDialect { Native, EndpointLibs }
+
+/// Exact endpoint-libs response fields, including independent stream IDs.
+pub enum EndpointLibsResponse<'a> {
+    Immediate { method: u32, seq: u32, params: &'a dyn JsonEncode },
+    Stream { original_seq: u32, method: u32, stream_seq: u32,
+        stream_code: u32, data: &'a dyn JsonEncode },
+    Error { method: u32, code: u32, seq: u32, log_id: &'a str,
+        params: &'a dyn JsonEncode },
+    Log { seq: u32, log_id: u64, level: &'a str, message: &'a str },
+    Forwarded { method: u32, seq: u32 },
+    Close,
+}
 
 /// Fallible, bounded output shared with protocol adapters.
 #[derive(Clone, Debug)]

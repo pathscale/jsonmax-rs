@@ -96,56 +96,111 @@ pub fn encode_response_dialect(
 }
 
 fn encode_endpoint_libs_response(response: &Response<'_>, sink: &mut dyn ByteSink) -> Result<()> {
+    // The native response has no topic/method distinction or log ID. Callers
+    // needing those fields use EndpointLibsResponse directly. Numeric narrowing
+    // and missing identifiers fail before writing any envelope bytes.
+    let sequence = |value: u64| u32::try_from(value).map_err(|_| wire_error(
+        ErrorCode::NumberOverflow, "endpoint-libs sequence exceeds u32"));
+    let required = |value: Option<u64>| value.ok_or_else(|| wire_error(
+        ErrorCode::MissingRequiredField, "endpoint-libs response sequence is absent"));
     match response {
-        Response::Immediate { seq, result, .. } => {
-            sink.write_bytes(b"{\"type\":\"Immediate\",\"seq\":")?;
-            write_u64(*seq, sink)?;
-            sink.write_bytes(b",\"data\":")?;
-            result.encode_json(sink)?;
+        Response::Immediate { seq, code, result } => encode_endpoint_libs(
+            &EndpointLibsResponse::Immediate { method: *code, seq: sequence(*seq)?, params: *result }, sink),
+        Response::Stream { seq, code, index, result } => encode_endpoint_libs(
+            &EndpointLibsResponse::Stream { original_seq: sequence(*seq)?, method: *code,
+                stream_seq: sequence(*index)?, stream_code: *code, data: *result }, sink),
+        Response::Error { seq, code, error } => {
+            let method = code.ok_or_else(|| wire_error(ErrorCode::MissingRequiredField,
+                "endpoint-libs error method is absent"))?;
+            let status = u32::try_from(error.code).map_err(|_| wire_error(
+                ErrorCode::NumberOverflow, "endpoint-libs error code must fit u32"))?;
+            encode_endpoint_libs(&EndpointLibsResponse::Error { method, code: status,
+                seq: sequence(required(*seq)?)?, log_id: "", params: error }, sink)
         }
-        Response::Stream { seq, code, index, result } => {
+        Response::Log { seq, level, message } => encode_endpoint_libs(
+            &EndpointLibsResponse::Log { seq: sequence(required(*seq)?)?, log_id: 0,
+                level, message }, sink),
+        Response::Forwarded { seq, code, .. } => encode_endpoint_libs(
+            &EndpointLibsResponse::Forwarded { method: *code, seq: sequence(*seq)? }, sink),
+        Response::Close { .. } => encode_endpoint_libs(&EndpointLibsResponse::Close, sink),
+    }
+}
+
+/// Writes the canonical endpoint-libs tagged response with its exact fields.
+pub fn encode_endpoint_libs(response: &EndpointLibsResponse<'_>, sink: &mut dyn ByteSink) -> Result<()> {
+    if let EndpointLibsResponse::Log { level, .. } = response {
+        if !matches!(*level, "off" | "trace" | "debug" | "info" | "warn" | "error" | "detail") {
+            return Err(wire_error(ErrorCode::ConstraintViolation, "unknown log level"));
+        }
+    }
+    match response {
+        EndpointLibsResponse::Immediate { method, seq, params } => {
+            sink.write_bytes(b"{\"type\":\"Immediate\"")?;
+            write_method_seq(*method, *seq, sink)?;
+            sink.write_bytes(b",\"params\":")?;
+            params.encode_json(sink)?;
+        }
+        EndpointLibsResponse::Stream { original_seq, method, stream_seq, stream_code, data } => {
             sink.write_bytes(b"{\"type\":\"Stream\",\"original_seq\":")?;
-            write_u64(*seq, sink)?;
+            write_u64(u64::from(*original_seq), sink)?;
+            sink.write_bytes(b",\"method\":")?;
+            write_u64(u64::from(*method), sink)?;
             sink.write_bytes(b",\"stream_seq\":")?;
-            write_u64(*index, sink)?;
+            write_u64(u64::from(*stream_seq), sink)?;
             sink.write_bytes(b",\"stream_code\":")?;
-            write_u64(u64::from(*code), sink)?;
+            write_u64(u64::from(*stream_code), sink)?;
             sink.write_bytes(b",\"data\":")?;
-            result.encode_json(sink)?;
+            data.encode_json(sink)?;
         }
-        Response::Error { seq, error, .. } => {
+        EndpointLibsResponse::Error { method, code, seq, log_id, params } => {
             sink.write_bytes(b"{\"type\":\"Error\"")?;
-            write_optional_seq(*seq, sink)?;
+            write_method_seq(*method, *seq, sink)?;
             sink.write_bytes(b",\"code\":")?;
-            if error.code < 0 { sink.write_byte(b'-')?; }
-            write_u64(u64::from(error.code.unsigned_abs()), sink)?;
-            sink.write_bytes(b",\"message\":")?;
-            write_json_string(error.message, sink)?;
+            write_u64(u64::from(*code), sink)?;
+            sink.write_bytes(b",\"log_id\":")?;
+            write_json_string(log_id, sink)?;
+            sink.write_bytes(b",\"params\":")?;
+            params.encode_json(sink)?;
         }
-        Response::Log { seq, level, message } => {
-            sink.write_bytes(b"{\"type\":\"Log\"")?;
-            write_optional_seq(*seq, sink)?;
+        EndpointLibsResponse::Log { seq, log_id, level, message } => {
+            sink.write_bytes(b"{\"type\":\"Log\",\"seq\":")?;
+            write_u64(u64::from(*seq), sink)?;
+            sink.write_bytes(b",\"log_id\":")?;
+            write_u64(*log_id, sink)?;
             sink.write_bytes(b",\"level\":")?;
             write_json_string(level, sink)?;
             sink.write_bytes(b",\"message\":")?;
             write_json_string(message, sink)?;
         }
-        Response::Forwarded { seq, code, target } => {
-            sink.write_bytes(b"{\"type\":\"Forwarded\",\"seq\":")?;
-            write_u64(*seq, sink)?;
-            sink.write_bytes(b",\"code\":")?;
-            write_u64(u64::from(*code), sink)?;
-            sink.write_bytes(b",\"target\":")?;
-            write_json_string(target, sink)?;
+        EndpointLibsResponse::Forwarded { method, seq } => {
+            sink.write_bytes(b"{\"type\":\"Forwarded\"")?;
+            write_method_seq(*method, *seq, sink)?;
         }
-        Response::Close { seq, reason } => {
-            sink.write_bytes(b"{\"type\":\"Close\"")?;
-            write_optional_seq(*seq, sink)?;
-            sink.write_bytes(b",\"reason\":")?;
-            write_json_string(reason, sink)?;
-        }
+        EndpointLibsResponse::Close => sink.write_bytes(b"{\"type\":\"Close\"")?,
     }
     sink.write_byte(b'}')
+}
+
+fn write_method_seq(method: u32, seq: u32, sink: &mut dyn ByteSink) -> Result<()> {
+    sink.write_bytes(b",\"method\":")?;
+    write_u64(u64::from(method), sink)?;
+    write_optional_seq(Some(u64::from(seq)), sink)
+}
+
+impl JsonEncode for RpcError<'_> {
+    fn encode_json(&self, sink: &mut dyn ByteSink) -> Result<()> {
+        sink.write_bytes(b"{\"message\":")?;
+        write_json_string(self.message, sink)?;
+        sink.write_bytes(b",\"retryable\":")?;
+        sink.write_bytes(if self.retryable { b"true" } else { b"false" })?;
+        sink.write_byte(b'}')
+    }
+}
+
+impl JsonEncode for EndpointLibsResponse<'_> {
+    fn encode_json(&self, sink: &mut dyn ByteSink) -> Result<()> {
+        encode_endpoint_libs(self, sink)
+    }
 }
 
 /// Encodes into an owned, bounded payload, returning no partial result on error.

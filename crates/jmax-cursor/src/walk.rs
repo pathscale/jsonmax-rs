@@ -16,6 +16,17 @@ pub fn from_payload(payload: Payload, limits: Limits, mode: SkipMode) -> Result<
     Ok(Cursor { syntax, payload: Some(payload), mode, current: None, skipping: None })
 }
 
+/// Retains complete input and checks numeric policy during token scanning.
+pub fn from_payload_with_numeric(
+    payload: Payload,
+    limits: Limits,
+    mode: SkipMode,
+    numeric: jmax_abi::number::NumericPolicy,
+) -> Result<Cursor> {
+    let syntax = SyntaxState::from_payload_with_numeric(payload.clone(), limits, numeric)?;
+    Ok(Cursor { syntax, payload: Some(payload), mode, current: None, skipping: None })
+}
+
 /// Copies a chunk into retained input without advancing the event stream.
 ///
 /// Empty chunks are permitted before EOF. All pushes after EOF, including empty

@@ -90,8 +90,8 @@ fn run() -> Result<(), String> {
         }
         writeln!(output, "Extract uses empty selections for NumberArray and Nested; full validation still runs.")?;
         writeln!(output)?;
-        writeln!(output, "| Workload       | Mode      | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | Msg/sec |")?;
-        writeln!(output, "|----------------|-----------|--------------:|---------:|------------:|---------:|------------------:|--------:|")?;
+        writeln!(output, "| Workload       | Mode      | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | ns/op | Msg/sec |")?;
+        writeln!(output, "|----------------|-----------|--------------:|---------:|------------:|---------:|------------------:|------:|--------:|")?;
         for (name, _, mode, payload_bytes, summary) in &reports {
             write_row(&mut output, name, *mode, *payload_bytes, summary)?;
         }
@@ -112,14 +112,15 @@ fn write_row(
     summary: &Summary,
 ) -> io::Result<()> {
     // A clock with insufficient resolution must not yield infinite rates.
-    let (throughput, messages) = if summary.elapsed_ns == 0 {
-        (String::from("n/a"), String::from("n/a"))
+    let (throughput, ns_per_op, messages) = if summary.elapsed_ns == 0 || summary.documents == 0 {
+        (String::from("n/a"), String::from("n/a"), String::from("n/a"))
     } else {
         let elapsed = summary.elapsed_ns as f64;
         (format!("{:.2}", summary.input_bytes as f64 * 1_000.0 / elapsed),
+            format!("{:.2}", elapsed / summary.documents as f64),
             format!("{:.0}", summary.documents as f64 * 1_000_000_000.0 / elapsed))
     };
-    writeln!(output, "| {name:<14} | {:<9} | {payload_bytes:>13} | {:>8} | {:>11} | {:>8} | {throughput:>17} | {messages:>7} |",
+    writeln!(output, "| {name:<14} | {:<9} | {payload_bytes:>13} | {:>8} | {:>11} | {:>8} | {throughput:>17} | {ns_per_op:>5} | {messages:>7} |",
         mode_name(mode), summary.min_ns, summary.median_ns, summary.p95_ns)
 }
 

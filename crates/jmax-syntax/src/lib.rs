@@ -115,6 +115,7 @@ impl Frame {
 #[derive(Debug)]
 pub struct SyntaxState {
     pub(crate) limits: Limits,
+    pub(crate) numeric: Option<jmax_abi::number::NumericPolicy>,
     pub(crate) input: InputStorage,
     pub(crate) decoded: Vec<u8>,
     pub(crate) frames: Vec<Frame>,
@@ -133,7 +134,7 @@ pub struct SyntaxState {
 
 impl SyntaxState {
     pub fn new(limits: Limits) -> Self {
-        Self { limits, input: InputStorage::Incremental(Vec::new()),
+        Self { limits, numeric: None, input: InputStorage::Incremental(Vec::new()),
             decoded: Vec::new(), frames: Vec::new(),
             root_phase: FramePhase::RootStart, byte_offset: 0, final_input: false,
             finished: false, failure: None, pending: None, key_tables: Vec::new(),
@@ -148,6 +149,21 @@ impl SyntaxState {
         let mut state = Self::new(limits);
         state.input = InputStorage::Complete(payload);
         state.final_input = true;
+        Ok(state)
+    }
+
+    /// Retains complete input and enforces conversion policy as numbers arrive.
+    pub fn from_payload_with_numeric(
+        payload: Payload,
+        limits: Limits,
+        numeric: jmax_abi::number::NumericPolicy,
+    ) -> Result<Self> {
+        if numeric.max_exponent_abs < 0 {
+            return Err(syntax_error(ErrorCode::ConstraintViolation, 0,
+                "numeric exponent limit cannot be negative"));
+        }
+        let mut state = Self::from_payload(payload, limits)?;
+        state.numeric = Some(numeric);
         Ok(state)
     }
     pub const fn limits(&self) -> Limits { self.limits }

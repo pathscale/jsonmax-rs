@@ -342,23 +342,27 @@ fn complete_atom(state: &SyntaxState, carry: PendingToken, end: u32) -> Result<T
 }
 
 fn validate_number(state: &SyntaxState, carry: PendingToken, end: u32, at_eof: bool) -> Result<()> {
-    // Syntax establishes grammar, not conversion policy. Negative zero and
-    // arbitrarily large valid exponents remain legal JSON. The number lexer
-    // checks the complete grammar before its sole enabled policy constraint,
-    // the i16 exponent ceiling. That policy-only error is safe to discard here.
-    let policy = jmax_number::NumericPolicy {
+    // Ordinary syntax accepts all grammatical numbers. Facade parsing supplies
+    // a policy and applies it here, before publishing the numeric event.
+    let policy = state.numeric.unwrap_or(jmax_number::NumericPolicy {
         allow_Quoted_int: false,
         reject_non_finite_float: false,
         reject_negative_zero: false,
         max_exponent_abs: i16::MAX,
-    };
+    });
     // Bound the lexer's view to the discovered token so punctuation cannot be
     // consumed as part of it. Offsets remain absolute in the original owner.
     let result = jmax_number::lex::lex_number(&state.input[..end as usize], carry.start, &policy);
     let error = match result {
-        Ok(number) if number.span() == Span32::new(carry.start, end - carry.start) => None,
+        Ok(number) if number.span() == Span32::new(carry.start, end - carry.start) => {
+            if state.numeric.is_some()
+                && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal
+            {
+                jmax_number::float::parse_f64(&number, &policy).err()
+            } else { None }
+        }
         Ok(_) => Some(internal(carry.start)),
-        Err(error) if error.code == ErrorCode::ConstraintViolation
+        Err(error) if state.numeric.is_none() && error.code == ErrorCode::ConstraintViolation
             && error.source == ErrorSource::Lexer
             && error.detail == "explicit exponent exceeds the policy limit" => None,
         Err(mut error) => {

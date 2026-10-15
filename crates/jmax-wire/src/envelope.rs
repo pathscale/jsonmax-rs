@@ -68,7 +68,7 @@ pub fn decode_envelope(payload: Payload, limits: EnvelopeLimits) -> Result<Owned
             error.valid_up_to() as u32, "payload is not UTF-8"));
     }
 
-    let (view, method_code, decoded) = {
+    let (view, method_code, stream_seq, stream_code, decoded) = {
         let mut parser = Parser { bytes: payload.as_slice(), position: 0,
             decoded: Vec::new(), limits };
         let record = parser.record(0, &ENVELOPE_KEYS, Some(ERROR))?;
@@ -78,9 +78,13 @@ pub fn decode_envelope(payload: Payload, limits: EnvelopeLimits) -> Result<Owned
                 "content follows the envelope"));
         }
         let (view, method_code) = parser.envelope_view(&record)?;
-        (view, method_code, parser.decoded.into_boxed_slice())
+        let stream_seq = record.optional(STREAM_SEQ)
+            .map(|value| parser.unsigned(value, u64::from(u32::MAX))).transpose()?;
+        let stream_code = record.optional(STREAM_CODE)
+            .map(|value| parser.unsigned(value, u64::from(u32::MAX)).map(|code| code as u32)).transpose()?;
+        (view, method_code, stream_seq, stream_code, parser.decoded.into_boxed_slice())
     };
-    Ok(OwnedEnvelope { payload, decoded, view, method_code })
+    Ok(OwnedEnvelope { payload, decoded, view, method_code, stream_seq, stream_code })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -312,22 +316,23 @@ impl Parser<'_> {
             b"close" => (EnvelopeKind::EndpointClose,
                 bits(&[REASON]), bits(&[KIND, TYPE, REASON, SEQ])),
             b"Immediate" => (EnvelopeKind::EndpointImmediate,
-                0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, DATA, RESULT, LOG_ID])),
+                0, bits(&[TYPE, METHOD, SEQ, ORIGINAL_SEQ, PARAMS, DATA, RESULT, LOG_ID])),
             b"Stream" => (EnvelopeKind::EndpointStream,
                 bits(&[ORIGINAL_SEQ, STREAM_SEQ, STREAM_CODE, DATA]),
-                bits(&[TYPE, ORIGINAL_SEQ, STREAM_SEQ, STREAM_CODE, DATA])),
+                bits(&[TYPE, METHOD, ORIGINAL_SEQ, STREAM_SEQ, STREAM_CODE, DATA])),
             b"Error" => (EnvelopeKind::EndpointError,
-                bits(&[CODE]), bits(&[TYPE, SEQ, ORIGINAL_SEQ, CODE, MESSAGE, ERROR, LOG_ID])),
+                bits(&[CODE]), bits(&[TYPE, METHOD, SEQ, ORIGINAL_SEQ, CODE, PARAMS, MESSAGE, ERROR, LOG_ID])),
             b"Log" => (EnvelopeKind::EndpointLog,
                 0, bits(&[TYPE, SEQ, MESSAGE, LEVEL, LOG_ID])),
             b"Forwarded" => (EnvelopeKind::EndpointForwarded,
-                0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, CODE, TARGET, DATA, LOG_ID])),
+                0, bits(&[TYPE, METHOD, SEQ, ORIGINAL_SEQ, CODE, TARGET, DATA, LOG_ID])),
             b"Close" => (EnvelopeKind::EndpointClose,
                 0, bits(&[TYPE, SEQ, ORIGINAL_SEQ, REASON, LOG_ID])),
             _ => return Err(local_error(ErrorCode::InvalidToken, kind_value.map_or(record.span.offset, |value| value.span.offset),
                 "unknown endpoint envelope kind")),
         }};
         if kind == EnvelopeKind::EndpointImmediate && tagged
+            && record.optional(PARAMS).is_none()
             && record.optional(DATA).is_none() && record.optional(RESULT).is_none() {
             return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
                 "tagged immediate response data is absent"));
@@ -338,6 +343,7 @@ impl Parser<'_> {
                 "tagged immediate response sequence is absent"));
         }
         if kind == EnvelopeKind::EndpointError && tagged
+            && record.optional(PARAMS).is_none()
             && record.optional(MESSAGE).is_none() && record.optional(ERROR).is_none() {
             return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
                 "tagged error message is absent"));
@@ -348,30 +354,45 @@ impl Parser<'_> {
         }
         for (index, member) in record.members.iter().enumerate() {
             if let Some(member) = member {
-                if allowed & (1u16 << index) == 0 {
+                if allowed & (1u32 << index) == 0 {
                     return Err(local_error(ErrorCode::UnknownObjectKey, member.key_offset,
                         "field is not allowed for this envelope kind"));
                 }
-            } else if required & (1u16 << index) != 0 {
+            } else if required & (1u32 << index) != 0 {
                 return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
                     "required envelope field is absent"));
             }
         }
         let seq_value = record.optional(SEQ).or_else(|| record.optional(ORIGINAL_SEQ));
-        let seq = seq_value.map(|value| self.unsigned(value, u64::MAX)).transpose()?;
+        let numeric_request = kind == EnvelopeKind::EndpointRequest
+            && record.optional(METHOD).is_some_and(|value| value.kind == ValueKind::Number);
+        let sequence_max = if tagged || numeric_request { u64::from(u32::MAX) } else { u64::MAX };
+        let seq = seq_value.map(|value| self.unsigned(value, sequence_max)).transpose()?;
         let code_value = record.optional(CODE).or_else(|| record.optional(STREAM_CODE));
-        let code = code_value.map(|value|
-            self.unsigned(value, u64::from(u32::MAX)).map(|number| number as u32)).transpose()?;
+        let code = if kind == EnvelopeKind::EndpointError && tagged {
+            // Tagged status codes are distinct from method IDs. Accept the
+            // endpoint-libs u32 domain and the signed native error extension.
+            if let Some(value) = code_value {
+                if value.span.slice(self.bytes).and_then(|raw| raw.first()) == Some(&b'-') {
+                    self.signed_code(value)?;
+                } else { self.unsigned(value, u64::from(u32::MAX))?; }
+            }
+            None
+        } else {
+            code_value.map(|value|
+                self.unsigned(value, u64::from(u32::MAX)).map(|number| number as u32)).transpose()?
+        };
         let (method, method_code) = if let Some(value) = record.optional(METHOD) {
             match value.kind {
-                ValueKind::String => (Some(self.expect_string(value)?), None),
+                ValueKind::String if !tagged => (Some(self.expect_string(value)?), None),
                 ValueKind::Number => (None, Some(self.unsigned(value, u64::from(u32::MAX))? as u32)),
                 _ => return Err(local_error(ErrorCode::TypeMismatch, value.span.offset,
                     "method must be a string or unsigned 32-bit integer")),
             }
         } else { (None, None) };
-        let code = code.or(method_code);
-        if let (Some(explicit_code), Some(method_code)) = (record.optional(CODE), method_code) {
+        let code = if tagged { method_code.or(code) } else { code.or(method_code) };
+        if let (Some(explicit_code), Some(method_code)) =
+            (record.optional(CODE).filter(|_| kind == EnvelopeKind::EndpointRequest), method_code) {
             if self.unsigned(explicit_code, u64::from(u32::MAX))? != u64::from(method_code) {
                 return Err(local_error(ErrorCode::ConstraintViolation, explicit_code.span.offset,
                     "numeric method disagrees with request code"));
@@ -381,22 +402,27 @@ impl Parser<'_> {
             return Err(local_error(ErrorCode::MissingRequiredField, record.span.offset,
                 "request method is absent"));
         }
-        if let Some(params) = record.optional(PARAMS) {
+        if let Some(params) = record.optional(PARAMS).filter(|_| kind == EnvelopeKind::EndpointRequest) {
             if params.kind != ValueKind::Object {
                 return Err(local_error(ErrorCode::TypeMismatch, params.span.offset,
                     "request params must be an object"));
             }
         }
         let index_value = record.optional(INDEX).or_else(|| record.optional(STREAM_SEQ));
-        if let Some(index) = index_value { self.unsigned(index, u64::MAX)?; }
+        if let Some(index) = index_value { self.unsigned(index, sequence_max)?; }
         if let Some(level) = record.optional(LEVEL) {
-            if !matches!(self.text(level)?, b"trace" | b"debug" | b"info" | b"warn" | b"error") {
+            let text = self.text(level)?;
+            if !matches!(text, b"trace" | b"debug" | b"info" | b"warn" | b"error")
+                && !(tagged && matches!(text, b"off" | b"detail")) {
                 return Err(local_error(ErrorCode::ConstraintViolation, level.span.offset,
                     "unknown log level"));
             }
         }
         if let Some(message) = record.optional(MESSAGE) { self.expect_string(message)?; }
-        if let Some(log_id) = record.optional(LOG_ID) { self.unsigned(log_id, u64::MAX)?; }
+        if let Some(log_id) = record.optional(LOG_ID) {
+            if tagged && kind == EnvelopeKind::EndpointError { self.expect_string(log_id)?; }
+            else { self.unsigned(log_id, u64::MAX)?; }
+        }
         if let Some(target) = record.optional(TARGET) {
             if self.text(target)?.is_empty() {
                 return Err(local_error(ErrorCode::ConstraintViolation, target.span.offset,
@@ -404,7 +430,8 @@ impl Parser<'_> {
             }
         }
         if let Some(reason) = record.optional(REASON) { self.expect_string(reason)?; }
-        let result = record.optional(RESULT).or_else(|| record.optional(DATA));
+        let result = record.optional(RESULT).or_else(|| record.optional(DATA))
+            .or_else(|| record.optional(PARAMS).filter(|_| kind == EnvelopeKind::EndpointImmediate));
         let error_span = if kind == EnvelopeKind::EndpointError {
             if let Some(error) = record.optional(ERROR) {
                 if error.kind != ValueKind::Object {
@@ -414,7 +441,7 @@ impl Parser<'_> {
             } else if let Some(message) = record.optional(MESSAGE) {
                 self.expect_string(message)?;
                 Some(message.span)
-            } else { None }
+            } else { record.optional(PARAMS).map(|value| value.span) }
         } else { record.optional(ERROR).map(|value| value.span) };
         Ok((WireEnvelopeView { kind, method, seq, code,
             params_span: record.optional(PARAMS).map(|value| value.span),
@@ -777,8 +804,8 @@ impl Parser<'_> {
     }
 }
 
-fn bits(fields: &[usize]) -> u16 {
-    fields.iter().fold(0, |mask, index| mask | (1u16 << *index))
+fn bits(fields: &[usize]) -> u32 {
+    fields.iter().fold(0, |mask, index| mask | (1u32 << *index))
 }
 
 fn reserve_entry<T>(entries: &mut Vec<T>, ceiling: usize, offset: u32,
