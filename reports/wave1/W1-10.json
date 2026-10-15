@@ -1,0 +1,65 @@
+{
+  "worker_id": "W1-10",
+  "wave": 1,
+  "crate": "jmax-number",
+  "file": "crates/jmax-number/src/lex.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn lex_number<'a>(input: &'a [u8], offset: u32, policy: &NumericPolicy) -> Result<NumberToken<'a>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "coverage": "Accepted integer, fraction, exponent, and quoted-integer spellings",
+      "assertions": "Exact raw bytes and borrowing pointer, full source span, kind, sign, integer and fraction digit counts, explicit exponent, and quoted status"
+    },
+    {
+      "coverage": "Integer magnitudes at and beyond u64 and i64 limits",
+      "assertions": "Lexical acceptance without imposing converter magnitude limits"
+    },
+    {
+      "coverage": "Malformed grammar and incomplete required components",
+      "assertions": "Leading plus and zeros, absent digits, hexadecimal and binary forms, underscores, whitespace inside required components, NaN, Infinity, invalid suffixes, controls, and non-ASCII bytes produce InvalidNumber at the first offending byte or EOF"
+    },
+    {
+      "coverage": "All 256 byte values after a complete exponent and a quoted integer",
+      "assertions": "Only space, tab, CR, LF, comma, right bracket, and right brace delimit tokens; appended exponent digits extend the unquoted spelling"
+    },
+    {
+      "coverage": "Quoted integer permission and grammar",
+      "assertions": "Reject disabled quotes, fractions, exponents, escapes, internal whitespace, malformed digits, and invalid post-quote boundaries; distinguish missing digits from a missing closing quote"
+    },
+    {
+      "coverage": "Nonzero start offsets and source provenance",
+      "assertions": "Absolute spans and error offsets, quoted wrappers included in spans but excluded from raw bytes, exact-offset scanning, no inspection after a valid delimiter, and unchanged input and caller policy"
+    },
+    {
+      "coverage": "EOF and invalid policy precedence",
+      "assertions": "Empty input and offsets at EOF, beyond EOF, and u32::MAX; negative exponent limits including i16::MIN reject at the requested token start before EOF or grammar validation"
+    },
+    {
+      "coverage": "Exponent policy limits and overflow resistance",
+      "assertions": "Inclusive positive and negative bounds at 308 and 32767, rejection immediately beyond bounds, leading zeros, exponent magnitudes beyond i32 and u32, and errors at the first exponent digit"
+    },
+    {
+      "coverage": "Zero exponent limit and long inputs",
+      "assertions": "8192-byte exponent spellings preserve arbitrarily many leading zeros; 8192-digit integers and 8189-digit fractions have exact counts without a fixed digit cap"
+    },
+    {
+      "coverage": "Negative zero and value-policy precedence",
+      "assertions": "Integer and fraction digits determine zero independently of the explicit exponent; errors point to the minus sign including inside quotes; grammar and boundary errors precede value constraints"
+    },
+    {
+      "coverage": "Separation from floating conversion",
+      "assertions": "The non-finite conversion flag does not change lexical acceptance of valid large decimal spellings"
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "manual source review against the frozen contract and canonical ABI",
+    "execution": "not executed; build, check, formatter, compiler, test, and commit commands were prohibited",
+    "scope": "Only the assigned lex.rs and this handoff report were written",
+    "safety": "Safe no_std code with no allocation, external dependencies, input copies, or unsafe blocks; cursor and narrowing bounds follow the initial whole-input length validation",
+    "coverage_limitations": "The input length above u32::MAX path delegates to the frozen checked_input_len helper; no multi-gigabyte test allocation was introduced"
+  }
+}

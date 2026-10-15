@@ -1,0 +1,44 @@
+{
+  "worker_id": "W1-08",
+  "wave": 1,
+  "crate": "jmax-utf8",
+  "file": "crates/jmax-utf8/src/validate.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn validate(bytes: &[u8]) -> Result<Utf8Summary>",
+      "behavior": "Validates the complete slice, counts exact bytes and Unicode scalars, and identifies ASCII-only input. Empty input returns the default summary. No allocation or normalization occurs."
+    },
+    {
+      "signature": "pub fn validate_str(bytes: &[u8]) -> Result<&str>",
+      "behavior": "Checks the ABI length limit before backend validation and returns the exact immutable input borrow. Uses the existing optional ps_simdutf8::compat::from_utf8 facade under simd-utf8 and core::str::from_utf8 otherwise. Maps malformed and truncated sequences to canonical InvalidUtf8 errors at valid_up_to(), with Utf8 source and default schema and field identifiers."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Empty input, all 128 ASCII byte values, NUL, controls, JSON punctuation, and DEL.",
+    "Explicit scalar boundaries: U+0000, U+007F, U+0080, U+07FF, U+0800, U+D7FF, U+E000, U+FDD0, U+FFFE, U+FFFF, U+10000, and U+10FFFF.",
+    "Mixed scalar widths, combining characters, an emoji ZWJ sequence, preserved BOMs, U+FFFD, and literal JSON escape bytes.",
+    "Exact pointer and lifetime preservation for borrowed subslices, including empty subslices and invalid surrounding bytes.",
+    "Every non-ASCII single byte, isolated continuation bytes, forbidden leaders, overlong encodings, surrogate halves and pairs, five- and six-byte forms, and values above U+10FFFF.",
+    "Invalid continuation substitutions at every continuation position, malformed short prefixes, and every incomplete prefix of representative valid multibyte encodings.",
+    "First-error byte offsets after multibyte prefixes and before later errors; code, source, schema ID, field ID, and diagnostic assertions.",
+    "Two-, three-, and four-byte sequences beginning at offsets 0 through 129, at 16 input alignments, with truncated and malformed tails and 65-byte ASCII suffixes.",
+    "Differential comparison against core for all 256 one-byte inputs and all 65,536 two-byte inputs.",
+    "Deterministic mutations at every position of a 260-byte valid mixed-width input, compared against core both as complete slices and truncated prefixes.",
+    "Shared ABI length guard at zero, one, and representable u32::MAX; on 64-bit targets, overflow at u32::MAX + 1, u32::MAX + 2, and usize::MAX without oversized allocations or fabricated slices."
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source reviewed against the frozen contract, root types, canonical ABI errors, and the neighboring dependency's safe compatibility API.",
+    "inline_tests": "14 test functions authored, including one conditional on a 64-bit pointer width; not executed.",
+    "execution": "No build, check, test, compiler, formatting, or commit commands were run, as instructed.",
+    "dependency_scope": "No dependencies or manifests changed. Uses jmax-abi root exports and the optional ps-simdutf8 integration already declared and explicitly required by the frozen Wave 1 contract.",
+    "safety": "No unsafe code, direct ISA calls, allocation, global state, or input mutation. Both backend configurations support no-std use.",
+    "limitations": "Compilation and runtime behavior remain unverified. Oversized-input tests exercise the shared length guard directly rather than allocating a slice larger than 4 GiB.",
+    "files_written": [
+      "crates/jmax-utf8/src/validate.rs",
+      "reports/wave1/W1-08.json"
+    ]
+  }
+}

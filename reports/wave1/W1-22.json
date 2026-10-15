@@ -1,0 +1,83 @@
+{
+  "worker_id": "W1-22",
+  "wave": 1,
+  "crate": "jmax-schema-aot",
+  "file": "crates/jmax-schema-aot/src/tables.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn emit_tables(image: StaticSchemaImage<'_>, options: &TableOptions<'_>) -> Result<alloc::string::String>",
+    "pub fn emit_program(program: &ValidatedProgram, options: &TableOptions<'_>) -> Result<alloc::string::String>",
+    "pub fn to_owned(image: StaticSchemaImage<'_>) -> Result<SchemaImage>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits build, check, compiler, formatter, and test commands. Source was reviewed directly against the frozen contracts and existing type definitions.",
+    "inline_test_count": 13,
+    "cases": [
+      {
+        "test": "minimal_projection_has_exact_stable_source",
+        "coverage": "Exact source snapshot for one Any instruction, empty key and byte arrays, repeated emission determinism, and owned projection equality. Uses compiler opcode mapping rather than enum representation."
+      },
+      {
+        "test": "keys_and_maximum_identifiers_are_preserved",
+        "coverage": "Maximum u32 schema ID and u64 fingerprint, valid u16::MAX FieldId, optional required-bit sentinel, zero-length key, control characters, quotes, backslash, multibyte UTF-8, and exact emitted byte recovery."
+      },
+      {
+        "test": "owned_projection_outlives_and_does_not_alias_input",
+        "coverage": "Distinct backing allocations, exact field copies, and ownership after mutation and destruction of the original arrays."
+      },
+      {
+        "test": "unselected_fields_and_repeated_empty_names_across_objects_are_valid",
+        "coverage": "Multiple object state ranges, zero selected slots with large FieldIds, and identical empty names sharing byte offsets in different objects."
+      },
+      {
+        "test": "configured_paths_are_used_for_every_type",
+        "coverage": "Absolute crate aliases, crate/self paths, repeated leading super paths, and configured paths for every emitted ABI and AOT type."
+      },
+      {
+        "test": "symbols_and_paths_cannot_inject_source",
+        "coverage": "Empty and malformed identifiers, reserved keywords including gen, non-ASCII and raw identifiers, expressions, comments, whitespace, generic arguments, and misplaced path keywords. Validator errors propagate unchanged."
+      },
+      {
+        "test": "header_and_instruction_corruption_is_rejected",
+        "coverage": "Bad magic/version/flags, invalid root and counts, empty instructions, unknown opcode bytes, instruction flags, invalid state operands, and unsupported scalar tags. Verifier errors propagate unchanged through both projection APIs."
+      },
+      {
+        "test": "key_and_state_boundaries_are_checked",
+        "coverage": "Overflowing key spans, incorrect SWAR heads, duplicate FieldIds, out-of-range state references, unowned bytes, invalid UTF-8, duplicate or sparse slot operands, and mismatched state terminators."
+      },
+      {
+        "test": "byte_writer_covers_every_byte_and_line_boundary",
+        "coverage": "All 256 byte values and lengths 0, 1, 15, 16, 17, 255, and 256, with deterministic 16-byte line boundaries and explicit u8 literals."
+      },
+      {
+        "test": "renderer_preserves_all_bits_without_normalizing_records",
+        "coverage": "Private renderer preserves maximum-width header, instruction, span, and key fields including flags. Public APIs still reject the deliberately invalid projection."
+      },
+      {
+        "test": "complete_program_bytes_round_trip_all_side_tables",
+        "coverage": "Compiled object with required and optional slots, maximum valid FieldId, string length constraints and pattern, full signed integer bounds, and object member bounds. Extracted program literals equal the authoritative complete encoding; decoding retains states, key strategies, patterns, slots, policy, format options, canonical schema, and ABI arrays. Also verifies derived suffix naming and custom paths."
+      },
+      {
+        "test": "program_emission_rejects_invalid_source_configuration",
+        "coverage": "Complete-program emission rejects invalid base symbols and both configured source paths with unchanged validation errors."
+      },
+      {
+        "test": "formatting_errors_propagate_instead_of_truncating_successfully",
+        "coverage": "Injected formatting failures propagate through all private renderers; allocation errors use BudgetExhausted/SchemaCompile with schema context."
+      }
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "source_review_only_tests_not_executed",
+    "integration": "Uses frozen APIs for later-wave verify::verify_structure and compiler image::encode, plus compiler and schema-IR APIs used by integration tests. Those module implementations were not present at initial inspection and were not replaced or modified.",
+    "notes": [
+      "Only the assigned Rust source and this report were written.",
+      "All public functions validate structure before returning output. Both source emitters validate configured identifiers and paths; complete-program emission also validates the derived symbol.",
+      "Complete program bytes come directly from compiler image::encode with DEFAULT_MAX_IMAGE_BYTES. No executable side tables are guessed or omitted.",
+      "Source and array allocations are fallible and allocation failures return ABI errors. Generated projections use promoted immutable arrays and require no allocation to access.",
+      "No unsafe code, placeholder implementations, forbidden dependencies, build/check commands, formatter commands, or commit operations were used."
+    ]
+  }
+}

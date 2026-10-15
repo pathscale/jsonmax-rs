@@ -1,0 +1,40 @@
+{
+  "worker_id": "W1-14",
+  "wave": 1,
+  "crate": "jmax-path",
+  "file": "crates/jmax-path/src/parse.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn parse(input: &str, limits: PathLimits) -> Result<Path>",
+    "pub fn parse_many(inputs: &[&str], limits: PathLimits) -> Result<Vec<Path>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-path/src/parse.rs::tests",
+    "inline_tests": 26,
+    "platform_note": "The synthetic input-length-above-u32 test is enabled only on 64-bit targets.",
+    "execution": "Not run. The user prohibited cargo, rustc, rustfmt, and all build/check commands.",
+    "review": "Manually reviewed against contracts/jmax-path.md and the frozen path, cursor, and ABI types.",
+    "coverage": [
+      "Empty and dollar roots; bare keys; optional root marker; repeated bracket selectors; keys after indices.",
+      "Bare escapes consume an entire Unicode scalar, preserve escaped punctuation and whitespace, and do not decode JSON Unicode escapes.",
+      "Bracket-quoted JSON strings decode all simple escapes, BMP boundary values, supplementary surrogate pairs, NUL, and empty keys.",
+      "Unicode keys match without normalization; quoted and escaped extension punctuation remains literal.",
+      "Array index boundaries include zero, 2147483648, and 4294967295; checked accumulation rejects overflowing digits at their original byte offsets.",
+      "Leading zeros, signs, negative indices, fractions, exponent notation, non-ASCII digits, and index whitespace are rejected.",
+      "Malformed path structure, missing separators, leading dots, bare reserved characters, Unicode whitespace, and forbidden controls are rejected.",
+      "Proper truncated prefixes return UnexpectedEof at input end, including incomplete JSON escapes and surrogate continuations.",
+      "Wildcards, filters, recursive descent, and index union/slice punctuation return UnsupportedSchemaFeature.",
+      "Malformed JSON escapes, invalid hexadecimal digits, lone surrogates, and invalid surrogate pairs verify specific error codes and byte offsets.",
+      "Every raw JSON control from U+0000 through U+001F is rejected, while its Unicode escape is accepted.",
+      "Multibyte text preceding failures verifies byte offsets rather than scalar counts.",
+      "Inclusive and zero textual byte, decoded UTF-8 key byte, segment count, and input-path count limits.",
+      "Default 65536-byte text, 4096-byte key, 256-segment, and 4096-input boundaries, plus buffer-growth boundaries.",
+      "Synthetic u32 input-length boundary and oversized-length precedence without allocating an oversized string.",
+      "parse_many preserves order and duplicates, checks count before parsing, and returns the first error relative to its individual input.",
+      "Compilation/query budgets do not restrict basic parsing, and returned paths own their keys independently of input lifetimes."
+    ],
+    "allocation_failure_paths": "All production String and Vec growth uses try_reserve_exact and maps failures to BudgetExhausted. Allocator failures were not injected."
+  },
+  "status": "complete_not_executed_per_instruction"
+}

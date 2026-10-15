@@ -1,0 +1,26 @@
+{
+  "worker_id": "W1-21",
+  "wave": 1,
+  "crate": "jmax-derive",
+  "file": "crates/jmax-derive/src/decode.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub(crate) fn expand(input: &DeriveInput) -> DeriveResult<proc_macro::TokenStream>",
+    "Generated implementation: configured ABI traits::JsonDecode::decode_slots(&ValidatedSlots) -> error::Result<Self> for named and unit structs"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "All eight ScalarType variants select their exact frozen AOT decoder and SlotKind; u32 and i32 use checked narrowing helpers.",
+    "Complete deterministic unit-struct source vector, distinct empty named-struct construction, and repeated-render equality.",
+    "Proof fingerprint and owner checks precede exact slot-count validation, scalar reads, and default evaluation.",
+    "Dense declaration-order slots and FieldIds, skipped fields between selected fields, all-skipped structs, and zero-slot boundaries.",
+    "Required Empty emits MissingRequiredField with field context; optional Empty remains None; defaults occur only in the None arm after successful fallible decoding.",
+    "Defaulted narrowing, finite-float, UTF-8 string, and decimal decoding propagate AOT errors through ? without error-to-default conversion.",
+    "Required and optional strings copy the owner-checked decoded UTF-8 into alloc::string::String; no StrRef escapes.",
+    "Lifetimes, type parameters, const generics, existing where clauses with and without trailing commas, and concrete Default bounds without unrelated generic bounds.",
+    "Configured ABI/AOT paths, raw Rust identifiers, and local-name collisions with const generics and field type expressions.",
+    "Malformed layouts reject missing indices, gaps, duplicates, u32::MAX as a non-dense first index, and skipped fields consuming slots, with precise field indices.",
+    "A 65,537-field layout crosses the u16 index boundary without narrowing; full-width integer, finite float, and exact decimal handling remain delegated to canonical typed decoders."
+  ],
+  "status": "complete; inline tests authored and source manually reviewed; no cargo, rustc, rustfmt, build, check, test, or git commit commands run; AOT decode helpers are a frozen Wave 2 dependency"
+}

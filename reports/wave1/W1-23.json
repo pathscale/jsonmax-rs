@@ -1,0 +1,71 @@
+{
+  "worker_id": "W1-23",
+  "wave": 1,
+  "crate": "jmax-endpoint-model",
+  "file": "crates/jmax-endpoint-model/src/registry.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "build_registry",
+    "service_by_id",
+    "service_by_name",
+    "endpoint_by_code",
+    "endpoint_by_method",
+    "definition_by_name",
+    "role_by_name",
+    "error_by_code",
+    "resolve_type",
+    "is_authorized"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "lookup identity and boundaries",
+      "vectors": ["empty model", "zero ids and codes", "u16::MAX service id", "u32::MAX endpoint and error codes", "missing and case-mismatched keys", "out-of-bounds internal indices", "borrowed records outliving registry"],
+      "expected": "Exact borrowed records or None; endpoint and error code namespaces remain independent."
+    },
+    {
+      "category": "model identities and deterministic failures",
+      "vectors": ["duplicate service ids and names", "global endpoint codes", "service-local endpoint names", "mismatched endpoint.service", "duplicate definition and role names", "duplicate error names and codes", "multiple simultaneous failures"],
+      "expected": "ConstraintViolation with SchemaCompile source and zero location metadata; stable failure order."
+    },
+    {
+      "category": "identifier and field validation",
+      "vectors": ["empty and underscore-only identifiers", "leading digit", "punctuation", "non-ASCII identifiers", "control characters", "valid underscore-prefixed names", "distinct composed and decomposed UTF-8 field names", "empty and duplicate fields", "65536 unique record fields"],
+      "expected": "ASCII identifier grammar enforced; arbitrary nonempty UTF-8 field names preserved; no field count narrowing."
+    },
+    {
+      "category": "headers and scalar metadata",
+      "vectors": ["all HTTP token punctuation", "ASCII case-insensitive header collision", "empty, Unicode, whitespace, slash, colon and control-byte header names", "all scalar endpoint variants", "NanoId lengths 0, 1, 21 and 255"],
+      "expected": "Only valid unique HTTP header tokens and nonzero NanoId lengths accepted."
+    },
+    {
+      "category": "nominal declarations and enums",
+      "vectors": ["top-level name mismatch", "inline collisions with nominal and alias definitions", "repeated identical inline declarations", "forward inline references", "inline records and enums in messages, wrappers and headers", "empty records and enums", "duplicate variant names and discriminants", "i32::MIN and i32::MAX discriminants"],
+      "expected": "One shared nominal namespace; borrowed inline reference resolution; unique valid enum names and values."
+    },
+    {
+      "category": "reference resolution and recursion",
+      "vectors": ["StructRef, StructTable and EnumRef aliases", "unknown and wrong-kind targets in params, responses, streams, definitions and headers", "scalar and container alias targets", "mixed nominal-kind aliases", "self and mutual alias cycles", "self and mutual nominal recursion", "invalid sibling hidden beside recursive field"],
+      "expected": "References resolve to the required nominal kind without field expansion; alias cycles and invalid targets fail; nominal recursion remains finite."
+    },
+    {
+      "category": "depth limits",
+      "vectors": ["128 ownership edges accepted", "129 ownership edges rejected", "128 alias hops accepted", "129 alias hops rejected", "combined ownership and alias budget", "nominal graph depth boundary", "deep path after shallow completed graph visit"],
+      "expected": "DepthLimitExceeded on exhaustion; a shallow cached traversal cannot conceal a deeper invalid path."
+    },
+    {
+      "category": "roles and authorization",
+      "vectors": ["unknown and duplicate includes", "self, two-role and three-role cycles", "duplicate and unknown endpoint roles", "public endpoints", "direct and transitive grants", "directional inheritance", "any required role matching", "duplicate grants", "cloned endpoints", "unknown grants alongside valid grants", "unknown grants on public endpoints", "diamond inheritance", "256-role inheritance chain"],
+      "expected": "Acyclic includes and complete role existence checks; deterministic transitive authorization without machine-stack recursion."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 30,
+    "review": "Manually reviewed against the frozen contract, endpoint-model root and ABI definitions.",
+    "execution": "Not run by instruction. No build, test, compiler, formatter or check commands were executed.",
+    "scope": "Only the assigned registry source and this report were written.",
+    "dependencies": "Uses alloc and core plus existing crate-root ABI types; no new dependency or later-wave module dependency.",
+    "depth_convention": "Type roots have depth zero. MAX_REFERENCE_DEPTH ownership or reference edges are accepted; one additional edge fails."
+  }
+}

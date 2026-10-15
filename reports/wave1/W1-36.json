@@ -1,0 +1,100 @@
+{
+  "worker_id": "W1-36",
+  "wave": 1,
+  "crate": "jmax-runner",
+  "file": "crates/jmax-runner/src/scenario.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn parse_scenario(input: &[u8]) -> Result<Scenario>",
+    "pub fn validate_scenario(scenario: &Scenario) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not executed. Build, check, formatter, test, and commit commands were prohibited by the task.",
+    "inline_test_count": 30,
+    "integration": "Uses the frozen jmax-dom build, navigate, and scalar APIs and the frozen jmax-path parse API. No root APIs or dependency manifests were changed. Production code uses alloc and core through the frozen runner types and supports no_std with alloc.",
+    "cases": [
+      {
+        "tests": [
+          "minimal_scenario_defaults_and_optional_final_closes",
+          "every_step_and_expectation_variant"
+        ],
+        "vectors": "Version 1 with an empty step array; omitted timeout defaults to 30000; all five step variants and all four expectation variants; an active connection at scenario end is valid."
+      },
+      {
+        "tests": [
+          "decoded_keys_strings_surrogates_and_owned_fragments",
+          "fragments_accept_every_json_kind_and_preserve_number_lexemes"
+        ],
+        "vectors": "Escaped version and connection keys, surrogate-pair rocket and musical symbol, Unicode roles, escaped newlines and quotes, source mutation and drop, exact retained container whitespace, null, booleans, strings, arrays, objects, -0, 1.0, and 1e+999."
+      },
+      {
+        "tests": [
+          "unsigned_integer_boundaries_and_timeout_override",
+          "integer_fields_reject_sign_fraction_exponent_overflow_and_wrong_types"
+        ],
+        "vectors": "Timeouts 1 and 4294967295; endpoints and error codes 0 and 4294967295. Reject negative and minus-zero integer spellings, fractions, exponents, 4294967296, larger-than-u64 values, wrong JSON types, unsupported versions, and zero timeout."
+      },
+      {
+        "tests": [
+          "top_level_required_fields_types_and_unknown_keys",
+          "variant_wrapper_requires_exactly_one_known_variant",
+          "variant_fields_are_required_typed_and_closed",
+          "expectation_shape_and_flags_are_strict"
+        ],
+        "vectors": "Missing required fields, unknown fields, incorrect field types, non-object variants, empty or multi-key wrappers, unknown variants, and expectation flags other than literal true produce InvalidScenario with top-level or zero-based step context."
+      },
+      {
+        "tests": [
+          "duplicate_keys_are_rejected_after_decoding_at_every_level",
+          "complete_json_is_validated_before_model_and_offsets_are_original",
+          "rejects_non_json_syntax_invalid_numbers_and_incomplete_input"
+        ],
+        "vectors": "Duplicate decoded keys at root, step, variant, expectation, and nested fragment levels; trailing false starts at EMPTY.len() + 3; malformed JSON inside unknown fields retains the exact DOM ABI error. Reject invalid UTF-8, invalid escapes, lone surrogates, literal controls, leading-zero numbers, plus-prefixed numbers, truncated numbers, comments, single quotes, and trailing commas."
+      },
+      {
+        "tests": [
+          "byte_limit_is_inclusive",
+          "depth_and_string_limits_are_enforced",
+          "step_limit_is_inclusive_for_direct_models_and_enforced_by_parser"
+        ],
+        "vectors": "Exactly 16777216 scenario bytes is accepted; one extra byte produces PayloadTooLarge at offset 16777216. Reject nesting beyond depth 128 and strings beyond 1048576 bytes. Exactly 100000 valid direct-model steps is accepted; 100001 steps is rejected for both parsed and direct models."
+      },
+      {
+        "tests": [
+          "connection_names_can_be_reused_after_close_and_responses_survive_close",
+          "parsed_models_enforce_ordering_and_decoded_name_identity",
+          "validation_state_handles_many_names_in_reverse_insertion_order",
+          "duplicate_active_connections_and_inactive_uses_are_rejected"
+        ],
+        "vectors": "Reconnect after close, assertion after connection close, 64 reverse-inserted connection names, decoded c versus escaped c identity, duplicate active connections, and call/receive/close before connect or after close."
+      },
+      {
+        "tests": [
+          "response_names_are_global_and_references_must_be_earlier",
+          "connection_and_response_names_use_distinct_case_sensitive_namespaces",
+          "all_empty_name_positions_and_zero_timeout_are_rejected_directly",
+          "uri_validation_is_left_to_transports_and_roles_can_be_empty"
+        ],
+        "vectors": "Every call/receive duplicate-response combination remains invalid after reconnect; forward and absent response references fail. Connection and response namespaces are independent and case sensitive. Reject every empty name position; permit explicit empty roles and transport-defined URI strings."
+      },
+      {
+        "tests": [
+          "native_selector_paths_accept_roots_keys_escapes_and_indices",
+          "native_selector_paths_reject_malformed_and_extended_syntax",
+          "native_selector_key_and_segment_limits_are_inclusive",
+          "error_code_expectations_require_a_literally_empty_path"
+        ],
+        "vectors": "Accept empty and dollar roots, quoted and escaped keys, empty keys, Unicode keys, and index 4294967295. Reject malformed selectors, wildcard/filter syntax, index overflow, and oversized paths. Keys of 4096 bytes and 256 segments are accepted; one beyond either bound fails. ErrorCode permits only a literally empty path."
+      },
+      {
+        "tests": [
+          "directly_constructed_fragments_are_strictly_validated",
+          "diagnostics_do_not_echo_supplied_values"
+        ],
+        "vectors": "Direct Rust params and JsonEquals payloads reject empty, trailing, malformed, duplicate-key, lone-surrogate, invalid-number, and invalid-UTF-8 fragments. Model errors do not echo credential-like connection names, unknown field names, or path values."
+      }
+    ]
+  },
+  "status": "complete_source_and_handoff_written_tests_not_executed"
+}

@@ -1,0 +1,111 @@
+{
+  "worker_id": "W1-24",
+  "wave": 1,
+  "crate": "jmax-endpoint-ron",
+  "file": "crates/jmax-endpoint-ron/src/load.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn parse_str(input: &str, source_name: &str, limits: &ConfigLimits) -> Result<LoadedConfig>",
+    "pub fn parse_bytes(input: &[u8], source_name: &str, limits: &ConfigLimits) -> Result<LoadedConfig>",
+    "#[cfg(feature = \"std\")] pub fn load_file(path: &std::path::Path, limits: &ConfigLimits) -> Result<LoadedConfig>",
+    "#[cfg(feature = \"std\")] pub fn load_model_files(config_path: &std::path::Path, version_path: Option<&std::path::Path>, options: &LoadOptions) -> Result<EndpointModel>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "scalar_domains_and_integer_boundaries",
+      "coverage": "Unit, booleans, identifiers, signs, leading zeros, negative zero, u64::MAX, i64::MIN, overflow at the offending digit, and malformed numbers."
+    },
+    {
+      "test": "unicode_strings_and_every_supported_escape",
+      "coverage": "Literal UTF-8, every supported escape, one-to-six hex digits, NUL, maximum Unicode scalar, and scalar boundaries adjacent to the surrogate range."
+    },
+    {
+      "test": "string_failures_have_exact_byte_locations",
+      "coverage": "Unclosed strings and escapes, malformed Unicode escapes, excessive hex digits, surrogates, non-scalars, and unescaped controls with byte-offset assertions."
+    },
+    {
+      "test": "collection_shapes_order_and_trailing_commas",
+      "coverage": "Empty and nested sequences, tuples, unit, both record delimiters, identifier and quoted keys, boolean-spelled keys, empty keys, ordering, and trailing commas."
+    },
+    {
+      "test": "variant_payloads_have_independent_spans_and_shapes",
+      "coverage": "Unit, tuple, and record payloads; separate wrapper and payload byte spans; multibyte strings; and trivia excluded from bare identifier spans."
+    },
+    {
+      "test": "whitespace_and_nested_comments_are_lexical_only",
+      "coverage": "Unicode whitespace, Unicode comments, CRLF line endings, nested block comments, comments between tokens, and EOF locations for unfinished comments."
+    },
+    {
+      "test": "malformed_collections_duplicate_keys_and_trailing_content",
+      "coverage": "Missing delimiters, commas and colons, mixed payloads, wrong closing delimiters, duplicate decoded keys, and content after the root."
+    },
+    {
+      "test": "recognized_unsupported_syntax_fails_closed",
+      "coverage": "Floats, exponents, radix and underscored integers, raw strings, byte strings, byte and character literals, and extension directives."
+    },
+    {
+      "test": "input_and_utf8_limits_are_checked_before_decoding",
+      "coverage": "Exact and excessive byte ceilings, invalid UTF-8 and incomplete sequences, invalid limit settings, and size rejection preceding UTF-8 decoding."
+    },
+    {
+      "test": "decoded_string_limits_apply_to_values_identifiers_keys_and_labels",
+      "coverage": "Exact decoded UTF-8 limits, escape expansion, oversized identifiers, keys and labels, empty strings and keys, and booleans under a zero string budget."
+    },
+    {
+      "test": "node_and_collection_budgets_include_payloads_but_exclude_keys",
+      "coverage": "Exact node ceilings, variant payload node accounting, per-collection item ceilings, nested collections, and zero-item empty collections."
+    },
+    {
+      "test": "budget_errors_point_to_the_value_or_item_that_exceeds_the_limit",
+      "coverage": "Exact byte offsets for exhausted node, variant payload, collection, depth, and decoded string budgets."
+    },
+    {
+      "test": "depth_boundaries_count_values_variant_payloads_and_comments",
+      "coverage": "Exact and excessive node and variant depths, independent nested-comment depth, and the default depth boundary."
+    },
+    {
+      "test": "many_record_keys_preserve_source_order",
+      "coverage": "256 reverse-ordered record keys retain source ordering while duplicate detection uses an ordered index."
+    },
+    {
+      "test": "parsing_is_deterministic_and_does_not_open_source_labels",
+      "coverage": "String and byte entry points produce identical trees and preserve a diagnostic path label without opening it."
+    },
+    {
+      "test": "files::file_reads_are_bounded_and_preserve_labels",
+      "requires": "std",
+      "coverage": "Exact and excessive file ceilings, UTF-8 errors, source labels, chunk boundaries, and zero-byte read limits."
+    },
+    {
+      "test": "files::missing_paths_and_invalid_budgets_are_canonical_errors",
+      "requires": "std",
+      "coverage": "Canonical open errors, missing required version paths, and invalid budgets before filesystem access."
+    },
+    {
+      "test": "files::read_errors_have_static_canonical_diagnostics",
+      "requires": "std and unix",
+      "coverage": "Reading a directory as bytes yields ConstraintViolation with SchemaCompile source, offset zero, and static read detail."
+    },
+    {
+      "test": "files::model_files_use_explicit_version_and_full_pipeline",
+      "requires": "std and subsequent normalize, validate, and version implementations",
+      "coverage": "Explicit version success and mismatch, optional version absence, supplied invalid metadata, exact 64 KiB and excessive metadata, invalid UTF-8, unknown model fields, and config byte limits."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source manually reviewed against the frozen contract and root interfaces.",
+    "validation": "Tests authored but not executed. No build, compiler, formatter, check, or commit command was run, as instructed.",
+    "test_count": 19,
+    "std_only_test_count": 4,
+    "notes": [
+      "Only the assigned Rust source file and this report were edited.",
+      "Core parsing uses alloc and an explicit stack, with no new dependencies or unsafe code.",
+      "All errors use canonical ABI types with SchemaCompile source and static details.",
+      "Filesystem reads are capped at the applicable byte ceiling plus one detection byte.",
+      "Non-UTF-8 filesystem paths use a bounded fixed diagnostic label.",
+      "Cross-module model pipeline tests await implementations assigned to subsequent waves."
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "worker_id": "W1-26",
+  "wave": 1,
+  "crate": "jmax-codegen-spec",
+  "file": "crates/jmax-codegen-spec/src/services.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn public_services(services: &[ServiceSpec]) -> Result<Vec<ServiceSpec>>",
+    "pub fn all_services(services: &[ServiceSpec]) -> Result<Vec<ServiceSpec>>",
+    "pub fn select_services(services: &[ServiceSpec], visibility: Visibility<'_>) -> Result<Vec<ServiceSpec>>",
+    "pub fn services_document(services: &[ServiceSpec], visibility: Visibility<'_>, options: &DocumentOptions) -> Result<GeneratedDocument>"
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "services.rs::boxed_type",
+      "purpose": "Create owned EndpointType wrapper boxes through a fallible allocation path, returning BudgetExhausted on a null allocation.",
+      "operations": [
+        "alloc::alloc::alloc(Layout::new::<EndpointType>())",
+        "raw.write(value)",
+        "Box::from_raw(raw)"
+      ],
+      "invariants": [
+        "EndpointType is nonzero-sized, so its Layout is valid for the allocation request.",
+        "The allocation uses the global allocator and the exact EndpointType size and alignment.",
+        "A null pointer returns a canonical allocation error before pointer access.",
+        "The fresh allocation is initialized by moving exactly one EndpointType into it.",
+        "The initialized pointer is transferred exactly once to Box with the matching global allocator and layout.",
+        "No aliases or fallible operations intervene between initialization and ownership transfer."
+      ]
+    }
+  ],
+  "test_vectors": [
+    {
+      "category": "selection",
+      "coverage": "Public, All, and exact any-role intersection; empty requested roles; case and substring mismatches; repeated requested roles; empty services and catalogs; service and endpoint order; preservation of endpoint metadata and independent ownership."
+    },
+    {
+      "category": "validation before visibility",
+      "coverage": "All four entry points preserve root validation errors, including hidden endpoint service mismatches. Duplicate service IDs and names, endpoint codes and names, invalid identifiers, invalid roles, and duplicate or empty parameter and response field names are covered. Catalog errors precede invalid document options."
+    },
+    {
+      "category": "exact JSON representation",
+      "coverage": "Golden strings for all 23 ABI type variants, plus NanoId length boundaries, both EnumRef flags, empty struct and enum definitions, signed enum value boundaries, nested field order, and unresolved named references. A complete document vector covers every catalog member in declaration order, u16::MAX IDs, u32::MAX endpoint codes, null streaming, media type, and one trailing newline."
+    },
+    {
+      "category": "visibility and determinism",
+      "coverage": "Direct document projection equals serialization of selected endpoints for every visibility mode. Hidden names, roles, services, and inline types are excluded. Repeated generation preserves bytes and leaves input unchanged."
+    },
+    {
+      "category": "JSON escaping",
+      "coverage": "Every control byte from 0 through 31, quotes, backslashes, empty strings, adjacent strings, slash, Unicode text, emoji, U+2028, and U+2029. Escaping is exercised in document options, roles, descriptions, fields, named types, enum variants, and table references."
+    },
+    {
+      "category": "output budgets",
+      "coverage": "Zero and one-byte document budgets, exact limits and one byte below, Unicode byte accounting, terminating newline accounting, exact limits for every type vector, rejection before append, unchanged contents after rejected raw appends, and continued writes after a rejected append."
+    },
+    {
+      "category": "depth limits",
+      "coverage": "Zero document depth, primitive depth one, empty versus populated structs, wrapper boundaries, independent reference serialization, enum entries without extra type depth, 256 nested optional wrappers, and a child beyond u16::MAX without arithmetic wraparound. Traversal and cloning use explicit stacks."
+    },
+    {
+      "category": "numeric and allocation errors",
+      "coverage": "Exact integer text for i64::MIN, i64::MAX, i32::MIN, u32::MAX, zero, negative one, and decimal transitions. Deterministic vector capacity overflow returns BudgetExhausted with Encode source and zero offset. Successful fallible box ownership transfer is exercised directly and by nested cloning."
+    }
+  ],
+  "status": "complete",
+  "verification": {
+    "method": "Manual source and frozen-contract review only",
+    "inline_test_count": 26,
+    "tests_executed": false,
+    "build_or_check_commands_run": false,
+    "compiler_or_formatter_run": false,
+    "reason": "The task prohibits compiler, formatter, build, and check commands. No compilation or passing-test claim is made."
+  },
+  "implementation_notes": [
+    "All public entry points call root validate_services before projection or filtering.",
+    "Selection performs fallible deep copies while preserving input service, endpoint, role, field, and variant order.",
+    "Document generation borrows visible input directly and enforces its UTF-8 byte budget before every append.",
+    "Inline root types have depth one; nested types add one. Named references are serialized without resolution.",
+    "Type serialization and deep copying use explicit continuation stacks rather than recursive traversal.",
+    "The implementation uses no dependency beyond the frozen root ABI and alloc/core, and calls no other wave module."
+  ],
+  "scope": {
+    "files_written": [
+      "crates/jmax-codegen-spec/src/services.rs",
+      "reports/wave1/W1-26.json"
+    ],
+    "dependencies_added": [],
+    "out_of_assignment_files_written": [],
+    "git_commit_created": false
+  }
+}

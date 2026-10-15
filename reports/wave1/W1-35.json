@@ -1,0 +1,30 @@
+{
+  "worker_id": "W1-35",
+  "wave": 1,
+  "crate": "jmax-validator",
+  "file": "crates/jmax-validator/src/load.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "MODEL_VERSION",
+    "load_model",
+    "parse_model",
+    "validate_model",
+    "select_endpoint",
+    "select_preset"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Version-1 minimal model with u16::MAX service ID and u32::MAX endpoint code",
+    "Duplicate top-level key, unknown top-level key, and trailing JSON content rejection",
+    "Quoted version, unsupported version, fractional version token, and out-of-range service ID rejection",
+    "Valid preset resolution and unknown preset endpoint rejection",
+    "Unresolved struct reference and zero-length NanoId semantic validation",
+    "Payload byte limit and zero-item array limit boundaries",
+    "Case-sensitive selection and ambiguous duplicate service name handling",
+    "Tagged Optional and Vec endpoint type decoding, malformed tag shape, and unknown tag rejection",
+    "Path-aware missing-file I/O error operation, path, and source verification",
+    "Missing preset selector error",
+    "Negative unsigned version integer reports range overflow"
+  ],
+  "status": "implemented; build and checks intentionally not run per task instruction"
+}

@@ -1,0 +1,37 @@
+{
+  "worker_id": "W1-07",
+  "wave": 1,
+  "crate": "jmax-scan-avx512",
+  "file": "crates/jmax-scan-avx512/src/classify.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [
+    "The private x86/x86_64 quote_backslash_avx512 function is entered only after root is_supported confirms AVX-512F and AVX-512BW, including OS vector state with std or statically enabled features without std.",
+    "The unaligned 512-bit load reads exactly a borrowed 64-byte array. Partial input is first copied by tails::load_block; no vector load reads a short or empty slice, assumes alignment, or accesses padding outside the array.",
+    "Architecture imports and the target-feature function are cfg-gated. Only AVX-512F and AVX-512BW instructions are used. Unsupported configurations call tails::classify_scalar_raw."
+  ],
+  "test_vectors": [
+    "Canonical ClassifyFn assignment and empty input under all four canonical incoming quote states, preserving opaque UTF-8 fields.",
+    "All 256 byte values repeated across all 64 lanes and 256 mixed blocks generated with an odd byte stride, checked against an independent byte oracle.",
+    "Quotes and backslashes individually at every lane, including bit 63, plus alternating 0x5555555555555555 and 0xaaaaaaaaaaaaaaaa masks.",
+    "Literal punctuation and escaped-quote vector with exact raw masks, string-content mask, structural filtering, whitespace/control overlap, digits, and non-ASCII bits.",
+    "Every length from zero through 64 with all four carry states, mixed classes, zero bytes, and spaces; validates clipping and padded-zero exclusion.",
+    "Fixed-array and slice pipeline equivalence around lanes 15/16, 31/32, 47/48, and 62/63.",
+    "Backslash runs of every possible length before a quote, a full block of backslashes, and escape parity carried into a subsequent quote.",
+    "A deterministic 128-byte stream split at every boundary from zero through 64, including an escape run spanning bytes 63/64, compared with block and bytewise reference state.",
+    "A deliberately unaligned full array and every bounded subslice length with surrounding non-ASCII sentinels.",
+    "Oversized lengths 65, 127, 128, 255, 256, and 257, including simultaneous invalid carry, with exact error metadata and unchanged carry.",
+    "Noncanonical carry values 2, 255, 256, 2^63, and u64::MAX in either or both quote fields, for empty, partial, and full input.",
+    "Invalid JSON syntax, invalid escape spellings, raw controls, invalid UTF-8, trailing backslashes, and unclosed strings remain valid scanner inputs."
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Source review only. No build, check, test, formatting, or commit commands were run, as instructed.",
+    "integration": "Uses the frozen quotes::quote_masks, structural::classify_structural, and tails::{load_block,classify_scalar_raw} interfaces. Those later-wave source files were absent when inspected; execution validation awaits their delivery.",
+    "scope": "Only the assigned Rust module and this report were written."
+  }
+}

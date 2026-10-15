@@ -1,0 +1,61 @@
+{
+  "worker_id": "W1-18",
+  "wave": 1,
+  "crate": "jmax-schema-vm",
+  "file": "crates/jmax-schema-vm/src/execute.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "run",
+      "visibility": "pub",
+      "signature": "pub fn run<I: EventInput>(program: &ValidatedProgram, input: I, selection: &Selection, limits: VmLimits) -> Result<ValidatedRun>",
+      "behavior": "Validates selection, bounds input and scratch, interprets state-local instruction templates with an explicit frame stack, consumes strict EOF, verifies exact buffer identities and lengths, revalidates retained ranges and strings, and constructs the completed-run capability only after every operation succeeds."
+    },
+    {
+      "name": "validate",
+      "visibility": "pub",
+      "signature": "pub fn validate<I: EventInput>(program: &ValidatedProgram, input: I, selection: &Selection, limits: VmLimits) -> Result<ValidatedSlots>",
+      "behavior": "Delegates publication to extract::publish(run(...)); no proof issuance is implemented in this file."
+    },
+    {
+      "name": "step",
+      "visibility": "pub(crate)",
+      "signature": "pub(crate) fn step(context: &mut VmContext<'_>, event: Event, raw: &[u8], decoded: &[u8]) -> Result<()>",
+      "behavior": "Defensively enforces event structure, type dispatch, resource ceilings and delayed captures, delegating object semantics and scalar constraints to their frozen APIs."
+    }
+  ],
+  "unsafe_justifications": [
+    "Production implementation contains no unsafe code and exposes no unchecked event adapter or completed-run constructor.",
+    "The test-only unsafe EventInput implementation for NullInput emits only the fixed, inspected UTF-8 document null, retains its immutable owners, and permits injected errors only to deny completion.",
+    "The test-only unsafe EventInput implementation for ObjectInput emits only one fixed, inspected object with an escaped key and nested array. Every event offset and decoded scalar count describes its immutable owners. It reports EOF after all eight events and transfers those exact owners.",
+    "Pointer and length checks are defensive only. Byte immutability and exact owner provenance remain the documented safety obligations of EventInput."
+  ],
+  "test_vectors": [
+    "Strict EOF after scalar and container roots, including injected late syntax failures.",
+    "Successful validate publication binds the exact payload length, decoded length and schema fingerprint.",
+    "Ownership-transfer failure, identical-length replacement buffers, changed lengths and immutable owner identity.",
+    "Selection strictness, duplicate IDs, unknown IDs, excessive selection length and comparison-budget exhaustion.",
+    "Root scalar depth zero, inclusive container depths zero through two, nested arrays and item limits.",
+    "Array children counted once when opened; inclusive schema count bounds checked at closing delimiters.",
+    "Delayed raw container capture includes both delimiters; failed child constraints leave slots empty.",
+    "Selected and unselected fields retain a fixed slot vector and undergo complete schema checking.",
+    "Required fields, independent recursive object seen masks, compiled/runtime unknown-key policies and unconstrained unknown containers.",
+    "Duplicate captured fields rejected even when unselected and duplicate rejection is disabled.",
+    "Escaped duplicate unknown keys compare decoded names and report the raw opening-quote offset.",
+    "Missing roots, unfinished containers, mismatched closes, extra roots, keys outside objects, missing values and consecutive keys.",
+    "State-local dispatch rejects sibling type mismatches and preserves schema/field diagnostics.",
+    "UTF-8 byte limits versus Unicode scalar counts, empty strings and empty keys at zero string-byte limits.",
+    "Inclusive number digit ceilings, shared work-budget boundary measurement, malformed numeric tokens and inconsistent scalar metadata.",
+    "Payload/arena byte boundaries, slot/frame scratch accounting, retained unknown-name release, arithmetic overflow and array counter overflow.",
+    "Final slot raw-span bounds, zero-length raw-span rejection, UTF-8 validity, scalar counts and exhausted publication work budget.",
+    "Raw key cursor escaped quotes, empty keys, unterminated tokens, missing tokens and u32 closing-offset overflow.",
+    "Captured Any values retain their complete raw token as required by the compiler contract."
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Source reviewed manually. Tests were authored but not executed. No build, check, formatting, compiler or commit command was run, as instructed.",
+    "integration": "Uses frozen objects::{begin,key,take_value,finish}, constraints::{check_scalar,check_count}, and extract::{store,publish} APIs. Those later-wave implementation files were absent when the task began. Inline schema fixtures use the frozen resolver and compiler APIs.",
+    "scratch_invariant": "Object helpers must charge allocated seen-word, unknown-key vector and retained-name capacities. The interpreter releases those capacities when object frames are destroyed. Frame vector capacity remains charged until it is dropped; slot capacity remains charged throughout validation.",
+    "ownership_scope": "Only crates/jmax-schema-vm/src/execute.rs and reports/wave1/W1-18.json were written."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "worker_id": "W1-34",
+  "wave": 1,
+  "crate": "jmax-gen-cli",
+  "file": "crates/jmax-gen-cli/src/args.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "parse_args<I>(arguments: I) -> CliResult<Command>",
+    "parse_format(value: &str) -> CliResult<Vec<OutputFormat>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Each accepted format name and all expansion; empty, comma-separated, and unknown format rejection",
+    "Default six-format selection and declaration-order canonical sorting/deduplication",
+    "Long and short native flags, equals values, --check, and repeated format selections",
+    "All frozen aliases and their legacy flag behavior, including mixed native/legacy formats",
+    "Immediate help/version handling, including after an option that would otherwise need a value",
+    "Missing, empty, duplicate singleton, duplicate mode, unknown, unexpected positional, and invalid scalar option cases",
+    "Non-UTF-8 Unix input path preservation and non-UTF-8 format-name rejection"
+  ],
+  "status": "complete"
+}

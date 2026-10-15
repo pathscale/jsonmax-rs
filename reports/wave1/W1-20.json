@@ -1,0 +1,135 @@
+{
+  "worker_id": "W1-20",
+  "wave": 1,
+  "crate": "jmax-encode",
+  "file": "crates/jmax-encode/src/sink.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn reserve(sink: &mut dyn ByteSink, additional: usize, limit: usize) -> Result<()>",
+    "pub fn append(sink: &mut dyn ByteSink, bytes: &[u8], limit: usize) -> Result<()>",
+    "impl ByteSink for VecSink: reserve, write_bytes, len",
+    "impl ByteSink for LimitedSink<'_>: reserve, write_bytes, len"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "name": "free_reserve_only_assures_capacity_and_rechecks_current_length",
+      "vector": "Existing ab, limit 5, repeated reserve(3), reserve(4), and reserve(0) with limit 1",
+      "expected": "Repeated reservations preserve bytes and length; rejected limits do not delegate"
+    },
+    {
+      "name": "free_append_writes_exact_binary_slice_once_after_reserving",
+      "vector": "Bytes [0, 255, 34, 92], inclusive limit 4, empty append, then one extra byte",
+      "expected": "Exact binary output, one reservation and write per successful append, excess rejected before delegation"
+    },
+    {
+      "name": "free_helpers_reject_overflow_before_any_delegation",
+      "vector": "Synthetic length usize::MAX, additional 1 and 0",
+      "expected": "Overflow returns Encode/PayloadTooLarge; empty operations at the inclusive boundary succeed"
+    },
+    {
+      "name": "free_helpers_preserve_errors_and_stop_after_reservation_failure",
+      "vector": "Injected reservation and write errors with transport source and schema/field context",
+      "expected": "Original error metadata retained; failed reservation prevents write"
+    },
+    {
+      "name": "free_append_preserves_a_partial_external_write",
+      "vector": "Starting length 7, four-byte write fails after appending two bytes",
+      "expected": "Original external error retained and visible length remains 9"
+    },
+    {
+      "name": "zero_limits_accept_only_empty_output",
+      "vector": "Zero-limit VecSink and zero-limit LimitedSink over an existing prefix",
+      "expected": "Empty reservations and writes succeed; nonempty operations fail without poisoning or changing bytes"
+    },
+    {
+      "name": "vector_reservations_do_not_charge_subsequent_writes",
+      "vector": "Limit 5, repeated reserve(5), append ab/cd/e, empty operations at capacity",
+      "expected": "Output abcde reaches inclusive limit exactly without double charging reservations"
+    },
+    {
+      "name": "vector_rejected_write_is_atomic_and_does_not_poison",
+      "vector": "Limit 4, existing ab, rejected cde, accepted cd, reserve usize::MAX",
+      "expected": "Rejected operations preserve bytes and capacity; subsequent bounded writes succeed"
+    },
+    {
+      "name": "vector_capacity_overflow_is_deterministic_and_preserves_storage",
+      "vector": "Limit usize::MAX, reserve isize::MAX + 1 with empty and nonempty vectors",
+      "expected": "Encode/BudgetExhausted without huge allocation, unchanged bytes/capacity, later writes succeed"
+    },
+    {
+      "name": "into_vec_transfers_the_original_allocation",
+      "vector": "Reserve 16 bytes and write payload before ownership transfer",
+      "expected": "Owned vector retains identical pointer, capacity, and bytes"
+    },
+    {
+      "name": "limited_output_counts_only_new_bytes_and_preserves_prefix",
+      "vector": "Existing prefix:, relative limit 3, repeated reservation and writes ab/c",
+      "expected": "Relative len progresses 0/2/3, existing prefix retained, local excess remains recoverable"
+    },
+    {
+      "name": "limited_limit_rejection_does_not_delegate_or_prevent_smaller_writes",
+      "vector": "Relative limit 2, rejected three-byte requests, accepted a/b, overflowing reservation",
+      "expected": "Local failures neither delegate nor poison; smaller writes remain possible"
+    },
+    {
+      "name": "free_helpers_use_the_limited_sinks_relative_length",
+      "vector": "Long existing prefix, wrapper limit 5, helper limits 3 then 5",
+      "expected": "Helper accounting uses new output only and permits abcde independently of prefix size"
+    },
+    {
+      "name": "nested_limits_count_output_since_each_wrapper_was_created",
+      "vector": "Existing prefix, outer limit 5, outer a, nested limit 3 writes bcd, outer e",
+      "expected": "Nested and outer accounting remain independent; final bytes are prefixabcde"
+    },
+    {
+      "name": "limited_inner_errors_preserve_metadata_and_poison_both_operations",
+      "vector": "Independent reserve/write failures without inner length changes",
+      "expected": "First error preserved exactly; every subsequent reserve/write, including empty requests, returns Encode/InternalError without delegation"
+    },
+    {
+      "name": "inner_limit_errors_poison_a_wrapper_even_when_the_write_was_atomic",
+      "vector": "Inner limit 2 with existing a; wrapper limit 8 attempts bc",
+      "expected": "Inner PayloadTooLarge preserved, bytes stay a, wrapper permanently poisoned"
+    },
+    {
+      "name": "partial_inner_errors_are_preserved_without_fabricating_rollback",
+      "vector": "Starting length 5; reserve fails after growth 1 or write fails after growth 2",
+      "expected": "Original error takes precedence over length violations, prefix remains visible, wrapper is poisoned"
+    },
+    {
+      "name": "successful_reservations_must_not_change_inner_length",
+      "vector": "Inner reserve reports success after growing or shrinking by one byte",
+      "expected": "Encode/InternalError and permanent poisoning, with no later delegation"
+    },
+    {
+      "name": "successful_writes_must_append_exactly_the_requested_length",
+      "vector": "Two-byte write reports success with growth 0, 1, or 3, or shrinkage 1",
+      "expected": "Every incorrect length change returns Encode/InternalError and poisons the wrapper"
+    },
+    {
+      "name": "even_empty_calls_enforce_inner_length_contracts",
+      "vector": "Zero limit and empty reserve/write where inner incorrectly grows one byte",
+      "expected": "Contract violation detected and wrapper poisoned even for empty requests"
+    },
+    {
+      "name": "missing_existing_prefix_is_detected_before_delegation",
+      "vector": "Cell-backed inner length decreases from 3 to 2 while borrowed; reserve and write paths",
+      "expected": "Saturating public len remains zero, operation returns Encode/InternalError, no inner delegation"
+    },
+    {
+      "name": "limited_arithmetic_checks_both_relative_and_absolute_lengths",
+      "vector": "Synthetic prefix length usize::MAX - 1, unlimited relative budget, two-byte and one-byte requests",
+      "expected": "Absolute and relative overflow rejected before delegation; final single byte reaches usize::MAX; empty requests succeed"
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "source reviewed against frozen encode contract and ABI signatures",
+    "inline_tests": 22,
+    "tests_executed": false,
+    "reason_tests_not_run": "User explicitly prohibited cargo, rustc, rustfmt, and all build/check commands",
+    "scope": "Only assigned sink source and handoff report written",
+    "dependencies_added": false
+  }
+}

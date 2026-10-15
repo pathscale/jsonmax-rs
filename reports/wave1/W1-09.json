@@ -1,0 +1,38 @@
+{
+  "worker_id": "W1-09",
+  "wave": 1,
+  "crate": "jmax-string",
+  "file": "crates/jmax-string/src/scan.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "scan_string",
+      "signature": "pub fn scan_string(input: &[u8], opening_quote: u32) -> Result<StringScan>",
+      "behavior": "Discovers absolute raw/content spans and the first escape, handles consecutive-backslash parity, rejects opening and unescaped-control errors, reports missing delimiters, and validates bounded raw UTF-8 after discovery. Escape spelling and surrogate validation are deferred."
+    },
+    {
+      "name": "first_special",
+      "signature": "pub fn first_special(bytes: &[u8]) -> Option<usize>",
+      "behavior": "Finds the earliest quote, backslash, or control byte below 0x20 in arbitrary bytes without ABI-length narrowing or UTF-8 validation."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 24,
+    "coverage": [
+      "Empty discovery, all 256 byte classifications, earliest-special selection, and arbitrary invalid UTF-8 discovery inputs.",
+      "Every discovery position in lengths 1 through 130, plus subslice alignment starts 0 through 65 and lengths 0 through 128 with an excluded quote sentinel.",
+      "Empty strings, absolute token spans, content slices, next offsets, trailing bytes, and earliest absolute escape position.",
+      "Opening positions at EOF, beyond EOF, and u32::MAX; nonquote openings including controls and invalid UTF-8.",
+      "Unclosed strings, dangling backslashes, escaped terminal quotes, and consecutive-backslash runs through 130 bytes.",
+      "All raw unescaped controls, escaped-control discovery, invalid escape spellings, incomplete Unicode escape spellings, and surrogate spellings deferred to decoding.",
+      "Valid ASCII, DEL, two/three/four-byte UTF-8, combining marks, BOM, and U+10FFFF without normalization.",
+      "Isolated continuations, overlong encodings, invalid continuations, UTF-8 surrogates, above-range code points, invalid leading bytes, and truncated sequences with absolute leading-byte errors.",
+      "Closure and raw-control error precedence over UTF-8 errors; escaped bytes included in raw UTF-8 validation.",
+      "Token-local UTF-8 validation, exact input-subslice bounds, input immutability, repeatability, and independent sequential scans.",
+      "Private scanner length guard at zero, one, u32::MAX, and above u32::MAX when the host can represent it, without oversized allocations."
+    ],
+    "execution": "Not run, as requested. No cargo, rustc, rustfmt, build, or check command was executed."
+  },
+  "status": "implemented; inline tests provided but not executed under the task restriction"
+}

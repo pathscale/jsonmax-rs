@@ -1,0 +1,93 @@
+{
+  "worker_id": "W1-31",
+  "wave": 1,
+  "crate": "jmax-wss",
+  "file": "crates/jmax-wss/src/receive.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn receive_bytes(bytes: Bytes, opcode: Opcode, policy: &WssPolicy) -> Result<ProtectedInput>",
+      "behavior": "Checks policy, accepts Text or explicitly permitted Binary, enforces message and syntax payload byte limits with checked ABI lengths, validates UTF-8 with exact error offsets, and adopts the existing Bytes owner without copying. The caller must supply a transport-reassembled complete message. The per-frame byte limit does not constrain an already assembled message."
+    },
+    {
+      "signature": "pub fn receive_frame(state: &mut FragmentState, frame: IncomingFrame, policy: &WssPolicy) -> Result<ReceiveEvent>",
+      "behavior": "Delegates directly to policy::accept_frame for assembly, completeness, controls, limits, and error recovery."
+    },
+    {
+      "signature": "pub fn validate_input(input: ProtectedInput, validator: &mut dyn MessageValidator, policy: &WssPolicy) -> Result<ValidatedSlots>",
+      "behavior": "Rechecks the current policy, complete-message byte limits, opcode, and UTF-8 before calling the supplied validator exactly once with the immutable owned payload and exact Limits. Retains the original owner during validation, calls the frozen ensure_validated_slots helper, enforces decoded byte and ABI limits, checks decoded UTF-8, and returns the validator's unchanged slots and proof. Validator errors propagate unchanged."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "tests": [
+        "adopts_bytes_slice_and_preserves_ownership_across_clones_and_drops",
+        "accepts_binary_only_under_explicit_json_policy",
+        "final_frames_preserve_both_payload_storage_variants"
+      ],
+      "coverage": "Heap-backed sliced Bytes retain the exact data pointer through adoption, clone, owner drops, and extraction. Binary requires explicit Json policy. Final frames preserve both Shared and Bytes owners, including transfer to the validator."
+    },
+    {
+      "tests": [
+        "complete_bytes_reject_every_non_data_opcode",
+        "transport_acceptance_does_not_claim_json_validity",
+        "byte_limits_and_opcode_policy_precede_utf8_work"
+      ],
+      "coverage": "Continuation, Close, Ping, and Pong are rejected as complete JSON inputs. Empty input, whitespace, incomplete JSON, trailing JSON, a lone-surrogate escape, and ASCII NUL remain transport-acceptable for subsequent validation. Oversize and disabled-binary errors are reported before UTF-8 work."
+    },
+    {
+      "tests": [
+        "message_and_syntax_limits_are_inclusive_and_independent",
+        "complete_transport_messages_can_exceed_the_frame_limit",
+        "invalid_required_policy_limits_fail_before_adoption_or_validation",
+        "non_transport_limits_are_left_for_the_configured_validator"
+      ],
+      "coverage": "Lengths 3, 4, and 5 exercise a byte ceiling of 4 with each independent limit tighter. Reassembled null is accepted with frame ceiling 1 while a single frame is rejected. Zero frame, message, fragment, payload, or depth ceilings fail policy validation. Zero decoded, field, string, number, and array ceilings remain valid configuration and are forwarded unchanged to the validator."
+    },
+    {
+      "tests": [
+        "utf8_vectors_report_the_first_invalid_sequence_offset_for_both_opcodes",
+        "valid_unicode_and_empty_decoded_storage_pass_utf8_checks",
+        "incomplete_utf8_is_rejected_only_when_the_message_finishes"
+      ],
+      "coverage": "Both data opcodes reject stray continuation bytes, invalid leading bytes, overlong encodings, surrogate encodings, out-of-range scalars, invalid continuations, and truncated scalars with offsets 0, 1, 2, or 5. Valid empty text, NUL, ASCII, two-byte, three-byte, four-byte, maximum Unicode scalar, and BOM vectors pass. Decoded UTF-8 uses the same tested guard. An incomplete scalar is accepted while fragmented and rejected on final assembly at byte 1."
+    },
+    {
+      "tests": [
+        "validation_receives_the_original_owner_and_exact_configured_limits_once",
+        "all_validator_error_metadata_propagates_unchanged",
+        "tightened_message_or_syntax_policy_rejects_before_validator_runs",
+        "changed_binary_policy_rejects_before_validator_runs",
+        "validation_rechecks_internal_inputs_for_utf8_and_data_opcodes"
+      ],
+      "coverage": "Recording rejecting validators exercise exact pointer and Limits transfer, a trailing-content diagnostic with schema and field context, and unchanged syntax, depth, UTF-8, schema, decoded-arena, budget, cancellation, and internal errors. Tightened policies and malformed crate-internal inputs are rejected before any validator call."
+    },
+    {
+      "tests": [
+        "decoded_length_boundary_is_inclusive_including_zero",
+        "abi_length_overflow_is_rejected_without_a_large_allocation"
+      ],
+      "coverage": "The decoded byte guard accepts zero under zero ceiling, exact ceiling, and u32::MAX. It rejects ceiling plus one. The 64-bit-only arithmetic vector rejects u32::MAX plus one without allocating oversized storage."
+    },
+    {
+      "tests": [
+        "split_unicode_is_published_only_after_the_final_continuation",
+        "ping_and_pong_preserve_control_owners_and_partial_message",
+        "close_discards_partial_input_and_keeps_the_connection_closed",
+        "protocol_errors_reset_fragment_assembly_and_allow_a_fresh_message",
+        "empty_fragments_count_and_fragment_budget_failure_discards_input",
+        "assembled_transport_and_syntax_byte_overflows_discard_partial_input"
+      ],
+      "coverage": "Text and Binary split a four-byte scalar across three frames at exact assembled-byte and fragment-count ceilings. Pending events cannot supply ProtectedInput to validation. Non-UTF-8 Ping/Pong bytes preserve their owners and active assembly. Close code 1000 yields reason bytes excluding the code and permanently closes state. Ordering and nonfinal controls reset partial data. Empty fragments consume budget, and both assembled byte ceilings reject overflow without publishing partial messages. These delegation tests require the later policy module."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "26 deterministic tests written, including one conditional 64-bit test",
+    "execution": "Not run by explicit user instruction. No cargo, rustc, rustfmt, build, check, test, or git commit command was executed.",
+    "review": "Source reviewed directly against contracts/jmax-wss.md, crates/jmax-wss/src/lib.rs, and canonical ABI definitions. Only receive.rs and this report were written.",
+    "integration": "policy::validate_policy and policy::accept_frame are frozen later-wave dependencies. policy.rs, send.rs, and bridge.rs were absent at handoff and were not created or modified.",
+    "coverage_limitations": "Proof-bearing validator success and inconsistent-proof return paths are implemented but do not have inline execution vectors: the frozen ABI exposes no safe proof constructor and the available VM boundary requires an unsafe EventInput implementation. The crate forbids unsafe code. Tests do not fabricate proofs or weaken that boundary. Decoded length and UTF-8 guards are exercised directly without proof construction."
+  }
+}

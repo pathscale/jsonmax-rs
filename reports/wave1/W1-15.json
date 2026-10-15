@@ -1,0 +1,74 @@
+{
+  "worker_id": "W1-15",
+  "wave": 1,
+  "crate": "jmax-dom",
+  "file": "crates/jmax-dom/src/build.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn parse(payload: Payload, limits: Limits) -> Result<Document>",
+    "pub fn from_validated(document: ValidatedDocument, limits: Limits) -> Result<Document>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "scalar_roots_retain_exact_spans_and_tags",
+      "coverage": "Null, both booleans, negative zero, exponent spelling, empty strings, external whitespace, scalar payload indices, and empty numeric cache."
+    },
+    {
+      "test": "nested_preorder_links_skip_complete_subtrees",
+      "coverage": "Exact preorder tags, container records, immediate child counts, exclusive subtree ends, parent links, sibling links, and full raw container spans."
+    },
+    {
+      "test": "empty_containers_and_empty_keys_have_distinct_valid_spans",
+      "coverage": "Empty objects and arrays, nested empty containers, sentinel first-child values, zero-length cooked keys and values, and quoted raw key spans."
+    },
+    {
+      "test": "key_spans_follow_committed_raw_bytes_and_arena_offsets_do_not_rebase",
+      "coverage": "Whitespace and comma prefixes, escaped ASCII keys, raw multibyte UTF-8, paired surrogates, mixed raw and decoded references, exact cursor reference preservation, retained arena bytes, and document clone ownership."
+    },
+    {
+      "test": "huge_numbers_remain_lexical_without_conversion_or_cache",
+      "coverage": "Integer spellings beyond u64 and i64, extreme positive and negative exponents, and signed decimal zero without machine-number conversion."
+    },
+    {
+      "test": "escaped_controls_quotes_and_backslashes_preserve_raw_and_cooked_text",
+      "coverage": "Escaped quotes and backslashes in keys, every short JSON string escape, escaped slash, NUL, U+001F, exact raw preservation, and cooked scalar counts."
+    },
+    {
+      "test": "duplicate_policy_compares_cooked_keys_and_preserves_allowed_members",
+      "coverage": "Strict rejection of decoded-equivalent keys with absolute error offsets and preservation of every duplicate when explicitly allowed."
+    },
+    {
+      "test": "syntax_failures_are_propagated_with_their_original_diagnostics",
+      "coverage": "Empty and truncated inputs, missing values, trailing commas, extra roots and suffix bytes, invalid number grammar, unclosed strings, invalid escapes, lone surrogates, invalid UTF-8, and unescaped controls. Full errors are compared against direct cursor traversal."
+    },
+    {
+      "test": "inclusive_limits_and_zero_resource_boundaries_are_enforced",
+      "coverage": "Inclusive and zero payload, nesting, array-item, object-field, number-digit, string-byte, and decoded-arena limits."
+    },
+    {
+      "test": "iterative_construction_handles_deep_and_wide_inputs",
+      "coverage": "512 nested arrays and 257 immediate scalar children, with complete structural invariant assertions."
+    },
+    {
+      "test": "table_indices_reserve_the_sentinel_and_allocation_failure_is_fallible",
+      "coverage": "Zero, maximum valid node index, reserved u32 sentinel, usize overflow boundaries, and deterministic Vec capacity failure mapped to BudgetExhausted without exhausting memory."
+    },
+    {
+      "test": "raw_key_recovery_rejects_invalid_and_overflowing_ranges",
+      "coverage": "Escaped quotes, empty keys, reversed and out-of-bounds committed ranges, missing quotes, empty input, and maximum u32 offsets."
+    },
+    {
+      "test": "impossible_event_orders_and_invalid_references_return_dom_errors",
+      "coverage": "Unmatched and mismatched closes, absent object keys, multiple roots, unresolved cooked references, inconsistent scalar counts, absent string references, overflowing spans, and invalid delimiter offsets."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Manual source review only. No build, compiler, formatter, check, or test commands were run, as instructed.",
+    "inline_test_count": 13,
+    "integration": "Uses the frozen jmax-cursor walk::from_payload, walk::next, and resume::finish interfaces. Finalization transfers the original cursor payload and decoded arena without rebasing offsets.",
+    "from_validated": "Consumes and discards foreign parts and proof, releases foreign tables before construction, and reparses only the payload under the supplied limits. No proof is fabricated. A runtime fixture was not created because issuing ValidationProof requires unsafe code and the DOM contract forbids unsafe code.",
+    "ownership": "Only crates/jmax-dom/src/build.rs and reports/wave1/W1-15.json were written."
+  }
+}

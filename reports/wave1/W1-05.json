@@ -1,0 +1,54 @@
+{
+  "worker_id": "W1-05",
+  "wave": 1,
+  "crate": "jmax-scan-neon",
+  "file": "crates/jmax-scan-neon/src/classify.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "classify_raw",
+      "justification": "Native execution is cfg-gated to aarch64 and guarded by the root is_supported function. The complete 64-byte array is passed to the private NEON function. Structural classification uses its independently guarded frozen entry point, with the same support predicate. Unsupported configurations use tails::classify_scalar_raw."
+    },
+    {
+      "location": "classify_quotes_neon",
+      "justification": "The private function requires NEON and is called only after support detection. Its four unaligned 16-byte loads start at offsets 0, 16, 32, and 48 within a complete 64-byte array. Pointer arithmetic and intrinsic helper calls are enclosed in an explicit unsafe block. Unsigned byte comparisons generate quote and backslash masks; each 16-bit result is widened to u64 before shifting."
+    },
+    {
+      "location": "comparison_mask",
+      "justification": "The private target-feature function inherits verified NEON availability. The only memory load reads eight initialized weight bytes. Weighted sums of the lower and upper eight comparison lanes are at most 255. Combining these sums defines bit order by byte lane without native-endian integer reinterpretation."
+    },
+    {
+      "location": "tests::native_reduction_covers_every_sixteen_bit_pattern",
+      "justification": "The aarch64-only test checks is_supported before loading an initialized 16-byte array and calling the native reducer."
+    }
+  ],
+  "test_vectors": [
+    "Independent byte-by-byte BlockMasks and carry oracle that does not call production classification, quote, tail, clipping, or assembly helpers.",
+    "Canonical ClassifyFn and root forwarding signatures; empty input for all four valid quote-carry states with unchanged UTF-8 fields and Scalar output.",
+    "All 256 byte values in uniform full blocks plus 256 deterministic mixed blocks covering every byte value at each position.",
+    "Single quote and backslash at each of 64 positions, including bit 63, plus exact alternating 0x5555555555555555 and 0xaaaaaaaaaaaaaaaa masks.",
+    "Every length from 0 through 64, every initial quote state, and every rotation of a mixed punctuation, escape, control, whitespace, digit, and non-ASCII corpus.",
+    "Full-array versus slice pipeline equivalence at lane boundaries 15/16, 31/32, and 47/48 and at positions 0 and 63.",
+    "Exact literal assertions for raw punctuation inside strings, filtered structural punctuation, JSON whitespace, overlapping control bytes, ASCII digit bounds, and unsigned non-ASCII classification.",
+    "Every partial length ending in a backslash: padding contributes no control bits and does not reset outgoing escape parity.",
+    "Every backslash-run length preceding every quote position, under all four incoming quote-carry states.",
+    "Every split position from 0 through 64: recombined masks and final carry equal continuous processing.",
+    "Full-block trailing backslash runs of length 0 through 64 followed by quotes at nine positions in the next block, under all four initial states.",
+    "Full-array input at all 16 address residues and tail slices ending exactly at the backing storage boundary.",
+    "Lengths 65, 127, 255, 256, 257, and 1024 return InvalidToken from Scanner at offset zero, preserve carry, and take precedence over malformed carry.",
+    "Noncanonical carry values 2, 255, 256, 2^63, and u64::MAX in either or both quote fields return InternalError transactionally for empty, partial, and full input.",
+    "Unsupported configurations return Scalar tags; the guarded native reduction test covers all 65,536 possible 16-bit comparison masks."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "16 tests authored, including one aarch64-only test; not executed",
+    "validation": "Source reviewed only. No cargo, rustc, rustfmt, build, check, test execution, or git commit command was run, as instructed.",
+    "integration": "Uses frozen quotes::quote_masks, structural::classify_structural, tails::load_block, and tails::classify_scalar_raw interfaces. Their later-wave source files were absent at initial inspection and were not created or modified by this worker.",
+    "ownership": "Only crates/jmax-scan-neon/src/classify.rs and reports/wave1/W1-05.json were written."
+  }
+}

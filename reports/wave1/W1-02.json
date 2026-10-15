@@ -1,0 +1,23 @@
+{
+  "worker_id": "W1-02",
+  "wave": 1,
+  "crate": "jmax-error",
+  "file": "crates/jmax-error/src/codes.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "category(ErrorCode) -> ErrorCategory",
+    "code_name(ErrorCode) -> &'static str",
+    "source_name(ErrorSource) -> &'static str",
+    "category_name(ErrorCategory) -> &'static str",
+    "is_incomplete(ErrorCode) -> bool",
+    "is_retryable(ErrorCode) -> bool"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "All 33 canonical ErrorCode variants are checked against expected categories and exact Rust variant names.",
+    "All 13 ErrorSource variants and all 11 ErrorCategory variants are checked against exact names and uniqueness.",
+    "Incomplete and retryable results are verified for every code, including UnexpectedEof, TransportIncomplete, InvalidSyntax, and remaining-code negatives.",
+    "Const-evaluation vectors cover the first and last ErrorCode entries, limit/authentication categories, and transport classification boundaries."
+  ],
+  "status": "complete; tests authored but not run per instruction"
+}

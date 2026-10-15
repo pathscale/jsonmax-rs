@@ -1,0 +1,57 @@
+{
+  "worker_id": "W1-29",
+  "wave": 1,
+  "crate": "jmax-nagoya",
+  "file": "crates/jmax-nagoya/src/submit.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn submit_parse<E: CpuExecutor, V: ParseValidator>(executor: &E, validator: Arc<V>, job: ParseJob, lease: ScratchLease) -> Result<E::Task<Admitted<ValidatedSlots>>>",
+    "pub fn submit_typed<E: CpuExecutor, V: ParseValidator, T: JsonDecode + SchemaProvider + Send + 'static>(executor: &E, validator: Arc<V>, job: ParseJob, lease: ScratchLease) -> Result<E::Task<Admitted<ParsedMessage<T>>>>"
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "decode_typed: ParsedMessage::new_proven",
+      "justification": "The validator supplies the issued proof. Submission checks exact original payload bytes, payload and decoded proof lengths, checked retained storage accounting, and the target schema fingerprint before decoding exactly once. The canonical constructor receives the unchanged validated owners and issued proof. ParseValidator and JsonDecode must uphold their frozen validation and reference-preservation contracts. Submission never issues proofs."
+    },
+    {
+      "location": "tests::literal_slots: ValidationProof::issue_unchecked",
+      "justification": "A test-only finite-language validator exhaustively compares complete input against null, true, false, a raw ASCII string, or an escaped-newline string, then constructs the exact corresponding slots and decoded bytes. Every string span, UTF-8 value, and scalar count is known and checked length conversions prevent truncation. Fault-injection tests alter public fields only after valid issuance and verify rejection before typed decoding."
+    }
+  ],
+  "test_vectors": {
+    "inline_test_count": 21,
+    "execution": "Not run, as explicitly instructed. No build, compiler, formatter, check, or commit command was run.",
+    "deterministic_inputs": ["null", "true", "false", "\"a\"", "\"a\\n\"", ""],
+    "coverage": [
+      "Zero payload or depth limits yield ConstraintViolation before executor submission.",
+      "Payload above its configured limit or u32 range yields PayloadTooLarge; inclusive boundaries are tested without allocating enormous buffers.",
+      "Missing job admission and insufficient retained bytes yield BudgetExhausted; pre-cancellation yields Cancelled without executor calls.",
+      "Zero decoded and scratch budgets are legal for null; all parser limits and exact lease budgets reach the validator unchanged.",
+      "Scratch buffers are cleared before reuse while their existing capacities are preserved.",
+      "Executor rejection preserves the exact error and releases the unexecuted closure, validator owner, and reservation.",
+      "Cancellation before execution skips validation; cancellation during validation or typed decoding suppresses successful output.",
+      "Cancellation requested by validator destruction is observed before publication.",
+      "Parser and typed decoder failures preserve source, byte offset, schema ID, field ID, and detail.",
+      "Empty input reaches validation and its parser error is preserved.",
+      "Same-length wrong payload bytes, mismatched proof payload length, and mismatched proof decoded length yield InternalError.",
+      "Independently allocated but byte-identical validated payload storage is accepted.",
+      "Retained accounting includes decoded arena length and slot capacity rather than slot length; exact and one-byte-insufficient reservations are tested.",
+      "Checked multiplication and both addition-overflow paths yield BudgetExhausted.",
+      "Pending Future polling does not perform CPU work; the manual host driver executes each closure at most once.",
+      "Queued and completed task drops release payload and validator owners and all admission counters.",
+      "Completed output and Admitted::into_parts preserve the original reservation until its owner is dropped.",
+      "Typed raw and decoded string references resolve correctly for both canonical payload storage variants; payload and arena pointers and proof metadata are preserved.",
+      "Schema mismatch prevents decoding; typed preflight, ownership, budget, and cancellation checks precede schema dispatch.",
+      "Typed decode executes exactly once and drops decoded values before releasing accounting on success, cancellation, and supported panic unwinding.",
+      "Validator panic unwinding releases all captured owners and reservation counters."
+    ],
+    "harness": "Deterministic explicitly driven executor, test-only finite-language validator, root-owned admission counters, and typed decoder controls. No worker threads or runtime dependency. Panic tests are gated for unwinding; production remains no_std plus alloc."
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "Source reviewed against frozen contract and ABI; inline tests written but not executed per instruction.",
+    "scope": "Only crates/jmax-nagoya/src/submit.rs and reports/wave1/W1-29.json were written.",
+    "integration": "The frozen root already declares submit. No manifest, root, ABI, contract, or other worker file changes were made.",
+    "accounting_limits": "Observable retained storage is checked with overflow protection. Validators remain responsible for fallible bounded allocation, and caller-declared weights must cover shared backing storage and additional allocations owned by decoded types."
+  }
+}

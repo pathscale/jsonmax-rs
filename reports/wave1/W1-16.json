@@ -1,0 +1,69 @@
+{
+  "worker_id": "W1-16",
+  "wave": 1,
+  "crate": "jmax-schema-ir",
+  "file": "crates/jmax-schema-ir/src/model.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn normalize(ir: &SchemaIr) -> Result<Schema>",
+    "pub fn validate(schema: &Schema) -> Result<()>",
+    "pub fn constraints(schema: &ResolvedSchema, ty: TypeId) -> Result<Option<&ScalarConstraints>>",
+    "pub fn property<'a>(schema: &'a ResolvedSchema, object: TypeId, name: &str) -> Result<Option<&'a Property>>",
+    "pub fn required_fields(schema: &ResolvedSchema, object: TypeId) -> Result<Vec<FieldId>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "ABI normalization",
+      "coverage": "Empty root object; schema metadata and reject_unknown preservation; all five ScalarKind tags and unconstrained Any; lower-only and upper-only integer bounds; separate child nodes; declaration-order slots and required fields; preserved string constraints."
+    },
+    {
+      "area": "Required counts",
+      "coverage": "Requiredness/count mismatches in both directions; no input repair; 65536 required fields produce BudgetExhausted because the ABI count is u16."
+    },
+    {
+      "area": "Constraint compatibility",
+      "coverage": "Each ABI scalar constraint independently rejected on Any; incompatible normalized scalar constraints; all six graph scalar kinds crossed with integer, length, pattern, and format constraints; Decimal constraints required exactly for Decimal."
+    },
+    {
+      "area": "Names and identity",
+      "coverage": "Duplicate normalized property names and FieldIds; valid empty names; case sensitivity; composed and decomposed Unicode; embedded NUL; non-ASCII keys; duplicate and empty definition names; exact local names including URL-shaped strings."
+    },
+    {
+      "area": "Whole-graph integrity",
+      "coverage": "Empty graph; root, property, array, and definition IDs at the first invalid index and u32::MAX; unreachable invalid nodes; empty references; unknown references and alias-only cycles deferred to the resolver."
+    },
+    {
+      "area": "Global uniqueness and cycles",
+      "coverage": "Cross-object duplicate FieldIds and slots; equal names in different objects; multiple absent slots; sparse slots including u32::MAX; shared targets; self-referential objects and arrays; legal structural cycles."
+    },
+    {
+      "area": "Integer, length, and container bounds",
+      "coverage": "Inclusive equal endpoints, absent endpoints, reversed endpoints, i64::MIN/i64::MAX, zero, and u32::MAX; contextual diagnostics for scalar, array, object, and reference failures."
+    },
+    {
+      "area": "Decimal policies",
+      "coverage": "Precision 1 and 38 accepted; 0, 39, and 255 rejected. Target scales 0 and 38 accepted; 39 and 255 rejected. Tick steps 0, 1, and i128::MAX accepted; -1 and i128::MIN rejected. One-sided invalid bound scales rejected even for zero coefficients."
+    },
+    {
+      "area": "Exact decimal ordering",
+      "coverage": "Nineteen fixed vectors and reversed comparisons covering equivalent representations, signs, signed remainders, zero, scale 38, and i128 extremes. A separate safe cross-multiplication oracle covers 784 deterministic small-value comparisons. One-sided and equal extreme bounds are also exercised."
+    },
+    {
+      "area": "Resolved accessors",
+      "coverage": "Multi-hop object aliases; scalar aliases return the same borrowed constraint reference; missing and empty property names; stored required-field order; non-scalars return None; wrong kinds return TypeMismatch; invalid IDs return ConstraintViolation; inputs remain unchanged.",
+      "integration_note": "Resolved fixtures use the frozen Wave 2 resolve::resolve API rather than constructing private witnesses. These cases require the resolver module during later integration."
+    },
+    {
+      "area": "Budgets and diagnostics",
+      "coverage": "u32 count boundaries including overflow on 64-bit targets; deterministic Vec capacity overflow without allocating huge storage; string copying; SchemaCompile source, byte offset zero, schema ID, field ID, and nonempty diagnostic detail assertions."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_authored": 25,
+    "review": "Source manually reviewed against the frozen contract and ABI definitions.",
+    "execution": "No build, check, test, formatting, or commit commands were run, as instructed.",
+    "scope": "Only crates/jmax-schema-ir/src/model.rs and reports/wave1/W1-16.json were written."
+  }
+}

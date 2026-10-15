@@ -1,0 +1,33 @@
+{
+  "worker_id": "W1-04",
+  "wave": 1,
+  "crate": "jmax-scan-scalar",
+  "file": "crates/jmax-scan-scalar/src/classify.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Explicit JSON vector with exact raw punctuation, string content, whitespace, digit, structural, and valid masks.",
+    "Empty input with all four canonical quote carry combinations and opaque UTF-8 state preservation.",
+    "All 256 byte values in all 64 lanes against exact expected raw classes, including ASCII whitespace/control overlap and unsigned non-ASCII classification.",
+    "Individual quotes and backslashes at every bit position, including bits zero and 63.",
+    "Every length from zero through 64 against an independent byte oracle, with zero and space blocks checking padding exclusion.",
+    "Fixed-array and slice equivalence for all 256 repeated byte values and all four canonical quote carry combinations.",
+    "Backslash runs of lengths zero through 63 followed by a quote, with every split point and all canonical incoming quote states.",
+    "Full-block trailing backslash followed by an escaped quote, punctuation inside a string, a closing delimiter, and punctuation outside the string.",
+    "Invalid JSON syntax, invalid escapes, unclosed strings, control bytes, invalid UTF-8, and non-ASCII whitespace remain classifiable.",
+    "Oversized lengths 65, 255, 256, 257, and 1024 return scanner InvalidToken at offset zero without mutating carry, including when carry is also invalid.",
+    "Noncanonical quote carry values 2, 3, 255, 256, the high u64 bit, and u64::MAX return scanner InternalError without mutation for both public entry points."
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Source reviewed only. No build, compiler, formatter, check, or test commands were run, as instructed.",
+    "integration": "Uses frozen root helpers and the frozen quotes, structural, and tails interfaces. Those later-wave module files were absent when the task inputs were read; inline tests await their delivery and authorized execution.",
+    "ownership": "Only the assigned Rust module and this report were written.",
+    "safety": "Safe, allocation-free, no_std Rust. Length validation precedes narrowing; quote carry is committed only after all fallible operations succeed."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "worker_id": "W1-37",
+  "wave": 1,
+  "crate": "jmax-bench",
+  "file": "crates/jmax-bench/src/corpus.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "make_workload(WorkloadKind, CorpusConfig) -> Result<Workload>",
+    "make_suite(CorpusConfig) -> Result<Vec<Workload>>",
+    "validate_workload(&Workload, u64) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "same seed and configuration reproduce workload names and payload bytes; documents vary",
+    "all seven kinds emit complete kind-specific JSON; escaped quotes, reverse solidus, ASCII controls, surrogate-pair escapes, BMP and non-BMP UTF-8 are covered",
+    "number vectors cover i64 minimum, i64 maximum, u64 maximum, decimal and exponent notation",
+    "exchange depth and aggregate trade shapes, nested depth 64, stable suite order, and aggregate suite byte budget",
+    "zero and over-limit dimensions, impossible budgets, depth profile level boundary, strict JSON errors, invalid schema image, duplicate or missing selection fields",
+    "signed integer minimum, unsigned integer maximum, fixed decimal scale, exact writer limit, and no-partial-append boundary"
+  ],
+  "status": "implemented; tests included but not run per task instruction"
+}

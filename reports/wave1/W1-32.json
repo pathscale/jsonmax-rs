@@ -1,0 +1,38 @@
+{
+  "worker_id": "W1-32",
+  "wave": 1,
+  "crate": "jmax-exchange",
+  "file": "crates/jmax-exchange/src/depth.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "SLOT_EVENT: usize = 0",
+    "SLOT_EVENT_TIME: usize = 1",
+    "SLOT_SYMBOL: usize = 2",
+    "SLOT_FIRST_UPDATE_ID: usize = 3",
+    "SLOT_FINAL_UPDATE_ID: usize = 4",
+    "SLOT_BIDS: usize = 5",
+    "SLOT_ASKS: usize = 6",
+    "SLOT_COUNT: usize = 7",
+    "schema_ir() -> SchemaIr",
+    "decode_depth(Payload, &ExchangeProfile, &mut dyn ExchangeValidator) -> Result<DepthMessage>",
+    "crate-private read_book_levels(&mut jmax_cursor::Cursor, &ExchangeProfile, SchemaId, FieldId) -> Result<(Span32, Vec<BookLevel>)>; consumes an array from cursor.current() through its closing delimiter, preserves original coordinates, and can be reused by snapshot"
+  ],
+  "unsafe_justifications": [
+    "Production has one unsafe operation: ParsedMessage::new_proven. It moves the validator's payload, decoded arena, and proof intact after checking original payload equality, proof lengths, profile fingerprint, exact slot count and kinds, checked span bounds, string UTF-8 and scalar counts, literal event tag, symbol byte limit, and update ID ordering. An independent strict cursor traversal checks the complete original wrapper and document, compares every slot with its wire value or exact array span, validates every level, and creates fully owned decimal vectors. No cursor or temporary decimal buffer references escape.",
+    "The cfg(test) TestValidator issues ValidationProof only after strict capture and the complete production document and semantic validation have succeeded for the exact returned immutable owners. Length conversions are checked. Adversarial slot tests mutate these genuine returned slots to exercise rejection; production code never issues a proof."
+  ],
+  "test_vectors": [
+    "15 deterministic inline tests are authored; none were executed under the task's prohibition on build and check commands.",
+    "Frozen schema name spot_depth_v1, schema ID 3201, field IDs 1 through 7, required_count 7, strict unknown-key policy, scalar kinds, and default symbol constraints.",
+    "Binance fixture: event time 123456789, BNBBTC, update range 157 through 160, exact bid coefficient 240000 at scale 8 and quantity 1000000000, exact ask coefficient 260000 and zero deletion quantity.",
+    "Empty books, duplicate prices and levels, original order, negative-zero normalization, independent per-side level limits, and inclusive array limits.",
+    "u64 zero and maximum, noncontiguous update ranges, overflow at digit offset 19, reversed ranges, signed/fractional/exponent integer rejection, and overflowing spans.",
+    "Escaped event keys, event tags, symbols and decimal digits; Unicode scalar counts versus UTF-8 byte budgets; custom symbol limits above the default 32 bytes.",
+    "Bare, CombinedStream and Either profiles; both wrapper field orders; original wrapper coordinates; missing, empty, nonstring, duplicate and additional wrapper members; strict suffix validation.",
+    "Book containers, element kinds and pair arity; positive prices and nonnegative quantities; malformed decimal grammar; exponent policy; exact scale rejection; truncation toward zero; precision, tick and i128 accumulation boundaries.",
+    "Payload, decoded arena, nesting, string, number-digit and array budgets; preservation of original payload and decoded arena allocations.",
+    "Missing, extra, empty and wrong-kind slots; forged integer values; swapped book spans; malformed raw and decoded references; inaccurate scalar counts; invalid UTF-8; arena and owner length mismatches; wrong profile fingerprint.",
+    "Unknown and duplicate depth keys remain rejected when generic syntax flags are permissive; invalid profile fails before validator invocation; validator errors preserve canonical metadata; malformed JSON, lone surrogates, incomplete input and invalid UTF-8 fail."
+  ],
+  "status": "complete; source and handoff written only to assigned paths; reviewed against frozen exchange, ABI, cursor and decimal contracts; tests authored but not run; no cargo, rustc, rustfmt, build/check command or git commit executed; integration requires the frozen later-wave profiles and decimal parse implementations"
+}

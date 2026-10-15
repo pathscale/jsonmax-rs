@@ -1,0 +1,39 @@
+{
+  "worker_id": "W1-06",
+  "wave": 1,
+  "crate": "jmax-scan-avx2",
+  "file": "crates/jmax-scan-avx2/src/classify.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks>",
+    "pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [
+    "The private AVX2 helper is compiled only for x86 or x86_64 and is called only after the root is_supported function establishes CPU and OS support or statically enabled AVX2 for no-std builds.",
+    "The two unaligned 32-byte loads read exactly offsets 0 through 31 and 32 through 63 of a borrowed 64-byte array. Pointer addition remains inside that array, and no vector alignment is required.",
+    "Movemask results are converted from i32 through u32 before widening to u64, preventing the lower lane sign bit from contaminating upper lane bits.",
+    "Partial slices reach SIMD only through tails::load_block bounded storage. All fallible processing uses staged carry, and the caller's carry is committed only after RawMasks::finish succeeds."
+  ],
+  "test_vectors": [
+    "Canonical ClassifyFn assignment and exact bracket masks.",
+    "Empty input with all four canonical quote carry combinations and opaque UTF-8 fields.",
+    "All 256 byte values repeated across full blocks, plus four sequential 64-byte ranges, compared with an independent bytewise oracle.",
+    "Isolated quotes and backslashes at every position, with explicit positions 31, 32, and 63 for signed movemask regression coverage.",
+    "128 deterministically generated full blocks spanning arbitrary bytes and a JSON-focused alphabet, compared with scalar and independent oracles.",
+    "Every length from 0 through 64 across mixed, zero, backslash, and quote blocks with all canonical incoming quote states; every ABI mask is checked for padding leakage.",
+    "Full-array and slice entry point equivalence, deliberately unaligned full blocks, and bounded subslices surrounded by quote sentinels.",
+    "Exact raw punctuation and escaped quote masks inside a string, while structural punctuation excludes string content.",
+    "Backslash runs of lengths 0 through 64 crossing block boundaries and selected runs crossing the 32-byte lane boundary.",
+    "Every split point from 0 through 64 across mixed, backslash, and quote blocks reproduces continuous byte masks and final carry.",
+    "Unclosed strings, invalid escapes, control bytes, malformed JSON, and invalid UTF-8 remain classifiable; exact ASCII whitespace, control, digit, and non-ASCII masks.",
+    "Oversized lengths 65, 66, 127, 128, 255, 256, and 1024 return InvalidToken with Scanner source and offset zero, preserving carry.",
+    "Noncanonical quote fields 2, 3, 2^32, and u64::MAX return InternalError for empty, partial, and full blocks without changing carry."
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Source review only. No build, check, formatting, or test execution commands were run, as instructed.",
+    "integration": "Uses the frozen root and ABI definitions. quotes.rs, structural.rs, and tails.rs were absent when read; integration awaits the separately owned Wave 2 through Wave 4 modules.",
+    "ownership": "Only crates/jmax-scan-avx2/src/classify.rs and reports/wave1/W1-06.json were written."
+  }
+}

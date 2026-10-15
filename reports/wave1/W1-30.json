@@ -1,0 +1,72 @@
+{
+  "worker_id": "W1-30",
+  "wave": 1,
+  "crate": "jmax-http",
+  "file": "crates/jmax-http/src/client.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "call",
+      "signature": "pub async fn call<T, R>(transport: &T, validator: &dyn BodyValidator, request: OutgoingRequest, limits: HttpLimits) -> Result<ParsedMessage<R>> where T: HttpTransport, R: JsonDecode + SchemaProvider",
+      "behavior": "Preflights effective limits, non-HEAD method, absolute URI, JSON headers, canonical Content-Length, body size, proof lengths and decoded arena cap. Transfers the unchanged validated request to HttpTransport::send exactly once, awaits its future directly, and delegates typed response validation and decoding to incoming::decode_response::<R>. Errors retain their metadata; no retry, redirect, detached work or request re-encoding occurs."
+    },
+    {
+      "name": "call_json",
+      "signature": "pub async fn call_json<T, Q, R>(transport: &T, validator: &dyn BodyValidator, method: HttpMethod, uri: &str, headers: Vec<Header>, value: &Q, limits: HttpLimits) -> Result<ParsedMessage<R>> where T: HttpTransport, Q: JsonEncode + SchemaProvider, R: JsonDecode + SchemaProvider",
+      "behavior": "Builds a bounded, schema-validated request using outgoing::request and Q's schema, then delegates to call. R's schema is used only for the response."
+    }
+  ],
+  "unsafe_justifications": {
+    "production": [],
+    "tests": [
+      {
+        "location": "client::tests::LiteralValidator::validate",
+        "operation": "ValidationProof::issue_unchecked",
+        "justification": "Only registered test fingerprints 11 and 22 are accepted. Exact matching against complete JSON object literals establishes the single required boolean field, absence of duplicate or unknown fields, UTF-8 validity and matching Bool slot. Payload and decoded lengths use checked conversions, resource limits are checked, and the unreferenced immutable decoded arena is verified as UTF-8. Negative proof-binding cases reuse independently validated evidence rather than issuing invalid proofs."
+      }
+    ]
+  },
+  "test_vectors": {
+    "inline_test_count": 31,
+    "execution": "Not run, as explicitly instructed. No build, compiler, formatter or check commands were run.",
+    "fixtures": {
+      "request_schema_fingerprint": 11,
+      "response_schema_fingerprint": 22,
+      "request_json": "{\"value\":true}",
+      "request_body_bytes": 14,
+      "response_json": "{\"value\":false}",
+      "response_body_bytes": 15,
+      "padded_request_json": " \n{\"value\":true}\t ",
+      "minimal_header_storage_bytes": 54,
+      "decoded_arena": "arena"
+    },
+    "coverage": [
+      "Unchanged request bytes, headers, method, URI, proof and payload owner; retained response owner and decoded arena after collaborators drop.",
+      "All six supported methods, HEAD rejection, valid IPv4 and IPv6 targets, URI port boundaries, and invalid absolute URI vectors.",
+      "Single encoding, distinct request and response fingerprints, supplied Content-Length normalization and preserved duplicate extension-header order.",
+      "Lazy unpolled futures, one pending adapter poll followed by completion, and pending-call cancellation dropping the adapter future without response validation.",
+      "Invalid limit configurations and inclusive header count, 54-byte header storage, 14-byte body and five-byte decoded arena boundaries.",
+      "Minimum transport and syntax payload cap, zero decoded allowance, and unchanged forwarding of remaining syntax policy.",
+      "Missing, duplicate, noncanonical, malformed, overflowing, short and long Content-Length values.",
+      "Missing, duplicate and incompatible media types; JSON suffix types, case-insensitive media types, UTF-8 charset parameters and identity content encoding.",
+      "Transfer framing, unsupported content encoding and duplicate content encoding rejection before sending.",
+      "Outgoing payload and decoded arena proof-length mismatches, response fingerprint mismatch, changed response bytes and equal-length response substitution.",
+      "Transport, encoder, validator and typed decoder error propagation preserving code, source, offset, schema, field and detail metadata.",
+      "Success status boundaries, bodyless statuses, invalid and error statuses, redirect rejection without another send, and incomplete response precedence.",
+      "Nominal success with bad framing, completed responses without Content-Length, and oversized responses rejected before validation.",
+      "Empty, malformed, truncated, concatenated, duplicate-key and invalid UTF-8 JSON responses rejected without fabricating values.",
+      "call_json invalid metadata, encoding limits and request validation failures never invoke the transport."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source reviewed against contracts/jmax-http.md, jmax-http root types and jmax-abi ownership, schema, error and trait definitions.",
+    "validation": "source_review_only",
+    "integration": "Uses frozen public incoming and outgoing module APIs. Those modules were not present when read and belong to later waves; they were not created or modified.",
+    "dependencies_added": [],
+    "files_written": [
+      "crates/jmax-http/src/client.rs",
+      "reports/wave1/W1-30.json"
+    ]
+  }
+}

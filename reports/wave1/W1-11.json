@@ -1,0 +1,62 @@
+{
+  "worker_id": "W1-11",
+  "wave": 1,
+  "crate": "jmax-decimal",
+  "file": "crates/jmax-decimal/src/lex.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn lex_quoted<'a>(input: &'a [u8], offset: u32, allow_exponent: bool) -> Result<DecimalLexeme<'a>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run, as instructed. Source was reviewed manually. No build, check, compiler, formatter, test, or commit command was executed.",
+    "inline_test_count": 11,
+    "coverage": [
+      {
+        "test": "fixed_point_vectors_preserve_digits_sign_and_span",
+        "cases": "Zero, negative zero, signed integers and fractions, trailing fractional zeros, a coefficient above i128::MAX, and both exponent-policy settings."
+      },
+      {
+        "test": "exponent_vectors_include_limits_signs_and_leading_zeros",
+        "cases": "Lowercase and uppercase markers, optional exponent signs, normalized negative exponent zero, leading zeros, and absolute exponent limits of 32767."
+      },
+      {
+        "test": "slices_borrow_the_original_input",
+        "cases": "Pointer identity for raw, integer, and fractional slices; absent fraction with an exponent."
+      },
+      {
+        "test": "every_proper_prefix_of_valid_tokens_reports_eof_at_end",
+        "cases": "Every proper prefix of seven representative valid tokens, with absolute EOF offsets and enabled or disabled exponents."
+      },
+      {
+        "test": "malformed_tokens_report_the_first_offending_byte",
+        "cases": "Missing or incorrect quotes, empty values, invalid signs, leading zeros, missing digits, repeated separators, malformed exponents, whitespace, control bytes, escapes, Unicode digits, invalid UTF-8, special number names, and trailing content."
+      },
+      {
+        "test": "disabled_exponents_fail_at_the_marker_even_when_incomplete_or_zero",
+        "cases": "Both exponent marker cases, incomplete exponent prefixes, zero exponents, and negative zero exponents."
+      },
+      {
+        "test": "excessive_exponents_fail_on_the_first_digit_above_the_limit",
+        "cases": "32768 with both signs, 327670, long overflowing digit sequences, leading zeros, and overflow preceding EOF or other invalid bytes."
+      },
+      {
+        "test": "long_exponent_zero_prefixes_have_no_artificial_length_limit",
+        "cases": "4096-byte tokens with thousands of leading exponent zeros, exponent zero, negative 32767, and rejection of negative 32768 at its final digit."
+      },
+      {
+        "test": "lexing_does_not_impose_coefficient_or_writer_capacity_limits",
+        "cases": "512-byte integer and fractional tokens remain lexically valid without imposing accumulation or writer limits."
+      },
+      {
+        "test": "absolute_range_boundaries_are_validated_before_the_grammar",
+        "cases": "Exclusive end exactly u32::MAX, overflowing ends, range-error precedence, empty input at u32::MAX, EOF at u32::MAX, and invalid bytes near the boundary."
+      },
+      {
+        "test": "oversized_lengths_are_rejected_without_constructing_a_slice",
+        "cases": "On 64-bit targets, synthetic u32::MAX, u32::MAX + 1, and usize::MAX lengths exercise range validation without allocation or unsafe slices."
+      }
+    ]
+  },
+  "status": "complete"
+}

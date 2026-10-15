@@ -1,0 +1,32 @@
+{
+  "worker_id": "W1-01",
+  "wave": 1,
+  "crate": "jmax-buffer",
+  "file": "crates/jmax-buffer/src/payload.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn adopt(payload: Payload, limits: BufferLimits) -> Result<Payload>",
+    "pub fn from_arc(bytes: Arc<[u8]>, limits: BufferLimits) -> Result<Payload>",
+    "pub fn from_vec(bytes: Vec<u8>, limits: BufferLimits) -> Result<Payload>",
+    "pub fn from_slice(bytes: &[u8], limits: BufferLimits) -> Result<Payload>",
+    "pub fn validate_len(len: usize, limits: BufferLimits) -> Result<u32>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "15 deterministic inline tests use only alloc, core, and canonical ABI types; no external bytes import or additional crate dependency.",
+    "Length-only boundary checks cover zero, exact limits, one byte over, the default 64 MiB limit, u32::MAX, and usize::MAX without large allocations; unrepresentable lengths are exercised when supported by the target.",
+    "Arc conversion and shared adoption preserve allocation identity, storage variant, reference counts, and bytes after another owner is dropped.",
+    "Bytes sliced from prefix:body:suffix to 7..11 retain the body range, original pointer, and Bytes variant; 7..7 exercises an empty visible slice over nonempty backing.",
+    "Vector transfer preserves the visible body bytes and allocation pointer with capacity 64 and length 4; empty vectors with spare capacity are accepted at a zero limit.",
+    "Borrowed slice [0, 255, 128, 123] is copied into Shared storage and remains unchanged when the source is overwritten.",
+    "Every entry point accepts empty input at zero limit and rejects nonempty input at zero limit or four visible bytes at limit three.",
+    "Errors verify PayloadTooLarge, Decode, u32::MAX byte offset, zero schema and field identifiers, and static payload-free detail; rejected shared inputs release their consumed Arc owner.",
+    "Invalid UTF-8, embedded NUL, incomplete JSON, trailing commas, lone surrogate escapes, and trailing content are preserved without content validation.",
+    "Decoded limits of zero, one, and u32::MAX do not change payload admission."
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Source reviewed against the frozen contract and ABI. Tests were written but not executed. No cargo, rustc, rustfmt, build, check, or git commit command was run.",
+    "integration": "Only the assigned payload module and this report were written. The root declares later-wave modules whose implementation is outside this assignment."
+  }
+}

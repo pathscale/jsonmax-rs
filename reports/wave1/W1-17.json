@@ -1,0 +1,43 @@
+{
+  "worker_id": "W1-17",
+  "wave": 1,
+  "crate": "jmax-schema-compile",
+  "file": "crates/jmax-schema-compile/src/lower.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "lower",
+      "signature": "pub fn lower(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<CompiledProgram>",
+      "behavior": "Runs policy validation and canonicalization before emission; assigns dense canonical breadth-first states; emits the frozen scalar, object, array, and Any instruction grammar; builds and rebases key tables; compiles unique patterns in first-state encounter order; resolves registered formats; preserves dense user slots and rejects repeated capture paths; enforces checked global resource limits and encoded image size."
+    },
+    {
+      "name": "compile",
+      "signature": "pub fn compile(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<ValidatedProgram>",
+      "behavior": "Exactly lower followed by image::validate; does not construct a validation witness itself."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Any instruction operands, header counts, canonical bytes, FNV-1a identity, and default format options.",
+    "All six scalar tags; signed integer extremes; decimal policy and bounds; mandatory decimal checks without bounds; zero, one-sided, and u32-max string bounds.",
+    "Sorted object properties, dense required bits, unknown-member rejection, member-count bounds, optional captures, and preserved slot numbers.",
+    "Empty object tables, empty keys, Unicode keys, common-prefix keys, SWAR fallback, and perfect-hash/global-byte rebasing across multiple object tables.",
+    "Canonical breadth-first numbering through aliases, unreachable-node exclusion, shared scalar/object targets, and globally unique property FieldIds.",
+    "Array instruction operands and item bounds, finite object/array recursion, and a 1025-state iterative traversal.",
+    "Repeated capture rejection through arrays, self-recursion, recursion ancestry, parallel incoming edges, and unequal-depth merging paths; saturated path propagation and unique-owner acceptance.",
+    "Raw-container and Any capture metadata, repeated contents inside uniquely captured containers, reused scalar field occurrences, sparse slots, and unreachable slot holes.",
+    "Pattern encounter ordering, source deduplication, aggregate and individual pattern-state budgets, empty patterns with zero state budget, malformed and unsupported regex syntax, and UTF-8 pattern byte limits.",
+    "Length-pattern-format instruction ordering, all ten stable format identifiers, and unknown/empty/overlong annotations under Reject and Annotate policies.",
+    "Inclusive global state/instruction/key/image-byte limits, resource-specific zero limits, policy validation precedence, u32 arithmetic overflow, and malformed internal graph edges.",
+    "FieldId 65535 acceptance and larger-ID rejection; 65535 required properties accepted, 65536 required rejected, and 65536 keys accepted when the final property is optional.",
+    "Validated byte-identical encodings for reordered property declarations and encoded_len agreement with encoded bytes."
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "validation": "Manual source and frozen-contract review only. Inline tests are written but were not executed, as explicitly required.",
+    "commands_not_run": ["cargo", "rustc", "rustfmt", "git commit", "build commands", "check commands"],
+    "integration": "Uses the frozen interfaces for schema IR policy/canonicalization/resolution, compiler keys/patterns/image, and the format registry. Later-wave implementation files were absent when inspected; no substitutes or stubs were introduced.",
+    "files_written": ["crates/jmax-schema-compile/src/lower.rs", "reports/wave1/W1-17.json"]
+  }
+}

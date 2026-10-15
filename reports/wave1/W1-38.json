@@ -1,0 +1,19 @@
+{
+  "worker_id": "W1-38",
+  "wave": 1,
+  "crate": "jmax-fuzz",
+  "file": "crates/jmax-fuzz/src/syntax.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "seed_corpus(max_input_bytes: usize) -> Result<Vec<Payload>>",
+    "mutate(input: &[u8], rng: &mut DeterministicRng, max_input_bytes: usize) -> Result<Vec<u8>>",
+    "run_syntax(inputs: &[Payload], left: &mut dyn SyntaxOracle, right: &mut dyn SyntaxOracle, limits: Limits, config: FuzzConfig) -> Result<FuzzReport>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Corpus covers JSON scalar roots, nested and empty containers, delimiter and punctuation errors, escapes, controls, invalid and truncated UTF-8, surrogate pairs and lone surrogates, duplicate decoded keys, malformed numbers, trailing bytes, and truncated values.",
+    "Boundary-size candidates cover lengths 0, 1, 15, 16, 31, 32, 63, 64, 65, 127, and 128 when the configured cap permits.",
+    "Tests cover deterministic mutation replay, empty and full buffers, oversize inputs and invalid caps, seed omission without truncation, paired outcome accounting, mismatch replay bytes/index/seed, failure-cap truncation, rejection comparison policy, and outer oracle errors."
+  ],
+  "status": "implemented; no cargo, rustc, rustfmt, build, or check commands run as instructed"
+}

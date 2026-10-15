@@ -1,0 +1,31 @@
+{
+  "worker_id": "W1-03",
+  "wave": 1,
+  "crate": "jmax-dispatch",
+  "file": "crates/jmax-dispatch/src/detect.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn detect() -> CpuCapabilities",
+    "pub fn is_available(backend: BackendId) -> bool"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Exhaustive 64 combinations of AVX usable state, AVX2, AVX-512F, AVX-512BW, AVX2 scanner support, and AVX-512 scanner support; checks every capability field and all four backend predicates.",
+    "All-disabled and all-enabled boundaries, scalar-only defaults, absent CPU features despite available scanner builds, and absent scanner builds despite usable CPU/OS features.",
+    "Negative paths: missing AVX OS state rejects AVX2 and AVX-512; F-only and BW-only reject AVX-512; independent scanner gates cannot enable each other.",
+    "AVX-512F plus BW qualifies without AVX2 scanner support or a VL requirement.",
+    "Public detection and availability agree, scalar is always available, and enabled native feature fields imply the corresponding scanner supports execution.",
+    "Target-gated assertions cover std x86 usable-state checks, no_std x86 exact static guarantees, AArch64 scanner-controlled NEON, and scalar-only unsupported targets including arm32."
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Source reviewed against the frozen contract and scanner capability APIs. Tests authored but not executed. No build, check, formatting, compiler, or commit commands were run, as instructed.",
+    "error_paths": "The frozen detection API is infallible. Unsupported CPU, OS, and scanner-build combinations are tested as false availability rather than introducing errors.",
+    "integration": "No prior-wave child modules existed in the dispatch source directory when inspected. Other wave implementations are outside this worker's ownership.",
+    "safety": "No unsafe code, instruction trap probes, allocations, environment reads, local cache, or mutable global state. Standard-library detection may use its own internal feature cache.",
+    "changed_files": [
+      "crates/jmax-dispatch/src/detect.rs",
+      "reports/wave1/W1-03.json"
+    ]
+  }
+}

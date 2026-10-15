@@ -1,0 +1,29 @@
+{
+  "worker_id": "W1-39",
+  "wave": 1,
+  "crate": "jsonmax",
+  "file": "crates/jsonmax/src/parse.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "parse_slice",
+    "parse_owned",
+    "parse_payload",
+    "validate_syntax",
+    "from_slice",
+    "decode_payload"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "scalar, nested object/array, decoded string, and payload ownership",
+    "complete-input and trailing-content validation",
+    "empty and whitespace-only EOF handling",
+    "malformed syntax, invalid UTF-8, and duplicate decoded keys",
+    "negative zero, exponent boundary, and non-finite binary64 cases",
+    "depth and array-item limit failures",
+    "negative numeric-policy configuration"
+  ],
+  "status": {
+    "result": "blocked",
+    "details": "The frozen jmax-dom contract exposes build::parse(Payload, Limits) -> jmax_dom::Document, while jsonmax::Document is the distinct ABI ValidatedDocument alias. No safe conversion or proof-publication API is specified for this direction. The facade must not issue ValidationProof with unsafe code, and returning the DOM type violates the frozen public signature. The parse_payload implementation currently calls the available DOM builder; it requires a safe lower-layer conversion API before it can satisfy the frozen return type. No cargo, rustc, rustfmt, or build/check command was run."
+  }
+}

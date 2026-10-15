@@ -1,0 +1,40 @@
+{
+  "worker_id": "W1-13",
+  "wave": 1,
+  "crate": "jmax-cursor",
+  "file": "crates/jmax-cursor/src/walk.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn from_payload(payload: Payload, limits: Limits, mode: SkipMode) -> Result<Cursor>",
+    "pub fn push(cursor: &mut Cursor, bytes: &[u8]) -> Result<()>",
+    "pub fn end_input(cursor: &mut Cursor) -> Result<()>",
+    "pub fn next(cursor: &mut Cursor) -> Result<ScanStep>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Both payload ownership variants and both cursor modes: independent input copy, unchanged initial traversal state, no eager validation.",
+    "Nested object and array with true, false, null, exponent number, string and empty object: exact event order, spans and delimiter offsets.",
+    "Scalar roots, empty string, empty object and empty array.",
+    "Every two-chunk split of a nested document containing multibyte UTF-8, escaped keys, escaped backslashes and quotes, surrogate pairs, numbers and keywords, in both modes.",
+    "Bytewise feeds with overwritten caller chunks, empty feeds and retained raw and decoded string references.",
+    "Partial surrogate-pair string: repeated NeedMore preserves current and token offset, no partial arena writes, exactly one decoded string.",
+    "NeedMore and repeated Finished preserve current; EOF declarations do not consume events and are idempotent.",
+    "Numbers and keywords wait for a delimiter or confirmed EOF.",
+    "Empty and whitespace-only documents defer UnexpectedEof until traversal.",
+    "Malformed containers, trailing commas, invalid keys, mismatched delimiters, extra roots, truncated literals, invalid numbers, unclosed strings, invalid escapes, lone surrogates, control bytes, invalid UTF-8 and decoded duplicate keys propagate exactly the syntax parser's errors.",
+    "Explicit absolute offsets for UnexpectedEof, UnclosedString, TrailingContent and InvalidSyntax.",
+    "Inclusive and zero payload limits; failed chunk append preserves storage and parser position and creates a sticky failure.",
+    "Zero and exact depth limits, inclusive array item and object field limits, and limit failures in query mode.",
+    "Empty and nonempty pushes after EOF or successful completion return sticky syntax errors without changing current or input.",
+    "Suspended skip rejects traversal without mutation, permits feeding and EOF, and permits traversal after the skip owner completes it.",
+    "A sticky syntax failure arising during suspended skip takes precedence over the recoverable cursor misuse error."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 16,
+    "validation": "Source reviewed against frozen cursor, syntax and ABI contracts. Tests were not executed. No build, check, compiler, formatter or commit command was run, as requested.",
+    "integration": "Uses the frozen jmax-syntax feed::push, feed::next and finish::end_input interfaces. Their later-wave implementations were absent when inspected; integration compilation and runtime validation remain for the coordinating workflow.",
+    "ownership": "Only crates/jmax-cursor/src/walk.rs and reports/wave1/W1-13.json were written.",
+    "notes": "No unsafe code, additional dependencies, node tape, tree storage or schema proof creation. Existing syntax failures propagate unchanged; suspended-skip API misuse does not poison the parser."
+  }
+}

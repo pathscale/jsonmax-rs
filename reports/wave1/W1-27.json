@@ -1,0 +1,34 @@
+{
+  "worker_id": "W1-27",
+  "wave": 1,
+  "crate": "jmax-wire",
+  "file": "crates/jmax-wire/src/envelope.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn decode_request(payload: Payload, limits: EnvelopeLimits) -> Result<OwnedEnvelope>",
+    "pub fn decode_response(payload: Payload, limits: EnvelopeLimits) -> Result<OwnedEnvelope>",
+    "pub fn decode_envelope(payload: Payload, limits: EnvelopeLimits) -> Result<OwnedEnvelope>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "30 inline deterministic tests are provided in the module; none were executed.",
+    "All seven canonical endpoint kinds, request/response entry-point restrictions, arbitrary field order, optional metadata, and absent versus present zero fields.",
+    "Complete raw params, result, and error spans, whitespace exclusion, all JSON result value kinds, original payload ownership, and method references surviving owner cloning.",
+    "Raw and escaped method references with exact Unicode scalar and byte lengths; all JSON escapes; mixed raw Unicode; UTF-16 surrogate pairs; scalar boundaries through U+10FFFF.",
+    "u64 and u32 maxima, i32 minimum and maximum, overflow, quoted numbers, negative zero, negative unsigned integers, fractions, and exponent rejection for integer fields.",
+    "Opaque JSON numbers above machine range, a 65536-digit number, large exponents, strict JSON number grammar, and malformed literal boundaries.",
+    "Duplicate decoded keys at envelope, error, params, result, and nested object levels, including escaped aliases, empty keys, multibyte keys, surrogate aliases, and earliest repeated-key offsets.",
+    "Closed envelope and error objects, kind-specific field exclusions, every required field omitted in turn, null/type rejection, unknown kinds, log-level restrictions, and nonempty forwarding targets.",
+    "Trailing content, non-JSON whitespace, malformed opaque containers, trailing commas, incomplete tokens and containers, every truncated prefix of a valid request, invalid escapes, lone surrogates, control characters, and invalid UTF-8.",
+    "Every zero limit, inclusive payload and decoded-arena limits, arena accounting across escaped keys and values, exact overflow offsets, per-object field boundaries, depth boundaries, and 1024 nested arrays without recursive descent.",
+    "Fallible bounded storage reservations, object-local duplicate scope, container delimiters inside strings, and static error metadata without payload disclosure."
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "validation": "Manual source and deterministic-vector review only. No compilation, test execution, formatting, build, check, or commit commands were run, as instructed.",
+    "scope": "Only crates/jmax-wire/src/envelope.rs and reports/wave1/W1-27.json were edited.",
+    "integration": "Uses the frozen root and canonical ABI types, alloc, and core only. No new dependencies, no other wave-module dependencies, no runtime or network I/O, no unsafe code, and no schema ValidationProof issuance.",
+    "parser": "Local iterative JSON validation honors the four EnvelopeLimits without introducing additional string, array-item, or number-digit ceilings. Opaque object keys are compared by decoded bytes using in-place sorting."
+  }
+}

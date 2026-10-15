@@ -1,0 +1,52 @@
+{
+  "worker_id": "W1-33",
+  "wave": 1,
+  "crate": "jmax-compat",
+  "file": "crates/jmax-compat/src/serde.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn decode_direct<'de, T: DirectDeserialize<'de>>(input: &'de [u8], validator: &mut dyn CompatibilityValidator, options: CompatOptions) -> Result<T>",
+    "pub fn encode_direct<T: DirectSerialize + ?Sized>(value: &T, validator: &mut dyn CompatibilityValidator, options: CompatOptions) -> Result<Payload>",
+    "pub fn decode_native<T: JsonDecode>(slots: &ValidatedSlots) -> Result<T>",
+    "pub fn encode_native<T: JsonEncode + ?Sized>(value: &T, validator: &mut dyn CompatibilityValidator, options: CompatOptions) -> Result<Payload>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 22,
+    "execution": "Not executed. The task prohibits cargo, rustc, rustfmt, and all build/check commands.",
+    "coverage": [
+      "Reject legacy versions 0, 2, 255, and 65535 under both loss policies before codec or validator invocation.",
+      "Decode null at the inclusive four-byte input ceiling; reject null plus trailing space above that ceiling; output ceiling does not constrain decoding.",
+      "Zero input ceiling forwards empty input for native EOF validation and rejects a one-byte input.",
+      "Reject invalid UTF-8, overlong encodings, encoded surrogates, and truncated multibyte sequences at exact raw byte offsets.",
+      "Enforce payload length before UTF-8 validation and copy the entire input into independent owned storage.",
+      "Forward trailing content, duplicate keys, malformed arrays, excessive nesting, and lone surrogates to independent validation before decoding.",
+      "Preserve the exact Limits value and every field of validator errors, including source, offset, schema ID, and field ID.",
+      "Accept identical owner copies and inclusive decoded-arena ceilings; reject substituted, shortened, and extended payload owners.",
+      "Reject payload or decoded proof-length mismatches as InternalError before evaluating decoded-arena limits.",
+      "Reject consistent decoded arenas above the configured ceiling as DecodedArenaOverflow; accept empty arenas with a zero ceiling.",
+      "Verify decoded lengths above the u32 ABI range without allocating large buffers on platforms that can represent those lengths.",
+      "Preserve whitespace, escape spellings, exponent and negative-zero spellings, Unicode, u64 maximum, and i64 minimum in direct output storage.",
+      "Bound output by the minimum of output and payload ceilings, including exact boundaries, zero ceilings, and u32 maximum options.",
+      "Verify direct and native trait-object encoders both send all bytes to native validation, including empty, incomplete, multiple-root, nonfinite-token, and invalid-UTF-8 outputs.",
+      "Normalize codec and sink failures to Encode while retaining precise canonical codes, offsets, and schema context; do not invoke validation after encoding failure.",
+      "Retain the first sink failure when codecs ignore write errors, issue overflowing reservations, attempt empty writes after failure, or replace the error with a less precise codec error.",
+      "Ensure AllowDocumented never suppresses native validation failures."
+    ],
+    "limitations": [
+      "Successful proof-backed public encode/decode integration and decode_native execution require an external validator fixture. The frozen ABI has no safe proof constructor, and jmax-compat forbids unsafe code. The inline suite exercises metadata acceptance and corruption through the exact private checker used by real validated documents, without forging a proof.",
+      "Allocation failure is mapped through fallible reservations but is not forced with a nondeterministic allocator failure test."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "verification": "Source reviewed against contracts/jmax-compat.md and the frozen ABI. No build, check, test, formatter, compiler, or commit command was run.",
+    "scope": "Only crates/jmax-compat/src/serde.rs and reports/wave1/W1-33.json were written.",
+    "notes": [
+      "The frozen application-owned DirectDeserialize and DirectSerialize seams supply optional Serde integration without adding a dependency or feature.",
+      "Decode invokes the codec on the original borrowed slice after independent native validation and owner/proof consistency checks.",
+      "Both encoders use fresh bounded storage, preserve exact encoder bytes, independently validate output, enforce decoded-arena limits, and publish nothing on error.",
+      "No unsafe code, global state, worker, cache, general-purpose JSON tree, or prohibited dependency was introduced."
+    ]
+  }
+}

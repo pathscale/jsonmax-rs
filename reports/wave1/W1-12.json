@@ -1,0 +1,82 @@
+{
+  "worker_id": "W1-12",
+  "wave": 1,
+  "crate": "jmax-syntax",
+  "file": "crates/jmax-syntax/src/machine.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "transition",
+      "signature": "pub fn transition(phase: FramePhase, token: Token) -> Result<Transition>",
+      "description": "Pure, allocation-free root/object/array transitions using frozen ABI types; advances parent phases before container pushes, preserves departing phases on pops, emits exact scalar/key/container events, and rejects unexpected tokens and trailing content. Validates metadata before phase errors."
+    },
+    {
+      "name": "is_value_start",
+      "signature": "pub fn is_value_start(kind: TokenKind) -> bool",
+      "description": "Recognizes exactly LBrace, LBracket, String, Number, True, False, and Null independently of token metadata."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "value_start_classification_is_exact",
+      "coverage": "All 11 TokenKind variants and their expected value-start classifications."
+    },
+    {
+      "test": "all_phase_token_pairs_match_the_frozen_acceptance_table",
+      "coverage": "Independent 10-by-11 acceptance table; every rejected combination verifies code, Syntax source, token offset, default context IDs, and nonempty diagnostic."
+    },
+    {
+      "test": "every_value_advances_its_parent_and_preserves_its_event",
+      "coverage": "All seven value starts in all four value-accepting phases; verifies next phase, frame action, scalar kinds, raw spans, references, and delimiter offsets."
+    },
+    {
+      "test": "keys_preserve_cooked_references_from_either_owner",
+      "coverage": "Raw and decoded-arena keys in both key phases, including metadata for an escaped surrogate pair; verifies string scalar event preservation."
+    },
+    {
+      "test": "punctuation_is_silent_and_closes_preserve_the_departing_phase",
+      "coverage": "Colon and comma transitions have no events; empty and nonempty object/array closes preserve departing phases and emit exact end events."
+    },
+    {
+      "test": "comma_requires_another_key_or_value",
+      "coverage": "Object and array trailing commas and consecutive commas are InvalidSyntax."
+    },
+    {
+      "test": "nested_container_sequence_keeps_parent_phases",
+      "coverage": "Deterministic token sequence for {\"x\":[{},null]}; parent phases survive child closes and a second root is TrailingContent."
+    },
+    {
+      "test": "decoded_presence_is_enforced_in_every_phase_before_syntax",
+      "coverage": "Missing string references and extraneous non-string references across every token kind and phase, including InvalidToken precedence over RootDone."
+    },
+    {
+      "test": "invalid_token_lengths_are_rejected_before_phase_errors",
+      "coverage": "Zero-length tokens, short strings, non-unit punctuation, and incorrect literal lengths across every phase."
+    },
+    {
+      "test": "span_ends_must_fit_u32_and_the_maximum_end_is_accepted",
+      "coverage": "Overflowing raw spans for every token kind, exact u32 maximum ends for punctuation and strings, and a maximum-length number span."
+    },
+    {
+      "test": "empty_and_multibyte_strings_preserve_owner_and_scalar_count",
+      "coverage": "Empty strings, one through four bytes per scalar, multiple scalars, both owners, and an empty arena reference at u32::MAX."
+    },
+    {
+      "test": "inconsistent_string_references_are_invalid_tokens",
+      "coverage": "Arena span overflow, decoded expansion, impossible UTF-8 scalar counts, maximum scalar count, raw quote inclusion, shifted/truncated raw references, and more than four bytes per scalar."
+    },
+    {
+      "test": "large_cooked_counts_do_not_overflow_and_arena_offsets_are_independent",
+      "coverage": "Large representable spans/counts, independent arena offsets at the u32 boundary, and deterministic repeated transitions."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "tests": "13 inline test functions written; not executed",
+    "verification": "No build, check, compiler, formatter, test runner, or commit command was run, as requested. Compilation and runtime validation remain pending.",
+    "scope": "Only crates/jmax-syntax/src/machine.rs and reports/wave1/W1-12.json were written.",
+    "dependencies": "Uses only frozen root re-exports through super::* and core integer conversions. No dependencies added, allocations, unsafe code, stubs, or parser-state mutation.",
+    "integration": "Lexical bytes, UTF-8, escapes, exact scalar counts, and backing-buffer bounds remain caller responsibilities. Metadata validation enforces representable spans, token lengths, reference presence, feasible scalar counts, nonexpanding decoded lengths, and exact raw string content ranges. Later-wave frames/feed/finish modules were absent when the syntax directory was initially read."
+  }
+}

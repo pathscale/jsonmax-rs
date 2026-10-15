@@ -1,0 +1,22 @@
+{
+  "worker_id": "W1-19",
+  "wave": 1,
+  "crate": "jmax-format",
+  "file": "crates/jmax-format/src/uuid_ip.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_uuid(input: &[u8]) -> FormatResult<()>",
+    "pub fn validate_ipv4(input: &[u8]) -> FormatResult<()>",
+    "pub fn validate_ipv6(input: &[u8]) -> FormatResult<()>",
+    "pub fn validate_ip(input: &[u8]) -> FormatResult<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "uuid": "Nil, unrestricted version/variant bits, upper/lower/mixed hex, every byte value at all 36 positions, all lengths 0 through 80 except 36, rejected wrappers and prefixes, first-error indices.",
+    "ipv4": "Boundary and documentation addresses; every octet value 0 through 999 in each of four positions; all 256 byte values at every separator; missing/excess octets; oversized components; leading zeros; range failures; punctuation, signs, whitespace, ports, prefixes, NUL and non-ASCII rejection.",
+    "ipv6": "Full and compressed addresses, every compression position for zero through seven explicit hex groups, every legal compression position with a dotted IPv4 tail, maximum text widths, unrestricted hex case, missing/excess groups, repeated compression, overlong components, zones/brackets/prefixes/ports and non-ASCII rejection, embedded IPv4 diagnostic equivalence.",
+    "boundaries": "Exact slice boundaries, decoded-relative indices, all single-byte inputs, UUID and IPv4 truncations, and exact validate_ip dispatch equivalence.",
+    "execution": "Inline tests authored but not executed. No cargo, rustc, rustfmt, build or check commands were run, as instructed."
+  },
+  "status": "implemented; source reviewed manually; tests not run per task restriction"
+}

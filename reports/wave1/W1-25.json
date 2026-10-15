@@ -1,0 +1,62 @@
+{
+  "worker_id": "W1-25",
+  "wave": 1,
+  "crate": "jmax-codegen-rust",
+  "file": "crates/jmax-codegen-rust/src/models.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "generate_models",
+      "signature": "pub fn generate_models(model: &EndpointModel, options: &CodegenOptions) -> Result<GeneratedArtifact>",
+      "behavior": "Validates options and the complete registry, interns inline nominal types from every model location, rejects transformed name collisions, and emits owned types, concrete encoders, optional checked borrow views, and eligible flat-schema providers and decoders."
+    },
+    {
+      "name": "rust_type",
+      "signature": "pub fn rust_type(ty: &EndpointType, mode: RustTypeMode, options: &CodegenOptions) -> Result<RustType>",
+      "behavior": "Maps every canonical endpoint type to its owned or view Rust spelling, validates configured paths and generated identifiers, and reports whether the result needs the borrow lifetime."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "type mappings and lifetimes",
+      "coverage": "Numeric, Boolean, Unit, Decimal128, every string wrapper, bytes, objects, nested containers, boxed nominal references, and enum prefix independence."
+    },
+    {
+      "category": "names and validation",
+      "coverage": "PascalCase and snake_case collisions, raw keyword fields, forbidden raw identifiers, support and view name reservations, invalid configured paths, missing and wrong-kind targets, alias cycles, canonical alias resolution, empty enums, duplicate discriminants, and i32 discriminant extrema."
+    },
+    {
+      "category": "artifact invariants",
+      "coverage": "Determinism, generation notice, relative artifact destination, LF termination, unchanged input, field order, aliases without orphan implementations, all inline nominal discovery locations, optional record omission, null array elements, owner views, and escaped Unicode metadata."
+    },
+    {
+      "category": "schema providers and decoders",
+      "coverage": "Qualified bytewise schema ordering including endpoint candidates, dense IDs, authoritative fingerprints, empty records, typed decoder dispatch, required and optional slots, checked-reader emission, exact integer bounds, schema and field context, canonical Bytea decoding, and explicit unsupported-schema failures."
+    },
+    {
+      "category": "executable emitted helper fixtures",
+      "coverage": "Inline tests instantiate the same macro token bodies used for source emission, avoiding independent codec implementations."
+    },
+    {
+      "category": "base64 runtime vectors",
+      "coverage": "RFC 4648 empty/f/fo/foo/foob/fooba/foobar vectors, zero bytes, standard plus/slash alphabet, all 256 byte values, malformed lengths and padding, nonzero pad bits, URL alphabet rejection, whitespace and Unicode rejection, and sink failures at every output boundary."
+    },
+    {
+      "category": "recursive JSON runtime vectors",
+      "coverage": "Ordered objects with all JsonValue variants, u64::MAX and i64::MIN, escaped Unicode strings, duplicate keys including empty keys, distinct Unicode spellings, NaN and infinities, finite float extrema and subnormal roundtrips, signed zero, inclusive depth 128, depth 129 rejection, usize::MAX depth rejection, shared object/array depth, and preservation of sink error context."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Manual source and frozen-contract review only. Tests were authored but not executed. No build, test, formatting, compiler, or check command was run, and no commit was created.",
+    "ownership": "Only crates/jmax-codegen-rust/src/models.rs and reports/wave1/W1-25.json were written.",
+    "integration_notes": [
+      "Uses only canonical ABI, endpoint-model, and schema-aot public APIs from the frozen contracts.",
+      "Generated nominal encoders expose pub(super) __jmax_encode(sink, depth) so sibling generated payload adapters can preserve the shared recursive depth ceiling.",
+      "View-enabled records reject fields whose converted getter names are new or value because those names are required by the checked owner-view API.",
+      "Schema candidates include every nominal record plus request and response records, ordered by the exact qualified-name grammar specified for registries.",
+      "The generator and generated source contain no unsafe code and issue no validation proofs."
+    ]
+  }
+}

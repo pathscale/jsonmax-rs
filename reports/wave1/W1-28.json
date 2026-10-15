@@ -1,0 +1,44 @@
+{
+  "worker_id": "W1-28",
+  "wave": 1,
+  "crate": "jmax-mcp",
+  "file": "crates/jmax-mcp/src/envelope.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn decode_message(payload: Payload, limits: EnvelopeLimits) -> McpResult<McpEnvelope>",
+    "pub fn validate_json(payload: &Payload, limits: EnvelopeLimits) -> Result<()>",
+    "pub fn object_field(payload: &Payload, name: &str, limits: EnvelopeLimits) -> Result<Option<Payload>>",
+    "pub fn decode_string(payload: &Payload, limits: EnvelopeLimits) -> Result<String>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests at the bottom of crates/jmax-mcp/src/envelope.rs",
+    "test_count": 27,
+    "execution": "Not executed. The task prohibits build and check commands.",
+    "coverage": [
+      "Requests versus notifications, including absent IDs and explicit null IDs",
+      "Exact signed i64 minimum and maximum, integers outside floating-point exact range, and numeric overflow",
+      "String IDs, empty strings, numeric-looking strings without coercion, escaped NUL, and surrogate pairs",
+      "Rejected negative-zero, fractional, exponent, boolean, object, and array IDs",
+      "Independent params ownership with original substring pointer comparison and exact raw JSON preservation",
+      "Missing or invalid protocol version and method, unknown envelope fields, rejected responses and batches, and invalid params kinds",
+      "Escaped envelope field aliases, duplicate top-level ID distrust, and nested duplicate rejection with an unambiguous root ID",
+      "Complete-document syntax validation, malformed JSON precedence, trailing content, and exact canonical error offsets",
+      "Every JSON value kind and strict number grammar without floating-point conversion",
+      "All JSON string escapes, Unicode boundary scalars, surrogate failures, every unescaped control byte, and invalid UTF-8 sequences",
+      "Object-field extraction, absent fields, decoded key matching, scalar lexeme preservation, and full-document validation before extraction",
+      "Inclusive raw-byte, aggregate decoded UTF-8 byte, container-depth, and per-object field limits",
+      "Nonrecursive traversal of 4096 nested containers and deterministic depth-limit rejection",
+      "Zero-limit configuration failures across all public helpers and MCP error translation",
+      "Bounded failure messages without secret parameter contents and deterministic earliest duplicate diagnostics"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source manually reviewed against the frozen contract and canonical ABI types; compilation and test execution remain unverified as instructed.",
+    "scope": "Only the assigned source file and this handoff report were written.",
+    "design": "Private iterative parser with fallible growable buffers, decoded-key comparison by in-place sorting, checked decoded-byte accounting, independent fragment copies, and no unsafe code.",
+    "error_policy": "Malformed JSON produces PARSE_ERROR with null ID. Syntactically valid invalid envelopes and duplicate decoded keys produce INVALID_REQUEST; any duplicate top-level key forces a null ID. Resource and configuration failures produce INTERNAL_ERROR. Helper errors use canonical Wire-source codes and byte offsets.",
+    "commands": "No cargo, rustc, rustfmt, git commit, build, or check command was run."
+  }
+}
