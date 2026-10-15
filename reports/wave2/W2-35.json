@@ -1,0 +1,26 @@
+{
+  "worker_id": "W2-35",
+  "wave": 2,
+  "crate": "jmax-validator",
+  "file": "crates/jmax-validator/src/params.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "grammar_for",
+    "validate_input",
+    "prepare_params",
+    "validate_prepared"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Grammar mapping including Optional(String) JSON grammar",
+    "Raw text strings including empty, literal null, quotes, and control escaping",
+    "Signed and unsigned integer boundaries, timestamp range, Boolean, and Unit shape",
+    "Exact structs, optional fields, unknown fields, duplicate keys, and required fields",
+    "Homogeneous arrays, enum membership, UUID structure, and decimal syntax/scale",
+    "Canonical base64, NanoId, IP, blockchain address/hash, and Optional null/string formats",
+    "Named struct/enum reference resolution and struct table validation",
+    "Ordered complete preparation, prepared payload validation, duplicate and unknown inputs",
+    "Trailing JSON content and payload/array limits"
+  ],
+  "status": "implemented; build and check commands intentionally not run per instruction"
+}

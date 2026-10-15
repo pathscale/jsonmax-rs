@@ -1,0 +1,27 @@
+{
+  "worker_id": "W2-39",
+  "wave": 2,
+  "crate": "jsonmax",
+  "file": "crates/jsonmax/src/query.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "compile_paths",
+    "query_payload",
+    "query_slice",
+    "strict_select"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Path order, duplicate paths, root selection, missing selection, and selected null",
+    "Shared-prefix paths, array indices, and source spans",
+    "Decoded object-key matching and escaped path keys",
+    "Malformed path and malformed JSON error codes",
+    "Strict validation of unselected malformed data and duplicate object keys",
+    "Total match budget including duplicate path entries and zero-limit rejection",
+    "Strict selection defaults and invalid numeric-policy rejection",
+    "Owner retention, invalid raw_match indices, and invalid span boundary",
+    "Empty path list still receives complete strict validation"
+  ],
+  "status": "complete",
+  "verification": "Tests and build checks were not run, as instructed."
+}

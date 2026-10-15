@@ -1,0 +1,51 @@
+{
+  "worker_id": "W2-17",
+  "wave": 2,
+  "crate": "jmax-schema-compile",
+  "file": "crates/jmax-schema-compile/src/keys.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn build(specs: &[KeySpec], options: &CompilerOptions) -> Result<BuiltKeys>",
+    "pub fn lookup<'a>(image: &'a SchemaImage, table: &KeyTable, key: &[u8]) -> Result<Option<&'a KeyEntry>>",
+    "pub fn validate(image: &SchemaImage, table: &KeyTable) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-schema-compile/src/keys.rs::tests",
+    "inline_test_count": 19,
+    "execution": "Not executed. The task prohibits build, check, compiler, formatter, and test commands.",
+    "coverage": [
+      "Empty input with zero resource limits always produces SWAR.",
+      "Raw UTF-8 sorting, exact concatenated spans, zero-padded little-endian heads, dense required bits, and target preservation.",
+      "Inclusive SWAR threshold; names a and b produce seed 0 with local slots [0, 1, EMPTY_KEY_SLOT, EMPTY_KEY_SLOT].",
+      "Names aa and d collide at seed 0 and succeed at seed 1 with local slots [1, EMPTY_KEY_SLOT, 0, EMPTY_KEY_SLOT].",
+      "Zero and exhausted hash-attempt budgets fall back to SWAR; names a and e remain colliding throughout the bounded search.",
+      "Input rotations and reversal preserve deterministic entries, bytes, strategy, and required counts.",
+      "Duplicate names and FieldIds return ConstraintViolation with field context; FieldIds above 65535 return UnsupportedSchemaFeature.",
+      "Inclusive key and key-payload size limits, including selected PHF slot storage; discarded fallback slots do not consume encoded size.",
+      "Checked capacity rounding, u32 arithmetic overflow, count conversion, and impossible reservation failures return BudgetExhausted.",
+      "65535 required fields succeed; a 65536th required field fails; all 65536 FieldIds are accepted when the final property is optional.",
+      "Rebased global key indices and byte spans work for SWAR and PHF; slots pointing into another table fail.",
+      "Out-of-bounds and overflowing table ranges, malformed spans, invalid UTF-8, duplicate or unsorted names, wrong heads, duplicate fields, and non-dense required bits fail before a lookup hit or miss.",
+      "Invalid PHF capacities, missing or duplicate entries, out-of-range indices, incorrect seed placement, and changed seeds return SchemaImageInvalid.",
+      "Structurally valid noncanonical PHF capacity is accepted locally; canonical strategy reproduction belongs to full image validation.",
+      "Unknown keys sharing a stored key's hash slot, byte length, and first eight bytes still require exact complete-byte equality.",
+      "Composed and decomposed Unicode names remain distinct; emoji names work; truncated UTF-8 scalar spans fail.",
+      "A single empty name supports PHF; empty and embedded-NUL names remain distinct despite identical SWAR heads.",
+      "A deterministic 96-name corpus is compared with a linear exact-name oracle over 128 present and absent queries."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Manual source review against the frozen contract, shared root, ABI types, and Wave 1 lowering integration.",
+    "verification": "Compilation and tests were not run, as instructed. No build, check, formatter, or commit commands were run.",
+    "scope": "Only the assigned keys.rs source and this handoff report were written.",
+    "integration_notes": [
+      "Construction uses fallible allocation, checked arithmetic, deterministic sorting, and bounded seed search. No unsafe code or additional dependencies are used.",
+      "Validation and lookup allocate no heap memory. Field uniqueness uses an 8192-byte fixed bitmap.",
+      "Lookup validates the entire unwitnessed table before searching, so its total cost includes linear validation even for PHF.",
+      "Build output has local indices and spans. Existing lowering remains responsible for rebasing and global limits.",
+      "Header consistency, cross-table ownership, target-state bounds, complete encoded size, and reproduction under compiler options remain the full image validator's responsibility."
+    ]
+  }
+}

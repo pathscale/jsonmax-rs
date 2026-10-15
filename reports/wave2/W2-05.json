@@ -1,0 +1,40 @@
+{
+  "worker_id": "W2-05",
+  "wave": 2,
+  "crate": "jmax-scan-neon",
+  "file": "crates/jmax-scan-neon/src/quotes.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn quote_masks(quote_mask: u64, backslash_mask: u64, valid_len: u8, carry: &mut ScanCarry) -> Result<QuoteMasks>"
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "entire module, including tests",
+      "justification": "No unsafe code or architecture intrinsics are used. The frozen contract permits portable bit operations on the combined masks produced by NEON classification. Backslash-run traversal and six prefix-XOR steps resolve all four lanes together without additional CPU feature requirements, allocation, or dependencies. All variable shifts are bounded below 64; runs ending at position 64 are handled explicitly."
+    }
+  ],
+  "test_vectors": [
+    "Exact expected masks and outgoing carry for empty input, adjacent delimiters, ordinary string content, escaped quotes inside and outside strings, even backslash runs, and unfinished strings with trailing escapes.",
+    "Empty input under all four canonical quote-carry states, including fully overlapping padded masks, preserves all carry fields.",
+    "Exhaustive sequences of length zero through eight over ordinary bytes, quotes, and backslashes, under all four incoming states, compared with an independent byte-state oracle.",
+    "Every backslash-run length before every quote position from zero through 63, tested as both a partial block and a full block with all incoming states.",
+    "Every valid length zero through 64 for uniform ordinary, quote, backslash, control, and non-ASCII blocks; explicit outgoing parity assertions for all-backslash inputs.",
+    "Incoming escape consumption by a quote, ordinary byte, control byte, non-ASCII byte, or continued backslash run.",
+    "Dirty overlapping padding above every valid length is ignored, every output mask is clipped, and a final actual backslash retains its carry despite padding.",
+    "Exact bit-63 and full-width prefix vectors, including escaped quotes at bit 63 and all-quote blocks.",
+    "Every split from zero through 64 recombines to continuous oracle masks and carry, with inserted empty blocks and quotes around all three 16-byte lane boundaries.",
+    "Two full blocks with every trailing run length zero through 64 and every next-block leading run length zero through 63, under all four incoming states.",
+    "128 deterministic xorshift-generated mixed blocks, every valid prefix length, and every canonical incoming state compared with the independent oracle.",
+    "Every invalid u8 length from 65 through 255 returns InvalidToken before carry or overlap validation, with Scanner source, zero offset, and unchanged carry.",
+    "Noncanonical carry values 2, 3, 255, 256, 2^32, 2^63, and u64::MAX in either or both quote fields return InternalError at every valid length without mutation.",
+    "Quote/backslash overlap at every live position of every nonempty valid length returns InternalError transactionally under all four incoming states.",
+    "Every UTF-8 tail length zero through 255, including invalid UTF-8 metadata, remains byte-for-byte unchanged on empty success, nonempty success, and error."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "15 deterministic inline tests authored; not executed",
+    "validation": "Source reviewed only. No cargo, rustc, rustfmt, build, check, test execution, or git commit command was run, as instructed.",
+    "integration": "Matches the frozen quote_masks signature consumed by the Wave 1 classify module. Uses only root-owned ABI reexports, QuoteMasks, valid_mask, and validate_carry. Validation precedes all mutation, and only the two quote-carry fields are updated on nonempty success.",
+    "ownership": "Only crates/jmax-scan-neon/src/quotes.rs and reports/wave2/W2-05.json were written."
+  }
+}

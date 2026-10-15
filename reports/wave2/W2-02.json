@@ -1,0 +1,29 @@
+{
+  "worker_id": "W2-02",
+  "wave": 2,
+  "crate": "jmax-error",
+  "file": "crates/jmax-error/src/paths.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "BoundedPath::new",
+    "BoundedPath::push_key",
+    "BoundedPath::push_index",
+    "BoundedPath::pop",
+    "BoundedPath::clear",
+    "BoundedPath::to_pointer"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "empty root and empty key pointer encoding",
+    "tilde and slash JSON Pointer escapes with exact byte accounting",
+    "UTF-8 preservation and unpadded decimal indices including u32::MAX",
+    "equal key/index spellings retain distinct segment variants",
+    "zero limits, exact segment limits, and exact encoded-byte limits",
+    "limit failure paths preserve path logical state and report kind-specific source",
+    "synthetic encoded-length arithmetic overflow and pointer invariant return BudgetExhausted",
+    "pop and clear restore empty-root state",
+    "JSON and schema paths share pointer encoding while retaining kind",
+    "escaped-key and maximum-index boundaries"
+  ],
+  "status": "complete; source and inline tests written, build/check commands not run as instructed"
+}

@@ -1,0 +1,80 @@
+{
+  "worker_id": "W2-31",
+  "wave": 2,
+  "crate": "jmax-wss",
+  "file": "crates/jmax-wss/src/send.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn prepare_output(payload: Payload, opcode: Opcode, validator: &mut dyn MessageValidator, policy: &WssPolicy) -> Result<ValidatedOutput>",
+      "behavior": "Validates policy, permits Text or explicitly enabled Binary JSON, independently enforces frame, message, syntax payload and ABI byte ceilings, and checks UTF-8. Calls the supplied validator exactly once on a shared clone of the immutable owner with the exact configured Limits. Calls ensure_validated_slots against the retained original bytes, bounds decoded storage and checks decoded UTF-8 before constructing private output fields. Retains the original payload, opcode and unchanged validator proof while dropping decoded storage and slots. Does not copy payload bytes, allocate scratch, or issue proofs. Validator errors propagate with all metadata unchanged."
+    },
+    {
+      "signature": "pub fn validate_output(output: &ValidatedOutput, policy: &WssPolicy) -> Result<()>",
+      "behavior": "Rechecks the existing validated value's opcode, UTF-8 and current frame, message and syntax payload byte ceilings. Rejects proof payload-length mismatches with InternalError and decoded proof lengths above the current decoded ceiling with PayloadTooLarge. Preserves the existing schema proof and fingerprint without running a validator or issuing new evidence."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "tests": [
+        "non_data_opcodes_never_reach_validation",
+        "binary_requires_explicit_json_policy_and_still_runs_validation",
+        "policy_opcode_and_byte_errors_precede_utf8_work"
+      ],
+      "coverage": "Continuation, Close, Ping and Pong fail with FramingError under both binary policies. Binary fails with TypeMismatch unless Json is explicitly enabled. Allowed data opcodes reach the configured validator. Invalid policy, opcode and byte ceilings are resolved before UTF-8 work or any validator invocation."
+    },
+    {
+      "tests": [
+        "each_byte_ceiling_is_independent_and_inclusive",
+        "exact_simultaneous_byte_ceilings_allow_validation",
+        "output_must_fit_one_frame_even_when_the_message_budget_is_larger",
+        "frame_limit_may_exceed_message_limit"
+      ],
+      "coverage": "Each independent frame, message or syntax payload ceiling of 4 accepts lengths 3 and 4 and rejects length 5 for Text and permitted Binary. Exact simultaneous ceilings permit validation. A frame ceiling of 1 rejects null but permits 0 to reach validation. A frame ceiling of 8 with a message ceiling of 4 is valid and enforces the tighter message bound."
+    },
+    {
+      "tests": [
+        "zero_required_policy_limits_fail_before_validation",
+        "every_configured_syntax_limit_is_forwarded_exactly"
+      ],
+      "coverage": "Zero frame, message, fragment, syntax payload or depth limits fail with ConstraintViolation before validation. Zero decoded, field, string, numeric-digit and array ceilings remain valid configuration. All Limits fields, including both object-key policy flags, arrive unchanged at the validator."
+    },
+    {
+      "tests": [
+        "valid_utf8_does_not_skip_json_or_schema_validation",
+        "unicode_vectors_reach_the_configured_validator_for_both_data_opcodes",
+        "invalid_utf8_reports_the_first_invalid_sequence_without_calling_validator",
+        "decoded_utf8_allows_empty_nul_and_unicode_scalars"
+      ],
+      "coverage": "Empty input, whitespace, malformed JSON, trailing roots, invalid escapes, lone-surrogate escapes, trailing commas, leading-zero numbers, NUL and duplicate keys all reach the mandatory validator rather than obtaining output from UTF-8 checks alone. Valid two-, three- and four-byte scalars and the maximum Unicode scalar pass preflight. Stray continuation bytes, overlong encodings, surrogate encodings, invalid continuations, out-of-range scalars and truncated encodings fail at exact offsets 0, 1, 2 or 5 for both data opcodes. The same decoded-arena UTF-8 guard is tested directly, including empty and NUL-containing decoded strings."
+    },
+    {
+      "tests": [
+        "validator_errors_preserve_all_diagnostic_metadata",
+        "validator_receives_shared_clone_and_exact_limits_once",
+        "sliced_bytes_keep_their_owner_across_application_buffer_drops"
+      ],
+      "coverage": "Sixteen validator diagnostic vectors preserve code, source, byte offset, schema ID, field ID and detail exactly, including strict EOF, syntax, schema, decoded, budget and cancellation failures. Shared and Bytes payloads retain their exact original data pointer across the validator seam. A heap-backed sliced Bytes owner remains readable after the application's backing and slice handles are dropped. These ownership vectors observe the validator's retained clone on an intentional error path, not a fabricated successful output."
+    },
+    {
+      "tests": [
+        "proof_payload_lengths_must_match_exactly_including_empty",
+        "decoded_proof_ceiling_is_inclusive_even_without_retained_arena",
+        "decoded_storage_length_guard_handles_zero_exact_and_excess_lengths",
+        "abi_overflow_is_rejected_without_allocating_large_buffers",
+        "tightened_current_policy_rejects_the_same_previously_acceptable_frame"
+      ],
+      "coverage": "Production proof-length guards accept exact lengths including zero and u32::MAX and reject both shorter and longer payload evidence with InternalError. Decoded ceilings are inclusive, zero permits only zero, and excess is PayloadTooLarge even though no decoded arena is retained. Payload evidence mismatch precedes decoded-budget rejection. A conditional 64-bit vector checks u32::MAX plus one arithmetically without a large allocation. Tightened frame, message, syntax payload, binary and decoded policies reject through the exact guards used by validate_output."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "21 deterministic tests written, including one conditional 64-bit test",
+    "execution": "Not run by explicit user instruction. No cargo, rustc, rustfmt, build, check, test or git commit command was executed.",
+    "review": "Manual source review against contracts/jmax-wss.md, the frozen WSS and ABI roots, receive.rs, canonical Payload/ValidationProof/ValidatedSlots/Limits/error definitions and available VM validation boundaries. Only the assigned send.rs and this report were written.",
+    "integration": "Uses the frozen later-wave policy::validate_policy API. policy.rs and bridge.rs are absent at handoff and were not created or modified. No manifest or dependency changes were made. Production code uses only root definitions, the canonical ABI, and core; tests additionally use existing Bytes and alloc-backed payload constructors.",
+    "frame_policy": "Outbound values are treated as individual frames because LocalTransport::try_send atomically enqueues one immutable validated frame and there is no outbound fragment sequence in this API. Both preparation and revalidation enforce max_frame_bytes independently of max_message_bytes and limits.max_payload_bytes.",
+    "coverage_limitations": "Successful proof-bearing validator returns, inconsistent returned ValidatedSlots and direct validate_output calls cannot be constructed in these inline tests through the available safe APIs. ValidationProof exposes only an unsafe issuer, the VM requires an unsafe EventInput implementation, and this crate forbids unsafe code. No tests fabricate proofs or relax that boundary. The successful publication path is implemented and manually reviewed; its metadata, decoded-limit and UTF-8 guards are tested directly where possible. Full proof-bearing integration vectors require an existing safe validator adapter supplied by integration work."
+  }
+}

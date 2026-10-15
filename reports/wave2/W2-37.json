@@ -1,0 +1,22 @@
+{
+  "worker_id": "W2-37",
+  "wave": 2,
+  "crate": "jmax-bench",
+  "file": "crates/jmax-bench/src/parse.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "run_parse",
+    "run_validate",
+    "run_extract",
+    "compare"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Deterministic two-document SmallObject workload for parse timing, output bytes, retention, and repeatable digests",
+    "Schema-backed validate and extract runs with selected value resolution and canonical selected-value byte counts",
+    "Missing schema and malformed payload error paths",
+    "Matching compare results, semantic mismatch rejection, and mode mismatch rejection",
+    "String and boolean slot encoding length/type digest checks plus invalid span boundary"
+  ],
+  "status": "complete; tests added inline but not run per instruction"
+}

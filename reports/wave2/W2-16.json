@@ -1,0 +1,55 @@
+{
+  "worker_id": "W2-16",
+  "wave": 2,
+  "crate": "jmax-schema-ir",
+  "file": "crates/jmax-schema-ir/src/resolve.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn resolve(schema: Schema, limits: ResolveLimits) -> Result<ResolvedSchema>",
+    "pub fn resolve_type(schema: &ResolvedSchema, ty: TypeId) -> Result<TypeId>",
+    "pub fn has_recursion(schema: &ResolvedSchema) -> Result<bool>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "Witness invariants and preservation",
+      "vectors": "Identity targets for every constructor; forward, backward and shared aliases; nonzero and aliased roots; fully collapsed targets; unchanged schema metadata, declaration order and definitions; repeated read-only access."
+    },
+    {
+      "area": "Exact local names",
+      "vectors": "Case-sensitive ASCII, composed and decomposed Unicode, embedded NUL, literal pointer-like and URL-like names; missing names and differently spelled names return UnsupportedSchemaFeature."
+    },
+    {
+      "area": "Whole-graph errors",
+      "vectors": "Unreachable unknown references, self aliases and mutual alias cycles; empty graphs and names, duplicate definitions and properties, reversed scalar bounds, invalid root/property/array/definition IDs including u32::MAX; SchemaCompile source, zero offset, schema ID and available field context."
+    },
+    {
+      "area": "Inclusive resource limits",
+      "vectors": "Node and definition counts at and above limits, zero budgets, every name category at the UTF-8 byte boundary and one byte above, empty schema/property names, unreachable oversized names, pattern and format strings excluded from name budgets."
+    },
+    {
+      "area": "Alias hop accounting",
+      "vectors": "Chains of lengths 1, 2 and 7 in both traversal orders at exact, one-below and zero limits; cached suffixes; unreachable over-budget chains; 32 shared aliases without global accumulation; constructor edges reset hop counts."
+    },
+    {
+      "area": "Structural recursion",
+      "vectors": "Object and array self loops, mutual object/array recursion through aliases, unreachable cycles, unused definitions, diamonds, repeated targets, cycles in later properties, optional fields and arrays with maximum zero items."
+    },
+    {
+      "area": "Independent exhaustive oracle",
+      "vectors": "All 512 directed three-node graphs with each of the three roots, compared with an independent transitive-closure oracle."
+    },
+    {
+      "area": "Depth and allocation boundaries",
+      "vectors": "8192-alias chains in both traversal orders; 12000-edge structural chains with and without a back edge; deterministic Vec capacity overflow; zero and u32::MAX counts; unrepresentable counts on 64-bit targets; invalid accessor IDs without mutation."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Source manually reviewed against the frozen contract and existing model and ABI types.",
+    "execution": "Inline tests are authored but not executed. No build, check, compiler, formatter or commit commands were run, as instructed.",
+    "scope": "Only crates/jmax-schema-ir/src/resolve.rs and reports/wave2/W2-16.json were written.",
+    "notes": "Uses only super types, core and alloc. Allocation-free limit preflight precedes model::validate; the private witness is constructed only after validation and complete alias resolution. All traversal storage is fallibly reserved, and both graph walks are iterative."
+  }
+}

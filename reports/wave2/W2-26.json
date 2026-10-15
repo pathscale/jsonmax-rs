@@ -1,0 +1,39 @@
+{
+  "worker_id": "W2-26",
+  "wave": 2,
+  "crate": "jmax-codegen-spec",
+  "file": "crates/jmax-codegen-spec/src/json_schema.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "validate_registry",
+    "type_schema",
+    "endpoint_schema",
+    "mcp_tools"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Exact deterministic schema text for every primitive and wrapper, including exact u32/i32/i64 bounds and millisecond units.",
+    "Bytea, UUID, NanoId lengths 1 and 255, IPv4/IPv6 unions, blockchain decimal patterns, address and transaction hash metadata.",
+    "Closed ordered field objects, outer Optional requiredness, nested nullable array elements, descriptions, and empty objects.",
+    "Reachable local definitions, forward inline references, self recursion, StructTable references, and a 512-node cyclic named graph.",
+    "Numeric enums at i32 bounds, empty enums, preserved names and descriptions, and prefixed display names without changing wire values.",
+    "Wrong registry lists, invalid identifiers, duplicate definition names, field names, enum names and numeric values, unresolved and wrong-kind references.",
+    "Exact registered inline copies, conflicting metadata, duplicate unregistered inline definitions, nested declaration reuse, and depth checks at copied locations.",
+    "Zero depth, zero NanoId length, inclusive depth limits, u16 depth overflow boundaries, and 4096 nested Optional wrappers with iterative traversal and disposal.",
+    "All/Public/exact-role visibility, stable service and endpoint order, boundary endpoint codes, unchanged inputs, and matching endpoint/tool schemas.",
+    "Hidden invalid catalog entries and stream types rejected before filtering; hidden descriptions, unreachable definitions, and stream-only schemas excluded from output.",
+    "Individual and aggregate UTF-8 byte budgets at exact and one-byte-short limits, Unicode descriptions, zero-output behavior, and checked arithmetic.",
+    "All 32 JSON control bytes, quotes, backslashes, Unicode, JSON Pointer component escaping, and exact integer serialization.",
+    "Iterative type equality checks all named parameters, enum metadata, field order, field names, and descriptions."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 29,
+    "review": "Source manually reviewed against frozen root and contract; no unsafe code or added dependencies.",
+    "execution": "Tests and compilation not run, as explicitly requested. No cargo, rustc, rustfmt, build/check command, or git commit was run.",
+    "owned_paths_written": [
+      "crates/jmax-codegen-spec/src/json_schema.rs",
+      "reports/wave2/W2-26.json"
+    ]
+  }
+}

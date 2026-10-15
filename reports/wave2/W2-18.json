@@ -1,0 +1,66 @@
+{
+  "worker_id": "W2-18",
+  "wave": 2,
+  "crate": "jmax-schema-vm",
+  "file": "crates/jmax-schema-vm/src/objects.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn begin(program: &ValidatedProgram, state: Option<StateId>, budget: &mut VmBudget, offset: u32) -> Result<ObjectState>",
+    "pub fn key(program: &ValidatedProgram, object: &mut ObjectState, key: &str, selection: &Selection, limits: &VmLimits, budget: &mut VmBudget, offset: u32) -> Result<PendingValue>",
+    "pub fn take_value(object: &mut ObjectState, offset: u32) -> Result<PendingValue>",
+    "pub fn finish(program: &ValidatedProgram, state: Option<StateId>, object: &ObjectState, budget: &mut VmBudget, offset: u32) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "seen masks",
+      "vectors": ["0, 1, 63, 64, 65, and 129 optional keys", "u32::MAX key-count rounding", "required entry at local index 64", "optional entries interleaved with dense required numbering"],
+      "expected": "Independent zeroed masks use table-local entry indices; missing required fields identify the correct FieldId."
+    },
+    {
+      "area": "schema state and recursion",
+      "vectors": ["Object, Any, and None", "scalar and array mismatch", "invalid StateId", "recursive parent and child", "nested rebased key tables with different unknown policies", "wrong table at finish"],
+      "expected": "Each object owns its seen state; wrong kinds or tables fail, and invalid indices never panic."
+    },
+    {
+      "area": "duplicate and capture policy",
+      "vectors": ["optional known duplicate", "permitted uncaptured repeat", "captured repeat with duplicate rejection enabled and disabled", "captured repeat when unselected", "selected, unselected, and no-slot known fields"],
+      "expected": "DuplicateObjectKey takes precedence under strict duplicate policy; repeated compiled captures otherwise return ConstraintViolation regardless of selection."
+    },
+    {
+      "area": "unknown keys and exact matching",
+      "vectors": ["all compiled/runtime unknown-policy combinations", "Any without a whitelist", "empty name", "decoded U+0061 equals literal a", "composed and decomposed Unicode names", "embedded NUL", "supplementary Unicode scalar", "same eight-byte SWAR prefix", "deterministic unknown perfect-hash collision"],
+      "expected": "Policies reject unknowns only for compiled object tables; retained decoded bytes provide exact duplicate detection and hash collisions cannot alias known keys."
+    },
+    {
+      "area": "ordering and counters",
+      "vectors": ["value without key", "second key before value", "close before pending value", "second take_value", "zero and one property limits", "u32::MAX counter overflow", "schema property bounds 1 through 2 and exactly 0", "unknown and repeated members counted once"],
+      "expected": "Malformed ordering returns InvalidSyntax; runtime count limits return BudgetExhausted; inclusive schema bounds return ConstraintViolation when exceeded."
+    },
+    {
+      "area": "scratch and work boundaries",
+      "vectors": ["exact seen-mask capacity and one byte less", "unknown-name headers, empty names, bytes, and growth", "name allocation denied after outer capacity allocation", "8192-byte compiler lookup bitmap peak and one byte less", "complete sequence at exact work budget and one step less", "zero-work entry points", "duplicate comparison exhaustion", "allocation size overflow before allocation"],
+      "expected": "Fallible allocations and actual retained capacities stay accounted; temporary lookup storage is released; errors do not publish pending values or replenish work."
+    },
+    {
+      "area": "byte limits and diagnostics",
+      "vectors": ["empty key with zero byte allowance", "two-byte UTF-8 key at byte limits 1 and 2", "explicit raw offsets including u32::MAX", "missing fields at close", "corrupted masks and table ranges"],
+      "expected": "Limits use decoded byte lengths, VM errors retain raw offsets, and known-field failures include schema and field identifiers."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_test_count": 28,
+    "tests_executed": false,
+    "verification": "Manual source review against frozen contracts, ABI/root definitions, the Wave 1 interpreter, and the available compiler key-lookup implementation. No build, test, formatter, check, or commit command was run.",
+    "integration_notes": [
+      "The interpreter remains responsible for validating Selection once at the run boundary and releasing object vector capacities when destroying frames.",
+      "The compiler lookup validates complete raw key tables. Its current fixed 8192-byte field bitmap is included in transient scratch and initialization work; the accounting must track future changes to that dependency implementation.",
+      "Unit fixtures construct witnesses through the normal resolver/compiler APIs; execution remains pending integration of the remaining wave modules and an authorized test run."
+    ],
+    "files_written": [
+      "crates/jmax-schema-vm/src/objects.rs",
+      "reports/wave2/W2-18.json"
+    ]
+  }
+}

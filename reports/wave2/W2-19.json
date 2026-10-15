@@ -1,0 +1,90 @@
+{
+  "worker_id": "W2-19",
+  "wave": 2,
+  "crate": "jmax-format",
+  "file": "crates/jmax-format/src/binary.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_base64(input: &[u8], policy: Base64Policy) -> FormatResult<u32>",
+    "pub fn validate_hex(input: &[u8], policy: HexPolicy) -> FormatResult<u32>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 16,
+    "execution": "Not run. The task prohibits cargo, rustc, rustfmt, and all build/check commands. Source and test vectors were reviewed by reading the files only.",
+    "implementation_properties": [
+      "Frozen shared types and signatures are used without modifying the crate root or ABI.",
+      "Both validators run in linear time with constant auxiliary memory and no allocation, decoding, unsafe code, or additional dependencies.",
+      "Base64 byte and padding errors are detected from left to right, followed by incomplete length or missing padding, then nonzero discarded bits.",
+      "Hex validates total and exact length before prefix and digit contents; expected encoded lengths use checked usize conversion, multiplication, and addition.",
+      "Decoded counts use checked u32 conversion and report Limit at the saturating input-end index on overflow."
+    ],
+    "cases": [
+      {
+        "test": "base64_rfc4648_vectors_under_every_policy_and_alphabet",
+        "coverage": "Empty input and f, fo, foo, foob, fooba, foobar encodings; expected counts 0 through 6; padded and unpadded forms under both alphabets and all padding policies."
+      },
+      {
+        "test": "base64_alphabets_are_exclusive_including_partial_quanta",
+        "coverage": "Standard ++//, /+/+, +w==, /w==, //8= and corresponding URL-safe encodings; cross-alphabet and mixed-alphabet failures with exact indices."
+      },
+      {
+        "test": "base64_checks_all_byte_values_in_every_full_quantum_position",
+        "coverage": "All 256 byte values except structural '=' at each of four positions, for both alphabets and all padding policies."
+      },
+      {
+        "test": "base64_rejects_whitespace_controls_and_non_ascii_without_trimming",
+        "coverage": "Leading, embedded, and trailing whitespace, line breaks, NUL, invalid UTF-8 bytes, and UTF-8 nonbreaking space."
+      },
+      {
+        "test": "base64_reports_padding_placement_excess_and_missing_bytes",
+        "coverage": "Leading padding, padding after one data character, data after padding, excessive padding, unnecessary padding, incomplete padding, and forbidden padding."
+      },
+      {
+        "test": "base64_unpadded_length_boundaries_and_required_padding",
+        "coverage": "Every length from 0 through 129 under all padding policies, including impossible remainder 1 and missing required padding."
+      },
+      {
+        "test": "base64_exhaustively_checks_discarded_bits_in_both_tail_sizes",
+        "coverage": "All 64 final sextet values for two- and three-character tails, after 0, 4, or 8 complete data characters, for both alphabets and every applicable padded or unpadded policy."
+      },
+      {
+        "test": "base64_structure_precedes_tail_bits_and_first_byte_failure_wins",
+        "coverage": "Zh== and Zm9= noncanonical tails; malformed padding and multiple failures verify deterministic error kind and index."
+      },
+      {
+        "test": "hex_accepts_empty_numeric_mixed_case_and_fixed_length_vectors",
+        "coverage": "Empty digits, zero and maximum byte encodings, numeric digits, mixed case, lowercase and uppercase restrictions, exact zero length, and prefixed encodings."
+      },
+      {
+        "test": "hex_checks_all_byte_values_at_each_digit_position_and_case_policy",
+        "coverage": "All 256 byte values at every position in four digits, with and without prefix, for Any, Lower, and Upper case policies; distinguishes InvalidByte from NonCanonical."
+      },
+      {
+        "test": "hex_requires_exact_lowercase_prefix_and_never_accepts_it_implicitly",
+        "coverage": "Missing, short, uppercase, malformed, repeated, control-byte, and non-ASCII prefixes; forbidden prefix behavior under every case policy."
+      },
+      {
+        "test": "hex_rejects_odd_and_wrong_exact_lengths_before_reading_digits",
+        "coverage": "Lengths 0 through 66 with and without prefix; exact counts 0, 1, 2, 20, 32, u32::MAX / 2, and u32::MAX; confirms invalid lengths precede invalid contents."
+      },
+      {
+        "test": "hex_rejects_whitespace_separators_controls_and_non_ascii",
+        "coverage": "Whitespace, separators, signs, NUL, invalid UTF-8 and Unicode digits, plus competing case and alphabet errors."
+      },
+      {
+        "test": "hex_fixed_address_and_hash_policies_have_exact_counts",
+        "coverage": "Required 0x prefix and exact 20-byte address or 32-byte hash policies, with truncation, excess digits, and final invalid digits."
+      },
+      {
+        "test": "validators_observe_slice_boundaries_and_report_relative_indices",
+        "coverage": "Valid and invalid subslices surrounded by sentinel bytes, truncated padding and hex digits, empty subslices, and relative error indices."
+      },
+      {
+        "test": "checked_length_arithmetic_does_not_wrap_and_counts_use_all_u32_bits",
+        "coverage": "Checked expected-length arithmetic, usize overflow, u32::MAX decoded count, count overflow where representable, and explicit u32::MAX error-index saturation without enormous allocations."
+      }
+    ]
+  },
+  "status": "complete"
+}

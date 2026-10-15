@@ -1,0 +1,210 @@
+{
+  "worker_id": "W2-20",
+  "wave": 2,
+  "crate": "jmax-encode",
+  "file": "crates/jmax-encode/src/writer.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "JsonWriter::new(sink: &mut dyn ByteSink, limits: EncodeLimits) -> JsonWriter<'_>",
+    "JsonWriter::begin_object(&mut self) -> Result<()>",
+    "JsonWriter::end_object(&mut self) -> Result<()>",
+    "JsonWriter::begin_array(&mut self) -> Result<()>",
+    "JsonWriter::end_array(&mut self) -> Result<()>",
+    "JsonWriter::key(&mut self, key: &str) -> Result<()>",
+    "JsonWriter::null(&mut self) -> Result<()>",
+    "JsonWriter::boolean(&mut self, value: bool) -> Result<()>",
+    "JsonWriter::string(&mut self, value: &str) -> Result<()>",
+    "JsonWriter::u64(&mut self, value: u64) -> Result<()>",
+    "JsonWriter::i64(&mut self, value: i64) -> Result<()>",
+    "JsonWriter::f64(&mut self, value: f64) -> Result<()>",
+    "JsonWriter::decimal(&mut self, value: Decimal128) -> Result<()>",
+    "JsonWriter::raw(&mut self, value: RawFragment<'_>) -> Result<()>",
+    "JsonWriter::finish(self) -> Result<usize>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "name": "constructor_and_drop_do_not_emit_or_reserve",
+      "vector": "Construct and drop over an existing prefix with a recording sink",
+      "expected": "Empty frames, false root/poison flags, zero new bytes and no sink calls"
+    },
+    {
+      "name": "nested_objects_arrays_and_duplicate_keys_have_exact_separators",
+      "vector": "Object containing null, booleans, nested containers, duplicate x keys and an empty key",
+      "expected": "Compact JSON with correct commas/colons and no trailing separators"
+    },
+    {
+      "name": "scalar_roots_and_empty_containers",
+      "vector": "null, true, false, empty string, empty array and empty object",
+      "expected": "Each forms exactly one valid root with exact output length"
+    },
+    {
+      "name": "integer_extremes_are_exact_minimal_decimal",
+      "vector": "0, 1, 10, -1, u64::MAX, i64::MIN and i64::MAX",
+      "expected": "Exact base-10 tokens without padding, leading plus or signed overflow"
+    },
+    {
+      "name": "finite_floats_roundtrip_bits_including_subnormals_and_negative_zero",
+      "vector": "Signed zero, 0.1, long significand, minimum normal, smallest/largest subnormals, finite extrema and powers of ten",
+      "expected": "Bit-identical roundtrips; explicit -0; shortest significant digits; compact ordinary/scientific notation"
+    },
+    {
+      "name": "nonfinite_float_errors_precede_all_output_and_poison",
+      "vector": "NaN, signed NaN payload and both infinities",
+      "expected": "Encode/InvalidNumber before writes and permanent writer poisoning"
+    },
+    {
+      "name": "decimal_vectors_preserve_scale_sign_and_extreme_coefficients",
+      "vector": "123 at scale 2, signed fractions, zero with scale, trailing fractional zeros, i128 extrema and scale 38",
+      "expected": "Exact quoted fixed-point text, including i128::MIN and leading fractional zeros"
+    },
+    {
+      "name": "decimal_scale_rejection_is_atomic_and_poisoning",
+      "vector": "i128::MIN with scales 39 and 255",
+      "expected": "Encode/DecimalScaleMismatch without output, followed by InternalError on reuse"
+    },
+    {
+      "name": "every_control_character_uses_the_exact_lowercase_escape",
+      "vector": "All bytes U+0000 through U+001F in one valid UTF-8 string",
+      "expected": "Canonical short escapes and lowercase six-byte Unicode escapes; exact escaped_string_len agreement"
+    },
+    {
+      "name": "quotes_backslashes_utf8_and_slashes_escape_identically_in_keys_and_values",
+      "vector": "Quotes, backslash, slash, accented text, emoji, U+2028/U+2029, DEL and embedded NUL",
+      "expected": "Only required escaping; all other UTF-8 unchanged; identical key/value string encoding"
+    },
+    {
+      "name": "string_and_key_limits_count_decoded_utf8_bytes",
+      "vector": "Four-byte emoji at limit 4, emoji plus ASCII beyond limit, escaped controls and empty strings/keys at limit 0",
+      "expected": "Decoded byte bounds are inclusive and violations publish no token prefix"
+    },
+    {
+      "name": "exact_output_limit_includes_every_escape_and_quote",
+      "vector": "Empty, ASCII, NUL, short escapes and non-ASCII strings with exact and one-byte-short output limits",
+      "expected": "Exact limit succeeds; one-byte-short limit fails before any string output"
+    },
+    {
+      "name": "output_budget_and_finish_length_exclude_existing_prefix",
+      "vector": "Existing prefix followed by null under limit 4; subsequent writer with limit 0",
+      "expected": "finish returns 4; prefix remains intact; zero output budget rejects a value atomically"
+    },
+    {
+      "name": "commas_colons_and_closing_delimiters_are_budgeted_before_writing",
+      "vector": "Array second item, empty object key plus colon, and array close at insufficient budgets",
+      "expected": "No partial separator/token on budget failure; counts and frames remain uncommitted"
+    },
+    {
+      "name": "number_and_decimal_content_limits_are_inclusive",
+      "vector": "Two-byte integer/float/decimal content boundaries, three-byte rejections and max_number_bytes 0",
+      "expected": "Number text limits include signs and decimal points while excluding decimal wrapper quotes"
+    },
+    {
+      "name": "decimal_string_and_output_limits_include_the_correct_bytes",
+      "vector": "Quoted 1.23 at content limit 4 and total limit 6, then each bound reduced by one",
+      "expected": "Both content and complete output bounds enforced before publication"
+    },
+    {
+      "name": "depth_zero_allows_scalars_and_rejects_root_containers",
+      "vector": "Scalar roots and both root container types with max_depth 0",
+      "expected": "Scalars succeed; containers return DepthLimitExceeded with unchanged state/output"
+    },
+    {
+      "name": "inclusive_depth_and_frame_counts_do_not_double_count_children",
+      "vector": "Array/object nesting at depth 2 with one item/property, followed by a depth-3 attempt",
+      "expected": "Exact depth succeeds, parent counted once, excess depth rejected before delimiter output"
+    },
+    {
+      "name": "zero_container_budget_accepts_empty_containers_only",
+      "vector": "Empty object/array and attempted first property/item at max_container_items 0",
+      "expected": "Empty containers valid; first member/item rejected before any member bytes"
+    },
+    {
+      "name": "second_array_item_and_object_property_fail_before_the_comma",
+      "vector": "One accepted item/property and attempted second under item limit 1",
+      "expected": "BudgetExhausted with unchanged output and count 1"
+    },
+    {
+      "name": "maximum_item_counter_does_not_wrap",
+      "vector": "Private counters seeded at u32::MAX - 1; public operations accept final item/property and reject another",
+      "expected": "Inclusive u32 maximum reached without overflow or output on subsequent rejection"
+    },
+    {
+      "name": "invalid_operation_orders_poison_without_extra_output",
+      "vector": "Ten cases covering misplaced keys/values, mismatched/unmatched closes, pending object value and second root",
+      "expected": "Encode/InvalidSyntax before extra output, followed by permanent poisoning"
+    },
+    {
+      "name": "unfinished_messages_report_unexpected_eof_and_drop_does_not_close",
+      "vector": "No root, open containers, pending key value and dropping an open array containing null",
+      "expected": "finish returns UnexpectedEof; consuming or dropping never appends closing delimiters"
+    },
+    {
+      "name": "every_operation_and_finish_reject_a_poisoned_writer",
+      "vector": "Call every writer operation after an initial syntax error, including invalid numeric inputs",
+      "expected": "InternalError takes precedence on every subsequent call without sink writes"
+    },
+    {
+      "name": "raw_preserves_spelling_whitespace_and_parent_item_accounting",
+      "vector": "Whitespace-wrapped object with duplicate keys, explicit numeric exponent and Unicode escape inserted into array/object",
+      "expected": "Exact original raw bytes preserved and fragment counted as one surrounding value"
+    },
+    {
+      "name": "raw_depth_is_relative_to_current_open_containers",
+      "vector": "Depth-2 raw fragment at root or inside a writer array, and raw scalar at maximum writer depth",
+      "expected": "Combined depth enforced; scalar adds zero depth; rejection occurs before fragment output"
+    },
+    {
+      "name": "raw_revalidates_nested_counts_decoded_strings_and_number_lengths",
+      "vector": "Loosely validated fragments containing excessive nested members, surrogate-pair emoji, escaped keys, long number and whitespace overhead",
+      "expected": "Current limits rechecked recursively by bounded raw parser; four-byte decoded emoji accepted exactly at limit 4"
+    },
+    {
+      "name": "raw_whole_token_reservation_includes_parent_comma",
+      "vector": "Whitespace-wrapped null after array item 1 with output limits 9 and 8",
+      "expected": "Comma plus entire fragment reserved; limit 9 accepts fragment but rejects close, limit 8 rejects before comma"
+    },
+    {
+      "name": "raw_revalidation_preserves_parser_error_offsets",
+      "vector": "Crate-internal malformed fragment [0,] with untrusted metadata",
+      "expected": "Exact raw validator error propagated, including byte offset, without output"
+    },
+    {
+      "name": "external_reservation_failure_retains_metadata_and_never_starts_value",
+      "vector": "Container opening with an injected reservation failure carrying transport/schema/field metadata",
+      "expected": "Original error preserved, no writes/root/frame committed, permanent poisoning"
+    },
+    {
+      "name": "partial_external_writes_are_visible_and_do_not_commit_syntax_state",
+      "vector": "Seven-byte escaped string fails after two published bytes",
+      "expected": "Full token reserved once; visible prefix retained; original error preserved; root uncommitted"
+    },
+    {
+      "name": "external_failure_after_comma_never_increments_parent_count",
+      "vector": "Sink accepts [0, then rejects the next null token",
+      "expected": "Partial comma remains visible, previous count stays 1, writer poisoned"
+    },
+    {
+      "name": "incorrect_external_success_lengths_poison_writer",
+      "vector": "Sink reserve improperly appends a byte or write reports success without appending",
+      "expected": "Encode/InternalError from LimitedSink propagated and no successful continuation"
+    },
+    {
+      "name": "complete_string_key_and_number_tokens_are_reserved_once_before_emission",
+      "vector": "Object with escaped key, UTF-8/escaped value and u64::MAX",
+      "expected": "Six complete-token reservations and exact final JSON"
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source reviewed against contracts/jmax-encode.md, frozen crate roots, canonical ABI records and Wave 1 sink behavior",
+    "inline_tests": 34,
+    "tests_executed": false,
+    "reason_tests_not_run": "User explicitly prohibited cargo, rustc, rustfmt and all build/check commands",
+    "scope": "Only crates/jmax-encode/src/writer.rs and reports/wave2/W2-20.json written",
+    "dependencies_added": false,
+    "integration_dependencies": [
+      "Uses existing public jmax_number::NumberText storage and core formatting for shortest-roundtrip finite floats",
+      "Uses frozen raw::validate API implemented by Wave 3 for exact fragment revalidation and relative depth enforcement"
+    ]
+  }
+}

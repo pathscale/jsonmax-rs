@@ -1,0 +1,63 @@
+{
+  "worker_id": "W2-23",
+  "wave": 2,
+  "crate": "jmax-endpoint-model",
+  "file": "crates/jmax-endpoint-model/src/legacy.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn import_legacy(document: LegacyDocument) -> Result<EndpointModel>",
+    "pub fn export_legacy(model: &EndpointModel, version: LegacyVersion) -> Result<LegacyDocument>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "empty_shapes_and_model_version_boundaries_are_preserved",
+      "coverage": "Empty V1 and V2 models, default version, independent model versions, and u32::MAX in every version component."
+    },
+    {
+      "test": "v1_import_supplies_only_the_missing_metadata",
+      "coverage": "V1 role strings gain empty includes and descriptions; errors and headers are empty; declaration order and original document are preserved."
+    },
+    {
+      "test": "v1_and_v2_preserve_order_codes_strings_and_recursive_types",
+      "coverage": "Unsorted service, endpoint, field, definition, role, and enum order; u16 and u32 identity boundaries; i32 enum extrema; UTF-8, NUL, CR, LF, and TAB metadata; forward aliases and recursive nominal structs."
+    },
+    {
+      "test": "v2_preserves_all_metadata_and_can_be_exported_repeatedly",
+      "coverage": "Exact V2 import and export including role inheritance, descriptions, error codes and messages, and original header casing and required flags."
+    },
+    {
+      "test": "exported_documents_own_independent_copies",
+      "coverage": "V1 and V2 exported data remain unchanged after source mutation, including nested fields and V2-only metadata."
+    },
+    {
+      "test": "every_abi_type_survives_in_params_response_and_stream_positions",
+      "coverage": "All 23 EndpointType variants across three endpoint positions, with additional NanoId length, empty nominal, EnumRef flag, and nested Optional vectors; both legacy formats round-trip exactly."
+    },
+    {
+      "test": "v1_rejects_each_unrepresentable_metadata_kind_without_mutation",
+      "coverage": "Eight loss-prevention vectors covering errors, optional headers, unused role includes, descriptions including whitespace and NUL, combined metadata, and successful exact V2 preservation."
+    },
+    {
+      "test": "validation_errors_propagate_unchanged_through_every_conversion",
+      "coverage": "Nineteen invalid service, endpoint, role, field, nominal declaration, reference, enum discriminant, NanoId, and alias-cycle vectors; exact registry errors and unchanged source models on both import and export paths."
+    },
+    {
+      "test": "v2_metadata_is_validated_and_invalid_models_take_precedence_over_v1_loss_checks",
+      "coverage": "Unknown included roles, role cycles, duplicate error codes and names, case-insensitive header collisions, and unknown header types; registry validation precedes V1 compatibility errors."
+    },
+    {
+      "test": "exact_depth_limit_round_trips_and_excess_depth_is_propagated",
+      "coverage": "MAX_REFERENCE_DEPTH nested ownership edges are accepted; one additional edge returns the original DepthLimitExceeded error on every conversion path."
+    },
+    {
+      "test": "role_names_remain_case_sensitive_and_unreferenced_roles_are_retained",
+      "coverage": "Case-distinct role identifiers and unused role declarations survive in original order."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Manual source and frozen-contract review only. Inline tests are provided but were not executed. No cargo, rustc, rustfmt, build, check, or git commit command was run.",
+    "scope": "Only the assigned Rust source and handoff report were written."
+  }
+}

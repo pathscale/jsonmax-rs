@@ -1,0 +1,88 @@
+{
+  "worker_id": "W2-15",
+  "wave": 2,
+  "crate": "jmax-dom",
+  "file": "crates/jmax-dom/src/navigate.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "root(&Document) -> Node<'_>",
+    "node(&Document, NodeId) -> Option<Node<'_>>",
+    "kind(Node<'_>) -> NodeKind",
+    "raw_span(Node<'_>) -> Span32",
+    "parent<'a>(Node<'a>) -> Option<Node<'a>>",
+    "children<'a>(Node<'a>) -> Result<Children<'a>>",
+    "object<'a>(Node<'a>) -> Result<Object<'a>>",
+    "array<'a>(Node<'a>) -> Result<Array<'a>>",
+    "Object::len(self) -> usize",
+    "Object::is_empty(self) -> bool",
+    "Object::get(self, &str) -> Option<Node<'a>>",
+    "Object::iter(self) -> Members<'a>",
+    "Array::len(self) -> usize",
+    "Array::is_empty(self) -> bool",
+    "Array::get(self, usize) -> Option<Node<'a>>",
+    "Array::iter(self) -> Children<'a>",
+    "Iterator<Item = Node<'a>> for Children<'a>, including next and size_hint",
+    "ExactSizeIterator and FusedIterator for Children<'a>",
+    "Iterator<Item = Member<'a>> for Members<'a>, including next and size_hint",
+    "ExactSizeIterator and FusedIterator for Members<'a>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "root_kinds_and_raw_spans_cover_every_tag",
+      "coverage": "All seven tags, both boolean values, exact numeric and escaped string spellings, complete container spans, external whitespace, root ownership and absence of a parent."
+    },
+    {
+      "test": "node_lookup_checks_last_valid_index_and_all_out_of_range_boundaries",
+      "coverage": "Every valid node index, last valid node, first invalid index, larger invalid indices, u32::MAX - 1, NO_NODE and single-node documents."
+    },
+    {
+      "test": "nested_views_follow_immediate_siblings_and_preserve_parents",
+      "coverage": "Nine-node mixed tree with exact preorder IDs, parent links, immediate child counts, subtree-skipping sibling traversal, object members, zero-based array lookup and usize::MAX rejection."
+    },
+    {
+      "test": "empty_containers_have_exact_fused_empty_views",
+      "coverage": "Empty array and object roots, nested empty containers, empty lookups, exact zero size hints and repeated exhausted next calls."
+    },
+    {
+      "test": "children_iterators_track_remaining_counts_and_clone_independently",
+      "coverage": "Partial consumption, independent cloned positions, exact remaining counts, nth across subtrees, nth(usize::MAX), count, last and fused exhaustion."
+    },
+    {
+      "test": "members_iterators_track_counts_clones_and_exhaustion",
+      "coverage": "Member order, nested containers excluded from field count, cloned iterators, exact remaining counts, nth(usize::MAX), count, last and fused exhaustion."
+    },
+    {
+      "test": "stored_remaining_count_bounds_iteration_before_following_more_links",
+      "coverage": "A bounded prefix with a continuing sibling link stops at its stored count; zero remaining prevents even a sentinel next field from being dereferenced."
+    },
+    {
+      "test": "decoded_duplicate_lookup_returns_first_and_iteration_retains_all",
+      "coverage": "Allowed duplicates with raw and escaped first keys, first-match lookup, complete duplicate iteration, case sensitivity and rejection of literal escape spellings as cooked keys."
+    },
+    {
+      "test": "keys_compare_cooked_utf8_without_normalization_or_prefix_matching",
+      "coverage": "Empty keys, embedded NUL, newline, quote, backslash, slash, surrogate-pair emoji, composed and decomposed Unicode, exact matching and borrowed key storage."
+    },
+    {
+      "test": "wrong_views_and_scalar_children_report_absolute_dom_offsets",
+      "coverage": "Every mismatched object and array conversion, all scalar children errors, leading-whitespace and nested absolute offsets, TypeMismatch code, Dom source and initialized diagnostic metadata."
+    },
+    {
+      "test": "handles_remain_bound_to_the_selected_document_owner",
+      "coverage": "Cloned documents have distinct handle owners; member and child views retain their selected owner; cloned decoded keys and strings remain accessible after the original is dropped."
+    },
+    {
+      "test": "deep_and_wide_navigation_uses_links_without_recursive_traversal",
+      "coverage": "256 nested arrays traversed downward and upward, terminal scalar mismatch, and 257 immediate empty-array children with exact counts and final-index boundaries."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_written": 12,
+    "tests_executed": false,
+    "verification": "Source manually reviewed against the frozen DOM contract, root definitions, ABI definitions and Wave 1 builder. No build, check, formatter, compiler or test command was run, as instructed.",
+    "scope": "Only crates/jmax-dom/src/navigate.rs and reports/wave2/W2-15.json were written.",
+    "behavior": "Navigation allocates no storage, does not reparse or mutate documents, preserves decoded first-duplicate lookup, and exposes count-bounded exact-size fused iterators. No unsafe code or additional dependencies were introduced."
+  }
+}

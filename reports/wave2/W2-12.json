@@ -1,0 +1,75 @@
+{
+  "worker_id": "W2-12",
+  "wave": 2,
+  "crate": "jmax-syntax",
+  "file": "crates/jmax-syntax/src/frames.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn current_phase(state: &SyntaxState) -> FramePhase",
+      "behavior": "Returns the top container phase or the root phase without mutation."
+    },
+    {
+      "signature": "pub fn check_payload_growth(current: usize, additional: usize, limits: Limits) -> Result<u32>",
+      "behavior": "Checks usize addition, u32 representability, and the inclusive payload ceiling. PayloadTooLarge uses source Syntax and the saturated current length as its offset."
+    },
+    {
+      "signature": "pub(crate) fn apply(state: &mut SyntaxState, token: Token, transition: Transition) -> Result<()>",
+      "behavior": "Applies container pushes and matching pops, saved parent phases, inclusive depth and count limits, and object-local decoded-byte duplicate detection. Validates internal transition consistency, reserves fallibly before structural changes, and preserves the first failure."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "payload growth",
+      "vectors": ["zero limit", "exact inclusive limit", "already oversized current length", "usize addition overflow", "exact u32 maximum", "u32 overflow and saturated offsets"],
+      "expected": "Successful totals fit both ceilings; rejected totals produce PayloadTooLarge without allocation."
+    },
+    {
+      "area": "stack and depth",
+      "vectors": ["root phase before and after an empty array", "all scalar roots at depth zero", "both container kinds rejected at depth zero", "exact depth two", "exact u16::MAX depth", "one push past each depth limit", "{\"x\":[{},null]}"],
+      "expected": "Root consumes no depth, child starts preserve advanced parent phases, matching closes restore parents, and depth errors leave structural state unchanged."
+    },
+    {
+      "area": "field and item counters",
+      "vectors": ["zero limits permit empty containers", "zero limits reject the first key or item", "all seven value-start kinds in arrays", "exactly one object field", "punctuation and closes", "u32::MAX - 1 through u32::MAX and one additional count"],
+      "expected": "Array values count at their start, object fields count at their keys, and counters never wrap. Limit violations produce ConstraintViolation."
+    },
+    {
+      "area": "decoded key equality and policy",
+      "vectors": ["raw a and escaped \\u0061 in either order", "empty keys", "embedded NUL", "supplementary Unicode scalar", "a versus A", "a versus ab", "precomposed versus decomposed accents", "duplicate policy disabled", "unknown-key policy enabled and disabled"],
+      "expected": "Duplicate detection uses exact decoded UTF-8 bytes, performs no normalization or case folding, stores no key bytes when disabled, and leaves schema unknown-key policy to downstream validation."
+    },
+    {
+      "area": "key ownership and scope",
+      "vectors": ["same key in parent and child", "same key in sibling objects", "parent duplicate after child pop", "input and arena growth after accepting a key"],
+      "expected": "Owned keys remain stable across backing storage growth and are scoped to their own object frames."
+    },
+    {
+      "area": "internal errors and atomicity",
+      "vectors": ["out-of-range raw and arena key references", "invalid UTF-8 in either owner", "mismatched action, phase, or event", "stale transition", "empty-stack close", "wrong container close", "corrupt frame or root phase", "root not advanced before an existing child"],
+      "expected": "InternalError is sticky and preserves storage contents, stack entries, phases, counters, offsets, pending token, flags, and limits."
+    },
+    {
+      "area": "sticky errors and feed ownership",
+      "vectors": ["preexisting UTF-8 error with schema and field identifiers", "repeated apply after failure", "successful frame changes with retained input, arena, pending token, and EOF flag"],
+      "expected": "The original error is returned unchanged; framing leaves feed-owned state untouched."
+    },
+    {
+      "area": "fallible reservation",
+      "vectors": ["usize::MAX additional byte capacity", "usize::MAX frame capacity", "usize::MAX key-list capacity", "zero additional capacity", "one key-list slot"],
+      "expected": "Deterministic capacity overflow produces BudgetExhausted at the supplied offset without altering contents. Successful reservations provide the requested capacity."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "inline_test_count": 26,
+    "tests": "written, not executed",
+    "review": "Source manually reviewed against contracts/jmax-syntax.md, the syntax root, the ABI root and supporting ABI types, and the Wave 1 machine implementation.",
+    "commands": "No cargo, rustc, rustfmt, build, check, test, or git commit command was run.",
+    "scope": "Only crates/jmax-syntax/src/frames.rs and reports/wave2/W2-12.json were written.",
+    "limitations": "Compilation and runtime behavior remain unverified under the requested command restriction. Allocation error tests exercise deterministic capacity overflow in the shared reservation helper; real allocator exhaustion is not injected.",
+    "handoff": "Feed must call apply with the transition for the current phase and the same lexically validated token, with cooked key storage available. Feed retains responsibility for token offsets, pending state, and event delivery. No root, ABI, contract, manifest, or other worker file was changed."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "worker_id": "W2-08",
+  "wave": 2,
+  "crate": "jmax-utf8",
+  "file": "crates/jmax-utf8/src/stream.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn validate_chunk(state: &mut Utf8Stream, bytes: &[u8]) -> Result<()>",
+    "pub fn finish(state: &mut Utf8Stream) -> Result<Utf8Summary>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "empty_ascii_and_finished_lifecycle",
+      "coverage": "Empty streams, every ASCII byte including NUL and DEL, seven-byte chunks, idempotent finish, and unchanged finalized states rejecting empty, valid, and malformed chunks."
+    },
+    {
+      "test": "scalar_boundaries_and_text_match_across_every_three_chunk_partition",
+      "coverage": "All ordered three-chunk partitions including empty chunks for UTF-8 width boundaries, U+D7FF, U+E000, noncharacters, U+10000, U+10FFFF, mixed-width text, BOM, combining marks, replacement characters, emoji joiners, and literal JSON escape text."
+    },
+    {
+      "test": "four_byte_scalar_completes_one_byte_at_a_time",
+      "coverage": "Pending prefixes of lengths one, two, and three; exact accepted-byte and completed-scalar counters; empty chunk identity; one-time scalar completion."
+    },
+    {
+      "test": "replacing_long_tail_with_short_tail_clears_unused_bytes",
+      "coverage": "A three-byte pending prefix completes before a new one-byte pending prefix; all unused carry bytes are zeroed."
+    },
+    {
+      "test": "malformed_and_truncated_sequences_match_at_every_partition",
+      "coverage": "Isolated continuation bytes, illegal leaders, overlong encodings, surrogates, values above U+10FFFF, obsolete five-byte encodings, bad continuations, truncation, and absolute first-error offsets across all three-chunk partitions."
+    },
+    {
+      "test": "invalid_restricted_second_bytes_fail_before_finish",
+      "coverage": "E0 9F, ED A0, F0 8F, and F4 90 fail immediately both within a chunk and across a chunk boundary."
+    },
+    {
+      "test": "bad_continuations_at_every_position_preserve_original_start",
+      "coverage": "Seven invalid continuation replacements at every continuation position in two-, three-, and four-byte sequences, across all three-chunk partitions."
+    },
+    {
+      "test": "finish_truncation_preserves_counters_and_pending_prefix",
+      "coverage": "Every proper prefix of representative multibyte sequences fails at its original absolute start on finish, preserving accepted state and saving a sticky error."
+    },
+    {
+      "test": "chunk_failure_rolls_back_all_progress_including_completed_carry",
+      "coverage": "Rollback of counters, pending storage, and ASCII status when malformed input follows valid new bytes or a completed incoming prefix."
+    },
+    {
+      "test": "scanner_quote_carry_survives_success_failure_and_finish",
+      "coverage": "Zero, unit, and full-width scanner quote and escape carry remain unchanged during pending-prefix processing, successful finish, and malformed-input failure."
+    },
+    {
+      "test": "reset_reopens_finished_failed_and_pending_streams",
+      "coverage": "Reset clears counters, pending storage, scanner carry, failure, and finished status after successful finish, chunk failure, pending input, and finish failure."
+    },
+    {
+      "test": "cumulative_limit_accepts_exact_maximum_and_rejects_overflow_first",
+      "coverage": "Seeded private counters exercise exact u32::MAX byte and scalar totals, empty input at the limit, cumulative overflow precedence over malformed input, sticky overflow errors, and finalized-state precedence."
+    },
+    {
+      "test": "pending_prefix_and_absolute_offsets_at_u32_limit",
+      "coverage": "Seeded private counters exercise four-byte completion at the ABI limit, truncation and malformed-carry offsets near the limit, transactional pending-state overflow, and invalid input at offset u32::MAX - 1."
+    },
+    {
+      "test": "every_single_byte_and_two_byte_input_matches_core_when_split",
+      "coverage": "All 256 single-byte inputs across every three-chunk partition and all 65536 two-byte inputs split between bytes, compared against core UTF-8 validity and first-error offsets."
+    },
+    {
+      "test": "block_boundaries_and_unaligned_chunks_preserve_results",
+      "coverage": "Eight starting alignments, scalar starts around 64- and 128-byte boundaries, each internal scalar split, 64-byte chunks, and invalid terminal continuation substitutions."
+    },
+    {
+      "test": "deterministic_mutations_and_truncations_match_core",
+      "coverage": "Ten deterministic replacements at every position in 80 bytes of mixed-width text, testing complete and truncated slices with splits around each mutation."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "source_review": "Manually reviewed against the frozen UTF-8 contract, root state definitions, prior-wave validator, and canonical ABI error and carry definitions.",
+    "test_execution": "Not run, as explicitly instructed. The 16 inline tests are authored but unexecuted.",
+    "build_validation": "No cargo, rustc, rustfmt, build, or check command was run. Compilation and runtime validation remain unverified.",
+    "implementation_notes": "Safe core UTF-8 validation; fixed four-byte stack buffer; at most three retained pending bytes; checked cumulative counters; transactional chunk updates; sticky errors; no allocation or added dependencies.",
+    "ownership": "Only crates/jmax-utf8/src/stream.rs and reports/wave2/W2-08.json were written. No commit was created."
+  }
+}

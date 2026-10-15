@@ -1,0 +1,77 @@
+{
+  "worker_id": "W2-11",
+  "wave": 2,
+  "crate": "jmax-decimal",
+  "file": "crates/jmax-decimal/src/parse.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn accumulate(lexeme: &DecimalLexeme<'_>) -> Result<AccumulatedDecimal>",
+      "behavior": "Accumulates integer and fraction slices in chunks of at most nine digits using checked signed coefficient arithmetic. Applies the lexical sign during accumulation to accept i128::MIN without forming its positive signed magnitude. Replays a failed chunk digit by digit to report the first overflowing digit at its absolute Decode offset. Preserves fractional digit count and exponent, normalizes zero, and computes significant coefficient precision. Raw coefficient overflow is rejected before rescaling."
+    },
+    {
+      "signature": "pub fn parse_quoted(input: &[u8], offset: u32, policy: &DecimalPolicy) -> Result<Decimal128>",
+      "behavior": "Validates policy, then calls lex::lex_quoted, accumulate, bounds::rescale, and bounds::validate with DecimalBounds::default() in the frozen order. Returns the target-scale representation and propagates original errors unchanged. Uses the frozen Wave 3 bounds API."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "accumulation_preserves_fraction_count_exponent_and_sign",
+      "coverage": "Zero, lexical negative zero, leading fractional zeros, significant trailing zeros, 9/10/19-digit chunk boundaries, and exponents at both absolute limits."
+    },
+    {
+      "test": "signed_endpoints_and_their_neighbors_are_exact",
+      "coverage": "i128::MAX, i128::MAX - 1, -i128::MAX, and i128::MIN as integers and split fixed-point coefficients; all have 39 significant digits."
+    },
+    {
+      "test": "every_partial_chunk_length_and_point_position_preserves_value",
+      "coverage": "Deterministic digit prefixes of lengths 1 through 39, both signs, and every legal decimal point position, checked against independent digit-by-digit arithmetic."
+    },
+    {
+      "test": "long_zero_prefixes_do_not_consume_precision_or_limit_fraction_length",
+      "coverage": "4096-byte tokens containing 4091 fractional digits accumulate to zero or -100 with precision one or three and retain the complete lexical fraction count."
+    },
+    {
+      "test": "successful_accumulation_accepts_the_last_representable_span_end",
+      "coverage": "Integer, negative zero, fraction, exponent, and both signed coefficient endpoints with absolute token end exactly u32::MAX."
+    },
+    {
+      "test": "overflow_reports_the_first_digit_including_sign_and_point_offsets",
+      "coverage": "Positive maximum plus one, negative minimum minus one, long all-nine coefficients, endpoint coefficients followed by zero, and fractional overflow before extreme downward rescaling. Tests offsets zero, 193, and a span ending at u32::MAX."
+    },
+    {
+      "test": "failing_chunks_locate_overflow_at_every_digit_position",
+      "coverage": "Both signs with zero through eight leading fractional zeros align the first overflowing digit to every position of a nine-digit chunk, with additional trailing digits."
+    },
+    {
+      "test": "parse_returns_the_requested_scale_and_applies_exponents",
+      "coverage": "Exact upward and downward rescaling, enabled positive and negative exponents, signed endpoints, and zero at target scale 255 with extreme exponents."
+    },
+    {
+      "test": "policy_errors_precede_lexing_and_report_configuration_offset",
+      "coverage": "Precision zero, 40, and 255 plus negative tick steps including i128::MIN return the original policy error at offset zero before malformed input or unrepresentable spans are inspected."
+    },
+    {
+      "test": "lexical_errors_are_propagated_without_rewriting_metadata",
+      "coverage": "Incomplete input, leading integer zero, excessive exponent, trailing bytes, disabled exponent zero, oversized absolute range, and malformed syntax after an overflowing digit prefix preserve lexer errors exactly."
+    },
+    {
+      "test": "raw_coefficient_overflow_precedes_rescale_precision_and_tick_checks",
+      "coverage": "An out-of-range raw coefficient with exponent -32767 remains NumberOverflow at the exact digit even when truncation is enabled and final precision and tick constraints are restrictive."
+    },
+    {
+      "test": "final_precision_is_checked_after_rescaling_and_ignores_leading_zeros",
+      "coverage": "Raw trailing zeros and exponent rescaling reduce the final coefficient to one significant digit; upward rescaling from 1 to coefficient 100 fails precision two or less and succeeds at precision three."
+    },
+    {
+      "test": "downstream_errors_propagate_unchanged_and_respect_validation_order",
+      "coverage": "Exact error equality against frozen bounds calls for inexact rescaling, scale-255 multiplication overflow, extreme nonzero exponents, final precision before tick validation, and tick violations for both signs."
+    },
+    {
+      "test": "optional_truncation_is_toward_zero_and_precedes_tick_validation",
+      "coverage": "1.059 and -1.059 truncate to coefficients 105 and -105 at scale two before a five-unit tick check; extreme downward rescaling truncates either sign to zero."
+    }
+  ],
+  "status": "Implementation and 14 inline tests complete. Source reviewed manually. No cargo, rustc, rustfmt, build, check, test, or git commit command was run, as instructed. Integration uses the frozen Wave 3 bounds API and has not been executed. Only the assigned source and report paths were written."
+}

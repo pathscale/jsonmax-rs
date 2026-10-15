@@ -1,0 +1,77 @@
+{
+  "worker_id": "W2-27",
+  "wave": 2,
+  "crate": "jmax-wire",
+  "file": "crates/jmax-wire/src/framed.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn decode_header(bytes: &[u8], limits: &FrameLimits) -> Result<FramedHeader>",
+      "behavior": "Validates configuration and decodes exactly the first five bytes as u32 little-endian payload length and opaque u8 kind. Rejects incomplete, empty, over-limit, and disallowed headers. Trailing bytes are ignored."
+    },
+    {
+      "signature": "pub fn encode_frame(frame: &Frame, limits: &FrameLimits, sink: &mut dyn ByteSink) -> Result<()>",
+      "behavior": "Preflights configuration, metadata, address-space arithmetic, and exact actual payload length before any sink call. Writes the five-byte header followed by the original payload; preserves sink errors and any written prefix."
+    },
+    {
+      "signature": "FrameDecoder::{new, push, next_frame, finish, buffered_len, reset}",
+      "behavior": "Implements all six frozen signatures on the root-owned type. Retains at most one frame, returns precise prefix consumption, validates complete headers before body acceptance, applies bounded geometric growth through fallible exact reservations, and transfers the completed allocation into an owned Payload. Parse, limit, and allocation errors clear input and poison the decoder until reset. finish preserves undrained input and reset preserves limits."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "tests": [
+        "header_vectors_are_exactly_little_endian_and_ignore_trailing_bytes",
+        "every_short_header_is_incomplete_even_when_its_prefix_is_invalid",
+        "payload_limit_is_inclusive_and_zero_length_is_forbidden"
+      ],
+      "coverage": "Literal headers for lengths 1, 256, 65536, and 0x12345678; every short prefix of valid and invalid header candidates; ignored binary suffixes; zero, exact maximum, maximum plus one, and u32::MAX declarations."
+    },
+    {
+      "tests": [
+        "invalid_configuration_is_rejected_by_every_entry_point_before_writing",
+        "all_256_kinds_are_opaque_allowlist_values",
+        "maximum_configuration_uses_checked_address_space_arithmetic"
+      ],
+      "coverage": "Zero limits, repeated allowlist entries, deny-all configuration, all 256 allowed and denied kind values, checked u32-to-usize conversion, header-addition overflow, architecture-dependent exact address-space boundary, and construction without eager payload allocation."
+    },
+    {
+      "tests": [
+        "encode_vectors_preserve_binary_payload_and_append_without_padding",
+        "encoding_preserves_both_payload_storage_variants_and_their_owners",
+        "encoding_rejects_all_invalid_frames_without_touching_the_sink",
+        "every_sink_failure_preserves_exact_error_metadata_and_output_prefix"
+      ],
+      "coverage": "Exact five-byte output, existing sink prefixes, arbitrary binary data including all 256 byte values, both ABI payload ownership variants, immutable owners, shorter and longer header/body disagreements, no sink calls on invalid input, and deterministic sink failures at each output byte boundary with complete error metadata preserved."
+    },
+    {
+      "tests": [
+        "every_two_chunk_split_and_single_byte_feed_produce_the_same_frame",
+        "concatenated_frames_return_precise_consumption_and_backpressure",
+        "a_partial_header_still_stops_exactly_at_the_first_frame_boundary",
+        "finish_preserves_every_incomplete_prefix_and_allows_resumption"
+      ],
+      "coverage": "Every split of a binary frame, bytewise feeding, exact first-frame consumption from concatenated input, pending-frame backpressure, resubmitted suffixes, untouched invalid next-frame headers, empty pushes, undrained complete-frame finish errors, and repeated finish/poll operations followed by resumption."
+    },
+    {
+      "tests": [
+        "header_errors_clear_input_and_remain_failed_until_reset",
+        "reset_discards_partial_and_complete_frames_without_changing_limits",
+        "input_is_copied_and_completed_payloads_outlive_decoder_and_reset",
+        "round_trips_at_geometric_growth_and_header_length_boundaries",
+        "internal_bound_failures_preserve_bytes_until_the_public_boundary_poisons"
+      ],
+      "coverage": "Invalid headers completed at every header split, cleared retained input, persistent failure on all stateful operations, reset recovery, every reset prefix, source mutation after push, transferred payload allocation identity, independent completed frames, lengths 1 through 1024 around growth and multi-byte length boundaries with seven deterministic chunk sizes, internal append bounds, and injected BudgetExhausted failure-state handling. Actual allocator exhaustion is not induced."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source reviewed against the frozen wire contract, root definitions, ABI buffer/error/trait/wire types, and prior envelope module.",
+    "tests": "19 inline deterministic tests authored; not executed as explicitly instructed.",
+    "commands": "No cargo, rustc, rustfmt, build, check, or git commit command was run.",
+    "scope": "Only crates/jmax-wire/src/framed.rs and reports/wave2/W2-27.json were written.",
+    "dependencies": "Uses only core, alloc, and existing root helpers and canonical ABI reexports. No new manifest dependency or root edit.",
+    "integration": "Shared root modules owned by other workers were not modified. Compilation and runtime verification remain for the integration owner."
+  }
+}

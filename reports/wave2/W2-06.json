@@ -1,0 +1,52 @@
+{
+  "worker_id": "W2-06",
+  "wave": 2,
+  "crate": "jmax-scan-avx2",
+  "file": "crates/jmax-scan-avx2/src/quotes.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn quote_masks(quote_mask: u64, backslash_mask: u64, valid_len: u8, carry: &mut ScanCarry) -> Result<QuoteMasks>"
+  ],
+  "unsafe_justifications": [
+    "No unsafe code or architecture intrinsics are introduced. Safe whole-word segmented XOR computes backslash parity, and inclusive XOR computes delimiter parity across both AVX2 lanes.",
+    "Length and canonical carry validation precede all state updates. Every shift is bounded below the operand width; wrapping arithmetic is explicit for initial-run extraction and Boolean mask expansion.",
+    "The implementation uses core integer operations and root-owned ABI types and helpers, allocates nothing, and requires no CPU features or additional dependencies. UTF-8 carry fields are never written."
+  ],
+  "test_vectors": [
+    {
+      "name": "signature_and_literal_masks",
+      "coverage": "Exact frozen function signature. For quote mask 0x52, backslash mask 0x08, length 8, and zero quote carry, expect escaped quotes 0x10, delimiters 0x42, content 0x3c, and unchanged carry. Adjacent opening and closing quotes exclude every delimiter from content."
+    },
+    {
+      "name": "empty_and_partial_blocks",
+      "coverage": "All four incoming quote carry states; all lengths 0 through 64; uniform ordinary, quote, backslash, NUL, and non-ASCII blocks. Overlapping padding bits are ignored, empty blocks preserve carry, and real trailing backslashes retain parity."
+    },
+    {
+      "name": "run_parity_and_lane_boundaries",
+      "coverage": "Every backslash run start and endpoint within a 64-byte block, followed by a quote in the same or next block. Every isolated quote and backslash bit. Explicit byte 31/32 escape propagation and quotes at bytes 31 and 63 with expected content mask 0x7fffffff00000000."
+    },
+    {
+      "name": "independent_bytewise_oracle",
+      "coverage": "Exhaustive sequences of ordinary bytes, quotes, and backslashes of lengths 0 through 8 placed at offsets 0, 28, and 56. All four incoming quote states. Also 128 deterministic mixed blocks from seed 0x4d595df4d0f33173, every prefix length, and every incoming state."
+    },
+    {
+      "name": "stream_partition_invariance",
+      "coverage": "Every split from 0 through 64 for mixed, all-quote, and all-backslash blocks. Reassembled masks and final carry must equal continuous bytewise processing. Three consecutive full backslash blocks with intervening empty blocks, every tail length, and a following quote verify long-run carry."
+    },
+    {
+      "name": "lexical_scope_and_utf8_preservation",
+      "coverage": "Incoming escapes apply outside strings and reset on ordinary, control, whitespace, and non-ASCII bytes. Unfinished strings, trailing escapes, invalid escape spellings, invalid JSON, and invalid UTF-8 remain lexical successes. Every possible utf8_tail_len value and opaque tail bytes are preserved on success and failure."
+    },
+    {
+      "name": "error_paths_and_atomicity",
+      "coverage": "Every invalid length 65 through 255; noncanonical quote carry values 2, 3, 255, 2^32, 2^63, and u64::MAX at every valid length including zero; overlapping live bits at every position and applicable length. Assert exact error code, Scanner source, offset zero, zero schema and field identifiers, nonempty detail, and unchanged entire carry. Length errors take precedence over invalid carry and overlap."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "written, not executed",
+    "validation": "Manual source review only. No build, check, test, compiler, formatter, or git commit command was run, as instructed.",
+    "scope": "Only the assigned Rust module and this handoff report were written.",
+    "integration": "Uses the frozen contract and Wave 1 classifier interface without changes to shared files. Compilation and test execution remain for the authorized integration phase."
+  }
+}

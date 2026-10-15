@@ -1,0 +1,41 @@
+{
+  "worker_id": "W2-36",
+  "wave": 2,
+  "crate": "jmax-runner",
+  "file": "crates/jmax-runner/src/drive.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_reply(input: &[u8]) -> Result<()>",
+    "pub fn assert_reply(reply: &Reply, path: &str, expected: &Expectation) -> Result<()>",
+    "pub fn run_scenario(scenario: &Scenario, transport: &mut dyn Transport) -> Result<RunReport>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. Builds, checks, formatting, and test execution were prohibited by the task.",
+    "inline_module": "crates/jmax-runner/src/drive.rs::tests",
+    "coverage": [
+      "Strict complete JSON validation for every value kind, original ABI errors and offsets, invalid syntax, trailing content, UTF-8, surrogate pairs, and decoded duplicate keys",
+      "Inclusive strict payload, nesting-depth, string-length, and numeric-digit limits, with first-excess rejection",
+      "Native root, key, escaped key, Unicode key, empty key, array index, maximum u32 index, invalid grammar, and path byte-limit vectors",
+      "Missing selection versus selected null, scalar traversal failure, Exists, Missing, and JsonEquals cardinality",
+      "Structural equality with reordered object members, nested arrays and objects, cooked strings and keys, exact number lexemes, Unicode normalization distinctions, and type/order/length mismatches",
+      "Full reply validation before selection, malformed expectation rejection despite missing selection, and duplicate rejection on both sides",
+      "ErrorCode metadata only, absent metadata, zero and maximum u32 codes, and literal empty-path requirement",
+      "Empty scenarios and whole-model preflight errors before any transport operation",
+      "Global call sequences beginning at one across connections, receive sequence independence, unchanged request parameters, relative deadlines, application-error coverage, and role/endpoint aggregation",
+      "Connection close and reuse with updated roles, case-sensitive connection and response names, response use after close, and exclusion of receives from coverage",
+      "Sequence mismatch, failed connect, call/receive transport errors, timeouts, malformed replies, assertion step-index remapping, and immediate execution termination",
+      "Lexical cleanup including Unicode names, exclusion of successfully closed names, all-name cleanup after failures, first cleanup error selection, execution-error precedence, and one cleanup retry after failed explicit close",
+      "Payload ownership retained through cleanup and released before both successful and failed return",
+      "Internal completed-step and passed-assertion counters, checked integer boundaries, call-counter overflow, and diagnostic content sanitization"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "not_executed_per_instruction",
+    "reasoning": "high",
+    "compatibility": "Frozen runner and ABI types; alloc-compatible implementation with no additional dependencies or unsafe code",
+    "integration": "Uses frozen jmax-path compile and jmax-dom navigation/scalar APIs supplied by their assigned implementation waves",
+    "ownership": "Only the assigned Rust source and this handoff report were written"
+  }
+}

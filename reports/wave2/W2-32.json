@@ -1,0 +1,63 @@
+{
+  "worker_id": "W2-32",
+  "wave": 2,
+  "crate": "jmax-exchange",
+  "file": "crates/jmax-exchange/src/trade.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "SLOT_EVENT: usize = 0",
+    "SLOT_EVENT_TIME: usize = 1",
+    "SLOT_SYMBOL: usize = 2",
+    "SLOT_AGGREGATE_TRADE_ID: usize = 3",
+    "SLOT_PRICE: usize = 4",
+    "SLOT_QUANTITY: usize = 5",
+    "SLOT_FIRST_TRADE_ID: usize = 6",
+    "SLOT_LAST_TRADE_ID: usize = 7",
+    "SLOT_TRADE_TIME: usize = 8",
+    "SLOT_BUYER_IS_MAKER: usize = 9",
+    "SLOT_BEST_MATCH: usize = 10",
+    "SLOT_COUNT: usize = 11",
+    "schema_ir() -> SchemaIr",
+    "decode_trade(payload: Payload, profile: &ExchangeProfile, validator: &mut dyn ExchangeValidator) -> Result<TradeMessage>"
+  ],
+  "unsafe_justifications": [
+    {
+      "site": "decode_trade: ParsedMessage::new_proven",
+      "justification": "Moves the validator payload, decoded arena and proof intact after checking original payload equality, proof lengths, profile fingerprint, arena budget, exact slot layout, every string slot's bounds, UTF-8 and scalar count, required membership, event literal, symbol byte budget and trade ID range. Independent strict cursor traversal validates the entire original document and wrapper through EOF, rejects duplicate and unknown keys, binds every slot assertion to its wire value, enforces boolean types and optional presence, and parses strictly positive exact decimals under their policies. Only the checked original symbol StrRef and owned scalar values are published; no temporary cursor or scratch references escape."
+    },
+    {
+      "site": "tests::TestValidator::validate: ValidationProof::issue_unchecked",
+      "justification": "Test-only adapter issues a proof only after complete strict extraction and independent semantic inspection, with checked u32 length conversions and the frozen profile fingerprint. It returns the same validated owners and assertions. Corruption tests modify these public assertions afterward to exercise decoder rejection. Production code never issues a proof."
+    }
+  ],
+  "test_vectors": {
+    "location": "inline #[cfg(test)] mod tests in crates/jmax-exchange/src/trade.rs",
+    "test_count": 17,
+    "execution": "Not executed. The task prohibits cargo, rustc, rustfmt and all build/check commands. Source was manually reviewed only.",
+    "cases": [
+      "Frozen schema name, ID, eleven slot constants, first ten required fields, boolean union handling, symbol default limits and absent IR format/integer constraints.",
+      "Canonical BNBBTC aggTrade fixture with exact Decimal128 coefficients, all metadata, maker=true, best_match=Some(true), profile fingerprint and original payload pointer retention.",
+      "Optional M absent, false and true crossed with both maker flags; absent M retains the eleventh Empty slot and never synthesizes a boolean default.",
+      "Reordered fields, zero IDs, u64::MAX for all timestamps and IDs, equal and wide constituent-trade ranges, and independent timestamp/aggregate-ID values.",
+      "Unsigned integer grammar rejects signed, fractional, exponential, padded and quoted values; checked overflow and invalid Span32 boundaries include error offsets and field metadata.",
+      "Escaped field keys, event tags, decimal strings and Unicode symbols; decoded scalar counts, surrogate pairs and exact UTF-8 byte limits, including profile symbol limits above the default.",
+      "Both price and quantity reject zero, negative zero, negatives, malformed decimal grammar, non-ASCII digits, disallowed exponents and inexact rescaling; the smallest positive scale-eight coefficient is accepted.",
+      "Independent price/quantity scales and tick policies, final coefficient precision, 38-digit coefficients, i128 accumulation overflow, enabled exponents, truncation toward zero and rejection when truncation yields zero.",
+      "Bare, CombinedStream and Either policies; both wrapper key orders; retained original payload and absolute symbol coordinates; malformed recognized wrappers never fall back to bare interpretation.",
+      "Missing required members, empty/wrong metadata, reversed first/last IDs, nonboolean m/M tokens and nonstring decimal tokens.",
+      "Duplicate and unknown keys rejected even with permissive syntax flags, including escaped duplicate keys; trailing documents, invalid suffixes, NUL and non-JSON whitespace rejected by full traversal.",
+      "Forged boolean slots cannot admit null wire values, and optional-slot presence must agree with actual M membership.",
+      "Corrupted slot count, missing required slots, signed/wrong scalar types, changed numeric/boolean values, swapped decimal references, invalid spans, incorrect scalar counts, changed payloads and changed decoded lengths cannot publish owners.",
+      "Decoded arena pointer retention and same-length arena mutation detection for invalid UTF-8 and valid but incorrect string contents.",
+      "Payload, decoded arena, nesting depth, object field count, string bytes and numeric digit budgets, including exact accepted boundaries and one-unit failures.",
+      "Fingerprint mismatches, unchanged validator error propagation, and invalid profiles rejected before validator invocation.",
+      "Malformed JSON, incomplete input, wrong root kinds, lone surrogates, invalid UTF-8, invalid boolean spelling, arbitrary invalid string references and valid leading/trailing JSON whitespace."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "manual source review only; tests and build/check commands not run by instruction",
+    "scope": "Only crates/jmax-exchange/src/trade.rs and reports/wave2/W2-32.json were written.",
+    "integration": "Uses frozen profiles::validate_profile, profiles::schema_fingerprint, jmax_cursor::walk and jmax_decimal::parse::parse_quoted APIs. Later-wave implementations remain owned by their assigned workers."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "worker_id": "W2-07",
+  "wave": 2,
+  "crate": "jmax-scan-avx512",
+  "file": "crates/jmax-scan-avx512/src/quotes.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn quote_masks(quote_mask: u64, backslash_mask: u64, valid_len: u8, carry: &mut ScanCarry) -> Result<QuoteMasks>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Canonical function signature and empty input preserving all carry despite padding overlap",
+    "Literal vector with quote mask 0x52, backslash mask 0x08, escaped quotes 0x10, delimiters 0x42, and string content 0x3c",
+    "Escaped quotes inside and outside strings, including incoming odd escape parity",
+    "Exhaustive ternary ordinary-byte/quote/backslash sequences of lengths 0 through 8 with all four incoming quote states",
+    "All valid lengths 0 through 64, homogeneous and alternating masks, and overlapping ignored padding bits",
+    "Every backslash-run start and end position across the full 64-bit mask, including trailing runs",
+    "Three consecutive all-backslash full blocks, following quotes, and bit-63 string/escape carry",
+    "Ordinary-byte escape reset and legitimate unfinished strings with trailing escapes",
+    "128 deterministic mixed-mask pairs at every valid length and all incoming states against an independent sequential oracle",
+    "192-byte stream at all initial split positions 0 through 64, with runs crossing bytes 63/64 and 127/128 and empty blocks inserted",
+    "Every invalid u8 length 65 through 255, including simultaneous carry and overlap errors",
+    "Noncanonical carry values 2, 3, 255, 256, 2^32, 2^63, and u64::MAX at every valid length",
+    "Overlap at every live bit and length, asserting exact error metadata and unchanged carry",
+    "Every opaque UTF-8 tail length 0 through 255 with nontrivial tail bytes preserved on success and error"
+  ],
+  "status": {
+    "implementation": "complete",
+    "approach": "Portable 64-bit parallel prefix escape parity and delimiter parity; no allocation, architecture intrinsics, or unsafe code",
+    "reasoning": "high",
+    "validation": "Source reviewed against the frozen contract and ABI. Inline tests authored but not executed. No build, check, formatter, or commit command was run, as instructed.",
+    "files_written": [
+      "crates/jmax-scan-avx512/src/quotes.rs",
+      "reports/wave2/W2-07.json"
+    ]
+  }
+}

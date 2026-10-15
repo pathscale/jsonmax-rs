@@ -1,0 +1,32 @@
+{
+  "worker_id": "W2-10",
+  "wave": 2,
+  "crate": "jmax-number",
+  "file": "crates/jmax-number/src/integer.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn parse_u64(token: &NumberToken<'_>) -> Result<u64>",
+    "pub fn parse_i64(token: &NumberToken<'_>) -> Result<i64>",
+    "pub fn convert_integer(token: &NumberToken<'_>) -> Result<ConvertedNumber>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task forbids build, check, formatting, and compiler commands.",
+    "unsigned": ["0", "1", "9", "10", "12345678", "100000000", "1234567890123456", "10000000000000000", "9223372036854775808", "18446744073709551614", "18446744073709551615"],
+    "signed": ["-0", "-1", "-12345678", "9223372036854775807", "-9223372036854775807", "-9223372036854775808"],
+    "overflow": ["18446744073709551616", "18446744073709551620", "99999999999999999999", "100000000000000000000", "999999999999999999999999", "-9223372036854775809", "-18446744073709551616"],
+    "float_rejection": ["0.0", "1.0", "1e0", "-1e0", "-0.0", "1e-308", "1e308", "18446744073709551616.0"],
+    "coverage": [
+      "Thirteen inline tests using canonical lexer-created tokens for all public conversions.",
+      "Quoted positive, negative, zero, negative-zero, boundary, and overflowing integers.",
+      "Canonical error code, Lexer source, absolute token-start offset, default schema and field IDs, and nonempty detail.",
+      "Eight-digit SWAR lane ordering, all ten digits in every lane with both zero and nine backgrounds, and maximum chunk value.",
+      "Every digit length from 1 through 24 compared to an independent u128 scalar accumulator.",
+      "2048 deterministic fixed-seed full-width unsigned and signed values formatted with core and lexed before conversion.",
+      "Exact EOF and every legal delimiter at 16 start offsets for lengths 7, 8, 9, 15, 16, 17, 19, and 20.",
+      "8192-byte positive, negative, and quoted magnitudes reject without truncation or floating-point fallback.",
+      "Input, token metadata, spans, and borrowed spelling remain unchanged on success and failure."
+    ]
+  },
+  "status": "Implemented with inline tests; manually reviewed against the frozen contract. No build, check, formatter, compiler, or test execution performed. Only the assigned module and this report were written."
+}

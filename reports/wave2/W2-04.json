@@ -1,0 +1,33 @@
+{
+  "worker_id": "W2-04",
+  "wave": 2,
+  "crate": "jmax-scan-scalar",
+  "file": "crates/jmax-scan-scalar/src/quotes.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn quote_masks(quote_mask: u64, backslash_mask: u64, valid_len: u8, carry: &mut ScanCarry) -> Result<QuoteMasks>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Explicit delimiter, escaped quote, and string-content masks inside and outside strings.",
+    "Empty blocks with overlapping padding bits and all four canonical incoming carry combinations.",
+    "Exhaustive sequences of ordinary bytes, quotes, and backslashes through length eight against an independent backward-run-count oracle.",
+    "Every valid length from zero through 64 with overlapping high padding bits ignored before validation.",
+    "Isolated quote and backslash at every bit position, including bit 63, for full and partial blocks.",
+    "Every preceding backslash run from zero through 63 and every split boundary, including inserted empty blocks.",
+    "Trailing backslash runs of every length from zero through 64 with all incoming parity and string states.",
+    "Full-width all-quote masks with all incoming carry combinations.",
+    "String and odd backslash carry across multiple full blocks followed by escaped and closing quotes.",
+    "Every byte value between a backslash and quote, covering reset behavior, invalid syntax, controls, and non-UTF-8 bytes.",
+    "Every oversized u8 length from 65 through 255, including simultaneous invalid carry and overlap errors.",
+    "Noncanonical carry values 2, 3, 255, 256, the high bit, and u64::MAX, including empty blocks.",
+    "Live quote/backslash overlap at every position with unchanged complete carry on errors.",
+    "Opaque UTF-8 tail bytes and out-of-range UTF-8 tail length preserved on success and failure."
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "validation": "Source reviewed manually against the frozen contract, root helpers, ABI definitions, and Wave 1 classify integration. Inline tests are provided but have not been executed.",
+    "constraints": "No build, check, formatting, or commit commands run. Only the assigned source and report paths were written. No unsafe code, allocation, or additional dependencies."
+  }
+}

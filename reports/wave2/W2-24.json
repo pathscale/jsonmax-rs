@@ -1,0 +1,148 @@
+{
+  "worker_id": "W2-24",
+  "wave": 2,
+  "crate": "jmax-endpoint-ron",
+  "file": "crates/jmax-endpoint-ron/src/normalize.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn normalize(config: &LoadedConfig) -> Result<EndpointModel>",
+    "pub fn normalize_type(node: &ConfigNode) -> Result<EndpointType>",
+    "pub fn normalize_defaults(node: &ConfigNode) -> Result<ConfigDefaults>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "minimal_models_accept_only_the_document_wrappers",
+      "coverage": "Bare records, Config and EndpointModel wrappers, mandatory version, empty model collections, incorrect wrappers, Unit and tuple shape rejection."
+    },
+    {
+      "test": "defaults_distinguish_omission_from_explicit_empty_values",
+      "coverage": "Inherited service name, endpoint roles and description, explicit empty roles and description, enclosing service precedence, absent endpoint fields, and no invented role declarations."
+    },
+    {
+      "test": "defaults_accept_direct_strings_none_and_some",
+      "coverage": "Empty defaults, exact Defaults wrapper, direct service strings, None and Some(string), explicit empty strings and vectors, and verbatim descriptions."
+    },
+    {
+      "test": "malformed_default_options_and_shapes_fail_closed",
+      "coverage": "Bare Some, payload-bearing None, missing or multiple Some arguments, named option payloads, incorrect inner types, unknown wrappers and keys, and invalid sequence shapes."
+    },
+    {
+      "test": "all_records_preserve_order_and_metadata",
+      "coverage": "Every named record wrapper, services, endpoints, fields, definitions, enum variants, roles, global errors and headers; ordering, metadata, u16/u32/i32 boundaries, header defaults and explicit false, unresolved references, and stream types."
+    },
+    {
+      "test": "every_scalar_type_has_its_exact_spelling",
+      "coverage": "All fifteen scalar identifiers map to canonical EndpointType variants; scalar payload variants are rejected."
+    },
+    {
+      "test": "payload_types_and_their_defaults_are_canonical",
+      "coverage": "All eight payload type variants, NanoId width endpoints, Struct and Enum empty defaults, EnumRef boolean defaults, single-argument trailing commas, and nested Optional/Vec types."
+    },
+    {
+      "test": "unknown_types_and_strings_never_become_references",
+      "coverage": "Unknown and misspelled type tags, case sensitivity, quoted type expressions, incorrect node shapes, and missing payloads for known payload type tags."
+    },
+    {
+      "test": "unary_type_payloads_require_one_tuple_argument",
+      "coverage": "StructRef, Vec and Optional reject empty, multi-argument and named payloads; manually constructed non-tuple payloads are rejected at their byte offset."
+    },
+    {
+      "test": "type_record_payloads_reject_wrong_shapes_unknown_and_missing_keys",
+      "coverage": "Record payload shape validation, unknown type/Field/EnumVariant keys, missing required payload keys, invalid collection values, and non-boolean EnumRef flags."
+    },
+    {
+      "test": "integer_domains_accept_boundaries_without_narrowing",
+      "coverage": "Legal zero ids/codes, u16/u32 maxima, negative zero, manually constructed signed nonnegative integers, u8 range failures, i32 limits, and signed/unsigned 64-bit overflow cases."
+    },
+    {
+      "test": "overflowing_integer_fields_return_number_overflow",
+      "coverage": "Service ids, endpoint and global error codes, NanoId lengths and enum discriminants reject values immediately outside their destination width and negative unsigned values."
+    },
+    {
+      "test": "integer_fields_reject_nonintegers",
+      "coverage": "Boolean and quoted numeric values are not coerced into ids, codes, NanoId lengths or enum discriminants."
+    },
+    {
+      "test": "version_strings_are_strict_and_errors_use_the_config_node_offset",
+      "coverage": "Strict three-component versions, u32 maxima, component overflow, missing/extra components, leading zeros, signs, whitespace, prefixes, suffixes and Unicode digits; exact config-node error offsets."
+    },
+    {
+      "test": "version_records_require_three_u32_components",
+      "coverage": "Bare and Version-wrapped records, mandatory major/minor/patch, u32 widths, unknown fields, wrong wrappers and incorrect scalar or tuple shapes."
+    },
+    {
+      "test": "endpoints_require_one_local_name_and_matching_service",
+      "coverage": "Missing codes or names, conflicting name/method aliases including identical aliases, fully qualified names, service case mismatch, and valid method aliases."
+    },
+    {
+      "test": "service_defaults_never_invent_ids_or_override_explicit_names",
+      "coverage": "Absent service defaults, explicit None, mandatory ids, empty effective service names, and explicit service names overriding defaults."
+    },
+    {
+      "test": "stream_responses_accept_absence_options_and_direct_types",
+      "coverage": "None, Some(type), direct scalar and compound types, nested Optional types, malformed option wrappers with precise offsets, incorrect payload types and nested Some rejection."
+    },
+    {
+      "test": "missing_keys_are_reported_for_every_record_kind",
+      "coverage": "Required keys in definitions, fields, roles, errors, headers and enum variants, plus manually constructed empty NanoId and StructTable records."
+    },
+    {
+      "test": "unknown_fields_include_endpoint_local_error_references",
+      "coverage": "Unknown keys in every model section, unsupported endpoint errors/error/error_refs fields, and rejection instead of silently discarding input."
+    },
+    {
+      "test": "duplicate_keys_in_manual_trees_are_never_hidden_by_defaults",
+      "coverage": "All record vocabularies, bare and wrapped manual syntax, duplicate values at a distinct byte offset, and public normalization entry points with duplicate keys."
+    },
+    {
+      "test": "arbitrary_and_nested_record_wrappers_are_rejected",
+      "coverage": "Wrong wrappers in defaults, services, endpoints, definitions, fields, roles, errors, headers and enum variants, plus manually nested matching wrappers."
+    },
+    {
+      "test": "sequence_and_scalar_shapes_are_not_coerced",
+      "coverage": "All model collection shapes, endpoint params/response/roles, role includes, required booleans, descriptions, messages and quoted names."
+    },
+    {
+      "test": "empty_required_names_are_rejected_in_every_position",
+      "coverage": "Empty service, endpoint, field, definition, role, role-reference, error, header, struct, enum, variant and type-reference names."
+    },
+    {
+      "test": "semantic_errors_retain_relevant_byte_offsets",
+      "coverage": "Unknown keys after UTF-8 comments, numeric overflow, missing record fields, nested unknown type tags and manually constructed u32::MAX diagnostic offsets."
+    },
+    {
+      "test": "manually_constructed_type_depth_observes_the_exact_model_boundary",
+      "coverage": "Depth zero, MAX_REFERENCE_DEPTH minus one, the exact boundary and one excessive ownership edge, using both Vec chains and mixed Struct/Optional/Vec nesting."
+    },
+    {
+      "test": "every_model_type_root_uses_the_same_depth_budget",
+      "coverage": "Exact and excessive nesting for definitions, headers, params, response, direct stream responses and Some-wrapped stream responses."
+    },
+    {
+      "test": "normalization_preserves_unresolved_references_and_duplicate_codes",
+      "coverage": "References remain unresolved, duplicate endpoint/error codes and role declarations retain their original values for subsequent validation, and header casing is preserved."
+    },
+    {
+      "test": "normalization_keeps_unicode_text_casing_and_the_input_tree",
+      "coverage": "Unicode field names, descriptions containing escaped tab/NUL/newline, spelling and casing preservation, deterministic repeated normalization, and input-tree immutability."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Source manually reviewed against the frozen RON contract, canonical ABI endpoint/error definitions, endpoint-model depth semantics, root signatures and Wave 1 parser shapes.",
+    "validation": "Tests authored but not executed. No cargo, rustc, rustfmt, build, check or git commit command was run, as instructed.",
+    "test_count": 29,
+    "notes": [
+      "Only crates/jmax-endpoint-ron/src/normalize.rs and this assigned report were edited.",
+      "Production code uses alloc and core, introduces no dependencies and contains no unsafe code.",
+      "Record validation checks duplicate and unknown keys before consuming values, including manually constructed syntax trees.",
+      "Type roots have depth zero and accept at most MAX_REFERENCE_DEPTH ownership edges, matching endpoint-model registry semantics.",
+      "String and vector allocations reserve fallibly; allocation failures return BudgetExhausted.",
+      "All local errors use canonical ABI Error with SchemaCompile source, relevant node offsets and static detail strings. No schema or field ids are invented.",
+      "Quoted versions delegate to the contracted Wave 4 version::parse_semver function; returned diagnostic offsets are relocated to the configuration string node.",
+      "Name resolution, duplicate-code validation, canonical naming rules and model invariants remain the responsibility of subsequent model validation.",
+      "Bare Record nodes and the contract's exact named wrappers are accepted; Unit payloads are not silently converted to records."
+    ]
+  }
+}

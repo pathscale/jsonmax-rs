@@ -1,0 +1,43 @@
+{
+  "worker_id": "W2-01",
+  "wave": 2,
+  "crate": "jmax-buffer",
+  "file": "crates/jmax-buffer/src/arena.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "impl DecodedArena: pub fn new(max_decoded_bytes: u32) -> Self",
+    "impl DecodedArena: pub fn with_capacity(capacity: usize, max_decoded_bytes: u32) -> Result<Self>",
+    "impl DecodedArena: pub fn len(&self) -> usize",
+    "impl DecodedArena: pub fn is_empty(&self) -> bool",
+    "impl DecodedArena: pub fn capacity(&self) -> usize",
+    "impl DecodedArena: pub fn limit(&self) -> u32",
+    "impl DecodedArena: pub fn as_slice(&self) -> &[u8]",
+    "impl DecodedArena: pub fn reserve(&mut self, additional: usize) -> Result<()>",
+    "impl DecodedArena: pub fn append(&mut self, bytes: &[u8]) -> Result<Span32>",
+    "impl DecodedArena: pub fn append_str(&mut self, text: &str) -> Result<StrRef>",
+    "impl DecodedArena: pub fn truncate(&mut self, len: u32) -> Result<()>",
+    "impl DecodedArena: pub fn clear(&mut self)",
+    "impl DecodedArena: pub fn into_boxed_slice(self) -> Box<[u8]>",
+    "impl Default for DecodedArena: fn default() -> Self"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "18 deterministic inline tests use alloc, core, and canonical root/ABI types; the module adds no dependency and contains no unsafe code.",
+    "Construction covers zero, one, the default 64 MiB limit, and u32::MAX without allocating for new/default. Initial capacities 0, 1, 7, and 32 preserve empty logical storage until appended.",
+    "Initial capacity rejects values above the configured limit and above the ABI range where usize permits. Empty operations succeed at a zero limit; nonempty reservations, byte appends, and string appends fail.",
+    "Reservation from length 3 accepts 13 additional bytes at limit 16, rejects 14, and preserves existing bytes. Explicit spare capacity above limit 3 never permits a fourth logical byte.",
+    "Reservations of usize::MAX and u32::MAX from length 1 exercise checked conversion or span-end overflow without large allocations and report the current arena offset.",
+    "The shared production reservation helper maps deterministic Vec::try_reserve(usize::MAX) failures to BudgetExhausted/Decode at offsets 0 and 3 while preserving logical storage. These are capacity-overflow failures, not injected allocator out-of-memory failures.",
+    "Binary append vectors include empty slices, ASCII, NUL, 0xff, 0x80, and malformed JSON bytes, with exact contiguous spans through the inclusive limit. All 256 byte values are appended individually and resolved through their retained coordinates.",
+    "Failed byte and string appends preserve existing bytes. A two-byte e-acute exactly fills the remaining budget and has scalar_len 1; an empty string succeeds at the full limit.",
+    "Unicode vectors cover UTF-8 width boundaries U+007F, U+0080, U+07FF, U+0800, U+D7FF, U+E000, U+FFFF, U+10000, and U+10FFFF; NUL, combining sequences, a joiner emoji sequence, and mixed widths verify scalar counts separately from byte lengths over an invalid-UTF-8 prefix.",
+    "Truncation covers unchanged length, zero, suffix removal, coordinate reuse, and splitting a multibyte UTF-8 sequence. Invalid lengths 4, 8, and u32::MAX against length 3 report the requested offset and preserve bytes.",
+    "Repeated clear and truncate retain capacity, allocation pointer, and configured limit. Boxed conversion excludes removed bytes and spare capacity, including cleared and initially empty arenas. Cloned arenas mutate independently.",
+    "Error assertions verify canonical code, Decode source, exact byte offset, zero schema and field identifiers, and static payload-free detail."
+  ],
+  "status": {
+    "implementation": "complete",
+    "verification": "Source manually reviewed against contracts/jmax-buffer.md, the buffer root, ABI root and span/error types, and the prior-wave payload module. Tests were written but not executed. No cargo, rustc, rustfmt, git commit, build, or check command was run.",
+    "integration": "Only crates/jmax-buffer/src/arena.rs and reports/wave2/W2-01.json were written. Frozen root definitions, manifests, contracts, ownership records, ABI files, and other worker files were not edited."
+  }
+}

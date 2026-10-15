@@ -1,0 +1,58 @@
+{
+  "worker_id": "W2-13",
+  "wave": 2,
+  "crate": "jmax-cursor",
+  "file": "crates/jmax-cursor/src/skip.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn subtree(cursor: &mut Cursor, mode: SkipMode) -> Result<SkipStep>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "scalar values",
+      "coverage": "All scalar kinds, large raw numbers without numeric conversion, repeated scalar skips, operation mode independent of cursor mode, complete quoted spans, unchanged parser position."
+    },
+    {
+      "category": "string ownership and decoding",
+      "coverage": "Empty strings, multibyte UTF-8, surrogate pairs, all JSON short escapes, raw and decoded arena references, Unicode scalar counts."
+    },
+    {
+      "category": "container boundaries",
+      "coverage": "Empty and nested containers, delimiter bytes inside escaped strings, leading and trailing whitespace, exact absolute spans, nested sibling preservation, final current event, repeated container skip rejection."
+    },
+    {
+      "category": "incremental traversal",
+      "coverage": "Every two-chunk split of a mixed nested document, single-byte feeds, UTF-8 and escape splits, repeated NeedMore, empty feeds, owned caller chunks, exact nesting carry and arena preservation."
+    },
+    {
+      "category": "recoverable API errors",
+      "coverage": "Absent current events, keys and closing events produce TypeMismatch; mismatched pending modes produce ConstraintViolation; ordinary walking during a skip fails without consuming ready input."
+    },
+    {
+      "category": "malformed consumed bytes",
+      "coverage": "Truncated containers, literals and numbers; trailing commas; mismatched delimiters; malformed numbers and keywords; unterminated strings; invalid escapes, surrogates, control bytes and UTF-8; decoded duplicate keys. Errors are compared with direct syntax traversal and retried for exact sticky propagation."
+    },
+    {
+      "category": "EOF and suffix isolation",
+      "coverage": "EOF after suspended skips reports UnexpectedEof at the input end. Both skip modes stop before malformed siblings or trailing bytes and do not mark the document finished."
+    },
+    {
+      "category": "resource and policy boundaries",
+      "coverage": "Inclusive depth, item, field, string, digit and decoded-arena limits; zero item, field and string limits; payload-growth failure precedence; duplicate-key policy and object scope; 1024 nested containers."
+    },
+    {
+      "category": "checked arithmetic and invariants",
+      "coverage": "Container spans at u32 boundaries, exclusive-end overflow, reversed delimiters, injected u16 depth overflow, impossible Finished with unmatched depth, and invalid internal skip progress."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "review": "Manually reviewed source against the frozen cursor, syntax and ABI contracts and the prior walk implementation.",
+    "test_execution": "Not run. The task prohibits build and check commands.",
+    "integration": "Uses the frozen jmax-syntax feed and finish APIs. Their later-wave implementations must be available for eventual compilation and test execution.",
+    "scope": "Only crates/jmax-cursor/src/skip.rs and reports/wave2/W2-13.json were written.",
+    "behavior": "Both modes use the strict syntax event engine. Strict results report validated true under the configured syntax limits; query results conservatively report false. Progress is retained across chunks, parser failures propagate unchanged, and subtree completion does not validate unrelated suffix bytes.",
+    "commands": "No cargo, rustc, rustfmt, git commit, build, or check command was run."
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "worker_id": "W2-29",
+  "wave": 2,
+  "crate": "jmax-nagoya",
+  "file": "crates/jmax-nagoya/src/batch.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "par_for",
+      "signature": "pub fn par_for<E, I, O, F>(executor: &E, items: Vec<OwnedBatchItem<I>>, options: BatchOptions, cancellation: CancellationToken, work: Arc<F>) -> Result<Vec<BatchTask<E::Task<O>>>> where E: CpuExecutor, I: Send + 'static, O: Send + 'static, F: Fn(I, &CancellationToken) -> Result<O> + Send + Sync + 'static",
+      "behavior": "Preflights options, count, checked retained-byte sum and cancellation, then fallibly reserves the entire task vector before submission. Each accepted closure owns its input and shared work/token clones. Executor rejection and mid-launch cancellation preserve all original positions. Cancellation suppresses successful output before publication, including cancellation during work-owner cleanup. Original work and executor errors retain full context."
+    },
+    {
+      "name": "collect_batch",
+      "signature": "pub async fn collect_batch<F, T>(tasks: Vec<BatchTask<F>>) -> BatchResults<T> where F: Future<Output = Result<T>>",
+      "behavior": "Awaits every accepted task in supplied vector order while independently scheduled CPU jobs may complete in any order. Preserves supplied indices, duplicates, successes and errors without implicit cancellation. Supports borrowed, non-Send and non-Unpin futures. Result allocation follows standard allocator failure behavior because the frozen API has no allocation-error return channel."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "whole_batch_preflight_rejects_limits_and_overflow_before_submission",
+      "vectors": "Zero max_items for empty/nonempty batches; count 2 with limit 1; positive weight with zero byte budget; weights [2,3,4] with budget 8; [usize::MAX,1] and [usize::MAX-1,1,1] overflow. Assert canonical errors, zero submissions and work-owner release."
+    },
+    {
+      "test": "empty_zero_weight_and_exact_limits_are_accepted",
+      "vectors": "Empty batch; one and three zero-weight entries; exact count and sum [2,3,4]/9; usize::MAX exact weight; [usize::MAX-1,1,0]. Assert one ordered result per input."
+    },
+    {
+      "test": "pre_cancelled_batches_including_empty_never_submit",
+      "vectors": "Pre-cancelled empty and two-item batches return Cancelled without executor calls."
+    },
+    {
+      "test": "failed_preflight_drops_every_owned_input_exactly_once",
+      "vectors": "Three non-Clone tracked owners rejected by retained budget or cancellation are each dropped once."
+    },
+    {
+      "test": "task_storage_capacity_overflow_is_a_recoverable_budget_error",
+      "vectors": "Reserve zero and three entries; request usize::MAX nonzero-sized entries to deterministically exercise capacity overflow without an enormous allocation."
+    },
+    {
+      "test": "every_job_is_submitted_before_work_and_can_finish_out_of_order",
+      "vectors": "Four jobs complete in order [3,1,2,0], each at most once; collection produces [1,2,5,10] at indices [0,1,2,3]. Submission and polling execute no work."
+    },
+    {
+      "test": "rejections_and_work_errors_preserve_all_positions_and_error_context",
+      "vectors": "Six items, executor rejections at 0/2/5, work error at 3, successes at 1/4; preserve exact source, offset, schema, field and detail without cancelling token."
+    },
+    {
+      "test": "all_rejections_release_inputs_and_shared_work",
+      "vectors": "Reject all three jobs and retain all rejection results; verify tracked inputs and shared closure are released."
+    },
+    {
+      "test": "mid_launch_cancellation_keeps_accepted_tasks_and_all_later_positions",
+      "vectors": "Cancel on second submission, with that submission either accepted or rejected. Submit only twice, preserve five positions, retain earlier task handles and preserve rejection context."
+    },
+    {
+      "test": "queued_cancellation_skips_work_and_drops_inputs",
+      "vectors": "Cancel after launch but before CPU execution; work must not run and the captured owner is dropped once."
+    },
+    {
+      "test": "late_cancellation_drops_success_but_preserves_work_errors",
+      "vectors": "Work cancels the shared token then returns either a tracked success or a contextual error. Suppress and drop success; preserve original error."
+    },
+    {
+      "test": "cancellation_during_work_owner_cleanup_is_observed",
+      "vectors": "The last work-owner destructor cancels the token; publication returns Cancelled."
+    },
+    {
+      "test": "already_published_success_survives_later_shared_cancellation",
+      "vectors": "Complete first job, cancel, execute second job; retain first success and second Cancelled result."
+    },
+    {
+      "test": "dropping_queued_or_completed_tasks_releases_owned_values",
+      "vectors": "Drop three queued tasks or three completed tasks; all tracked values and shared work are released exactly once."
+    },
+    {
+      "test": "collection_transfers_nonclone_outputs_without_early_drop",
+      "vectors": "A non-Clone tracked output remains alive through collection and is dropped with its results owner."
+    },
+    {
+      "test": "manually_supplied_indices_and_rejections_are_preserved_verbatim",
+      "vectors": "Indices [usize::MAX,3,3,0] with mixed successes and errors remain unchanged; empty external task vector collects empty."
+    },
+    {
+      "test": "collection_supports_pending_non_send_borrowed_async_futures",
+      "vectors": "Borrowed Rc<Cell<_>> async future suspends once, wakes the collector and resumes once, retaining index 41 and original shared owner."
+    },
+    {
+      "test": "dropping_pending_collection_releases_results_current_and_remaining_tasks",
+      "vectors": "Three tracked futures with the middle future pending; dropping collection releases completed result, current future and remaining future."
+    },
+    {
+      "test": "owned_submission_and_collection_futures_are_send",
+      "vectors": "Compile-time Send + 'static assertions for owned task vectors and collection futures."
+    },
+    {
+      "test": "panicking_work_drops_input_and_capture_without_reexecution",
+      "vectors": "On unwind targets, a deliberate work panic releases input and captured owner; the taken CPU job cannot run again."
+    }
+  ],
+  "status": "Implementation complete with 20 inline deterministic tests. Source reviewed against frozen root, ABI, contract and prior submit module. No compilation, tests, formatting, build/check commands or commits were run, as instructed. Only the assigned source and report were written. Production code uses core/alloc and frozen root types, introduces no dependencies and contains no unsafe code."
+}

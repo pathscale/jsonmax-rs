@@ -1,0 +1,51 @@
+{
+  "worker_id": "W2-03",
+  "wave": 2,
+  "crate": "jmax-dispatch",
+  "file": "crates/jmax-dispatch/src/choose.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub const fn choose(input_len: usize, capabilities: CpuCapabilities, policy: DispatchPolicy) -> BackendId"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "name": "every_selection_branch_is_const_evaluable",
+      "coverage": "Const evaluation of scalar, NEON, AVX2 and AVX-512 selections at lengths 0, 64, 256 and 4096."
+    },
+    {
+      "name": "conservative_threshold_boundaries_are_inclusive",
+      "coverage": "Lengths 0, 1, 63, 64, 65, 255, 256, 257, 4095, 4096, 4097 and usize::MAX with all capabilities."
+    },
+    {
+      "name": "zero_thresholds_allow_empty_input_and_preserve_priority",
+      "coverage": "Empty input with zero thresholds selects each backend according to available capabilities."
+    },
+    {
+      "name": "disabling_avx512_preserves_lower_priority_backends",
+      "coverage": "AVX-512 disabled at lengths 0, 4096 and usize::MAX falls back to AVX2, NEON or scalar."
+    },
+    {
+      "name": "missing_cpu_or_os_prerequisites_fall_back_without_errors",
+      "coverage": "Missing AVX-512F, BW, OS AVX-512 state or OS AVX state; OS bits without CPU features; AVX-512 without AVX2 or NEON. The frozen function is infallible, so rejection paths are verified as fallback selections instead of errors."
+    },
+    {
+      "name": "thresholds_are_independent_and_need_not_be_monotonic",
+      "coverage": "Each native backend independently uses threshold 7 while others use usize::MAX, tested at lengths 6, 7 and 8."
+    },
+    {
+      "name": "maximum_thresholds_are_reachable_without_overflow",
+      "coverage": "All thresholds usize::MAX, tested at usize::MAX - 1 and usize::MAX for each fallback level."
+    },
+    {
+      "name": "exhaustive_capabilities_and_independent_threshold_grid",
+      "coverage": "128000 cases: all 64 capability combinations, both AVX-512 permission values, all 125 triples of thresholds drawn from [0, 1, 64, 256, usize::MAX], and eight input lengths. Independent raw-bit oracle selects the highest eligible backend."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "validation": "Source reviewed against frozen contract and root types. Tests authored but not executed. No build, check, formatting or commit commands run, as instructed.",
+    "scope": "Only the assigned Rust module and this handoff report were written.",
+    "properties": "Pure const policy using root types only; no allocation, unsafe code, detection, native execution, size arithmetic, narrowing or mutable global state. Compatible with std and no_std."
+  }
+}

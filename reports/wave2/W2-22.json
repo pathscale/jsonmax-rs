@@ -1,0 +1,118 @@
+{
+  "worker_id": "W2-22",
+  "wave": 2,
+  "crate": "jmax-schema-aot",
+  "file": "crates/jmax-schema-aot/src/decode.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn validate_slots(values: &ValidatedSlots, plan: &DecodePlan<'_>) -> Result<()>",
+    "pub fn decode_bool(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<bool>>",
+    "pub fn decode_u64(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<u64>>",
+    "pub fn decode_u32(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<u32>>",
+    "pub fn decode_i64(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<i64>>",
+    "pub fn decode_i32(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<i32>>",
+    "pub fn decode_f64(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<f64>>",
+    "pub fn decode_decimal(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<Decimal128>>",
+    "pub fn decode_str<'a>(reader: &SlotReader<'a>, spec: &SlotSpec) -> Result<Option<&'a str>>",
+    "pub fn decode_raw<'a>(reader: &SlotReader<'a>, spec: &SlotSpec) -> Result<Option<&'a [u8]>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits compiler, build, check, formatting, and test commands. Review was by source inspection only.",
+    "inline_test_count": 18,
+    "fixture_strategy": "Private, statically dispatched SlotAccess and FromSlot implementations let unproven fixtures exercise the same decoding and plan-validation algorithms used by every public wrapper. No ValidationProof is constructed or fabricated. Fixture span resolvers model the frozen reader contract; their tests verify decoder delegation and propagation, not the root reader implementation itself.",
+    "coverage_limitations": [
+      "The crate forbids unsafe code, and the allowed dependencies expose no safe producer of ValidationProof. Public validate_slots owner-length and fingerprint gates therefore have source review, not executable fixture coverage in this module. They delegate directly to SlotReader::new before inspecting the plan.",
+      "Allocation failure is handled with try_reserve_exact and BudgetExhausted but is not forced by a nondeterministic allocator-exhaustion test.",
+      "Compilation and execution of all inline tests remain unverified because the user explicitly prohibited those commands."
+    ],
+    "cases": [
+      {
+        "test": "scalar_absence_spec_kind_and_bounds",
+        "coverage": "All seven scalar output types: required Empty, optional Empty, every incompatible spec kind for both requiredness settings, indices 1 and u32::MAX, and no source access for an invalid spec kind."
+      },
+      {
+        "test": "borrowed_absence_spec_kind_and_bounds",
+        "coverage": "String and raw outputs: both requiredness settings, every spec kind, invalid indices, and no resolver calls for empty slots."
+      },
+      {
+        "test": "exact_type_matrix_rejects_all_cross_kind_coercions",
+        "coverage": "Complete seven-by-seven SlotKind/SlotValue matrix plus both narrowing decoders. Rejects signed, unsigned, floating, decimal, string, Boolean, and raw cross-kind coercions."
+      },
+      {
+        "test": "boolean_and_full_width_integer_values_are_preserved",
+        "coverage": "Both Boolean values, zero, one, u32::MAX, 2^63, u64::MAX, i64::MIN, i32 bounds, negative one, and i64::MAX."
+      },
+      {
+        "test": "narrowing_checks_both_inclusive_boundaries",
+        "coverage": "Exact u32 and i32 limits, adjacent in-range and out-of-range values, full-width extremes, NumberOverflow metadata, and acceptance of full-width values by U64/I64 plans."
+      },
+      {
+        "test": "finite_floats_preserve_bits_and_nonfinite_patterns_fail",
+        "coverage": "Positive and negative zero, smallest subnormals, largest positive subnormal, smallest positive normal, ordinary fraction, positive and negative maximum finite values, both infinities, signed signaling and quiet NaNs, and all-one bits."
+      },
+      {
+        "test": "decimals_preserve_all_scale_and_coefficient_extremes",
+        "coverage": "Coefficient values i128::MIN, -100, -1, 0, 1, 100, i128::MAX crossed with scales 0, 1, 8, 38, and u8::MAX, without normalization or narrowing."
+      },
+      {
+        "test": "strings_borrow_the_selected_owner_with_scalar_counts",
+        "coverage": "Distinct raw and decoded buffers, nonzero offsets, multibyte Unicode, supplementary characters, combining scalars, NUL, pointer identity, and a returned borrow outliving its temporary reader."
+      },
+      {
+        "test": "empty_present_borrows_are_distinct_from_missing_values",
+        "coverage": "Required empty strings at beginning and end of either owner and zero-length raw spans at the end of empty and nonempty payloads produce Some rather than None."
+      },
+      {
+        "test": "invalid_string_ranges_utf8_and_scalar_counts_propagate",
+        "coverage": "Fixture resolver failures for past-end spans, u32 addition overflow, split UTF-8 code points, excessive and incorrect scalar counts, and invalid bytes only in the selected owner. Verifies InvalidUtf8 offsets and per-field propagation through decoders and plans."
+      },
+      {
+        "test": "raw_access_only_checks_payload_bounds",
+        "coverage": "Arbitrary non-JSON and invalid-UTF-8 bytes, NUL, full/partial/empty spans, pointer identity, exact-end bounds, past-end ranges, u32 overflow, and rejection even when an unrelated decoded arena is longer."
+      },
+      {
+        "test": "resolver_errors_keep_offset_and_detail_and_gain_field_context",
+        "coverage": "Injected resolver errors retain code, Decode source, offset 97, and detail while receiving full-width field IDs 65536 and u32::MAX with schema ID zero."
+      },
+      {
+        "test": "complete_plan_accepts_reordered_slots_and_full_width_field_ids",
+        "coverage": "All seven kinds plus optional Empty, reversed plan order, full-width values and field IDs, repeated deterministic validation, unchanged input specs, exact access counts, and an empty plan over empty slots."
+      },
+      {
+        "test": "plan_rejects_count_gaps_duplicates_and_out_of_range_indices",
+        "coverage": "Too few or too many specs, duplicate indices, gaps, nonzero first index, u32::MAX index, duplicate field IDs, usize::MAX count, and rejection before any value access."
+      },
+      {
+        "test": "plan_checks_every_required_optional_and_present_value_in_order",
+        "coverage": "Required and optional Empty for all kinds, present optional type mismatches and nonfinite floats, and deterministic error precedence following caller plan order."
+      },
+      {
+        "test": "spec_kind_errors_precede_present_values_and_invalid_indices",
+        "coverage": "Wrong decoder spec kind rejects a present valid Boolean and a u32::MAX index before slot access, preserving the specification diagnostic."
+      },
+      {
+        "test": "dense_plan_validation_handles_many_unsorted_fields",
+        "coverage": "4096 reversed dense slots with large unique field IDs, followed by an interior duplicate field ID rejected before further value access."
+      },
+      {
+        "test": "public_function_signatures_match_the_frozen_contract",
+        "coverage": "Typed function-pointer assignments for all ten exports, including owner-bound string and raw lifetimes."
+      }
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "source_review_only_tests_not_executed",
+    "reasoning": "high",
+    "integration": "Uses frozen ABI and root AOT types only. Production slot access, string resolution, raw resolution, owner-length validation, and fingerprint validation delegate to SlotReader. No later-wave module is required by this implementation; other declared modules still need their assigned implementations for eventual crate-wide compilation.",
+    "notes": [
+      "Only crates/jmax-schema-aot/src/decode.rs and this handoff report were written.",
+      "Read the frozen AOT contract, AOT root, ABI root and relevant ABI definitions, and the prior-wave tables implementation before writing source.",
+      "Plan validation checks exact dense index coverage and unique full-width field IDs before processing values in caller order. Scratch allocation is fallible, comparisons are O(n log n), and scratch storage is O(n).",
+      "Individual decoders allocate no storage, enforce exact types and requiredness, check integer narrowing and finite floats, preserve decimal representation, and attach Decode field context without losing resolver offsets or details.",
+      "No proofs are issued or strengthened, no raw JSON-validity claims are made, and no unsafe code or forbidden dependencies are used.",
+      "No compiler, build/check/test, formatter, or commit command was run."
+    ]
+  }
+}

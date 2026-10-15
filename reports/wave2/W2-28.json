@@ -1,0 +1,45 @@
+{
+  "worker_id": "W2-28",
+  "wave": 2,
+  "crate": "jmax-mcp",
+  "file": "crates/jmax-mcp/src/state.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn route(session: &mut Session, message: &McpEnvelope, server: &ServerInfo, services: &[ServiceSpec], roles: &[String], limits: EnvelopeLimits) -> McpResult<McpAction>",
+    "pub fn validate_call(action: &McpAction, services: &[ServiceSpec], roles: &[String], validator: &dyn ToolArgumentsValidator) -> McpResult<ValidatedSlots>"
+  ],
+  "unsafe_justifications": [
+    "Production routing and validation code contains no unsafe operations.",
+    "The test-only object_slots helper issues ValidationProof after complete JSON object validation against its explicit any-object test schema. The payload length uses checked conversion; decoded storage and slots are empty.",
+    "The test-only nonempty-arena validator issues ValidationProof only after exact comparison with a fixed JSON object literal. The decoded arena contains the literal's two-byte UTF-8 value and the single string slot has exact bounds and scalar count.",
+    "Malformed provider-output tests mutate public ValidatedSlots fields after valid proof issuance; they do not issue invalid proofs using unsafe code. The boundary rejects changed bytes or mismatched payload and decoded lengths."
+  ],
+  "test_vectors": [
+    "Explicit configured-version selection, preferred-version fallback for unknown and empty offers, and case-sensitive negotiation.",
+    "Successful New to AwaitingInitialized to Ready transitions with independently owned Unicode client information and decoded escaped field names.",
+    "Missing, malformed, wrong-kind, duplicate, and unknown initialize/clientInfo fields; empty client identities; generic capabilities and metadata objects.",
+    "Premature, repeated, ID-bearing, malformed, and resource-exhausted initialized notifications, preserving the entire prior session on failure.",
+    "Repeated initialize requests, closed-session rejection, and ping in all nonclosed phases without session changes.",
+    "Explicit null IDs, minimum and maximum signed i64 IDs, and string IDs containing NUL and Unicode.",
+    "Ignored request-only notifications in every session phase, including closed sessions and tool method names.",
+    "Tools readiness and capability gates, case-sensitive method names, tools/list metadata, and rejection of pagination cursors.",
+    "tools/call default owned empty arguments, exact raw argument preservation, closed field sets, strict object arguments, and nested duplicate rejection.",
+    "Indistinguishable unknown and forbidden tools, exact any-role authorization, case-sensitive roles and names, and authorization revocation between route and validate_call.",
+    "Invalid implementation metadata, protocol configuration, capability combinations, caller roles, hidden endpoint roles, service IDs/names, endpoint codes/names, service mismatches, and ASCII identifiers.",
+    "Valid empty catalogs, boundary service IDs and endpoint codes, and identical endpoint names in different services.",
+    "Root field counting with nested containers, escaped quotes/backslashes, decoded keys, and colons inside strings.",
+    "Malformed manual parameter payloads, invalid UTF-8/escapes/surrogates, trailing content, and bounded messages that omit sensitive input.",
+    "Inclusive payload-byte, decoded-byte, depth, and per-object field limits; rejection of each zero limit.",
+    "Exactly one validator invocation for authorized calls and zero invocations for forbidden, missing, invalid-catalog, invalid-role, and non-call actions.",
+    "Code-based endpoint resolution after renaming, unchanged canonical fingerprints, identical owned payload copies, and valid nonempty decoded storage.",
+    "Validator errors map to INVALID_PARAMS without exposing details; different same-length payload bytes and independent proof-length mismatches map to INTERNAL_ERROR."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "28 deterministic tests authored",
+    "execution": "Not compiled or executed, as instructed. No build, check, formatting, or commit commands were run.",
+    "review": "Source reviewed against the frozen MCP contract, root interfaces, canonical ABI types, and prior-wave envelope helpers.",
+    "scope": "Only crates/jmax-mcp/src/state.rs and reports/wave2/W2-28.json were written.",
+    "integration": "Uses existing root exports and envelope public helpers; does not require later-wave catalog/results implementations or additional dependencies."
+  }
+}

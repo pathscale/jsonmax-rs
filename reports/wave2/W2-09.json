@@ -1,0 +1,50 @@
+{
+  "worker_id": "W2-09",
+  "wave": 2,
+  "crate": "jmax-string",
+  "file": "crates/jmax-string/src/unescape.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "decode_escape",
+      "signature": "pub fn decode_escape(input: &[u8], backslash_offset: u32) -> Result<DecodedEscape>",
+      "behavior": "Decodes simple escapes, hexadecimal BMP scalars, and adjacent UTF-16 surrogate pairs. Preserves absolute error offsets and rejects invalid spellings without replacement."
+    },
+    {
+      "name": "unescape",
+      "signature": "pub fn unescape(input: &[u8], content: Span32, sink: &mut dyn ByteSink) -> Result<StringLengths>",
+      "behavior": "Checks the span, validates and measures complete content before any sink call, reserves the exact decoded byte length, then emits original UTF-8 runs and decoded scalars. Lookahead ends at the content boundary. Sink errors propagate unchanged."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests in crates/jmax-string/src/unescape.rs",
+    "test_count": 19,
+    "coverage": [
+      "All eight simple escape spellings and all invalid escape-letter byte values",
+      "All 65536 BMP code units, rejecting all surrogate code units when isolated",
+      "Mixed uppercase and lowercase hex, embedded NUL, UTF-8 width boundaries, U+10000, U+10FFFF, and emoji",
+      "Every high surrogate with both low-surrogate boundaries and every low surrogate with both high-surrogate boundaries",
+      "Every truncated surrogate-pair boundary, absent or partial second prefixes, and wrong second-unit ranges",
+      "Invalid hex at every digit position in either code unit, including invalid digits before a truncated suffix",
+      "Nonzero absolute offsets, out-of-range offsets, checked span overflow, out-of-bounds spans, and empty spans",
+      "Raw UTF-8 preservation without normalization and mixed raw content with all simple escape outputs",
+      "Raw run lengths zero through 128 at starting offsets zero through 16 with an escaped Euro sign at the tail",
+      "Wave 1 scan span integration and strict rejection of escape spellings accepted by discovery",
+      "All 32 raw control bytes, raw quotes, malformed UTF-8, UTF-8 surrogate encodings, overlong encodings, and values beyond U+10FFFF",
+      "Bounded lookahead with completing bytes outside content and absolute EOF rebasing",
+      "Source-order error precedence after valid decoded prefixes and no sink calls on invalid input",
+      "Exact reservation and appended counts with prior sink data, reservation failure, write failures, and unchanged error metadata",
+      "Synthetic u32 byte and scalar counter boundaries with atomic counter updates and source-position overflow errors"
+    ],
+    "execution": "Not run. The task explicitly prohibits cargo, rustc, rustfmt, and all build/check commands. Source and test vectors were reviewed directly against the frozen contract."
+  },
+  "status": {
+    "state": "implemented_unexecuted",
+    "reasoning": "high",
+    "validation": "Manual source review only; no build, formatter, check, test, or commit command was run.",
+    "allocation": "Production implementation allocates no temporary buffers; scalar UTF-8 emission uses a four-byte stack buffer.",
+    "dependencies": "Uses core and frozen jmax-string root ABI reexports only; no manifest changes.",
+    "ownership": "Only crates/jmax-string/src/unescape.rs and reports/wave2/W2-09.json were written."
+  }
+}

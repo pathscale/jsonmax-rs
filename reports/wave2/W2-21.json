@@ -1,0 +1,26 @@
+{
+  "worker_id": "W2-21",
+  "wave": 2,
+  "crate": "jmax-derive",
+  "file": "crates/jmax-derive/src/encode.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub(crate) fn expand(input: &DeriveInput) -> DeriveResult<proc_macro::TokenStream>",
+    "Generated implementation: configured ABI traits::JsonEncode::encode_json(&self, &mut dyn ByteSink) -> error::Result<()> for named and unit structs"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Complete deterministic generated-source vectors for empty objects and a required boolean field; repeated rendering produces identical source.",
+    "All eight ScalarType variants select their frozen AOT writer for required and optional fields. U32 and I32 widen exactly through From; strings are borrowed; Decimal128 is copied unchanged.",
+    "Optional presence guards contain the separator, key, colon, and value writes. All eight presence combinations for three optional fields exercise empty objects and leading, middle, and trailing omissions.",
+    "Declaration order is retained across skipped fields and optional gaps, independently of alphabetical key order; no trailing separator is emitted.",
+    "All-skipped generic structs emit only object delimiters, with no field access, Default requirement, allocator reference, or schema bound. Present values are never compared with Default or filtered for emptiness.",
+    "Lifetimes, type parameters, const generics, and existing where clauses with trailing commas or surrounding whitespace are preserved without additional bounds.",
+    "Configured ABI/AOT paths and raw identifiers remain intact. Generated local names avoid const generic names, skipped field type expressions, raw identifiers, and configured paths.",
+    "Wire keys containing quotes, backslashes, control characters, NUL, Unicode, line separators, and token-injection text remain Rust string literals passed to the JSON string writer.",
+    "Malformed slot layouts report the offending field for missing indices, gaps, duplicate indices, u32::MAX in a non-dense position, and skipped fields consuming slots. A 65,537-field vector crosses the u16 boundary without truncation.",
+    "Every fallible delimiter, separator, key, colon, and scalar write propagates through ? before subsequent output; errors are neither remapped nor discarded.",
+    "Full-width integer, finite-float, negative-zero, and exact decimal policies are delegated to the canonical typed writers without casts, formatting, rescaling, or proof construction. These are source-generation assertions, not executed runtime numeric boundary tests."
+  ],
+  "status": "complete; production encoder and 16 inline tests authored and manually reviewed; tests not executed; no cargo, rustc, rustfmt, build, check, test, or git commit commands run; only the assigned source and report were written; generated encoding targets the frozen AOT Wave 3 writer API"
+}

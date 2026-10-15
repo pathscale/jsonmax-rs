@@ -1,0 +1,41 @@
+{
+  "worker_id": "W2-14",
+  "wave": 2,
+  "crate": "jmax-path",
+  "file": "crates/jmax-path/src/compile.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn compile(paths: &[Path], limits: PathLimits) -> Result<CompiledPaths>",
+    "pub fn compile_strings(inputs: &[&str], limits: PathLimits) -> Result<CompiledPaths>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Empty input list produces a single root with zero slots, including zero path, segment, key, match, and visit budgets.",
+    "Zero trie-node budget rejects empty and nonempty inputs with BudgetExhausted, Cursor source, offset zero.",
+    "Repeated empty and dollar root paths install separate ascending slots at node zero.",
+    "Exact expected graph for book[2].price, book[2].title, book, repeated book[2].price, root, other, and book[0].",
+    "Root and prefix terminals coexist with descendants; shared suffixes beneath different parents remain separate.",
+    "Sibling order preserves first insertion across mixed keys and indices, including u32::MAX.",
+    "Equivalent decoded Unicode, surrogate-pair, and escaped-dot spellings share edges without Unicode normalization.",
+    "Empty, control-containing, punctuation, wildcard-looking, and numeric programmatic keys remain literal and distinct from indices.",
+    "Compiled paths and selector strings use independent owned copies and outlive modified or dropped input storage.",
+    "Current segment and decoded UTF-8 key limits are rechecked, inclusive, and enforce zero bounds.",
+    "Typed compilation ignores textual, match, and visit budgets while textual compilation enforces path bytes.",
+    "Path limits count duplicates, and node limits count only unique prefixes including the root.",
+    "Duplicates remain legal after the trie reaches its exact node budget.",
+    "Cursor hard slot ceiling accepts 65536 root slots and rejects 65537 even with a larger caller limit.",
+    "Cursor hard node ceiling accepts an iterative 65536-node chain and rejects one more node even with larger caller limits.",
+    "Parser errors propagate unchanged, preserving first-error ordering, source, offset, detail, and syntax categories.",
+    "Wildcard, filter, recursive-descent, union, and slice extensions stay unsupported; quoted and escaped literals remain valid.",
+    "compile_strings parses before compiling and checks the parser path-count budget before malformed input syntax.",
+    "String and typed compilation produce identical paths and plans; repeated compilation stays deterministic through 129 sibling insertions.",
+    "Deterministic allocation-layout overflow maps to BudgetExhausted without altering existing vector contents.",
+    "Bounded geometric reservation accepts its exact logical limit, rejects zero and exhausted bounds, and preserves contents on failure."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "26 deterministic tests authored; not executed",
+    "validation": "Source reviewed against frozen path and cursor contracts and public root types. No cargo, rustc, rustfmt, build, check, or git commit commands were run, as instructed.",
+    "ownership": "Only crates/jmax-path/src/compile.rs and reports/wave2/W2-14.json were written."
+  }
+}

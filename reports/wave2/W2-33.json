@@ -1,0 +1,50 @@
+{
+  "worker_id": "W2-33",
+  "wave": 2,
+  "crate": "jmax-compat",
+  "file": "crates/jmax-compat/src/endpoint.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn import_endpoint(legacy: LegacyEndpoint, options: CompatOptions) -> Result<Conversion<EndpointSchemaSpec>>",
+    "pub fn export_endpoint(endpoint: &EndpointSchemaSpec, options: CompatOptions) -> Result<Conversion<LegacyEndpoint>>",
+    "pub fn import_services(legacy: &[LegacyService], options: CompatOptions) -> Result<Conversion<Vec<ServiceSpec>>>",
+    "pub fn export_services(services: &[ServiceSpec], options: CompatOptions) -> Result<Conversion<Vec<LegacyService>>>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-compat/src/endpoint.rs::tests",
+    "inline_test_count": 24,
+    "execution": "Not run, as instructed. No compiler, build, check, formatting, or commit commands were executed.",
+    "coverage": [
+      "Exact round trips for all 23 EndpointType variants under Reject and AllowDocumented, with no warnings",
+      "Endpoint and service numeric boundaries: zero, u16::MAX, u32::MAX; enum i32::MIN and i32::MAX; NanoId lengths 1 and 255",
+      "Unsupported option versions 0, 2, 255, and 65535, including empty sets and nested endpoint/service wrapper mismatches",
+      "Empty service sets, empty services, unary endpoints, empty nominal structs, and empty enums",
+      "Required endpoint, service, role, field, nominal definition, enum variant, and reference names",
+      "Duplicate field, role, service, endpoint, and enum variant names; duplicate numeric service IDs, endpoint codes, and enum values",
+      "Service-local endpoint code/name uniqueness, exact case-sensitive service membership, and shared codes across distinct services",
+      "Endpoint-only reference deferral; forward and cross-service references; unknown, wrong-kind, and wrong-case references",
+      "Repeated identical nominal declarations and conflicts involving type kind, nested types, field order, variant order, and descriptions",
+      "Cross-service nominal definition conflicts and recursive self/mutual struct references without cycle expansion",
+      "Inclusive owned-edge depth ceilings 0, 1, 2, 16, 128, and 65535, plus one-past-limit rejection",
+      "Iterative validation, comparison, and copying at the full u16 depth boundary; test-only iterative chain disposal",
+      "Nested struct/vector/optional combinations, multiple sibling ordering, Unit versus Optional, both prefixed_name values, UTF-8 names, CRLF descriptions, and exact case preservation",
+      "Permissive duplicate-key options cannot weaken model uniqueness; byte encoding limits do not truncate in-memory endpoint models",
+      "Owned export/import copies do not alias or mutate source services",
+      "Deterministic allocation-capacity overflow returns BudgetExhausted and preserves existing data",
+      "Error paths assert canonical ABI codes, SchemaCompile source, zero location context, and nonempty static diagnostics"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Manually reviewed against contracts/jmax-compat.md, frozen root and ABI definitions, and the prior-wave serde adapter.",
+    "validation": "Execution intentionally omitted under task restrictions.",
+    "scope": "Only crates/jmax-compat/src/endpoint.rs and reports/wave2/W2-33.json were written.",
+    "notes": [
+      "No dependency or frozen-signature changes; alloc-only implementation with no unsafe code.",
+      "All successful conversions are lossless and warning-free under both loss policies.",
+      "All validation completes before output publication; references resolve against nominal declarations throughout the supplied service set.",
+      "Vec and String allocations use fallible reservations. Box allocations follow the stable alloc API's normal allocation-error behavior."
+    ]
+  }
+}

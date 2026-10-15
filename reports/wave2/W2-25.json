@@ -1,0 +1,37 @@
+{
+  "worker_id": "W2-25",
+  "wave": 2,
+  "crate": "jmax-codegen-rust",
+  "file": "crates/jmax-codegen-rust/src/endpoints.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn generate_endpoints(model: &EndpointModel, options: &CodegenOptions) -> Result<GeneratedArtifact>",
+    "Generated service/endpoint Request and Response structs with public owned fields and concrete JsonEncode implementations",
+    "Generated request CODE, METHOD, and ROLES inherent constants",
+    "Generated conditional Stream owned aliases and request/response owner-borrowing View wrappers",
+    "Generated EndpointError enum with model-global known variants, Unknown storage, code(), message(), and exact JSON encoding",
+    "Generated conditional SchemaProvider and checked JsonDecode implementations for eligible flat payload records"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not executed. The task prohibits cargo, rustc, rustfmt, and all build/check commands.",
+    "coverage": [
+      "Empty models and empty request/response objects; artifact path, kind, generation notice, deterministic output, and exactly one trailing LF",
+      "Service and endpoint component casing, acronym boundaries, transformed collisions, and distinct case-sensitive Rust names",
+      "Endpoint codes 0, 1, and u32::MAX; exact canonical method names; ordered and empty role lists",
+      "All scalar owned mappings, raw keyword field identifiers, declaration order, original wire keys, decimal encoding, and optional omission versus array null",
+      "Inline nominal records/enums, recursive references, reference aliases without extra boxes, sibling model owner views, and Object delegation",
+      "Conditional stream aliases and view/schema options; view constructor/accessor name conflicts",
+      "Known and unknown error metadata, codes 0 and u32::MAX, transformed error collisions, reserved Unknown, Unicode, quotes, backslashes, controls, and exact error object key order",
+      "Invalid source paths, names, unresolved references, duplicate endpoint/error codes, mismatched service metadata, unknown roles, and unchanged caller models",
+      "Complete sorted schema candidate assignment including definitions, headers, streams, requests, and responses; canonical fingerprints and dense field/slot identities",
+      "Zero-slot decode plans, AOT checked reader/plan emission, checked integer narrowing dispatch, owned strings, canonical base64 conversion, optional requiredness, and schema/field error context",
+      "Unsupported compound, enum, decimal, Unit, nondefault NanoId, and nested Optional fields fail atomically when tables are enabled",
+      "RFC 4648 base64 vectors, all byte values 0..255, binary alphabet vectors, invalid alphabets and padding, and exhaustive nonzero padding-bit rejection",
+      "Runtime depth boundaries 0, 127, 128, 129, and usize::MAX; excessive input nesting",
+      "Exact emitted helper token bodies instantiated in inline tests; base64/error sink failures at every output boundary preserve complete ABI errors"
+    ],
+    "integration": "Uses frozen endpoint-model wire_names/utilities and AOT encode/decode APIs, with the same qualified schema ordering and model encoding conventions as Wave 1. Later-wave sibling modules are outside this assignment."
+  },
+  "status": "complete"
+}

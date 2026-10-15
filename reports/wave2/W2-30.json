@@ -1,0 +1,109 @@
+{
+  "worker_id": "W2-30",
+  "wave": 2,
+  "crate": "jmax-http",
+  "file": "crates/jmax-http/src/incoming.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "check_headers",
+      "signature": "pub fn check_headers(headers: &[Header], body_len: usize, limits: HttpLimits) -> Result<()>",
+      "behavior": "Preflights effective limits, ABI payload length, header count and checked header storage including separators. Enforces unique representation fields, exact bounded decimal Content-Length, removed transfer framing, absent or identity content coding, and exactly one strict JSON media type with at most one UTF-8 charset parameter."
+    },
+    {
+      "name": "validate_uri",
+      "signature": "pub fn validate_uri(uri: &str, absolute: bool) -> Result<()>",
+      "behavior": "Accepts lowercase HTTP(S) absolute targets and, when allowed, single-slash origin-form targets. Validates ASCII DNS-style labels, actual bracketed IPv6 addresses, decimal ports 1 through 65535, RFC 3986 path/query characters and percent triplets without allocation, normalization, DNS or network access."
+    },
+    {
+      "name": "check_response",
+      "signature": "pub fn check_response(response: &IncomingResponse, limits: HttpLimits) -> Result<()>",
+      "behavior": "Preflights limits, requires explicit completion before inspecting status, permits only successful JSON response statuses excluding 204 and 205, and checks headers and decoded body length."
+    },
+    {
+      "name": "check_request",
+      "signature": "pub fn check_request(request: &IncomingRequest, limits: HttpLimits) -> Result<()>",
+      "behavior": "Preflights limits and completion, rejects HEAD, validates an absolute or origin-form target, then enforces header and body limits."
+    },
+    {
+      "name": "validate_response",
+      "signature": "pub fn validate_response(response: IncomingResponse, validator: &dyn BodyValidator, schema_fingerprint: u64, limits: HttpLimits) -> Result<ValidatedBody>",
+      "behavior": "Checks complete transport metadata before delegating the exact immutable response payload and expected fingerprint to root validate_body. No HTTP production path issues a validation proof."
+    },
+    {
+      "name": "decode_response",
+      "signature": "pub fn decode_response<T: JsonDecode + SchemaProvider>(response: IncomingResponse, validator: &dyn BodyValidator, limits: HttpLimits) -> Result<ParsedMessage<T>>",
+      "behavior": "Validates using T's exact fingerprint, invokes T::decode_slots once, and transfers the unchanged payload, decoded arena and validator proof into ParsedMessage<T>. Collaborator errors retain all metadata."
+    },
+    {
+      "name": "decode_on",
+      "signature": "pub fn decode_on<E, V, T>(executor: &E, validator: Arc<V>, response: IncomingResponse, limits: HttpLimits, lease: ScratchLease, cancellation: CancellationToken) -> Result<E::Task<Admitted<ParsedMessage<T>>>> where E: CpuExecutor, V: ParseValidator, T: JsonDecode + SchemaProvider + Send + 'static",
+      "behavior": "Preflights transport metadata before executor use, builds an owned ParseJob with effective syntax limits, and delegates directly to jmax_nagoya::submit::submit_typed. Preflight errors drop the supplied lease. Nagoya owns admission, cooperative cancellation and accounting through result retention."
+    }
+  ],
+  "unsafe_justifications": {
+    "production": [
+      {
+        "location": "incoming::decode_response",
+        "operation": "ParsedMessage::new_proven",
+        "justification": "Root validate_body checked the exact original payload bytes, expected schema fingerprint, proof lengths and decoded arena cap. T::decode_slots receives those validated slots and is trusted to preserve reference invariants. The exact immutable payload owner, decoded arena owner and existing proof are moved unchanged into the canonical constructor; HTTP does not manufacture evidence."
+      }
+    ],
+    "tests": [
+      {
+        "location": "incoming::tests::literal_slots",
+        "operation": "ValidationProof::issue_unchecked",
+        "justification": "Only two registered fingerprints for the same finite string-object shape are accepted. Exact complete JSON literal matching establishes the sole required field, absence of duplicate and unknown fields, UTF-8 validity and correct raw or decoded string references. Checked conversions establish exact ABI lengths. All stored spans fit their backing immutable buffers and scalar counts are accurate. Negative tests safely mutate already validated returned storage to exercise defensive binding checks rather than issuing invalid proofs."
+      }
+    ]
+  },
+  "test_vectors": {
+    "inline_test_count": 27,
+    "execution": "Not run, as explicitly instructed. No compiler, build, test, check, formatter or commit commands were run.",
+    "fixtures": {
+      "schema_fingerprint": "0x57320030",
+      "alternate_schema_fingerprint": "0x57320031",
+      "raw_json": "{\"text\":\"a\"}",
+      "raw_json_bytes": 12,
+      "escaped_json": "{\"text\":\"a\\n\"}",
+      "escaped_json_bytes": 14,
+      "escaped_decoded_arena": "a\n",
+      "escaped_decoded_arena_bytes": 2,
+      "padded_json": " \n{\"text\":\"a\"}\t ",
+      "padded_json_bytes": 16,
+      "minimal_header_storage_bytes": 34,
+      "admission": {
+        "jobs": 1,
+        "retained_bytes": 1024,
+        "scratch_bytes": 128
+      }
+    },
+    "coverage": [
+      "JSON and structured-suffix media types, ASCII case folding, optional OWS, quoted and unquoted UTF-8 charset, and rejection of malformed, duplicate, unknown or incompatible parameters.",
+      "Repeated extension fields, duplicate representation fields, forbidden Transfer-Encoding, identity Content-Encoding and rejection of undecoded or ambiguous codings.",
+      "Leading-zero input lengths, optional outer ASCII OWS, signs, lists, internal whitespace, Unicode digits, u64 overflow, usize range, zero length, exact equality, truncated body and excess bytes.",
+      "Exact header byte and count boundaries, checked-add overflow paths, UTF-8 byte accounting, effective transport/syntax payload caps and payloads beyond ABI range.",
+      "All invalid HTTP limit configurations before transport or validation work, and zero decoded arena allowance for unescaped strings.",
+      "Absolute and origin-form URIs, lowercase schemes, hostname label lengths 63 and 64, total host lengths 253 and 254, trailing root dots, port boundaries, actual IPv6 syntax and embedded IPv4 addresses.",
+      "URI rejection of authority form, userinfo, fragments, controls, spaces, non-ASCII text, backslashes, malformed percent triplets, forbidden raw path/query characters, invalid DNS labels, malformed IPv6, zone identifiers and invalid ports.",
+      "Every response status from 0 through 600 plus u16 maximum, explicit 204/205 rejection and incomplete-body precedence over status and missing headers.",
+      "All six supported request methods, HEAD rejection, request completion precedence, absolute/origin target checks, missing media type and body cap failures.",
+      "Unchanged payload owners for both shared and vector-backed storage, raw and decoded string resolution, preserved whitespace and exact requested schema fingerprint.",
+      "Validator and decoder errors preserving source, offset, schema, field and detail; empty, unrelated and concatenated JSON rejected by the validator.",
+      "Wrong fingerprint, equal-length payload replacement, payload proof-length mismatch, decoded arena proof-length mismatch and decoded arena cap violations.",
+      "CPU metadata preflight with no submission or validator call, effective syntax forwarding, explicit CPU driver execution, pending futures and accounting retained by completed tasks and admitted results.",
+      "Executor rejection, queued task drop, completed task drop, pre-submission cancellation, cancellation before work, cancellation during validation, parser/decoder/proof errors and insufficient retained admission releasing all reservations."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "source_review_only",
+    "review": "Reviewed against contracts/jmax-http.md, the frozen HTTP and ABI roots, Wave 1 client.rs, ABI traits/buffer/error/syntax definitions, Nagoya submit.rs and the frozen Nagoya admission contract.",
+    "integration": "Production uses only existing root exports, alloc/core and the public Nagoya typed submission API. Inline CPU accounting tests use frozen Admission::new, try_scratch and snapshot APIs assigned to Nagoya Wave 3. That module, HTTP outgoing and hosted modules were absent when read and were not created or modified. Compilation and test execution remain for the coordinating integration pass.",
+    "dependencies_added": [],
+    "files_written": [
+      "crates/jmax-http/src/incoming.rs",
+      "reports/wave2/W2-30.json"
+    ]
+  }
+}

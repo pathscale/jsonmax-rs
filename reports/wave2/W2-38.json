@@ -1,0 +1,23 @@
+{
+  "worker_id": "W2-38",
+  "wave": 2,
+  "crate": "jmax-fuzz",
+  "file": "crates/jmax-fuzz/src/schema.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "constraint_corpus(config: FuzzConfig) -> Result<Vec<SchemaCase>>",
+    "run_schema(cases, aot, vm, limits, config) -> Result<FuzzReport>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "required and optional fields, missing required field, and combined required/optional object",
+    "duplicate and unknown object properties",
+    "integer type mismatch, inclusive lower/upper bounds, and one-past-boundary values",
+    "string scalar-length minimum/maximum boundaries and Unicode scalar counting",
+    "UUID, IP, hex, and base64 supported-format valid/invalid examples",
+    "selected field with an invalid unselected field under strict validation",
+    "case and payload budget limits, invalid config, corrupted image header, duplicate selection, payload-too-large, and outer oracle error paths",
+    "AOT/VM agreement, value mismatch replay record, acceptance mismatch, rejection-comparison policy, and failure truncation"
+  ],
+  "status": "implemented; inline tests authored but not run because Rust build/check/test commands were explicitly prohibited"
+}

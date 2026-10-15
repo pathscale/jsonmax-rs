@@ -1,0 +1,24 @@
+{
+  "worker_id": "W2-34",
+  "wave": 2,
+  "crate": "jmax-gen-cli",
+  "file": "crates/jmax-gen-cli/src/pipeline.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "pipeline::generate",
+    "pipeline::write_plan"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "empty format selection rejected",
+    "duplicate format selection rejected",
+    "bounded read exact-limit input accepted",
+    "bounded read one-byte-over input rejected with path and operation",
+    "directory input resolves services.ron",
+    "missing input reports inspect-input path and operation",
+    "missing adjacent version.toml reports read-version path and operation",
+    "case-colliding artifact destinations rejected before output creation",
+    "nested output artifact staged and unchanged content not rewritten"
+  ],
+  "status": "implemented; Rust/build/check commands were not run as instructed"
+}
