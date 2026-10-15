@@ -1,6 +1,6 @@
 //! Canonical schema intermediate representation, image records, and slots.
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 
 use crate::buffer::{Payload, ValidationProof};
 use crate::number::Decimal128;
@@ -155,7 +155,7 @@ pub enum SlotValue {
 #[derive(Clone, Debug)]
 pub struct ValidatedSlots {
     pub payload: Payload,
-    pub decoded: Box<[u8]>,
+    pub decoded: Vec<u8>,
     pub slots: Vec<SlotValue>,
     pub proof: ValidationProof,
 }

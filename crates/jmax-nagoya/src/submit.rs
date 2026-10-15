@@ -192,5 +192,5 @@ where
     // the fingerprint matches T. The trusted JsonDecode implementation produced
     // values from those slots and must preserve their reference invariants. No
     // owner or proof is replaced, and no proof is issued by submission code.
-    Ok(unsafe { ParsedMessage::new_proven(payload, decoded, value, proof) })
+    Ok(unsafe { ParsedMessage::new_proven(payload, decoded.into_boxed_slice(), value, proof) })
 }

@@ -1,0 +1,5 @@
+{
+  "source_expect_calls": 0,
+  "conditional_test_modules": 0,
+  "workspace_manifests_with_serde_json": []
+}

@@ -25,6 +25,12 @@ pub(crate) fn begin_with_unknown_keys(
     budget: &mut VmBudget,
     offset: u32,
 ) -> Result<ObjectState> {
+    begin_with_scratch(program, state, unknown_keys, Vec::new(), budget, offset)
+}
+
+pub(crate) fn begin_with_scratch(program: &ValidatedProgram, state: Option<StateId>,
+    unknown_keys: UnknownKeyTable, mut seen_words: Vec<u64>,
+    budget: &mut VmBudget, offset: u32) -> Result<ObjectState> {
     budget.charge(1, offset)?;
     let table_id = match object_state(program, state, offset)? {
         Some(current) => match &current.kind {
@@ -34,12 +40,12 @@ pub(crate) fn begin_with_unknown_keys(
         },
         None => None,
     };
-    let mut seen_words = Vec::new();
+    seen_words.clear();
     if let Some(id) = table_id {
         let table = key_table(program, id, offset)?;
         table_entries(program, table, offset)?;
         let words = word_count(table.key_count, offset)?;
-        seen_words = allocate::<u64>(words, budget, offset)?;
+        crate::execute::reserve(&mut seen_words, words, budget, offset)?;
         // Allocation work already includes initialization of these bytes.
         seen_words.resize(words, 0);
     }

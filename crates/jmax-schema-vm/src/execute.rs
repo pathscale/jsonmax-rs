@@ -151,36 +151,8 @@ pub fn run<I: EventInput>(
         let mut lengths = buffer_lengths(input.raw_bytes(), input.decoded_bytes(), &limits)?;
         let raw_owner = input.raw_bytes().as_ptr();
         let numeric = input.numeric_policy();
-        let mut context = new_context(program, selection, limits)?;
-        // This cursor exists only to locate raw key tokens. Key events carry a
-        // cooked reference, which may have no raw offset at all.
-        let mut token_end = 0u32;
-        loop {
-            let event = input.next_event().map_err(|error| annotate(
-                program, active_field(&context), error,
-            ))?;
-            lengths = verify_owners(input.raw_bytes(), input.decoded_bytes(), lengths,
-                raw_owner, &limits)?;
-            let Some(event) = event else { break };
-            let raw = input.raw_bytes();
-            let decoded = input.decoded_bytes();
-            if let (Some(policy), Event::Scalar { kind: ScalarKind::Number, span, .. }) = (numeric, event) {
-                let result = constraints::check_input_number(
-                    span.slice(raw).ok_or_else(|| internal(span.offset))?,
-                    &policy, &mut context.budget, span.offset,
-                );
-                result.map_err(|error| annotate(program, active_field(&context), error))?;
-            }
-            if let Event::Key { .. } = event {
-                let (offset, end) = next_key_token(raw, token_end, &mut context.budget)?;
-                step_at(&mut context, event, raw, decoded, offset)?;
-                token_end = end;
-            } else {
-                step(&mut context, event, raw, decoded)?;
-                token_end = event_end(event)?;
-            }
-        }
-        finish_document(&context, lengths.0)?;
+        let mut context = new_context(program, selection, limits, &mut VmScratch::default())?;
+        consume(program, &mut input, &mut context, &mut lengths, raw_owner, numeric, &limits)?;
         // Keep the stack allocation charged until it is actually dropped.
         let frame_bytes = allocation_bytes::<VmFrame>(context.frames.capacity(), lengths.0)?;
         drop(core::mem::take(&mut context.frames));
@@ -249,9 +221,9 @@ fn allocation_bytes<T>(count: usize, offset: u32) -> Result<u32> {
 }
 
 /// Reserve fallibly and charge capacity, including allocator excess capacity.
-/// A failed run discards all scratch, so accounting need not be rolled back on
-/// an allocation error. Successful runs never reuse an uncharged allocation.
-fn reserve<T>(values: &mut Vec<T>, additional: usize, budget: &mut VmBudget, offset: u32)
+/// Each invocation charges retained capacities before reuse. Failed reservations
+/// need no budget rollback because that invocation cannot publish a result.
+pub(crate) fn reserve<T>(values: &mut Vec<T>, additional: usize, budget: &mut VmBudget, offset: u32)
     -> Result<()>
 {
     let needed = values.len().checked_add(additional).ok_or_else(|| resource_error(offset))?;
@@ -267,7 +239,7 @@ fn reserve<T>(values: &mut Vec<T>, additional: usize, budget: &mut VmBudget, off
     budget.retain(actual.checked_sub(requested).ok_or_else(|| internal(offset))?, offset)
 }
 
-fn new_context<'a>(program: &'a ValidatedProgram, selection: &'a Selection, limits: VmLimits)
+fn new_context<'a>(program: &'a ValidatedProgram, selection: &Selection, limits: VmLimits, scratch: &mut VmScratch)
     -> Result<VmContext<'a>>
 {
     let slots_len = usize::try_from(program.image().header.slot_count)
@@ -277,14 +249,27 @@ fn new_context<'a>(program: &'a ValidatedProgram, selection: &'a Selection, limi
             "selection contains more fields than the compiled slots"));
     }
     let mut budget = VmBudget::new(limits);
-    let selection = selection_index(program, selection, &mut budget)?;
+    for bytes in [allocation_bytes::<VmFrame>(scratch.frames.capacity(), 0)?,
+        allocation_bytes::<UnknownKeyTable>(scratch.unknown_key_tables.capacity(), 0)?,
+        allocation_bytes::<Vec<u64>>(scratch.seen_masks.capacity(), 0)?,
+        allocation_bytes::<SlotValue>(scratch.slots.capacity(), 0)?,
+        allocation_bytes::<u64>(scratch.selection_words.capacity(), 0)?] {
+        budget.retain(bytes, 0)?;
+    }
+    for table in &scratch.unknown_key_tables { budget.retain(table.scratch_bytes(0)?, 0)?; }
+    for mask in &scratch.seen_masks { budget.retain(allocation_bytes::<u64>(mask.capacity(), 0)?, 0)?; }
+    let selection = selection_index_into(program, selection, &mut budget,
+        core::mem::take(&mut scratch.selection_words))?;
     if program.program().slots.len() != slots_len { return Err(internal(0)); }
     budget.charge(u64::from(program.image().header.slot_count), 0)?;
-    let mut slots = Vec::new();
+    let mut slots = core::mem::take(&mut scratch.slots);
+    slots.clear();
     reserve(&mut slots, slots_len, &mut budget, 0)?;
     slots.resize(slots_len, SlotValue::Empty);
     Ok(VmContext {
-        program, selection, limits, frames: Vec::new(), unknown_key_tables: Vec::new(), slots, budget,
+        program, selection, limits, frames: core::mem::take(&mut scratch.frames),
+        unknown_key_tables: core::mem::take(&mut scratch.unknown_key_tables),
+        seen_masks: core::mem::take(&mut scratch.seen_masks), slots, budget,
         root_started: false, root_done: false,
     })
 }
@@ -292,6 +277,11 @@ fn new_context<'a>(program: &'a ValidatedProgram, selection: &'a Selection, limi
 pub(crate) fn selection_index(program: &ValidatedProgram, selection: &Selection,
     budget: &mut VmBudget) -> Result<extract::SelectionIndex>
 {
+    selection_index_into(program, selection, budget, Vec::new())
+}
+fn selection_index_into(program: &ValidatedProgram, selection: &Selection,
+    budget: &mut VmBudget, mut words: Vec<u64>) -> Result<extract::SelectionIndex> {
+    words.clear();
     if !selection.strict_validate_unselected {
         return Err(vm_error(ErrorCode::UnsupportedSchemaFeature, 0,
             "proof publication requires validation of unselected fields"));
@@ -302,7 +292,6 @@ pub(crate) fn selection_index(program: &ValidatedProgram, selection: &Selection,
             "selection contains more fields than the compiled slots"));
     }
     let all = selection.field_ids.is_empty();
-    let mut words = Vec::new();
     if !all {
         let word_count = slots_len.checked_add(63).ok_or_else(|| resource_error(0))? / 64;
         reserve(&mut words, word_count, budget, 0)?;
@@ -584,8 +573,14 @@ fn open(context: &mut VmContext<'_>, kind: ContainerKind, raw: &[u8], offset: u3
                     .ok_or_else(|| internal(offset))?;
                 reusable.reset(&mut context.budget, offset)?;
                 let unknown_keys = core::mem::replace(reusable, UnknownKeyTable::new());
-                FrameKind::Object(objects::begin_with_unknown_keys(
-                    context.program, pending.state, unknown_keys, &mut context.budget, offset,
+                if context.seen_masks.len() < depth {
+                    let additional = depth - context.seen_masks.len();
+                    reserve(&mut context.seen_masks, additional, &mut context.budget, offset)?;
+                    context.seen_masks.resize_with(depth, Vec::new);
+                }
+                let seen = core::mem::take(&mut context.seen_masks[depth - 1]);
+                FrameKind::Object(objects::begin_with_scratch(
+                    context.program, pending.state, unknown_keys, seen, &mut context.budget, offset,
                 )?)
             }
             ContainerKind::Array => FrameKind::Array { count: 0, items },
@@ -746,21 +741,14 @@ fn close(context: &mut VmContext<'_>, kind: ContainerKind, raw: &[u8], offset: u
     }
     let frame = context.frames.pop().ok_or_else(|| internal(offset))?;
     if let FrameKind::Object(object) = frame.kind {
-        let table = release_object(object, &mut context.budget, offset)?;
+        let ObjectState { seen_words, unknown_keys: table, .. } = object;
+        context.seen_masks[context.frames.len()] = seen_words;
         let reusable = context.unknown_key_tables.get_mut(context.frames.len())
             .ok_or_else(|| internal(offset))?;
         *reusable = table;
     }
     if context.frames.is_empty() { context.root_done = true; }
     Ok(())
-}
-
-fn release_object(object: ObjectState, budget: &mut VmBudget, offset: u32) -> Result<UnknownKeyTable> {
-    let bytes = allocation_bytes::<u64>(object.seen_words.capacity(), offset)?;
-    drop(object.seen_words);
-    budget.release(bytes)?;
-    // The table's capacities stay charged while cached for the next sibling.
-    Ok(object.unknown_keys)
 }
 
 fn revalidate_slots(slots: &[SlotValue], raw: &[u8], decoded: &[u8], limits: &VmLimits,
@@ -783,4 +771,85 @@ fn revalidate_slots(slots: &[SlotValue], raw: &[u8], decoded: &[u8], limits: &Vm
         }
     }
     Ok(())
+}
+
+fn consume<I: EventInput>(program: &ValidatedProgram, input: &mut I,
+    context: &mut VmContext<'_>, lengths: &mut (u32, u32), raw_owner: *const u8,
+    numeric: Option<jmax_abi::number::NumericPolicy>, limits: &VmLimits) -> Result<()> {
+        // This cursor exists only to locate raw key tokens. Key events carry a
+        // cooked reference, which may have no raw offset at all.
+        let mut token_end = 0u32;
+        loop {
+            let event = input.next_event().map_err(|error| annotate(
+                program, active_field(&context), error,
+            ))?;
+            *lengths = verify_owners(input.raw_bytes(), input.decoded_bytes(), *lengths,
+                raw_owner, &limits)?;
+            let Some(event) = event else { break };
+            let raw = input.raw_bytes();
+            let decoded = input.decoded_bytes();
+            if let (Some(policy), Event::Scalar { kind: ScalarKind::Number, span, .. }) = (numeric, event) {
+                let result = constraints::check_input_number(
+                    span.slice(raw).ok_or_else(|| internal(span.offset))?,
+                    &policy, &mut context.budget, span.offset,
+                );
+                result.map_err(|error| annotate(program, active_field(&context), error))?;
+            }
+            if let Event::Key { .. } = event {
+                let (offset, end) = next_key_token(raw, token_end, &mut context.budget)?;
+                step_at(context, event, raw, decoded, offset)?;
+                token_end = end;
+            } else {
+                step(context, event, raw, decoded)?;
+                token_end = event_end(event)?;
+            }
+        }
+        finish_document(context, lengths.0)?;
+    Ok(())
+}
+
+/// Validate using the original cursor and retain every reusable allocation.
+/// Proof publication follows the same consume/finish/reference checks as run.
+pub fn validate_into<'a>(program: &ValidatedProgram, payload: Payload,
+    selection: &Selection, limits: VmLimits, numeric: jmax_abi::number::NumericPolicy,
+    scratch: &'a mut ValidationScratch) -> Result<&'a ValidatedSlots> {
+    if let Some(output) = scratch.output.take() {
+        scratch.vm.slots = output.slots;
+        let mut decoded = output.decoded;
+        scratch.cursor.swap_decoded(&mut decoded);
+    }
+    scratch.cursor.reset_with_payload(payload.clone(), limits.syntax,
+        jmax_cursor::SkipMode::Strict, Some(numeric))?;
+    let mut context = new_context(program, selection, limits, &mut scratch.vm)?;
+    let result = (|| {
+        let mut input = CursorInput::new(&mut scratch.cursor, limits.syntax, numeric)?;
+        let mut lengths = buffer_lengths(input.raw_bytes(), input.decoded_bytes(), &limits)?;
+        let owner = input.raw_bytes().as_ptr();
+        consume(program, &mut input, &mut context, &mut lengths, owner, Some(numeric), &limits)?;
+        revalidate_slots(&context.slots, input.raw_bytes(), input.decoded_bytes(),
+            &limits, &mut context.budget)?;
+        Ok(lengths)
+    })().map_err(|error| annotate(program, active_field(&context), error));
+    // Recover active per-depth tables even after a malformed document.
+    for (depth, frame) in context.frames.drain(..).enumerate() {
+        if let FrameKind::Object(object) = frame.kind {
+            context.unknown_key_tables[depth] = object.unknown_keys;
+            context.seen_masks[depth] = object.seen_words;
+        }
+    }
+    scratch.vm.frames = context.frames;
+    scratch.vm.unknown_key_tables = context.unknown_key_tables;
+    scratch.vm.seen_masks = context.seen_masks;
+    scratch.vm.selection_words = context.selection.words;
+    scratch.vm.slots = context.slots;
+    let (payload_len, decoded_len) = result?;
+    let mut decoded = Vec::new();
+    scratch.cursor.swap_decoded(&mut decoded);
+    // SAFETY: consume reached strict EOF and checked the complete schema;
+    // revalidate_slots checked every retained reference against these owners.
+    let proof = unsafe { ValidationProof::issue_unchecked(
+        program.image().header.fingerprint, payload_len, decoded_len) };
+    scratch.output = Some(ValidatedSlots { payload, decoded,
+        slots: core::mem::take(&mut scratch.vm.slots), proof });
+    scratch.output.as_ref().ok_or_else(|| internal(0))
 }

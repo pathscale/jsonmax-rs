@@ -86,7 +86,7 @@ pub fn decode_depth(
     // and validates every level and decimal. Symbol is the checked original
     // StrRef; books own Decimal128 values and retain no cursor/scratch reference.
     Ok(unsafe {
-        ParsedMessage::new_proven(slots.payload, slots.decoded, values, slots.proof)
+        ParsedMessage::new_proven(slots.payload, slots.decoded.into_boxed_slice(), values, slots.proof)
     })
 }
 

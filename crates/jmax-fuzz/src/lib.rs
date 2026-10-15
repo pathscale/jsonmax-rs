@@ -9,7 +9,7 @@ pub use jmax_abi::{
     error::{Error, ErrorCode, ErrorSource, Result},
     number::{ConvertedNumber, Decimal128, DecimalPolicy, NumericPolicy},
     scan::BackendId,
-    schema::{SchemaImage, Selection},
+    schema::{FieldId, SchemaImage, Selection},
     span::{Span32, SpanSource, StrRef},
     syntax::Limits,
 };

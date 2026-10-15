@@ -258,3 +258,12 @@ impl ValidatedDocument {
         Ok(())
     }
 }
+
+impl DocumentParts {
+    /// Clear every logical table without releasing capacity.
+    pub fn clear_keep_capacity(&mut self) {
+        self.nodes.clear(); self.spans.clear(); self.containers.clear();
+        self.numbers.clear(); self.decoded.clear(); self.node_metadata.clear();
+        self.max_depth = 0;
+    }
+}

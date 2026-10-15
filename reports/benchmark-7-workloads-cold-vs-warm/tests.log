@@ -1,0 +1,105 @@
+   Compiling jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+warning: function `required_slot` is never used
+   --> crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib) generated 1 warning
+warning: field `rename_all` is never read
+  --> crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib) generated 2 warnings
+   Compiling jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+   Compiling jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+   Compiling jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+   Compiling jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+   Compiling jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+   Compiling jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+   Compiling jmax-bench v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-bench)
+warning: unused import: `Payload`
+ --> crates/jmax-bench/src/service.rs:9:70
+  |
+9 |     bench_error, corpus, mix_digest, Clock, Completion, Observation, Payload, Result,
+  |                                                                      ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-bench` (lib) generated 1 warning (run `cargo fix --lib -p jmax-bench` to apply 1 suggestion)
+warning: `jmax-bench` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.01s
+     Running unittests src/lib.rs (target/debug/deps/jmax_bench-bc5974daee3ae5a4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/jmax_bench.rs (target/debug/deps/jmax_bench-c71c7588eecd9b24)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reusable_scratch.rs (target/debug/deps/reusable_scratch-25e2a4a51a1618fe)
+
+running 3 tests
+test schema_free_dom_into_preserves_unconverted_number_policy ... ok
+test malformed_input_limits_duplicates_and_unselected_errors_never_publish ... ok
+test all_workloads_match_cold_results_with_scratch_shared_across_schemas ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/warm_allocations.rs (target/debug/deps/warm_allocations-f00e3b910e3321da)
+
+running 2 tests
+test permissive_unknown_keys_and_escaped_arenas_reuse_capacity ... ok
+test all_seven_workloads_allocate_zero_in_all_four_warm_operations ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+
+     Running unittests src/lib.rs (target/debug/deps/jsonmax-fad216fe2544aefc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/typed_schema_cache.rs (target/debug/deps/typed_schema_cache-837403ce84cee5a5)
+
+running 1 test
+test cache_compiles_once_across_threads_and_explicit_schema_never_calls_provider ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_bench
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jsonmax
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

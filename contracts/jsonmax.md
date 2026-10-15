@@ -13,15 +13,15 @@ pub fn parse_slice(input: &[u8]) -> Result<Document>;
 pub fn parse_owned(input: Vec<u8>, options: ParseOptions) -> Result<Document>;
 pub fn parse_payload(input: Payload, options: ParseOptions) -> Result<Document>;
 pub fn validate_syntax(input: &[u8], options: ParseOptions) -> Result<()>;
-pub fn from_slice<T: JsonDecode + SchemaProvider>(input: &[u8]) -> Result<Decoded<T>>;
-pub fn decode_payload<T: JsonDecode + SchemaProvider>(input: Payload, options: ParseOptions) -> Result<Decoded<T>>;
+pub fn from_slice<T: JsonDecode + SchemaProvider + 'static>(input: &[u8]) -> Result<Decoded<T>>;
+pub fn decode_payload<T: JsonDecode + SchemaProvider + 'static>(input: Payload, options: ParseOptions) -> Result<Decoded<T>>;
 ```
 
 `parse_slice` copies into an owner-bearing payload and uses ParseOptions::default. `parse_owned` adopts the Vec through Payload::from_vec; `parse_payload` preserves the payload's ownership and does not copy the input merely to add padding. All perform complete native syntax/UTF-8 validation, enforce provided limits and numeric policy, reject non-whitespace trailing content, and build the native flat document. `validate_syntax` performs the same complete syntax/number/limit policy without requiring a DOM result. It never validates just a selected prefix. Empty or whitespace-only input is UnexpectedEof. Duplicate decoded keys follow options.limits.reject_duplicate_keys. Unknown-key rejection is meaningful only when a schema supplies known names; schema-free syntax parsing has no field-name whitelist and ignores reject_unknown_keys.
 
 Payload and decoded lengths must fit u32 before a proof is published. Depth, field, string, array and digit limits apply to all subtrees. Byte offsets count original UTF-8 bytes from payload start, not decoded offsets. A successful syntax-only document uses schema fingerprint 0. A proof describes the exact owner-bearing raw/decoded buffers; no proof is issued before complete input validation. Native lower layers own safe publication of proofs. This crate forbids unsafe code, so facade modules must delegate proof construction to their validated lower-layer APIs.
 
-`from_slice` copies input, then delegates to decode_payload with default options. `decode_payload` obtains T::schema_ir(), compiles and validates the schema using endpoint::compile_schema, verifies its fingerprint equals T::schema_fingerprint(), executes full strict schema validation, and calls T::decode_slots only on the resulting ValidatedSlots. Fingerprint mismatch is SchemaImageInvalid and decoding is not attempted. Slots and T remain together in `Decoded<T>` so string/span references retain their owners. `into_parts` transfers both together; resolving a naked reference against an unrelated owner is never implied safe. Failure drops all partial storage. There is no unchecked native decode entry point.
+`from_slice` copies input, then delegates to decode_payload with default options. `decode_payload` caches the compiled schema (and compilation errors) once per TypeId in std mode, verifies its fingerprint equals T::schema_fingerprint(), executes full strict schema validation, and calls T::decode_slots only on the resulting ValidatedSlots. Fingerprint mismatch is SchemaImageInvalid and decoding is not attempted. Slots and T remain together in `Decoded<T>` so string/span references retain their owners. `into_parts` transfers both together; resolving a naked reference against an unrelated owner is never implied safe. Failure drops all partial storage. There is no unchecked native decode entry point.
 
 Errors use ABI lexical/syntax/number errors with original offsets and sources. Limit failures use their precise ABI codes: PayloadTooLarge, DecodedArenaOverflow, DepthLimitExceeded or ConstraintViolation as appropriate. Allocation/resource exhaustion is BudgetExhausted. A value outside a typed/schema constraint is not reclassified as generic InvalidSyntax. No offset is wrapped or silently truncated to u32. Unsupported schema policy is reported explicitly rather than weakening validation.
 
@@ -268,3 +268,34 @@ pub fn facade_error(code: ErrorCode, source: ErrorSource, detail: &'static str) 
     Error::new(code, source, 0, detail)
 }
 ```
+
+## Follow-up: reusable storage and precompiled typed schemas
+
+`parse::ParseScratch` retains DOM tables, builder frames, cursor frames, decoded
+bytes, and duplicate-key tables. `parse_payload_into(&Payload, ParseOptions,
+&mut ParseScratch)` returns a document borrowing scratch. Resetting scratch makes
+its prior result unavailable, including after an invalid input.
+
+`endpoint::ValidationScratch` retains cursor storage, VM frames, per-depth seen
+masks and unknown-key tables, selection words, slots, decoded bytes, and the
+selection reorder buffer. `validate_payload_into` and `extract_payload_into`
+accept borrowed payload/schema plus options and scratch; successful output borrows
+scratch. They share strict event execution and reference checks with the allocating
+API, issue a proof only after EOF, and charge all retained VM capacities against
+each invocation's scratch limit. New larger shapes can grow; prewarmed capacities
+require no heap allocations. `ValidatedSlots.decoded` is now `Vec<u8>` so spare
+capacity survives publication. Existing immutable `ParsedMessage` adapters convert
+it to their boxed arena when transferring owners.
+
+`parse::from_slice_with_schema<T>(&[u8], &CompiledSchema)` and
+`decode_payload_with_schema<T>(&Payload, &CompiledSchema)` bypass compilation.
+Their `_into` variants decode into `ValidationScratch` and return `T`; resolve its
+owner-relative references against that scratch's current `slots()`. Custom decoders
+may allocate their own owned output. `decode_payload_into` uses the std type cache;
+`from_slice_into` also copies the borrowed input. Borrowed-slice helpers therefore
+still allocate an input owner. The allocation-free input path uses retained Payload.
+Without std, explicit precompiled schemas avoid recompilation. The default generic
+helpers retain the alloc-only compilation fallback.
+
+`encode::document_to_buffer` retains `OutputBuffer` capacity and `WriterScratch`
+container frames across messages, including frame recovery on encode errors.

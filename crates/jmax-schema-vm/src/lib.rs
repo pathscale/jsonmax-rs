@@ -165,6 +165,7 @@ pub(crate) struct VmContext<'a> {
     pub frames: Vec<VmFrame>,
     /// Vacant while the corresponding depth's object owns its reusable table.
     pub unknown_key_tables: Vec<UnknownKeyTable>,
+    pub seen_masks: Vec<Vec<u64>>,
     pub slots: Vec<SlotValue>,
     pub budget: VmBudget,
     pub root_started: bool,
@@ -228,4 +229,49 @@ pub fn resolve_str<'a>(raw: &'a [u8], decoded: &'a [u8], value: StrRef) -> Resul
 
 pub(crate) fn vm_error(code: ErrorCode, offset: u32, detail: &'static str) -> Error {
     Error::new(code, ErrorSource::SchemaVm, offset, detail)
+}
+
+/// Reusable interpreter tables. Independent scratch values can run concurrently.
+#[derive(Default)]
+pub struct VmScratch {
+    pub(crate) frames: Vec<VmFrame>,
+    pub(crate) unknown_key_tables: Vec<UnknownKeyTable>,
+    pub(crate) seen_masks: Vec<Vec<u64>>,
+    pub(crate) slots: Vec<SlotValue>,
+    pub(crate) selection_words: Vec<u64>,
+}
+
+/// Complete-input cursor, interpreter scratch and the last validated result.
+/// A result borrows the scratch and is unavailable after a failed call.
+pub struct ValidationScratch {
+    pub(crate) cursor: jmax_cursor::Cursor,
+    pub(crate) vm: VmScratch,
+    pub(crate) output: Option<ValidatedSlots>,
+    pub(crate) ordered: Vec<SlotValue>,
+}
+impl Default for ValidationScratch {
+    fn default() -> Self { Self {
+        cursor: jmax_cursor::Cursor::new(Limits::strict_default(), jmax_cursor::SkipMode::Strict),
+        vm: VmScratch::default(), output: None, ordered: Vec::new(),
+    } }
+}
+impl ValidationScratch {
+    pub fn slots(&self) -> Option<&ValidatedSlots> { self.output.as_ref() }
+    /// Reorder selected results using retained storage; the input slots remain
+    /// indexed by compiled slot number until the copy is complete.
+    pub fn order_selection(&mut self, program: &ValidatedProgram, selection: &Selection) -> Result<&ValidatedSlots> {
+        let output = self.output.as_mut().ok_or_else(|| vm_error(
+            ErrorCode::InternalError, 0, "no validated output to reorder"))?;
+        self.ordered.clear();
+        self.ordered.try_reserve(selection.field_ids.len()).map_err(|_| vm_error(
+            ErrorCode::BudgetExhausted, 0, "selection allocation failed"))?;
+        for field in &selection.field_ids {
+            let spec = program.slot_for_field(*field).ok_or_else(|| vm_error(
+                ErrorCode::SchemaImageInvalid, 0, "selected field has no slot"))?;
+            self.ordered.push(*output.slots.get(spec.slot as usize).ok_or_else(|| vm_error(
+                ErrorCode::SchemaImageInvalid, 0, "selected slot is out of bounds"))?);
+        }
+        core::mem::swap(&mut output.slots, &mut self.ordered);
+        Ok(output)
+    }
 }

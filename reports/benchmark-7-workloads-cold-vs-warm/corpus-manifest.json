@@ -1,0 +1,58 @@
+{
+  "EscapedUnicode": {
+    "documents": 128,
+    "total_payload_bytes": 257682,
+    "min_bytes": 2012,
+    "max_bytes": 2014,
+    "mean_bytes": 2013.140625,
+    "sha256_jsonl": "39e19df0a4f39169d3301745340c0e4d2b13eaa74e691007763f5a9197936b15"
+  },
+  "NagoyaAuth": {
+    "documents": 128,
+    "total_payload_bytes": 10770,
+    "min_bytes": 83,
+    "max_bytes": 85,
+    "mean_bytes": 84.140625,
+    "sha256_jsonl": "f699fd86e7676e0ca89dd5fa7b61800f810fb97742d85ca3979f46965bdca728"
+  },
+  "DeepNesting": {
+    "documents": 128,
+    "total_payload_bytes": 18304,
+    "min_bytes": 143,
+    "max_bytes": 143,
+    "mean_bytes": 143,
+    "sha256_jsonl": "86b764dbd9ae8bbdc3cf8a02cad537db7d7b7dad8512bd31195edccdb9a5fa2a"
+  },
+  "VectorCoordinates": {
+    "documents": 128,
+    "total_payload_bytes": 112768,
+    "min_bytes": 881,
+    "max_bytes": 881,
+    "mean_bytes": 881,
+    "sha256_jsonl": "0f41cc54ed721027f4c8d73e6a80c2e171c2c8f80afa17565a36350bedd6b41e"
+  },
+  "LargeCatalog": {
+    "documents": 128,
+    "total_payload_bytes": 4441600,
+    "min_bytes": 34116,
+    "max_bytes": 35140,
+    "mean_bytes": 34700,
+    "sha256_jsonl": "e2969a278221f6823b83a5829f72ff99252c1c47d5958975b281409e3e0c9bd2"
+  },
+  "RpcEnvelope": {
+    "documents": 128,
+    "total_payload_bytes": 13330,
+    "min_bytes": 103,
+    "max_bytes": 105,
+    "mean_bytes": 104.140625,
+    "sha256_jsonl": "a888faf8dda51450dbe71d7ddfd3f2c688ccf061f87eab5c0782d76b75f1d1f8"
+  },
+  "ExchangeOrder": {
+    "documents": 128,
+    "total_payload_bytes": 10880,
+    "min_bytes": 85,
+    "max_bytes": 85,
+    "mean_bytes": 85,
+    "sha256_jsonl": "fa17319ade582b54713d249d9c08388b31cfa410afc601eef2e42240b4ea0865"
+  }
+}

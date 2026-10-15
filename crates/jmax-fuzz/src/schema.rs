@@ -188,7 +188,7 @@ fn validate_image_and_selection(image: &SchemaImage, selection: &jmax_abi::schem
     // to_owned is the public AOT projection validator: it checks image metadata,
     // counts, spans and keys without issuing a proof. Compiler-produced corpus
     // images retain the fingerprint from their ValidatedProgram unchanged.
-    jmax_schema_aot::to_owned(jmax_schema_aot::StaticSchemaImage::from(image))
+    jmax_schema_aot::tables::to_owned(jmax_schema_aot::StaticSchemaImage::from(image))
         .map_err(|_| schema_image_error(image.header.schema_id, "schema image failed AOT validation"))?;
 
     if selection.field_ids.len() > image.header.slot_count as usize {

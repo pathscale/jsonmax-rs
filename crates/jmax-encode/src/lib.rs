@@ -128,3 +128,13 @@ pub fn checked_output_len(current: usize, additional: usize, limit: usize) -> Re
 pub(crate) fn encode_error(code: ErrorCode, detail: &'static str) -> Error {
     Error::new(code, ErrorSource::Encode, 0, detail)
 }
+
+/// Container frames retained between independent output messages.
+#[derive(Default)]
+pub struct WriterScratch { frames: Vec<WriteFrame> }
+
+impl WriterScratch {
+    pub fn retained_bytes(&self) -> usize {
+        self.frames.capacity() * core::mem::size_of::<WriteFrame>()
+    }
+}

@@ -73,7 +73,7 @@ pub fn decode_snapshot(
     // SnapshotValues contains only a u64 and owned Decimal128 vectors; no StrRef,
     // cursor, scratch, arena or temporary-payload reference is emitted.
     Ok(unsafe {
-        ParsedMessage::new_proven(slots.payload, slots.decoded, values, slots.proof)
+        ParsedMessage::new_proven(slots.payload, slots.decoded.into_boxed_slice(), values, slots.proof)
     })
 }
 

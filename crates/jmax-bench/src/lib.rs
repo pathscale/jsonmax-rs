@@ -12,6 +12,7 @@ pub use jmax_abi::{
 };
 
 pub mod corpus;
+pub use corpus::followup;
 pub mod parse;
 pub mod serialize;
 pub mod service;
@@ -22,7 +23,7 @@ pub const DEFAULT_MAX_CORPUS_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_MEASURED_ITERATIONS: u32 = 1_000_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WorkloadKind { SmallObject, EscapedStrings, Unicode, NumberArray, DepthBook, AggTrade, Nested }
+pub enum WorkloadKind { SmallObject, EscapedStrings, Unicode, NumberArray, DepthBook, AggTrade, Nested, NagoyaAuth, ExchangeOrder, RpcEnvelope, LargeCatalog, VectorCoordinates, DeepNesting, EscapedUnicode }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CorpusConfig {
     pub seed: u64,

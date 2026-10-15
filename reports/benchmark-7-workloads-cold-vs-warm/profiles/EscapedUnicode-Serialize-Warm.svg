@@ -1,0 +1,428 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="365" viewBox="0 0 1400 365"><style>text{font-family:monospace;font-size:11px} rect:hover{stroke:black;stroke-width:1}</style><rect width="1400" height="365" fill="#fff"/><text x="10" y="22" font-size="16">EscapedUnicode-Serialize-Warm: 2490 sampled stacks (macOS sample, 1 ms, 3 s)</text><text x="10" y="42">Width = sample count; hover for full symbol. Includes profiler startup/preparation. Bottom = callers.</text>
+<g><title>Main thread — 2490 samples (100.00%)</title><rect x="10.000" y="340" width="1380.000" height="18" fill="rgb(243,136,112)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="353">Main thread</text>
+</g>
+<g><title>start — 2490 samples (100.00%)</title><rect x="10.000" y="321" width="1380.000" height="18" fill="rgb(241,145,89)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="334">start</text>
+</g>
+<g><title>main — 2490 samples (100.00%)</title><rect x="10.000" y="302" width="1380.000" height="18" fill="rgb(247,159,100)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="315">main</text>
+</g>
+<g><title>std::rt::lang_start_internal — 2490 samples (100.00%)</title><rect x="10.000" y="283" width="1380.000" height="18" fill="rgb(219,160,99)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="296">std::rt::lang_start_internal</text>
+</g>
+<g><title>std::rt::lang_start::&lt;core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt;::{closure#0} — 2490 samples (100.00%)</title><rect x="10.000" y="264" width="1380.000" height="18" fill="rgb(248,118,88)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="277">std::rt::lang_start::&lt;core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt;::{closure#0}</text>
+</g>
+<g><title>std::sys::backtrace::__rust_begin_short_backtrace::&lt;fn() -&gt; core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;, core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt; — 2490 samples (100.00%)</title><rect x="10.000" y="245" width="1380.000" height="18" fill="rgb(246,142,89)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="258">std::sys::backtrace::__rust_begin_short_backtrace::&lt;fn() -&gt; core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;, core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt;</text>
+</g>
+<g><title>jmax_followup_baseline::main — 2490 samples (100.00%)</title><rect x="10.000" y="226" width="1380.000" height="18" fill="rgb(211,126,63)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="239">jmax_followup_baseline::main</text>
+</g>
+<g><title>jsonmax::encode::document_to_buffer — 2480 samples (99.60%)</title><rect x="10.000" y="207" width="1374.458" height="18" fill="rgb(239,154,53)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="220">jsonmax::encode::document_to_buffer</text>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 2340 samples (93.98%)</title><rect x="10.000" y="188" width="1296.867" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="201">jsonmax::encode::encode_dom_node</text>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 1799 samples (72.25%)</title><rect x="10.000" y="169" width="997.036" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="182">jsonmax::encode::encode_dom_node</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::string — 1453 samples (58.35%)</title><rect x="10.000" y="150" width="805.277" height="18" fill="rgb(243,150,104)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="163">&lt;jmax_encode::JsonWriter&gt;::string</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 530 samples (21.29%)</title><rect x="10.000" y="131" width="293.735" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="144">&lt;jmax_encode::JsonWriter&gt;::write_string</text>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 266 samples (10.68%)</title><rect x="10.000" y="112" width="147.422" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="125">&lt;jmax_encode::Limited</text>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 190 samples (7.63%)</title><rect x="10.000" y="93" width="105.301" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="106">&lt;jsonmax::Outp</text>
+</g>
+<g><title>_platform_memmove — 185 samples (7.43%)</title><rect x="10.000" y="74" width="102.530" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="87">_platform_memm</text>
+</g>
+<g><title>DYLD-STUB$$memcpy — 5 samples (0.20%)</title><rect x="112.530" y="74" width="2.771" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 76 samples (3.05%)</title><rect x="115.301" y="93" width="42.120" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+<text x="118.301" y="106">&lt;json</text>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 177 samples (7.11%)</title><rect x="157.422" y="112" width="98.096" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+<text x="160.422" y="125">&lt;jmax_encode:</text>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 51 samples (2.05%)</title><rect x="255.518" y="112" width="28.265" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 20 samples (0.80%)</title><rect x="283.783" y="112" width="11.084" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 20 samples (0.80%)</title><rect x="283.783" y="93" width="11.084" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 16 samples (0.64%)</title><rect x="294.867" y="112" width="8.867" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 16 samples (0.64%)</title><rect x="294.867" y="93" width="8.867" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 403 samples (16.18%)</title><rect x="303.735" y="131" width="223.349" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+<text x="306.735" y="144">&lt;jmax_encode::JsonWriter&gt;::write</text>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 170 samples (6.83%)</title><rect x="303.735" y="112" width="94.217" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+<text x="306.735" y="125">&lt;jmax_encode:</text>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 161 samples (6.47%)</title><rect x="397.952" y="112" width="89.229" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+<text x="400.952" y="125">&lt;jmax_encode</text>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 109 samples (4.38%)</title><rect x="397.952" y="93" width="60.410" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+<text x="400.952" y="106">&lt;jsonmax</text>
+</g>
+<g><title>_platform_memmove — 94 samples (3.78%)</title><rect x="397.952" y="74" width="52.096" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+<text x="400.952" y="87">_platf</text>
+</g>
+<g><title>DYLD-STUB$$memcpy — 15 samples (0.60%)</title><rect x="450.048" y="74" width="8.313" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 52 samples (2.09%)</title><rect x="458.361" y="93" width="28.819" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 34 samples (1.37%)</title><rect x="487.181" y="112" width="18.843" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 22 samples (0.88%)</title><rect x="506.024" y="112" width="12.193" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 22 samples (0.88%)</title><rect x="506.024" y="93" width="12.193" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 16 samples (0.64%)</title><rect x="518.217" y="112" width="8.867" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 16 samples (0.64%)</title><rect x="518.217" y="93" width="8.867" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 276 samples (11.08%)</title><rect x="527.084" y="131" width="152.964" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+<text x="530.084" y="144">&lt;jmax_encode::JsonWrit</text>
+</g>
+<g><title>jmax_string::escape::neon::find_neon — 276 samples (11.08%)</title><rect x="527.084" y="112" width="152.964" height="18" fill="rgb(224,148,88)" stroke="white" stroke-width="0.4"/>
+<text x="530.084" y="125">jmax_string::escape::n</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 167 samples (6.71%)</title><rect x="680.048" y="131" width="92.554" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+<text x="683.048" y="144">&lt;jmax_encode:</text>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 58 samples (2.33%)</title><rect x="772.602" y="131" width="32.145" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 9 samples (0.36%)</title><rect x="804.747" y="131" width="4.988" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 5 samples (0.20%)</title><rect x="804.747" y="112" width="2.771" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 3 samples (0.12%)</title><rect x="807.518" y="112" width="1.663" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="807.518" y="93" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="808.627" y="93" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="808.627" y="74" width="0.554" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="809.181" y="112" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 6 samples (0.24%)</title><rect x="809.735" y="131" width="3.325" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 3 samples (0.12%)</title><rect x="809.735" y="112" width="1.663" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="811.398" y="112" width="1.108" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="811.398" y="93" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 1 samples (0.04%)</title><rect x="811.398" y="74" width="0.554" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="811.952" y="74" width="0.554" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="812.506" y="112" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="812.506" y="93" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 2 samples (0.08%)</title><rect x="813.060" y="131" width="1.108" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_string::escape::neon::find_neon — 2 samples (0.08%)</title><rect x="813.060" y="112" width="1.108" height="18" fill="rgb(224,148,88)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 2 samples (0.08%)</title><rect x="814.169" y="131" width="1.108" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="814.169" y="112" width="1.108" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="814.169" y="93" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="814.169" y="74" width="0.554" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="814.723" y="93" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::string — 247 samples (9.92%)</title><rect x="815.277" y="150" width="136.892" height="18" fill="rgb(243,150,104)" stroke="white" stroke-width="0.4"/>
+<text x="818.277" y="163">&lt;jmax_encode::JsonW</text>
+</g>
+<g><title>jmax_string::escape::neon::find_neon — 247 samples (9.92%)</title><rect x="815.277" y="131" width="136.892" height="18" fill="rgb(224,148,88)" stroke="white" stroke-width="0.4"/>
+<text x="818.277" y="144">jmax_string::escape</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::string — 93 samples (3.73%)</title><rect x="952.169" y="150" width="51.542" height="18" fill="rgb(243,150,104)" stroke="white" stroke-width="0.4"/>
+<text x="955.169" y="163">&lt;jmax_</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::string — 3 samples (0.12%)</title><rect x="1003.711" y="150" width="1.663" height="18" fill="rgb(243,150,104)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 2 samples (0.08%)</title><rect x="1003.711" y="131" width="1.108" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1004.819" y="131" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1004.819" y="112" width="0.554" height="18" fill="rgb(227,133,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::string — 2 samples (0.08%)</title><rect x="1005.373" y="150" width="1.108" height="18" fill="rgb(243,150,104)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_string::escape::neon::find_neon — 2 samples (0.08%)</title><rect x="1005.373" y="131" width="1.108" height="18" fill="rgb(224,148,88)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 1 samples (0.04%)</title><rect x="1006.482" y="150" width="0.554" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 497 samples (19.96%)</title><rect x="1007.036" y="169" width="275.446" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+<text x="1010.036" y="182">jsonmax::encode::encode_dom_node</text>
+</g>
+<g><title>&lt;jmax_abi::node::ValidatedDocument&gt;::resolve_str — 496 samples (19.92%)</title><rect x="1007.036" y="150" width="274.892" height="18" fill="rgb(228,105,95)" stroke="white" stroke-width="0.4"/>
+<text x="1010.036" y="163">&lt;jmax_abi::node::ValidatedDocument&gt;::res</text>
+</g>
+<g><title>core::str::converts::from_utf8 — 496 samples (19.92%)</title><rect x="1007.036" y="131" width="274.892" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+<text x="1010.036" y="144">core::str::converts::from_utf8</text>
+</g>
+<g><title>&lt;jmax_abi::node::ValidatedDocument&gt;::resolve_str — 1 samples (0.04%)</title><rect x="1281.928" y="150" width="0.554" height="18" fill="rgb(228,105,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 23 samples (0.92%)</title><rect x="1282.482" y="169" width="12.747" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::raw — 13 samples (0.52%)</title><rect x="1282.482" y="150" width="7.205" height="18" fill="rgb(241,133,56)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 8 samples (0.32%)</title><rect x="1282.482" y="131" width="4.434" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 8 samples (0.32%)</title><rect x="1282.482" y="112" width="4.434" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 3 samples (0.12%)</title><rect x="1286.916" y="131" width="1.663" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 2 samples (0.08%)</title><rect x="1288.578" y="131" width="1.108" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::raw::Parser&gt;::value — 2 samples (0.08%)</title><rect x="1288.578" y="112" width="1.108" height="18" fill="rgb(221,130,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::raw — 7 samples (0.28%)</title><rect x="1289.687" y="150" width="3.880" height="18" fill="rgb(241,133,56)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 3 samples (0.12%)</title><rect x="1289.687" y="131" width="1.663" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1289.687" y="112" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1289.687" y="93" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1290.241" y="112" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1290.241" y="93" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1290.795" y="112" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 2 samples (0.08%)</title><rect x="1291.349" y="131" width="1.108" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1291.349" y="112" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1291.349" y="93" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1291.904" y="112" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 2 samples (0.08%)</title><rect x="1292.458" y="131" width="1.108" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::raw — 3 samples (0.12%)</title><rect x="1293.566" y="150" width="1.663" height="18" fill="rgb(241,133,56)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 10 samples (0.40%)</title><rect x="1295.229" y="169" width="5.542" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 4 samples (0.16%)</title><rect x="1295.229" y="150" width="2.217" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 4 samples (0.16%)</title><rect x="1295.229" y="131" width="2.217" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 3 samples (0.12%)</title><rect x="1297.446" y="150" width="1.663" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 2 samples (0.08%)</title><rect x="1299.108" y="150" width="1.108" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::raw::Parser&gt;::value — 2 samples (0.08%)</title><rect x="1299.108" y="131" width="1.108" height="18" fill="rgb(221,130,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::raw::Parser&gt;::value — 1 samples (0.04%)</title><rect x="1300.217" y="150" width="0.554" height="18" fill="rgb(221,130,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 10 samples (0.40%)</title><rect x="1300.771" y="169" width="5.542" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_encode::raw::validate — 1 samples (0.04%)</title><rect x="1306.313" y="169" width="0.554" height="18" fill="rgb(236,115,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 97 samples (3.90%)</title><rect x="1306.867" y="188" width="53.759" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+<text x="1309.867" y="201">jsonmax</text>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 50 samples (2.01%)</title><rect x="1306.867" y="169" width="27.711" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 23 samples (0.92%)</title><rect x="1306.867" y="150" width="12.747" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 18 samples (0.72%)</title><rect x="1306.867" y="131" width="9.976" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 16 samples (0.64%)</title><rect x="1306.867" y="112" width="8.867" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 13 samples (0.52%)</title><rect x="1306.867" y="93" width="7.205" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 3 samples (0.12%)</title><rect x="1314.072" y="93" width="1.663" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1315.735" y="112" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 3 samples (0.12%)</title><rect x="1316.843" y="131" width="1.663" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1318.506" y="131" width="1.108" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 2 samples (0.08%)</title><rect x="1318.506" y="112" width="1.108" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 10 samples (0.40%)</title><rect x="1319.614" y="150" width="5.542" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 6 samples (0.24%)</title><rect x="1319.614" y="131" width="3.325" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 5 samples (0.20%)</title><rect x="1319.614" y="112" width="2.771" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 5 samples (0.20%)</title><rect x="1319.614" y="93" width="2.771" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1322.386" y="112" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1322.940" y="131" width="1.108" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1324.048" y="131" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1324.048" y="112" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1324.602" y="131" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1324.602" y="112" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 9 samples (0.36%)</title><rect x="1325.157" y="150" width="4.988" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 5 samples (0.20%)</title><rect x="1325.157" y="131" width="2.771" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 4 samples (0.16%)</title><rect x="1327.928" y="131" width="2.217" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 4 samples (0.16%)</title><rect x="1327.928" y="112" width="2.217" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 3 samples (0.12%)</title><rect x="1327.928" y="93" width="1.663" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 1 samples (0.04%)</title><rect x="1329.590" y="93" width="0.554" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 4 samples (0.16%)</title><rect x="1330.145" y="150" width="2.217" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 2 samples (0.08%)</title><rect x="1332.361" y="150" width="1.108" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_string::escape::find_scalar — 2 samples (0.08%)</title><rect x="1332.361" y="131" width="1.108" height="18" fill="rgb(237,105,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_string — 2 samples (0.08%)</title><rect x="1333.470" y="150" width="1.108" height="18" fill="rgb(225,140,101)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 14 samples (0.56%)</title><rect x="1334.578" y="169" width="7.759" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_comma — 12 samples (0.48%)</title><rect x="1334.578" y="150" width="6.651" height="18" fill="rgb(231,174,77)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 7 samples (0.28%)</title><rect x="1334.578" y="131" width="3.880" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 5 samples (0.20%)</title><rect x="1338.458" y="131" width="2.771" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 3 samples (0.12%)</title><rect x="1338.458" y="112" width="1.663" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 3 samples (0.12%)</title><rect x="1338.458" y="93" width="1.663" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1340.120" y="112" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::write_comma — 1 samples (0.04%)</title><rect x="1341.229" y="150" width="0.554" height="18" fill="rgb(231,174,77)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1341.783" y="150" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 12 samples (0.48%)</title><rect x="1342.337" y="169" width="6.651" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 8 samples (0.32%)</title><rect x="1342.337" y="150" width="4.434" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 4 samples (0.16%)</title><rect x="1346.771" y="150" width="2.217" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::reserve — 4 samples (0.16%)</title><rect x="1346.771" y="131" width="2.217" height="18" fill="rgb(227,133,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 8 samples (0.32%)</title><rect x="1348.988" y="169" width="4.434" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 4 samples (0.16%)</title><rect x="1348.988" y="150" width="2.217" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1348.988" y="131" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 2 samples (0.08%)</title><rect x="1348.988" y="112" width="1.108" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1350.096" y="131" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 3 samples (0.12%)</title><rect x="1351.205" y="150" width="1.663" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 3 samples (0.12%)</title><rect x="1351.205" y="131" width="1.663" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1352.867" y="150" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 8 samples (0.32%)</title><rect x="1353.422" y="169" width="4.434" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::key — 5 samples (0.20%)</title><rect x="1357.855" y="169" width="2.771" height="18" fill="rgb(250,182,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_string::escape::find_scalar — 5 samples (0.20%)</title><rect x="1357.855" y="150" width="2.771" height="18" fill="rgb(237,105,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 22 samples (0.88%)</title><rect x="1360.627" y="188" width="12.193" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::Members as core::iter::traits::iterator::Iterator&gt;::next — 18 samples (0.72%)</title><rect x="1360.627" y="169" width="9.976" height="18" fill="rgb(234,195,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_abi::node::ValidatedDocument&gt;::resolve_str — 18 samples (0.72%)</title><rect x="1360.627" y="150" width="9.976" height="18" fill="rgb(228,105,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 18 samples (0.72%)</title><rect x="1360.627" y="131" width="9.976" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::Members as core::iter::traits::iterator::Iterator&gt;::next — 4 samples (0.16%)</title><rect x="1370.602" y="169" width="2.217" height="18" fill="rgb(234,195,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 7 samples (0.28%)</title><rect x="1372.819" y="188" width="3.880" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::end_object — 7 samples (0.28%)</title><rect x="1372.819" y="169" width="3.880" height="18" fill="rgb(224,191,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::end — 4 samples (0.16%)</title><rect x="1372.819" y="150" width="2.217" height="18" fill="rgb(210,113,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1372.819" y="131" width="1.108" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 2 samples (0.08%)</title><rect x="1372.819" y="112" width="1.108" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 1 samples (0.04%)</title><rect x="1372.819" y="93" width="0.554" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="1373.373" y="93" width="0.554" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1373.928" y="131" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1374.482" y="131" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::end — 2 samples (0.08%)</title><rect x="1375.036" y="150" width="1.108" height="18" fill="rgb(210,113,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1375.036" y="131" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1375.036" y="112" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1375.590" y="131" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::end — 1 samples (0.04%)</title><rect x="1376.145" y="150" width="0.554" height="18" fill="rgb(210,113,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 5 samples (0.20%)</title><rect x="1376.699" y="188" width="2.771" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::begin_object — 5 samples (0.20%)</title><rect x="1376.699" y="169" width="2.771" height="18" fill="rgb(248,178,58)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::begin — 4 samples (0.16%)</title><rect x="1376.699" y="150" width="2.217" height="18" fill="rgb(252,139,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 2 samples (0.08%)</title><rect x="1376.699" y="131" width="1.108" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1376.699" y="112" width="0.554" height="18" fill="rgb(244,177,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::write_bytes — 1 samples (0.04%)</title><rect x="1377.253" y="112" width="0.554" height="18" fill="rgb(226,197,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jsonmax::OutputBuffer as jmax_abi::traits::ByteSink&gt;::len — 1 samples (0.04%)</title><rect x="1377.253" y="93" width="0.554" height="18" fill="rgb(238,142,105)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 1 samples (0.04%)</title><rect x="1377.807" y="131" width="0.554" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::LimitedSink as jmax_abi::traits::ByteSink&gt;::reserve — 1 samples (0.04%)</title><rect x="1377.807" y="112" width="0.554" height="18" fill="rgb(210,187,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::token — 1 samples (0.04%)</title><rect x="1378.361" y="131" width="0.554" height="18" fill="rgb(220,115,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::begin — 1 samples (0.04%)</title><rect x="1378.916" y="150" width="0.554" height="18" fill="rgb(252,139,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 4 samples (0.16%)</title><rect x="1379.470" y="188" width="2.217" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::Object&gt;::iter — 4 samples (0.16%)</title><rect x="1379.470" y="169" width="2.217" height="18" fill="rgb(218,100,75)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::encode_dom_node — 3 samples (0.12%)</title><rect x="1381.687" y="188" width="1.663" height="18" fill="rgb(241,167,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::Members as core::iter::traits::iterator::Iterator&gt;::next — 2 samples (0.08%)</title><rect x="1383.349" y="188" width="1.108" height="18" fill="rgb(234,195,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_followup_baseline::main — 4 samples (0.16%)</title><rect x="1384.458" y="207" width="2.217" height="18" fill="rgb(211,126,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::document_to_buffer — 4 samples (0.16%)</title><rect x="1386.675" y="207" width="2.217" height="18" fill="rgb(239,154,53)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::encode::document_to_buffer — 2 samples (0.08%)</title><rect x="1388.892" y="207" width="1.108" height="18" fill="rgb(239,154,53)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_encode::JsonWriter&gt;::finish_with_scratch — 2 samples (0.08%)</title><rect x="1388.892" y="188" width="1.108" height="18" fill="rgb(234,193,83)" stroke="white" stroke-width="0.4"/>
+</g>
+</svg>

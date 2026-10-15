@@ -1,0 +1,741 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="479" viewBox="0 0 1400 479"><style>text{font-family:monospace;font-size:11px} rect:hover{stroke:black;stroke-width:1}</style><rect width="1400" height="479" fill="#fff"/><text x="10" y="22" font-size="16">LargeCatalog-Validate-Warm: 2475 sampled stacks (macOS sample, 1 ms, 3 s)</text><text x="10" y="42">Width = sample count; hover for full symbol. Includes profiler startup/preparation. Bottom = callers.</text>
+<g><title>Main thread — 2475 samples (100.00%)</title><rect x="10.000" y="454" width="1380.000" height="18" fill="rgb(243,136,112)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="467">Main thread</text>
+</g>
+<g><title>start — 2341 samples (94.59%)</title><rect x="10.000" y="435" width="1305.285" height="18" fill="rgb(241,145,89)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="448">start</text>
+</g>
+<g><title>main — 2341 samples (94.59%)</title><rect x="10.000" y="416" width="1305.285" height="18" fill="rgb(247,159,100)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="429">main</text>
+</g>
+<g><title>std::rt::lang_start_internal — 2341 samples (94.59%)</title><rect x="10.000" y="397" width="1305.285" height="18" fill="rgb(219,160,99)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="410">std::rt::lang_start_internal</text>
+</g>
+<g><title>std::rt::lang_start::&lt;core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt;::{closure#0} — 2341 samples (94.59%)</title><rect x="10.000" y="378" width="1305.285" height="18" fill="rgb(248,118,88)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="391">std::rt::lang_start::&lt;core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt;::{closure#0}</text>
+</g>
+<g><title>std::sys::backtrace::__rust_begin_short_backtrace::&lt;fn() -&gt; core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;, core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;&gt; — 2341 samples (94.59%)</title><rect x="10.000" y="359" width="1305.285" height="18" fill="rgb(246,142,89)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="372">std::sys::backtrace::__rust_begin_short_backtrace::&lt;fn() -&gt; core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;, core::result::Result&lt;(), alloc::boxed::Box&lt;dyn core::error::Error&gt;&gt;</text>
+</g>
+<g><title>jmax_followup_baseline::main — 2334 samples (94.30%)</title><rect x="10.000" y="340" width="1301.382" height="18" fill="rgb(211,126,63)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="353">jmax_followup_baseline::main</text>
+</g>
+<g><title>jsonmax::endpoint::validate_payload_into — 2333 samples (94.26%)</title><rect x="10.000" y="321" width="1300.824" height="18" fill="rgb(241,117,91)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="334">jsonmax::endpoint::validate_payload_into</text>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 1416 samples (57.21%)</title><rect x="10.000" y="302" width="789.527" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="315">jmax_schema_vm::execute::validate_into</text>
+</g>
+<g><title>&lt;jmax_schema_vm::execute::CursorInput&gt;::advance — 1383 samples (55.88%)</title><rect x="10.000" y="283" width="771.127" height="18" fill="rgb(240,181,106)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="296">&lt;jmax_schema_vm::execute::CursorInput&gt;::advance</text>
+</g>
+<g><title>jmax_cursor::walk::next — 1276 samples (51.56%)</title><rect x="10.000" y="264" width="711.467" height="18" fill="rgb(236,144,110)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="277">jmax_cursor::walk::next</text>
+</g>
+<g><title>jmax_syntax::feed::next — 472 samples (19.07%)</title><rect x="10.000" y="245" width="263.176" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="258">jmax_syntax::feed::next</text>
+</g>
+<g><title>jmax_syntax::frames::apply — 285 samples (11.52%)</title><rect x="10.000" y="226" width="158.909" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+<text x="13.000" y="239">jmax_syntax::frames::ap</text>
+</g>
+<g><title>jmax_syntax::frames::apply — 107 samples (4.32%)</title><rect x="168.909" y="226" width="59.661" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+<text x="171.909" y="239">jmax_syn</text>
+</g>
+<g><title>jmax_syntax::machine::transition — 107 samples (4.32%)</title><rect x="168.909" y="207" width="59.661" height="18" fill="rgb(244,154,81)" stroke="white" stroke-width="0.4"/>
+<text x="171.909" y="220">jmax_syn</text>
+</g>
+<g><title>jmax_syntax::frames::apply — 31 samples (1.25%)</title><rect x="228.570" y="226" width="17.285" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_abi::syntax::Event as core::cmp::PartialEq&gt;::eq — 31 samples (1.25%)</title><rect x="228.570" y="207" width="17.285" height="18" fill="rgb(244,126,77)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 19 samples (0.77%)</title><rect x="245.855" y="226" width="10.594" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::frames::KeyTable&gt;::insert_reserved — 19 samples (0.77%)</title><rect x="245.855" y="207" width="10.594" height="18" fill="rgb(216,115,87)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 10 samples (0.40%)</title><rect x="256.448" y="226" width="5.576" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::SyntaxState&gt;::resolve_bytes — 10 samples (0.40%)</title><rect x="256.448" y="207" width="5.576" height="18" fill="rgb(242,141,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 9 samples (0.36%)</title><rect x="262.024" y="226" width="5.018" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::frames::KeyTable&gt;::contains — 9 samples (0.36%)</title><rect x="262.024" y="207" width="5.018" height="18" fill="rgb(253,143,73)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::frames::KeyTable&gt;::contains — 5 samples (0.20%)</title><rect x="267.042" y="226" width="2.788" height="18" fill="rgb(253,143,73)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 4 samples (0.16%)</title><rect x="269.830" y="226" width="2.230" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::frames::KeyTable&gt;::reserve_insert — 4 samples (0.16%)</title><rect x="269.830" y="207" width="2.230" height="18" fill="rgb(235,182,109)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::frames::KeyTable&gt;::reserve_insert — 1 samples (0.04%)</title><rect x="272.061" y="226" width="0.558" height="18" fill="rgb(235,182,109)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 1 samples (0.04%)</title><rect x="272.618" y="226" width="0.558" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;alloc::raw_vec::RawVecInner&gt;::try_reserve — 1 samples (0.04%)</title><rect x="272.618" y="207" width="0.558" height="18" fill="rgb(254,107,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 327 samples (13.21%)</title><rect x="273.176" y="245" width="182.327" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="276.176" y="258">jmax_syntax::feed::next</text>
+</g>
+<g><title>jmax_syntax::feed::next — 100 samples (4.04%)</title><rect x="455.503" y="245" width="55.758" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="458.503" y="258">jmax_sy</text>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 52 samples (2.10%)</title><rect x="455.503" y="226" width="28.994" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::float::parse_f64 — 24 samples (0.97%)</title><rect x="455.503" y="207" width="13.382" height="18" fill="rgb(244,168,54)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 24 samples (0.97%)</title><rect x="455.503" y="188" width="13.382" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::float::parse_f64 — 17 samples (0.69%)</title><rect x="468.885" y="207" width="9.479" height="18" fill="rgb(244,168,54)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 9 samples (0.36%)</title><rect x="468.885" y="188" width="5.018" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 8 samples (0.32%)</title><rect x="473.903" y="188" width="4.461" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::num::imp::dec2flt::parse::parse_number — 8 samples (0.32%)</title><rect x="473.903" y="169" width="4.461" height="18" fill="rgb(250,165,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::float::parse_f64 — 6 samples (0.24%)</title><rect x="478.364" y="207" width="3.345" height="18" fill="rgb(244,168,54)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 5 samples (0.20%)</title><rect x="481.709" y="207" width="2.788" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 34 samples (1.37%)</title><rect x="484.497" y="226" width="18.958" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::lex::lex_number — 26 samples (1.05%)</title><rect x="484.497" y="207" width="14.497" height="18" fill="rgb(246,124,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 8 samples (0.32%)</title><rect x="498.994" y="207" width="4.461" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 8 samples (0.32%)</title><rect x="503.455" y="226" width="4.461" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 8 samples (0.32%)</title><rect x="503.455" y="207" width="4.461" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 5 samples (0.20%)</title><rect x="507.915" y="226" width="2.788" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::lex::lex_number — 1 samples (0.04%)</title><rect x="510.703" y="226" width="0.558" height="18" fill="rgb(246,124,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 91 samples (3.68%)</title><rect x="511.261" y="245" width="50.739" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="514.261" y="258">jmax_s</text>
+</g>
+<g><title>jmax_syntax::machine::transition — 91 samples (3.68%)</title><rect x="511.261" y="226" width="50.739" height="18" fill="rgb(244,154,81)" stroke="white" stroke-width="0.4"/>
+<text x="514.261" y="239">jmax_s</text>
+</g>
+<g><title>jmax_syntax::feed::next — 89 samples (3.60%)</title><rect x="562.000" y="245" width="49.624" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="565.000" y="258">jmax_s</text>
+</g>
+<g><title>jmax_syntax::feed::block_at — 57 samples (2.30%)</title><rect x="562.000" y="226" width="31.782" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 42 samples (1.70%)</title><rect x="562.000" y="207" width="23.418" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 30 samples (1.21%)</title><rect x="562.000" y="188" width="16.727" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::structural::classify_structural — 30 samples (1.21%)</title><rect x="562.000" y="169" width="16.727" height="18" fill="rgb(242,162,87)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 10 samples (0.40%)</title><rect x="578.727" y="188" width="5.576" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 2 samples (0.08%)</title><rect x="584.303" y="188" width="1.115" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::quotes::quote_masks — 2 samples (0.08%)</title><rect x="584.303" y="169" width="1.115" height="18" fill="rgb(211,105,52)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 10 samples (0.40%)</title><rect x="585.418" y="207" width="5.576" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 5 samples (0.20%)</title><rect x="585.418" y="188" width="2.788" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 4 samples (0.16%)</title><rect x="588.206" y="188" width="2.230" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 1 samples (0.04%)</title><rect x="590.436" y="188" width="0.558" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 3 samples (0.12%)</title><rect x="590.994" y="207" width="1.673" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memset — 2 samples (0.08%)</title><rect x="590.994" y="188" width="1.115" height="18" fill="rgb(254,160,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>__bzero — 1 samples (0.04%)</title><rect x="592.109" y="188" width="0.558" height="18" fill="rgb(251,102,69)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 2 samples (0.08%)</title><rect x="592.667" y="207" width="1.115" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 32 samples (1.29%)</title><rect x="593.782" y="226" width="17.842" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 76 samples (3.07%)</title><rect x="611.624" y="245" width="42.376" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+<text x="614.624" y="258">jmax_</text>
+</g>
+<g><title>jmax_syntax::feed::block_at — 58 samples (2.34%)</title><rect x="611.624" y="226" width="32.339" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 18 samples (0.73%)</title><rect x="643.964" y="226" width="10.036" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 15 samples (0.61%)</title><rect x="643.964" y="207" width="8.364" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 13 samples (0.53%)</title><rect x="643.964" y="188" width="7.248" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::structural::classify_structural — 13 samples (0.53%)</title><rect x="643.964" y="169" width="7.248" height="18" fill="rgb(242,162,87)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 1 samples (0.04%)</title><rect x="651.212" y="188" width="0.558" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::quotes::quote_masks — 1 samples (0.04%)</title><rect x="651.212" y="169" width="0.558" height="18" fill="rgb(211,105,52)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 1 samples (0.04%)</title><rect x="651.770" y="188" width="0.558" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dispatch::Dispatch&gt;::classify — 1 samples (0.04%)</title><rect x="652.327" y="207" width="0.558" height="18" fill="rgb(243,166,113)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 1 samples (0.04%)</title><rect x="652.885" y="207" width="0.558" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memset — 1 samples (0.04%)</title><rect x="652.885" y="188" width="0.558" height="18" fill="rgb(254,160,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 1 samples (0.04%)</title><rect x="653.442" y="207" width="0.558" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="653.442" y="188" width="0.558" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 48 samples (1.94%)</title><rect x="654.000" y="245" width="26.764" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 37 samples (1.49%)</title><rect x="680.764" y="245" width="20.630" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 26 samples (1.05%)</title><rect x="680.764" y="226" width="14.497" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 25 samples (1.01%)</title><rect x="680.764" y="207" width="13.939" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 20 samples (0.81%)</title><rect x="680.764" y="188" width="11.152" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::structural::classify_structural — 20 samples (0.81%)</title><rect x="680.764" y="169" width="11.152" height="18" fill="rgb(242,162,87)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 3 samples (0.12%)</title><rect x="691.915" y="188" width="1.673" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 2 samples (0.08%)</title><rect x="693.588" y="188" width="1.115" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::quotes::quote_masks — 2 samples (0.08%)</title><rect x="693.588" y="169" width="1.115" height="18" fill="rgb(211,105,52)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 1 samples (0.04%)</title><rect x="694.703" y="207" width="0.558" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 1 samples (0.04%)</title><rect x="694.703" y="188" width="0.558" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 11 samples (0.44%)</title><rect x="695.261" y="226" width="6.133" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 25 samples (1.01%)</title><rect x="701.394" y="245" width="13.939" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 11 samples (0.44%)</title><rect x="715.333" y="245" width="6.133" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 6 samples (0.24%)</title><rect x="715.333" y="226" width="3.345" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 5 samples (0.20%)</title><rect x="715.333" y="207" width="2.788" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 4 samples (0.16%)</title><rect x="715.333" y="188" width="2.230" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::structural::classify_structural — 4 samples (0.16%)</title><rect x="715.333" y="169" width="2.230" height="18" fill="rgb(242,162,87)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify_loaded — 1 samples (0.04%)</title><rect x="717.564" y="188" width="0.558" height="18" fill="rgb(249,114,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_scan_neon::classify::classify — 1 samples (0.04%)</title><rect x="718.121" y="207" width="0.558" height="18" fill="rgb(223,115,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memset — 1 samples (0.04%)</title><rect x="718.121" y="188" width="0.558" height="18" fill="rgb(254,160,59)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::block_at — 5 samples (0.20%)</title><rect x="718.679" y="226" width="2.788" height="18" fill="rgb(230,105,85)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_cursor::walk::next — 64 samples (2.59%)</title><rect x="721.467" y="264" width="35.685" height="18" fill="rgb(236,144,110)" stroke="white" stroke-width="0.4"/>
+<text x="724.467" y="277">jmax</text>
+</g>
+<g><title>&lt;jmax_schema_vm::execute::CursorInput&gt;::advance — 26 samples (1.05%)</title><rect x="757.152" y="264" width="14.497" height="18" fill="rgb(240,181,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 17 samples (0.69%)</title><rect x="771.648" y="264" width="9.479" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_schema_vm::execute::CursorInput&gt;::advance — 19 samples (0.77%)</title><rect x="781.127" y="283" width="10.594" height="18" fill="rgb(240,181,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_cursor::walk::next — 14 samples (0.57%)</title><rect x="791.721" y="283" width="7.806" height="18" fill="rgb(236,144,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 457 samples (18.46%)</title><rect x="799.527" y="302" width="254.812" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+<text x="802.527" y="315">jmax_schema_vm::execute::validate_int</text>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 302 samples (12.20%)</title><rect x="799.527" y="283" width="168.388" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+<text x="802.527" y="296">jmax_schema_vm::execute:</text>
+</g>
+<g><title>jmax_schema_vm::execute::scalar — 189 samples (7.64%)</title><rect x="799.527" y="264" width="105.382" height="18" fill="rgb(253,164,73)" stroke="white" stroke-width="0.4"/>
+<text x="802.527" y="277">jmax_schema_vm</text>
+</g>
+<g><title>jmax_schema_vm::constraints::check_scalar — 61 samples (2.46%)</title><rect x="799.527" y="245" width="34.012" height="18" fill="rgb(214,142,92)" stroke="white" stroke-width="0.4"/>
+<text x="802.527" y="258">jmax</text>
+</g>
+<g><title>jmax_schema_vm::constraints::check_string_token — 45 samples (1.82%)</title><rect x="799.527" y="226" width="25.091" height="18" fill="rgb(236,199,62)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_string_token — 14 samples (0.57%)</title><rect x="824.618" y="226" width="7.806" height="18" fill="rgb(236,199,62)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 14 samples (0.57%)</title><rect x="824.618" y="207" width="7.806" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_string_token — 2 samples (0.08%)</title><rect x="832.424" y="226" width="1.115" height="18" fill="rgb(236,199,62)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::validations::next_code_point::&lt;core::slice::iter::Iter&lt;u8&gt;&gt; — 2 samples (0.08%)</title><rect x="832.424" y="207" width="1.115" height="18" fill="rgb(248,149,49)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_scalar — 34 samples (1.37%)</title><rect x="833.539" y="245" width="18.958" height="18" fill="rgb(214,142,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_scalar — 27 samples (1.09%)</title><rect x="852.497" y="245" width="15.055" height="18" fill="rgb(214,142,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 16 samples (0.65%)</title><rect x="852.497" y="226" width="8.921" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 16 samples (0.65%)</title><rect x="852.497" y="207" width="8.921" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 9 samples (0.36%)</title><rect x="861.418" y="226" width="5.018" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 9 samples (0.36%)</title><rect x="861.418" y="207" width="5.018" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 2 samples (0.08%)</title><rect x="866.436" y="226" width="1.115" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_scalar — 21 samples (0.85%)</title><rect x="867.552" y="245" width="11.709" height="18" fill="rgb(214,142,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::number_grammar — 21 samples (0.85%)</title><rect x="867.552" y="226" width="11.709" height="18" fill="rgb(245,181,104)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::float — 21 samples (0.85%)</title><rect x="879.261" y="245" width="11.709" height="18" fill="rgb(217,148,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 13 samples (0.53%)</title><rect x="879.261" y="226" width="7.248" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::num::imp::dec2flt::parse::parse_number — 13 samples (0.53%)</title><rect x="879.261" y="207" width="7.248" height="18" fill="rgb(250,165,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 8 samples (0.32%)</title><rect x="886.509" y="226" width="4.461" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::float — 16 samples (0.65%)</title><rect x="890.970" y="245" width="8.921" height="18" fill="rgb(217,148,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 16 samples (0.65%)</title><rect x="890.970" y="226" width="8.921" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::float — 4 samples (0.16%)</title><rect x="899.891" y="245" width="2.230" height="18" fill="rgb(217,148,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_string_token — 2 samples (0.08%)</title><rect x="902.121" y="245" width="1.115" height="18" fill="rgb(236,199,62)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 2 samples (0.08%)</title><rect x="903.236" y="245" width="1.115" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 1 samples (0.04%)</title><rect x="904.352" y="245" width="0.558" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::scalar — 68 samples (2.75%)</title><rect x="904.909" y="264" width="37.915" height="18" fill="rgb(253,164,73)" stroke="white" stroke-width="0.4"/>
+<text x="907.909" y="277">jmax</text>
+</g>
+<g><title>jmax_schema_vm::execute::scalar — 40 samples (1.62%)</title><rect x="942.824" y="264" width="22.303" height="18" fill="rgb(253,164,73)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::checked_string — 38 samples (1.54%)</title><rect x="942.824" y="245" width="21.188" height="18" fill="rgb(217,166,55)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 28 samples (1.13%)</title><rect x="942.824" y="226" width="15.612" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 28 samples (1.13%)</title><rect x="942.824" y="207" width="15.612" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 5 samples (0.20%)</title><rect x="958.436" y="226" width="2.788" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 5 samples (0.20%)</title><rect x="958.436" y="207" width="2.788" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 5 samples (0.20%)</title><rect x="961.224" y="226" width="2.788" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::resolve_str — 1 samples (0.04%)</title><rect x="964.012" y="245" width="0.558" height="18" fill="rgb(216,149,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::checked_string — 1 samples (0.04%)</title><rect x="964.570" y="245" width="0.558" height="18" fill="rgb(217,166,55)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::float — 3 samples (0.12%)</title><rect x="965.127" y="264" width="1.673" height="18" fill="rgb(217,148,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_scalar — 1 samples (0.04%)</title><rect x="966.800" y="264" width="0.558" height="18" fill="rgb(214,142,92)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::checked_string — 1 samples (0.04%)</title><rect x="967.358" y="264" width="0.558" height="18" fill="rgb(217,166,55)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 56 samples (2.26%)</title><rect x="967.915" y="283" width="31.224" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 43 samples (1.74%)</title><rect x="999.139" y="283" width="23.976" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::open — 30 samples (1.21%)</title><rect x="999.139" y="264" width="16.727" height="18" fill="rgb(220,129,66)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::open — 12 samples (0.48%)</title><rect x="1015.867" y="264" width="6.691" height="18" fill="rgb(220,129,66)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::begin_with_scratch — 9 samples (0.36%)</title><rect x="1015.867" y="245" width="5.018" height="18" fill="rgb(227,118,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::begin_with_scratch — 2 samples (0.08%)</title><rect x="1020.885" y="245" width="1.115" height="18" fill="rgb(227,118,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::reserve::&lt;u64&gt; — 2 samples (0.08%)</title><rect x="1020.885" y="226" width="1.115" height="18" fill="rgb(237,103,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::begin_with_scratch — 1 samples (0.04%)</title><rect x="1022.000" y="245" width="0.558" height="18" fill="rgb(227,118,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;alloc::vec::Vec&lt;u64&gt;&gt;::resize — 1 samples (0.04%)</title><rect x="1022.000" y="226" width="0.558" height="18" fill="rgb(223,140,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::begin_with_scratch — 1 samples (0.04%)</title><rect x="1022.558" y="264" width="0.558" height="18" fill="rgb(227,118,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 33 samples (1.33%)</title><rect x="1023.115" y="283" width="18.400" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::close — 18 samples (0.73%)</title><rect x="1023.115" y="264" width="10.036" height="18" fill="rgb(238,170,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::close — 15 samples (0.61%)</title><rect x="1033.152" y="264" width="8.364" height="18" fill="rgb(238,170,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::finish — 15 samples (0.61%)</title><rect x="1033.152" y="245" width="8.364" height="18" fill="rgb(250,146,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step — 13 samples (0.53%)</title><rect x="1041.515" y="283" width="7.248" height="18" fill="rgb(223,100,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 5 samples (0.20%)</title><rect x="1048.764" y="283" width="2.788" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::take_value — 5 samples (0.20%)</title><rect x="1048.764" y="264" width="2.788" height="18" fill="rgb(221,191,89)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::scalar — 4 samples (0.16%)</title><rect x="1051.552" y="283" width="2.230" height="18" fill="rgb(253,164,73)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::open — 1 samples (0.04%)</title><rect x="1053.782" y="283" width="0.558" height="18" fill="rgb(220,129,66)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 214 samples (8.65%)</title><rect x="1054.339" y="302" width="119.321" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+<text x="1057.339" y="315">jmax_schema_vm::e</text>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 191 samples (7.72%)</title><rect x="1054.339" y="283" width="106.497" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+<text x="1057.339" y="296">jmax_schema_vm:</text>
+</g>
+<g><title>jmax_schema_vm::execute::key — 170 samples (6.87%)</title><rect x="1054.339" y="264" width="94.788" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+<text x="1057.339" y="277">jmax_schema_v</text>
+</g>
+<g><title>jmax_schema_vm::objects::key_inner — 83 samples (3.35%)</title><rect x="1054.339" y="245" width="46.279" height="18" fill="rgb(241,100,112)" stroke="white" stroke-width="0.4"/>
+<text x="1057.339" y="258">jmax_s</text>
+</g>
+<g><title>jmax_schema_compile::keys::lookup_index — 46 samples (1.86%)</title><rect x="1054.339" y="226" width="25.648" height="18" fill="rgb(240,192,114)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_compile::keys::lookup_index — 19 samples (0.77%)</title><rect x="1079.988" y="226" width="10.594" height="18" fill="rgb(240,192,114)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memcmp — 13 samples (0.53%)</title><rect x="1079.988" y="207" width="7.248" height="18" fill="rgb(211,189,89)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcmp — 6 samples (0.24%)</title><rect x="1087.236" y="207" width="3.345" height="18" fill="rgb(228,155,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_compile::keys::lookup_index — 18 samples (0.73%)</title><rect x="1090.582" y="226" width="10.036" height="18" fill="rgb(240,192,114)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 16 samples (0.65%)</title><rect x="1090.582" y="207" width="8.921" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>DYLD-STUB$$memcpy — 2 samples (0.08%)</title><rect x="1099.503" y="207" width="1.115" height="18" fill="rgb(217,121,93)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::key_inner — 49 samples (1.98%)</title><rect x="1100.618" y="245" width="27.321" height="18" fill="rgb(241,100,112)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 18 samples (0.73%)</title><rect x="1127.939" y="245" width="10.036" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::key_inner — 15 samples (0.61%)</title><rect x="1137.976" y="245" width="8.364" height="18" fill="rgb(241,100,112)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::known_value — 15 samples (0.61%)</title><rect x="1137.976" y="226" width="8.364" height="18" fill="rgb(236,126,91)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_compile::keys::lookup_index — 5 samples (0.20%)</title><rect x="1146.339" y="245" width="2.788" height="18" fill="rgb(240,192,114)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 9 samples (0.36%)</title><rect x="1149.127" y="264" width="5.018" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::objects::key_inner — 7 samples (0.28%)</title><rect x="1154.145" y="264" width="3.903" height="18" fill="rgb(241,100,112)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 5 samples (0.20%)</title><rect x="1158.048" y="264" width="2.788" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 5 samples (0.20%)</title><rect x="1158.048" y="245" width="2.788" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 23 samples (0.93%)</title><rect x="1160.836" y="283" width="12.824" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 133 samples (5.37%)</title><rect x="1173.661" y="302" width="74.158" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+<text x="1176.661" y="315">jmax_schem</text>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 102 samples (4.12%)</title><rect x="1247.818" y="302" width="56.873" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+<text x="1250.818" y="315">jmax_sc</text>
+</g>
+<g><title>jmax_schema_vm::constraints::check_input_number — 42 samples (1.70%)</title><rect x="1247.818" y="283" width="23.418" height="18" fill="rgb(240,102,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 42 samples (1.70%)</title><rect x="1247.818" y="264" width="23.418" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_input_number — 26 samples (1.05%)</title><rect x="1271.236" y="283" width="14.497" height="18" fill="rgb(240,102,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::number_grammar — 26 samples (1.05%)</title><rect x="1271.236" y="264" width="14.497" height="18" fill="rgb(245,181,104)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_input_number — 25 samples (1.01%)</title><rect x="1285.733" y="283" width="13.939" height="18" fill="rgb(240,102,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 18 samples (0.73%)</title><rect x="1285.733" y="264" width="10.036" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::num::imp::dec2flt::parse::parse_number — 18 samples (0.73%)</title><rect x="1285.733" y="245" width="10.036" height="18" fill="rgb(250,165,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 7 samples (0.28%)</title><rect x="1295.770" y="264" width="3.903" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_input_number — 5 samples (0.20%)</title><rect x="1299.673" y="283" width="2.788" height="18" fill="rgb(240,102,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;f64 as core::str::traits::FromStr&gt;::from_str — 4 samples (0.16%)</title><rect x="1302.461" y="283" width="2.230" height="18" fill="rgb(233,124,95)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step_at — 6 samples (0.24%)</title><rect x="1304.691" y="302" width="3.345" height="18" fill="rgb(240,198,61)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::step — 3 samples (0.12%)</title><rect x="1308.036" y="302" width="1.673" height="18" fill="rgb(223,100,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::constraints::check_input_number — 1 samples (0.04%)</title><rect x="1309.709" y="302" width="0.558" height="18" fill="rgb(240,102,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::validate_into — 1 samples (0.04%)</title><rect x="1310.267" y="302" width="0.558" height="18" fill="rgb(215,192,62)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::new_context — 1 samples (0.04%)</title><rect x="1310.267" y="283" width="0.558" height="18" fill="rgb(212,115,66)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_followup_baseline::main — 1 samples (0.04%)</title><rect x="1310.824" y="321" width="0.558" height="18" fill="rgb(211,126,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_followup_baseline::main — 7 samples (0.28%)</title><rect x="1311.382" y="340" width="3.903" height="18" fill="rgb(211,126,63)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::iter::adapters::try_process::&lt;core::iter::adapters::map::Map&lt;core::slice::iter::Iter&lt;jmax_abi::buffer::Payload&gt;, jmax_followup_baseline::profile::{closure#1}&gt;, jmax_abi::node::ValidatedDocument, core::result::Result&lt;core::convert::Infallible, jmax_abi::error::Error&gt;, &lt;core::result::Result&lt;alloc::vec::Vec&lt;jmax_abi::node::ValidatedDocument&gt;, jmax_abi::error::Error&gt; as core::iter::traits::collect::FromIterator&lt;core::result::Result&lt;jmax_abi::node::ValidatedDocument, jmax_abi::error::Error&gt;&gt;&gt;::from_iter&lt;core::iter::adapters::map::Map&lt;core::slice::iter::Iter&lt;jmax_abi::buffer::Payload&gt;, jmax_followup_baseline::profile::{closure#1}&gt;&gt;::{closure#0}, alloc::vec::Vec&lt;jmax_abi::node::ValidatedDocument&gt;&gt; — 7 samples (0.28%)</title><rect x="1311.382" y="321" width="3.903" height="18" fill="rgb(213,101,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;alloc::vec::Vec&lt;jmax_abi::node::ValidatedDocument&gt; as alloc::vec::spec_from_iter::SpecFromIter&lt;jmax_abi::node::ValidatedDocument, core::iter::adapters::GenericShunt&lt;core::iter::adapters::map::Map&lt;core::slice::iter::Iter&lt;jmax_abi::buffer::Payload&gt;, jmax_followup_baseline::profile::{closure#1}&gt;, core::result::Result&lt;core::convert::Infallible, jmax_abi::error::Error&gt;&gt;&gt;&gt;::from_iter — 7 samples (0.28%)</title><rect x="1311.382" y="302" width="3.903" height="18" fill="rgb(254,121,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 7 samples (0.28%)</title><rect x="1311.382" y="283" width="3.903" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jsonmax::parse::parse_payload — 7 samples (0.28%)</title><rect x="1311.382" y="264" width="3.903" height="18" fill="rgb(241,174,75)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_dom::build::parse_with_numeric — 7 samples (0.28%)</title><rect x="1311.382" y="245" width="3.903" height="18" fill="rgb(249,127,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_dom::build::from_cursor — 3 samples (0.12%)</title><rect x="1311.382" y="226" width="1.673" height="18" fill="rgb(231,175,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::build::Builder&gt;::event — 2 samples (0.08%)</title><rect x="1311.382" y="207" width="1.115" height="18" fill="rgb(231,135,54)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_syntax::SyntaxState&gt;::resolve_str — 2 samples (0.08%)</title><rect x="1311.382" y="188" width="1.115" height="18" fill="rgb(222,128,69)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 2 samples (0.08%)</title><rect x="1311.382" y="169" width="1.115" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::build::Builder&gt;::event — 1 samples (0.04%)</title><rect x="1312.497" y="207" width="0.558" height="18" fill="rgb(231,135,54)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;jmax_dom::build::Builder&gt;::append — 1 samples (0.04%)</title><rect x="1312.497" y="188" width="0.558" height="18" fill="rgb(219,126,106)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;alloc::raw_vec::RawVecInner&gt;::try_reserve — 1 samples (0.04%)</title><rect x="1312.497" y="169" width="0.558" height="18" fill="rgb(254,107,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>&lt;alloc::raw_vec::RawVecInner&gt;::finish_grow — 1 samples (0.04%)</title><rect x="1312.497" y="150" width="0.558" height="18" fill="rgb(232,154,58)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_realloc — 1 samples (0.04%)</title><rect x="1312.497" y="131" width="0.558" height="18" fill="rgb(253,166,102)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_malloc_zone_realloc — 1 samples (0.04%)</title><rect x="1312.497" y="112" width="0.558" height="18" fill="rgb(217,126,48)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>xzm_realloc — 1 samples (0.04%)</title><rect x="1312.497" y="93" width="0.558" height="18" fill="rgb(220,113,88)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>_platform_memmove — 1 samples (0.04%)</title><rect x="1312.497" y="74" width="0.558" height="18" fill="rgb(249,163,67)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_dom::build::from_cursor — 2 samples (0.08%)</title><rect x="1313.055" y="226" width="1.115" height="18" fill="rgb(231,175,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_cursor::walk::next — 2 samples (0.08%)</title><rect x="1313.055" y="207" width="1.115" height="18" fill="rgb(236,144,110)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 1 samples (0.04%)</title><rect x="1313.055" y="188" width="0.558" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::frames::apply — 1 samples (0.04%)</title><rect x="1313.055" y="169" width="0.558" height="18" fill="rgb(249,154,45)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::machine::transition — 1 samples (0.04%)</title><rect x="1313.055" y="150" width="0.558" height="18" fill="rgb(244,154,81)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::next — 1 samples (0.04%)</title><rect x="1313.612" y="188" width="0.558" height="18" fill="rgb(226,150,83)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_syntax::feed::complete_atom — 1 samples (0.04%)</title><rect x="1313.612" y="169" width="0.558" height="18" fill="rgb(211,170,71)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_number::lex::lex_number — 1 samples (0.04%)</title><rect x="1313.612" y="150" width="0.558" height="18" fill="rgb(246,124,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_dom::build::from_cursor — 2 samples (0.08%)</title><rect x="1314.170" y="226" width="1.115" height="18" fill="rgb(231,175,64)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 36 samples (1.45%)</title><rect x="1315.285" y="435" width="20.073" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 35 samples (1.41%)</title><rect x="1315.285" y="416" width="19.515" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1334.800" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 28 samples (1.13%)</title><rect x="1335.358" y="435" width="15.612" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 20 samples (0.81%)</title><rect x="1335.358" y="416" width="11.152" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 8 samples (0.32%)</title><rect x="1346.509" y="416" width="4.461" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 6 samples (0.24%)</title><rect x="1350.970" y="435" width="3.345" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 5 samples (0.20%)</title><rect x="1350.970" y="416" width="2.788" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 4 samples (0.16%)</title><rect x="1350.970" y="397" width="2.230" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1353.200" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1353.758" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1353.758" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 6 samples (0.24%)</title><rect x="1354.315" y="435" width="3.345" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 4 samples (0.16%)</title><rect x="1354.315" y="416" width="2.230" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1354.315" y="397" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1355.988" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1356.545" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 2 samples (0.08%)</title><rect x="1356.545" y="397" width="1.115" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 6 samples (0.24%)</title><rect x="1357.661" y="435" width="3.345" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 4 samples (0.16%)</title><rect x="1357.661" y="416" width="2.230" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 4 samples (0.16%)</title><rect x="1357.661" y="397" width="2.230" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1359.891" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1359.891" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1360.448" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 4 samples (0.16%)</title><rect x="1361.006" y="435" width="2.230" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1361.006" y="416" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1361.006" y="397" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1362.679" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1362.679" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 4 samples (0.16%)</title><rect x="1363.236" y="435" width="2.230" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 4 samples (0.16%)</title><rect x="1363.236" y="416" width="2.230" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 4 samples (0.16%)</title><rect x="1363.236" y="397" width="2.230" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 4 samples (0.16%)</title><rect x="1365.467" y="435" width="2.230" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1365.467" y="416" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 2 samples (0.08%)</title><rect x="1365.467" y="397" width="1.115" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1366.582" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1367.139" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1367.139" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 4 samples (0.16%)</title><rect x="1367.697" y="435" width="2.230" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1367.697" y="416" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 3 samples (0.12%)</title><rect x="1367.697" y="397" width="1.673" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1369.370" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1369.370" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 4 samples (0.16%)</title><rect x="1369.927" y="435" width="2.230" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 3 samples (0.12%)</title><rect x="1369.927" y="416" width="1.673" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 3 samples (0.12%)</title><rect x="1369.927" y="397" width="1.673" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1371.600" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1371.600" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 3 samples (0.12%)</title><rect x="1372.158" y="435" width="1.673" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1372.158" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1372.158" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1372.715" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1373.273" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1373.273" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 3 samples (0.12%)</title><rect x="1373.830" y="435" width="1.673" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1373.830" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1373.830" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1374.388" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1374.945" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1374.945" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1375.503" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1375.503" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 2 samples (0.08%)</title><rect x="1375.503" y="397" width="1.115" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1376.618" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1376.618" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1376.618" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1377.176" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1377.176" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1377.733" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1377.733" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 2 samples (0.08%)</title><rect x="1377.733" y="397" width="1.115" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1378.848" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1378.848" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1378.848" y="397" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1379.964" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1379.964" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 2 samples (0.08%)</title><rect x="1379.964" y="397" width="1.115" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1381.079" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1381.079" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1381.079" y="397" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 2 samples (0.08%)</title><rect x="1382.194" y="435" width="1.115" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 2 samples (0.08%)</title><rect x="1382.194" y="416" width="1.115" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1382.194" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1382.752" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1383.309" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1383.309" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1383.309" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1383.867" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1383.867" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1383.867" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1384.424" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1384.424" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::count::char_count_general_case — 1 samples (0.04%)</title><rect x="1384.424" y="397" width="0.558" height="18" fill="rgb(210,160,100)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1384.982" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1384.982" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1384.982" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1385.539" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1385.539" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1385.539" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1386.097" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1386.097" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1386.097" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1386.655" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1386.655" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1386.655" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1387.212" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1387.212" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1387.212" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1387.770" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1387.770" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1387.770" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1388.327" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1388.327" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1388.327" y="397" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1388.885" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1388.885" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1388.885" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>??? — 1 samples (0.04%)</title><rect x="1389.442" y="435" width="0.558" height="18" fill="rgb(223,153,68)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>jmax_schema_vm::execute::key — 1 samples (0.04%)</title><rect x="1389.442" y="416" width="0.558" height="18" fill="rgb(211,187,72)" stroke="white" stroke-width="0.4"/>
+</g>
+<g><title>core::str::converts::from_utf8 — 1 samples (0.04%)</title><rect x="1389.442" y="397" width="0.558" height="18" fill="rgb(241,180,51)" stroke="white" stroke-width="0.4"/>
+</g>
+</svg>

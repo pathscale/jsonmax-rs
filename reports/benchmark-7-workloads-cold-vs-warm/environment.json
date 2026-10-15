@@ -1,0 +1,10 @@
+{
+  "git_head": "7e7aafbee8bbeafd1317f3df0f9b4359b5f75052",
+  "recorded_utc": "2026-10-15T17:20:11.102571+00:00",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+  "cpu": "Apple M4 Max",
+  "flags": "-C target-cpu=native",
+  "native_cli_rows": 56,
+  "head_to_head_cases": 182,
+  "head_to_head_passes": 3640
+}

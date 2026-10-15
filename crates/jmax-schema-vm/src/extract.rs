@@ -76,7 +76,7 @@ pub fn publish(run: ValidatedRun) -> Result<ValidatedSlots> {
     let proof = unsafe {
         ValidationProof::issue_unchecked(fingerprint, payload_len, decoded_len)
     };
-    Ok(ValidatedSlots { payload, decoded, slots, proof })
+    Ok(ValidatedSlots { payload, decoded: decoded.into_vec(), slots, proof })
 }
 
 fn owner_lengths(payload_len: usize, decoded_len: usize) -> Result<(u32, u32)> {

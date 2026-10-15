@@ -191,7 +191,7 @@ impl Parser<'_> {
             "selector construct is outside the bounded extension subset")
     }
 
-    fn expect(&mut self, expected: u8, extension: bool) -> Result<()> {
+    fn consume_byte(&mut self, expected: u8, extension: bool) -> Result<()> {
         match self.peek() {
             Some(byte) if byte == expected => { self.position += 1; Ok(()) }
             None => Err(self.eof()),
@@ -279,7 +279,7 @@ impl Parser<'_> {
                 if matches!(self.peek(), Some(b',' | b':')) {
                     return Err(self.unsupported(self.position));
                 }
-                self.expect(b']', false)?;
+                self.consume_byte(b']', false)?;
                 Ok(ExtensionSegment::Wildcard)
             }
             Some(b'?') => self.filter(),
@@ -288,7 +288,7 @@ impl Parser<'_> {
                 if matches!(self.peek(), Some(b',' | b':')) {
                     return Err(self.unsupported(self.position));
                 }
-                self.expect(b']', false)?;
+                self.consume_byte(b']', false)?;
                 Ok(ExtensionSegment::Exact(Segment::Key(key)))
             }
             Some(b'0'..=b'9') => {
@@ -308,7 +308,7 @@ impl Parser<'_> {
                 if matches!(self.peek(), Some(b',' | b':')) {
                     return Err(self.unsupported(self.position));
                 }
-                self.expect(b']', false)?;
+                self.consume_byte(b']', false)?;
                 Ok(ExtensionSegment::Exact(Segment::Index(index)))
             }
             Some(b'-' | b'+' | b',' | b':') => Err(self.unsupported(self.position)),
@@ -319,13 +319,13 @@ impl Parser<'_> {
 
     fn filter(&mut self) -> Result<ExtensionSegment> {
         self.position += 1;
-        self.expect(b'(', true)?;
-        self.expect(b'@', true)?;
-        self.expect(b'.', true)?;
+        self.consume_byte(b'(', true)?;
+        self.consume_byte(b'@', true)?;
+        self.consume_byte(b'.', true)?;
         let key = self.bare(true)?;
         self.space();
-        self.expect(b'=', true)?;
-        self.expect(b'=', true)?;
+        self.consume_byte(b'=', true)?;
+        self.consume_byte(b'=', true)?;
         self.space();
         // Diagnose an identifier followed by a call before keyword parsing, so
         // function names starting with n/t/f are not mistaken for bad literals.
@@ -371,18 +371,18 @@ impl Parser<'_> {
             | b'+' | b'-' | b'*' | b'/' | b'.' | b'[' | b'(' | b',' | b':')) {
             return Err(self.unsupported(self.position));
         }
-        self.expect(b')', false)?;
-        self.expect(b']', false)?;
+        self.consume_byte(b')', false)?;
+        self.consume_byte(b']', false)?;
         Ok(ExtensionSegment::FilterEq { key, value })
     }
 
     fn keyword(&mut self, expected: &str) -> Result<()> {
-        for byte in expected.bytes() { self.expect(byte, false)?; }
+        for byte in expected.bytes() { self.consume_byte(byte, false)?; }
         Ok(())
     }
 
     fn quoted(&mut self) -> Result<String> {
-        self.expect(b'"', false)?;
+        self.consume_byte(b'"', false)?;
         let mut value = String::new();
         loop {
             let at = self.position;

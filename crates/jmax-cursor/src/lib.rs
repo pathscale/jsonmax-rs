@@ -146,6 +146,19 @@ impl Cursor {
         Self { syntax: SyntaxState::new(limits), payload: None,
             mode, current: None, skipping: None }
     }
+    /// Reset complete input and all traversal state while retaining syntax scratch.
+    pub fn reset_with_payload(&mut self, payload: Payload, limits: Limits,
+        mode: SkipMode, numeric: Option<jmax_abi::number::NumericPolicy>) -> Result<()> {
+        self.syntax.reset_with_payload(payload.clone(), limits, numeric)?;
+        self.payload = Some(payload);
+        self.mode = mode;
+        self.current = None;
+        self.skipping = None;
+        Ok(())
+    }
+    pub fn swap_decoded(&mut self, arena: &mut Vec<u8>) {
+        self.syntax.swap_decoded(arena);
+    }
     pub const fn mode(&self) -> SkipMode { self.mode }
     pub fn state(&self) -> CursorState { self.syntax.state() }
     pub const fn current(&self) -> Option<Event> { self.current }

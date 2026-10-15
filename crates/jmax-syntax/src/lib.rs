@@ -166,6 +166,35 @@ impl SyntaxState {
         state.numeric = Some(numeric);
         Ok(state)
     }
+    /// Start another complete input, retaining frames, duplicate tables and arena.
+    pub fn reset_with_payload(&mut self, payload: Payload, limits: Limits,
+        numeric: Option<jmax_abi::number::NumericPolicy>) -> Result<()> {
+        frames::check_payload_growth(0, payload.len(), limits)?;
+        if numeric.is_some_and(|p| p.max_exponent_abs < 0) {
+            return Err(syntax_error(ErrorCode::ConstraintViolation, 0,
+                "numeric exponent limit cannot be negative"));
+        }
+        self.limits = limits;
+        self.numeric = numeric;
+        self.input = InputStorage::Complete(payload);
+        self.decoded.clear();
+        self.frames.clear();
+        self.root_phase = FramePhase::RootStart;
+        self.byte_offset = 0;
+        self.final_input = true;
+        self.finished = false;
+        self.failure = None;
+        self.pending = None;
+        self.dispatch = None;
+        self.block = None;
+        self.scan_offset = 0;
+        self.scan_carry = jmax_dispatch::ScanCarry::default();
+        Ok(())
+    }
+    /// Swap owner-bearing decoded storage after EOF or before resetting input.
+    pub fn swap_decoded(&mut self, arena: &mut Vec<u8>) {
+        core::mem::swap(&mut self.decoded, arena);
+    }
     pub const fn limits(&self) -> Limits { self.limits }
     pub fn raw_bytes(&self) -> &[u8] { &self.input }
     pub fn decoded_bytes(&self) -> &[u8] { &self.decoded }

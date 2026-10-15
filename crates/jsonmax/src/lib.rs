@@ -103,6 +103,7 @@ pub struct OutputBuffer { bytes: Vec<u8>, max_bytes: usize }
 impl OutputBuffer {
     pub const fn new(max_bytes: usize) -> Self { Self { bytes: Vec::new(), max_bytes } }
     pub fn as_bytes(&self) -> &[u8] { &self.bytes }
+    pub fn capacity(&self) -> usize { self.bytes.capacity() }
     pub fn into_vec(self) -> Vec<u8> { self.bytes }
     pub fn clear(&mut self) { self.bytes.clear(); }
     pub fn max_bytes(&self) -> usize { self.max_bytes }

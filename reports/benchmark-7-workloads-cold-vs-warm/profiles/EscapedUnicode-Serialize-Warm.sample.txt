@@ -1,0 +1,300 @@
+Analysis of sampling jmax-followup-baseline (pid 80493) every 1 millisecond
+Process:         jmax-followup-baseline [80493]
+Path:            /private/tmp/*/jmax-followup-baseline
+Load Address:    0x100168000
+Identifier:      jmax-followup-baseline
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  Python [76541]
+Target Type:     live task
+
+Date/Time:       2026-10-16 00:19:38.368 +0700
+Launch Time:     2026-10-16 00:19:38.256 +0700
+OS Version:      macOS 26.5 (25F71)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         9072K
+Physical footprint (peak):  9072K
+Idle exit:                  untracked
+----
+
+Call graph:
+    2490 Thread_33539711   DispatchQueue_1: com.apple.main-thread  (serial)
+      2490 start  (in dyld) + 6992  [0x18175fe00]
+        2490 main  (in jmax-followup-baseline) + 52  [0x10018a4c0]
+          2490 std::rt::lang_start_internal  (in jmax-followup-baseline) + 936  [0x100254070]
+            2490 std::rt::lang_start::<core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>>::{closure#0}  (in jmax-followup-baseline) + 16  [0x1001be8cc]
+              2490 std::sys::backtrace::__rust_begin_short_backtrace::<fn() -> core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>, core::result::Result<(), alloc::boxed::Box<dyn core::error::Error>>>  (in jmax-followup-baseline) + 12  [0x1001c1078]  backtrace.rs:166
+                2490 jmax_followup_baseline::main  (in jmax-followup-baseline) + 4812  [0x100183adc]  main.rs:112
+                  2480 jsonmax::encode::document_to_buffer  (in jmax-followup-baseline) + 128  [0x1001f5d08]
+                  + 2340 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1092  [0x1001f5ab8]
+                  + ! 1799 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 964  [0x1001f5a38]
+                  + ! : 1453 <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline) + 744  [0x100223844]
+                  + ! : | 530 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 244  [0x100222510]
+                  + ! : | + 266 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + ! 190 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + ! : 185 _platform_memmove  (in libsystem_platform.dylib) + 428,452,...  [0x181b2750c,0x181b27524,...]
+                  + ! : | + ! : 5 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 4  [0x1002804bc]
+                  + ! : | + ! 76 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,36,...  [0x1001f8e68,0x1001f8e70,...]
+                  + ! : | + 177 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 216,80,...  [0x100223d68,0x100223ce0,...]
+                  + ! : | + 51 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 160,152,...  [0x1001f8eec,0x1001f8ee4,...]
+                  + ! : | + 20 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : | + ! 20 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | + 16 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 280  [0x100223da8]
+                  + ! : | +   16 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | 403 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 492  [0x100222608]
+                  + ! : | + 170 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80,68,...  [0x100223ce0,0x100223cd4,...]
+                  + ! : | + 161 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + ! 109 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + ! : 94 _platform_memmove  (in libsystem_platform.dylib) + 428,452,...  [0x181b2750c,0x181b27524,...]
+                  + ! : | + ! : 15 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 4,0  [0x1002804bc,0x1002804b8]
+                  + ! : | + ! 52 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,84,...  [0x1001f8e68,0x1001f8ea0,...]
+                  + ! : | + 34 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 160,152,...  [0x1001f8eec,0x1001f8ee4,...]
+                  + ! : | + 22 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : | + ! 22 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | + 16 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 280  [0x100223da8]
+                  + ! : | +   16 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | 276 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 544  [0x10022263c]
+                  + ! : | + 276 jmax_string::escape::neon::find_neon  (in jmax-followup-baseline) + 112,88,...  [0x10022baf4,0x10022badc,...]
+                  + ! : | 167 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 264,544,...  [0x100222524,0x10022263c,...]
+                  + ! : | 58 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 148,144  [0x100223d24,0x100223d20]
+                  + ! : | 9 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 76  [0x100222468]
+                  + ! : | + 5 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248,156  [0x100223d88,0x100223d2c]
+                  + ! : | + 3 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + ! 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 84  [0x1001f8ea0]
+                  + ! : | + ! 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + !   1 _platform_memmove  (in libsystem_platform.dylib) + 0  [0x181b27360]
+                  + ! : | + 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 152  [0x1001f8ee4]
+                  + ! : | 6 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 604  [0x100222678]
+                  + ! : | + 3 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,272  [0x100223cac,0x100223da0]
+                  + ! : | + 2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + ! 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + !   1 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 4  [0x1002804bc]
+                  + ! : | + !   1 _platform_memmove  (in libsystem_platform.dylib) + 452  [0x181b27524]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : | +   1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | 2 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 176  [0x1002224cc]
+                  + ! : | + 2 jmax_string::escape::neon::find_neon  (in jmax-followup-baseline) + 0,112  [0x10022ba84,0x10022baf4]
+                  + ! : | 2 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 644  [0x1002226a0]
+                  + ! : |   2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : |     1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : |     ! 1 _platform_memmove  (in libsystem_platform.dylib) + 460  [0x181b2752c]
+                  + ! : |     1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 100  [0x1001f8eb0]
+                  + ! : 247 <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline) + 316  [0x100223698]
+                  + ! : | 247 jmax_string::escape::neon::find_neon  (in jmax-followup-baseline) + 112,88,...  [0x10022baf4,0x10022badc,...]
+                  + ! : 93 <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline) + 228,316,...  [0x100223640,0x100223698,...]
+                  + ! : 3 <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline) + 492  [0x100223748]
+                  + ! : | 2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 60,236  [0x100223e44,0x100223ef4]
+                  + ! : | 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 236  [0x100223ef4]
+                  + ! : |   1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 0  [0x1001f8f78]
+                  + ! : 2 <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline) + 200  [0x100223624]
+                  + ! : | 2 jmax_string::escape::neon::find_neon  (in jmax-followup-baseline) + 496,520  [0x10022bc74,0x10022bc8c]
+                  + ! : 1 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 120  [0x100222494]
+                  + ! 497 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 936  [0x1001f5a1c]
+                  + ! : 496 <jmax_abi::node::ValidatedDocument>::resolve_str  (in jmax-followup-baseline) + 108  [0x10023a3ac]
+                  + ! : | 496 core::str::converts::from_utf8  (in jmax-followup-baseline) + 44,120,...  [0x10026ca10,0x10026ca5c,...]
+                  + ! : 1 <jmax_abi::node::ValidatedDocument>::resolve_str  (in jmax-followup-baseline) + 44  [0x10023a36c]
+                  + ! 23 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1000  [0x1001f5a5c]
+                  + ! : 13 <jmax_encode::JsonWriter>::raw  (in jmax-followup-baseline) + 364  [0x100222f68]
+                  + ! : | 8 jmax_encode::raw::validate  (in jmax-followup-baseline) + 100  [0x100221d1c]
+                  + ! : | + 8 core::str::converts::from_utf8  (in jmax-followup-baseline) + 52,12,...  [0x10026ca18,0x10026c9f0,...]
+                  + ! : | 3 jmax_encode::raw::validate  (in jmax-followup-baseline) + 36,40,...  [0x100221cdc,0x100221ce0,...]
+                  + ! : | 2 jmax_encode::raw::validate  (in jmax-followup-baseline) + 292  [0x100221ddc]
+                  + ! : |   2 <jmax_encode::raw::Parser>::value  (in jmax-followup-baseline) + 1188,1244  [0x100221324,0x10022135c]
+                  + ! : 7 <jmax_encode::JsonWriter>::raw  (in jmax-followup-baseline) + 448  [0x100222fbc]
+                  + ! : | 3 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 380  [0x1002233f0]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : | + ! 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + ! 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28  [0x1001f8e68]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 52  [0x100223cc4]
+                  + ! : | 2 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 172  [0x100223320]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 72  [0x100223e50]
+                  + ! : | + ! 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | + 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 4  [0x100223e0c]
+                  + ! : | 2 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 172,260  [0x100223320,0x100223378]
+                  + ! : 3 <jmax_encode::JsonWriter>::raw  (in jmax-followup-baseline) + 0,344  [0x100222dfc,0x100222f54]
+                  + ! 10 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 664  [0x1001f590c]
+                  + ! : 4 jmax_encode::raw::validate  (in jmax-followup-baseline) + 100  [0x100221d1c]
+                  + ! : | 4 core::str::converts::from_utf8  (in jmax-followup-baseline) + 52,112  [0x10026ca18,0x10026ca54]
+                  + ! : 3 jmax_encode::raw::validate  (in jmax-followup-baseline) + 1020,228  [0x1002220b4,0x100221d9c]
+                  + ! : 2 jmax_encode::raw::validate  (in jmax-followup-baseline) + 292  [0x100221ddc]
+                  + ! : | 2 <jmax_encode::raw::Parser>::value  (in jmax-followup-baseline) + 1188,1228  [0x100221324,0x10022134c]
+                  + ! : 1 <jmax_encode::raw::Parser>::value  (in jmax-followup-baseline) + 1672  [0x100221508]
+                  + ! 10 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 468,168,...  [0x1001f5848,0x1001f571c,...]
+                  + ! 1 jmax_encode::raw::validate  (in jmax-followup-baseline) + 176  [0x100221d68]
+                  + 97 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1052  [0x1001f5a90]
+                  + ! 50 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 644  [0x100222c90]
+                  + ! : 23 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 644  [0x1002226a0]
+                  + ! : | 18 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + 16 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + ! 13 _platform_memmove  (in libsystem_platform.dylib) + 428,452,...  [0x181b2750c,0x181b27524,...]
+                  + ! : | + ! 3 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 4,8  [0x1002804bc,0x1002804c0]
+                  + ! : | + 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,104  [0x1001f8e68,0x1001f8eb4]
+                  + ! : | 3 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 52,272,...  [0x100223cc4,0x100223da0,...]
+                  + ! : | 2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : |   2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : 10 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 604  [0x100222678]
+                  + ! : | 6 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | + 5 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + ! 5 _platform_memmove  (in libsystem_platform.dylib) + 0,460,...  [0x181b27360,0x181b2752c,...]
+                  + ! : | + 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 100  [0x1001f8eb0]
+                  + ! : | 2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 68,216  [0x100223cd4,0x100223d68]
+                  + ! : | 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + ! : | + 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : | 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 280  [0x100223da8]
+                  + ! : |   1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : 9 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 76  [0x100222468]
+                  + ! : | 5 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 68,64,...  [0x100223cd4,0x100223cd0,...]
+                  + ! : | 4 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : |   4 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : |     3 _platform_memmove  (in libsystem_platform.dylib) + 0,436,...  [0x181b27360,0x181b27514,...]
+                  + ! : |     1 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 8  [0x1002804c0]
+                  + ! : 4 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 148  [0x100223d24]
+                  + ! : 2 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 176  [0x1002224cc]
+                  + ! : | 2 jmax_string::escape::find_scalar  (in jmax-followup-baseline) + 136,188  [0x100223bfc,0x100223c30]
+                  + ! : 2 <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline) + 0,176  [0x10022241c,0x1002224cc]
+                  + ! 14 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 612  [0x100222c70]
+                  + ! : 12 <jmax_encode::JsonWriter>::write_comma  (in jmax-followup-baseline) + 52  [0x100222334]
+                  + ! : | 7 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 68,80,...  [0x100223cd4,0x100223ce0,...]
+                  + ! : | 5 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : |   3 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : |   ! 3 _platform_memmove  (in libsystem_platform.dylib) + 12,428  [0x181b2736c,0x181b2750c]
+                  + ! : |   2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,124  [0x1001f8e68,0x1001f8ec8]
+                  + ! : 1 <jmax_encode::JsonWriter>::write_comma  (in jmax-followup-baseline) + 8  [0x100222308]
+                  + ! : 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 136  [0x100223d18]
+                  + ! 12 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 580  [0x100222c50]
+                  + ! : 8 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 216,204,...  [0x100223ee0,0x100223ed4,...]
+                  + ! : 4 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 236  [0x100223ef4]
+                  + ! :   4 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 0,32,...  [0x1001f8f78,0x1001f8f98,...]
+                  + ! 8 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 684  [0x100222cb8]
+                  + ! : 4 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + ! : | 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + ! : | + 2 _platform_memmove  (in libsystem_platform.dylib) + 12,460  [0x181b2736c,0x181b2752c]
+                  + ! : | 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28,84  [0x1001f8e68,0x1001f8ea0]
+                  + ! : 3 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 280  [0x100223da8]
+                  + ! : | 3 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + ! : 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 280  [0x100223da8]
+                  + ! 8 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 216,24,...  [0x100222ae4,0x100222a24,...]
+                  + ! 5 <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline) + 360  [0x100222b74]
+                  + !   5 jmax_string::escape::find_scalar  (in jmax-followup-baseline) + 4,188,...  [0x100223b78,0x100223c30,...]
+                  + 22 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1024  [0x1001f5a74]
+                  + ! 18 <jmax_dom::Members as core::iter::traits::iterator::Iterator>::next  (in jmax-followup-baseline) + 244  [0x100224318]
+                  + ! : 18 <jmax_abi::node::ValidatedDocument>::resolve_str  (in jmax-followup-baseline) + 108  [0x10023a3ac]
+                  + ! :   18 core::str::converts::from_utf8  (in jmax-followup-baseline) + 52,0,...  [0x10026ca18,0x10026c9e4,...]
+                  + ! 4 <jmax_dom::Members as core::iter::traits::iterator::Iterator>::next  (in jmax-followup-baseline) + 20,80,...  [0x100224238,0x100224274,...]
+                  + 7 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1328  [0x1001f5ba4]
+                  + ! 7 <jmax_encode::JsonWriter>::end_object  (in jmax-followup-baseline) + 52  [0x10022222c]
+                  + !   4 <jmax_encode::JsonWriter>::end  (in jmax-followup-baseline) + 140  [0x10022294c]
+                  + !   : 2 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+                  + !   : | 2 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+                  + !   : |   1 DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 4  [0x1002804bc]
+                  + !   : |   1 _platform_memmove  (in libsystem_platform.dylib) + 460  [0x181b2752c]
+                  + !   : 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 160  [0x1001f8eec]
+                  + !   : 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 28  [0x100223cac]
+                  + !   2 <jmax_encode::JsonWriter>::end  (in jmax-followup-baseline) + 88  [0x100222918]
+                  + !   : 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 72  [0x100223e50]
+                  + !   : | 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + !   : 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 24  [0x100223e20]
+                  + !   1 <jmax_encode::JsonWriter>::end  (in jmax-followup-baseline) + 236  [0x1002229ac]
+                  + 5 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 312  [0x1001f57ac]
+                  + ! 5 <jmax_encode::JsonWriter>::begin_object  (in jmax-followup-baseline) + 52  [0x10022239c]
+                  + !   4 <jmax_encode::JsonWriter>::begin  (in jmax-followup-baseline) + 232  [0x100223170]
+                  + !   : 2 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 380  [0x1002233f0]
+                  + !   : | 1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 156  [0x1001f8ee8]
+                  + !   : | 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+                  + !   : |   1 <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+                  + !   : 1 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 172  [0x100223320]
+                  + !   : | 1 <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 144  [0x100223e98]
+                  + !   : 1 <jmax_encode::JsonWriter>::token  (in jmax-followup-baseline) + 448  [0x100223434]
+                  + !   1 <jmax_encode::JsonWriter>::begin  (in jmax-followup-baseline) + 316  [0x1002231c4]
+                  + 4 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 1012  [0x1001f5a68]
+                  + ! 4 <jmax_dom::Object>::iter  (in jmax-followup-baseline) + 80,12  [0x100223f8c,0x100223f48]
+                  + 3 jsonmax::encode::encode_dom_node  (in jmax-followup-baseline) + 120,252,...  [0x1001f56ec,0x1001f5770,...]
+                  + 2 <jmax_dom::Members as core::iter::traits::iterator::Iterator>::next  (in jmax-followup-baseline) + 124  [0x1002242a0]
+                  4 jmax_followup_baseline::main  (in jmax-followup-baseline) + 4728,4480,...  [0x100183a88,0x100183990,...]  main.rs:112
+                  4 jsonmax::encode::document_to_buffer  (in jmax-followup-baseline) + 100,148,...  [0x1001f5cec,0x1001f5d1c,...]
+                  2 jsonmax::encode::document_to_buffer  (in jmax-followup-baseline) + 172  [0x1001f5d34]
+                    2 <jmax_encode::JsonWriter>::finish_with_scratch  (in jmax-followup-baseline) + 124,216  [0x100222810,0x10022286c]
+
+Total number in stack (recursive counted multiple, when >=5):
+        14       <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 0  [0x1001f8e4c]
+        14       <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 0  [0x100223c90]
+        13       <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline) + 0  [0x1001f5da0]
+        12       <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 248  [0x100223d88]
+        11       <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 124  [0x1001f8ec8]
+        11       _platform_memmove  (in libsystem_platform.dylib) + 0  [0x181b27360]
+        7       <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline) + 80  [0x100223ce0]
+        6       DYLD-STUB$$memcpy  (in jmax-followup-baseline) + 0  [0x1002804b8]
+        5       <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline) + 0  [0x100223e08]
+
+Sort by top of stack, same collapsed (when >= 5):
+        jmax_string::escape::neon::find_neon  (in jmax-followup-baseline)        527
+        core::str::converts::from_utf8  (in jmax-followup-baseline)        526
+        <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline)        438
+        _platform_memmove  (in libsystem_platform.dylib)        309
+        <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::write_bytes  (in jmax-followup-baseline)        227
+        <jmax_encode::JsonWriter>::write_string  (in jmax-followup-baseline)        170
+        <jmax_encode::JsonWriter>::string  (in jmax-followup-baseline)        93
+        <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::len  (in jmax-followup-baseline)        86
+        DYLD-STUB$$memcpy  (in jmax-followup-baseline)        26
+        jsonmax::encode::encode_dom_node  (in jmax-followup-baseline)        13
+        <jmax_encode::LimitedSink as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline)        13
+        <jmax_encode::JsonWriter>::key  (in jmax-followup-baseline)        8
+        jmax_string::escape::find_scalar  (in jmax-followup-baseline)        7
+        jmax_encode::raw::validate  (in jmax-followup-baseline)        7
+        <jmax_dom::Members as core::iter::traits::iterator::Iterator>::next  (in jmax-followup-baseline)        6
+        <jmax_encode::raw::Parser>::value  (in jmax-followup-baseline)        5
+        <jsonmax::OutputBuffer as jmax_abi::traits::ByteSink>::reserve  (in jmax-followup-baseline)        5
+
+Binary Images:
+       0x100168000 -        0x1002cc373 +jmax-followup-baseline (0) <7E5AB6B7-DFD6-3416-B9D9-2A20FE314701> /tmp/*/jmax-followup-baseline
+       0x1816b8000 -        0x18170ab4b  libobjc.A.dylib (951.7) <FF1D8AE4-ABEF-35F1-A30A-1183B9CB414F> /usr/lib/libobjc.A.dylib
+       0x18170b000 -        0x18173fd07  libdyld.dylib (1378) <B147D877-D0C2-388F-B38D-D3132E39905F> /usr/lib/system/libdyld.dylib
+       0x181740000 -        0x1817e6217  dyld (1.0.0 - 1378) <A237EF81-B68B-37BA-A165-92C965529534> /usr/lib/dyld
+       0x1817e7000 -        0x1817ea228  libsystem_blocks.dylib (96) <CC947089-488D-316B-A9C7-46DEC0F73145> /usr/lib/system/libsystem_blocks.dylib
+       0x1817eb000 -        0x18183f55f  libxpc.dylib (3102.120.13) <C40FCAE8-7A17-3D82-87CB-3DA4802ADEF1> /usr/lib/system/libxpc.dylib
+       0x181840000 -        0x1818609ff  libsystem_trace.dylib (1861.120.4) <D0FABAB3-5AE7-3F10-8C62-60CBF5D70850> /usr/lib/system/libsystem_trace.dylib
+       0x181861000 -        0x18190f5f7  libcorecrypto.dylib (1922.121.1) <A01A158D-6FE7-3B1C-A2C4-6BCB90D7314A> /usr/lib/system/libcorecrypto.dylib
+       0x181910000 -        0x1819601d7  libsystem_malloc.dylib (812.100.31) <5FAE4807-4D2B-3A95-A63A-DD96D3DA11B4> /usr/lib/system/libsystem_malloc.dylib
+       0x181961000 -        0x1819a823f  libdispatch.dylib (1542.100.32) <F071EFE4-299F-3089-ACC4-0025B8FFB52A> /usr/lib/system/libdispatch.dylib
+       0x1819a9000 -        0x1819abffb  libsystem_featureflags.dylib (103) <71FCFFBD-85F8-3365-AFE0-BECEA4369122> /usr/lib/system/libsystem_featureflags.dylib
+       0x1819ac000 -        0x181a2cd9f  libsystem_c.dylib (1752.120.2) <694B7881-1BF3-3D0F-8F19-B50AE4E8EF8A> /usr/lib/system/libsystem_c.dylib
+       0x181a2d000 -        0x181abdae7  libc++.1.dylib (2100.43) <5013C0F8-84A9-3B56-9FEB-C353816A750F> /usr/lib/libc++.1.dylib
+       0x181abe000 -        0x181ad875f  libc++abi.dylib (2100.43) <E482D257-E5A0-3816-BD97-7B39342958DA> /usr/lib/libc++abi.dylib
+       0x181ad9000 -        0x181b162af  libsystem_kernel.dylib (12377.121.6) <CC1CF985-BC65-3725-809F-4C1E36B8F4BA> /usr/lib/system/libsystem_kernel.dylib
+       0x181b17000 -        0x181b23b3b  libsystem_pthread.dylib (539.100.4) <4F33683C-18C8-39A1-800B-2E3BD43BCC13> /usr/lib/system/libsystem_pthread.dylib
+       0x181b24000 -        0x181b2c963  libsystem_platform.dylib (375.120.2) <160FD864-8D15-36FC-9E97-9725388CFAFE> /usr/lib/system/libsystem_platform.dylib
+       0x181b2d000 -        0x181b5c6eb  libsystem_info.dylib (600) <3D62F2D9-F516-31BF-83C7-E203D872300B> /usr/lib/system/libsystem_info.dylib
+       0x185af4000 -        0x185afde5f  libsystem_darwin.dylib (1752.120.2) <8858F025-745A-388E-9544-080781CC9A69> /usr/lib/system/libsystem_darwin.dylib
+       0x185f5f000 -        0x185f711b6  libsystem_notify.dylib (348.120.4) <64D76451-1E0C-369B-A631-54DA3140E083> /usr/lib/system/libsystem_notify.dylib
+       0x18822c000 -        0x188246f7b  libsystem_networkextension.dylib (2226.120.19) <3A1DAD41-F14F-3595-B9BB-058A84308BE7> /usr/lib/system/libsystem_networkextension.dylib
+       0x1882c9000 -        0x1882e0fdf  libsystem_asl.dylib (406) <F40838DF-2F15-3F62-970F-DEE25706BF1B> /usr/lib/system/libsystem_asl.dylib
+       0x189e87000 -        0x189e8f387  libsystem_symptoms.dylib (2169.120.7) <F5029F5C-1BF3-31C7-892E-BC8606AC829E> /usr/lib/system/libsystem_symptoms.dylib
+       0x18e12b000 -        0x18e163257  libsystem_containermanager.dylib (725.120.2) <518BE44D-AA31-31E6-B44B-A37AD5E47040> /usr/lib/system/libsystem_containermanager.dylib
+       0x18f53c000 -        0x18f5405d7  libsystem_configuration.dylib (1405.120.5) <0F7BBC1C-3D50-3E59-A31F-E4672A80BCEB> /usr/lib/system/libsystem_configuration.dylib
+       0x18f541000 -        0x18f5478cf  libsystem_sandbox.dylib (2680.120.12) <EC3A75EA-44C0-3A0B-9BF7-71C117B0A9C6> /usr/lib/system/libsystem_sandbox.dylib
+       0x190b9b000 -        0x190b9e1fb  libquarantine.dylib (196.120.2) <5849009B-ACA3-3796-94C4-BBDF8D300EBA> /usr/lib/system/libquarantine.dylib
+       0x19133a000 -        0x191340d03  libsystem_coreservices.dylib (191.4.5) <9576143B-C303-35A3-BA63-1FD06EDA2BB1> /usr/lib/system/libsystem_coreservices.dylib
+       0x1918c5000 -        0x191902a77  libsystem_m.dylib (3312.100.1) <A7E0863C-101A-31A0-922B-ED9B02626151> /usr/lib/system/libsystem_m.dylib
+       0x191903000 -        0x191903c9b  libcharset.1.dylib (115.120.2) <338A5252-594A-3AC5-B274-5AB3CE5820C6> /usr/lib/libcharset.1.dylib
+       0x191904000 -        0x191907527  libmacho.dylib (1378) <755441B4-C034-3E3A-8E3C-F424FBB28261> /usr/lib/system/libmacho.dylib
+       0x191921000 -        0x19192e3a7  libcommonCrypto.dylib (600035) <CE357BB1-2D49-37CC-9FFE-D093936B1475> /usr/lib/system/libcommonCrypto.dylib
+       0x19192f000 -        0x191938ca3  libunwind.dylib (2100.2) <FC8F0C4E-6FB0-3E27-ABEF-B0FA720CD5E4> /usr/lib/system/libunwind.dylib
+       0x191941000 -        0x19194b7ff  libcopyfile.dylib (240) <8ACFAC7A-88E9-3EF4-853F-A9140FF110E5> /usr/lib/system/libcopyfile.dylib
+       0x19194c000 -        0x19194f987  libcompiler_rt.dylib (103.3) <AA79151F-C19D-3C7C-92F8-B10F04D82C1C> /usr/lib/system/libcompiler_rt.dylib
+       0x191950000 -        0x19195478b  libsystem_collections.dylib (1752.120.2) <72DB5BE7-EF78-37D0-8AAD-53E37CFE4287> /usr/lib/system/libsystem_collections.dylib
+       0x191955000 -        0x1919584cf  libsystem_secinit.dylib (168.100.7) <E525C566-CDA4-3D99-B12B-1615FD54A1F3> /usr/lib/system/libsystem_secinit.dylib
+       0x191959000 -        0x19195bbf7  libremovefile.dylib (85.100.6) <635E661D-80A7-340D-A165-3F7D318FDFC9> /usr/lib/system/libremovefile.dylib
+       0x19195c000 -        0x19195cf27  libkeymgr.dylib (31) <8C08891A-DF1C-3DCC-AB64-4742FD6BE9BA> /usr/lib/system/libkeymgr.dylib
+       0x19195d000 -        0x191965e37  libsystem_dnssd.dylib (2881.120.11) <6F45DF3F-233B-3BC3-BA8C-B43E7DA884BF> /usr/lib/system/libsystem_dnssd.dylib
+       0x191966000 -        0x19196b09b  libcache.dylib (95) <189B576E-6176-3F82-8FA4-5914B0BEAEE7> /usr/lib/system/libcache.dylib
+       0x19196c000 -        0x19196dce3  libSystem.B.dylib (1356) <D65E4112-C151-3FF8-BEB7-4841436012D6> /usr/lib/libSystem.B.dylib
+       0x1919a6000 -        0x1919ad2bb  libiconv.2.dylib (115.120.2) <7C02D8F4-1921-323C-9D3D-A5D9B0ACDD78> /usr/lib/libiconv.2.dylib
+       0x284ba3000 -        0x284baa349  libRosetta.dylib (367.9) <8651ED4F-6506-3788-B56B-32EE414A85CA> /usr/lib/libRosetta.dylib
+       0x2867c0000 -        0x2867c3a4b  libsystem_darwindirectory.dylib (122) <CF277A2C-C818-3F16-8B3F-3C7B39FCD164> /usr/lib/system/libsystem_darwindirectory.dylib
+       0x2867c4000 -        0x2867cd5d3  libsystem_eligibility.dylib (319.121.1) <DDAC0531-0262-3DDC-8EC8-80EB9438847A> /usr/lib/system/libsystem_eligibility.dylib
+       0x2867ce000 -        0x2867d588b  libsystem_sanitizers.dylib (26.1) <44C4234F-8B2D-38D3-A774-B4B3C75AF3A7> /usr/lib/system/libsystem_sanitizers.dylib
+       0x2867d6000 -        0x2867d6bb7  libsystem_trial.dylib (474.2.18.2) <68C583BA-AFF5-3916-86AE-6E38BFEF98D6> /usr/lib/system/libsystem_trial.dylib

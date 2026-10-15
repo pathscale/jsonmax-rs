@@ -46,7 +46,7 @@ pub fn document_to_vec(document: &Document, options: EncodeOptions) -> Result<Ve
     let mut output = OutputBuffer::new(options.max_output_bytes);
     let limits = writer_limits(options.max_output_bytes);
     {
-        let mut writer = jmax_encode::writer::JsonWriter::new(&mut output, limits);
+        let mut writer = jmax_encode::JsonWriter::new(&mut output, limits);
         encode_dom_node(document, jmax_dom::navigate::root(document), &mut writer, 0)?;
         writer.finish()?;
     }
@@ -58,7 +58,7 @@ pub fn escape_string(value: &str, options: EncodeOptions) -> Result<Vec<u8>> {
     let mut output = OutputBuffer::new(options.max_output_bytes);
     let limits = writer_limits(options.max_output_bytes);
     {
-        let mut writer = jmax_encode::writer::JsonWriter::new(&mut output, limits);
+        let mut writer = jmax_encode::JsonWriter::new(&mut output, limits);
         writer.string(value)?;
         writer.finish()?;
     }
@@ -68,7 +68,7 @@ pub fn escape_string(value: &str, options: EncodeOptions) -> Result<Vec<u8>> {
 fn encode_dom_node(
     document: &jmax_dom::Document,
     node: jmax_dom::Node<'_>,
-    writer: &mut jmax_encode::writer::JsonWriter<'_>,
+    writer: &mut jmax_encode::JsonWriter<'_>,
     depth: usize,
 ) -> Result<()> {
     if depth > usize::from(jmax_encode::DEFAULT_MAX_DEPTH) {
@@ -130,4 +130,17 @@ fn writer_limits(max_output_bytes: usize) -> jmax_encode::EncodeLimits {
 
 fn document_error(detail: &'static str) -> Error {
     facade_error(ErrorCode::InternalError, ErrorSource::Encode, detail)
+}
+
+/// Serialize into retained output and writer frames. Preparation parses the
+/// document separately; this operation times only native DOM emission.
+pub fn document_to_buffer(document: &Document, output: &mut OutputBuffer,
+    scratch: &mut jmax_encode::WriterScratch) -> Result<()> {
+    output.clear();
+    let limits = writer_limits(output.max_bytes());
+    let mut writer = jmax_encode::JsonWriter::new_with_scratch(output, limits, scratch);
+    let result = encode_dom_node(document, jmax_dom::navigate::root(document), &mut writer, 0);
+    let finished = writer.finish_with_scratch(scratch);
+    result?;
+    finished.map(|_| ())
 }

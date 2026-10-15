@@ -303,7 +303,7 @@ pub fn decode_response<T: JsonDecode + SchemaProvider>(
     // produced values from those validated slots under T's exact schema and
     // preserves their reference invariants. These owners and proof are moved
     // unchanged, so all references continue to resolve in their proven buffers.
-    Ok(unsafe { ParsedMessage::new_proven(payload, decoded, value, proof) })
+    Ok(unsafe { ParsedMessage::new_proven(payload, decoded.into_boxed_slice(), value, proof) })
 }
 
 /// Preflights transport metadata before submitting owned validation and decode.

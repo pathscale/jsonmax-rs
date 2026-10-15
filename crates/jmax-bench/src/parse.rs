@@ -332,3 +332,93 @@ fn mix_slot_value(
     };
     Ok((digest, encoded_len))
 }
+
+/// Prewarm every payload even when the requested warmup count is zero.
+/// The measured path retains result tables and all cursor/VM scratch.
+pub fn run_parse_warm(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock) -> Result<BenchmarkReport> {
+    config.validate()?;
+    corpus::validate_workload(workload, config.max_total_input_bytes)?;
+    let mut operation = WarmOperation::new(workload, BenchmarkMode::Parse);
+    let mut verification = 0;
+    for input in &workload.payloads {
+        operation.execute(input)?;
+        let doc = operation.dom.document().ok_or_else(|| bench_error(
+            ErrorCode::InternalError, "warm DOM is missing"))?;
+        let cold = jsonmax::parse::parse_payload(input.clone(), jsonmax::ParseOptions::default())?;
+        if digest_document(doc) != digest_document(&cold) {
+            return Err(bench_error(ErrorCode::InternalError, "warm DOM differs from cold parse"));
+        }
+        verification = mix_digest(verification, digest_document(doc));
+    }
+    Ok(with_verification(measure(workload, &mut operation, config, clock)?, verification))
+}
+pub fn run_validate_warm(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock) -> Result<BenchmarkReport> {
+    run_schema_warm(workload, config, clock, BenchmarkMode::Validate)
+}
+pub fn run_extract_warm(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock) -> Result<BenchmarkReport> {
+    run_schema_warm(workload, config, clock, BenchmarkMode::Extract)
+}
+fn run_schema_warm(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock, mode: BenchmarkMode) -> Result<BenchmarkReport> {
+    config.validate()?;
+    corpus::validate_workload(workload, config.max_total_input_bytes)?;
+    let mut operation = WarmOperation::new(workload, mode);
+    let cold = SchemaOperation { workload, extract: mode == BenchmarkMode::Extract };
+    let mut verification = 0;
+    // Both reorder buffers must reach the maximum size before measurement.
+    for _ in 0..2 {
+        for input in &workload.payloads {
+            operation.execute(input)?;
+            let slots = operation.schema.slots().ok_or_else(|| bench_error(
+                ErrorCode::InternalError, "warm schema result is missing"))?;
+            let expected = cold.execute_slots(input)?;
+            if slots.slots != expected.slots || slots.decoded != expected.decoded
+                || slots.proof != expected.proof || slots.payload.as_slice() != expected.payload.as_slice() {
+                return Err(bench_error(ErrorCode::InternalError, "warm slots differ from cold validation"));
+            }
+            verification = mix_digest(verification, digest_all_slots(slots)?);
+        }
+    }
+    Ok(with_verification(measure(workload, &mut operation, config, clock)?, verification))
+}
+struct WarmOperation<'a> {
+    workload: &'a Workload,
+    mode: BenchmarkMode,
+    dom: jsonmax::parse::ParseScratch,
+    schema: jsonmax::endpoint::ValidationScratch,
+}
+impl<'a> WarmOperation<'a> {
+    fn new(workload: &'a Workload, mode: BenchmarkMode) -> Self {
+        Self { workload, mode, dom: Default::default(), schema: Default::default() }
+    }
+}
+impl BenchmarkOperation for WarmOperation<'_> {
+    fn name(&self) -> &str { "jsonmax.Warm-Scratch (Zero-Alloc Reuse)" }
+    fn mode(&self) -> BenchmarkMode { self.mode }
+    fn execute(&mut self, input: &Payload) -> Result<Observation> {
+        let options = jsonmax::ParseOptions::default();
+        if self.mode == BenchmarkMode::Parse {
+            let document = jsonmax::parse::parse_payload_into(input, options, &mut self.dom)?;
+            core::hint::black_box(document);
+            let parts = document.parts();
+            let digest = mix_digest(mix_digest(parts.nodes.len() as u64, parts.containers.len() as u64),
+                mix_digest(parts.decoded.len() as u64, document.proof().schema_fingerprint()));
+            return Ok(Observation { digest, output_bytes: 0, retained_bytes: document_retained_bytes(document)? });
+        }
+        let slots = if self.mode == BenchmarkMode::Extract {
+            jsonmax::endpoint::extract_payload_into(input, &self.workload.compiled_schema,
+                &self.workload.selection, options, &mut self.schema)?
+        } else {
+            jsonmax::endpoint::validate_payload_into(input, &self.workload.compiled_schema, options, &mut self.schema)?
+        };
+        core::hint::black_box(slots);
+        Ok(Observation {
+            digest: mix_digest(mix_digest(ACCEPTED_SCHEMA_MARKER, slots.proof.schema_fingerprint()), slots.slots.len() as u64),
+            output_bytes: if self.mode == BenchmarkMode::Extract { (slots.slots.len() * size_of::<SlotValue>()) as u64 } else { 0 },
+            retained_bytes: slots_retained_bytes(slots, &self.workload.compiled_schema)?,
+        })
+    }
+}

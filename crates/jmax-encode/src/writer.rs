@@ -196,6 +196,25 @@ impl<'a> JsonWriter<'a> {
         Ok(self.sink.appended_len())
     }
 
+    pub fn new_with_scratch(sink: &'a mut dyn ByteSink, limits: EncodeLimits,
+        scratch: &mut WriterScratch) -> Self {
+        let mut writer = Self::new(sink, limits);
+        writer.frames = core::mem::take(&mut scratch.frames);
+        writer.frames.clear();
+        writer
+    }
+    /// Return frames even when emission failed, before checking completion.
+    pub fn finish_with_scratch(mut self, scratch: &mut WriterScratch) -> Result<usize> {
+        let result = if self.poisoned || self.sink.is_poisoned() {
+            Err(encode_error(ErrorCode::InternalError, "JSON writer is poisoned"))
+        } else if !self.root_written || !self.frames.is_empty() {
+            Err(encode_error(ErrorCode::UnexpectedEof, "incomplete JSON message"))
+        } else { Ok(self.sink.appended_len()) };
+        self.frames.clear();
+        scratch.frames = core::mem::take(&mut self.frames);
+        result
+    }
+
     /// Centralizes poisoning, including errors which occurred before any write.
     fn operation(&mut self, action: impl FnOnce(&mut Self) -> Result<()>) -> Result<()> {
         if self.poisoned || self.sink.is_poisoned() {

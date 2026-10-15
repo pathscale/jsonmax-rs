@@ -85,7 +85,7 @@ pub fn decode_trade(
     // semantics. Symbol retains its checked original StrRef. All other values
     // are owned scalars, with no cursor, scratch or temporary-owner references.
     Ok(unsafe {
-        ParsedMessage::new_proven(slots.payload, slots.decoded, values, slots.proof)
+        ParsedMessage::new_proven(slots.payload, slots.decoded.into_boxed_slice(), values, slots.proof)
     })
 }
 

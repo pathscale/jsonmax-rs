@@ -365,3 +365,20 @@ pub fn measure(
     Ok(BenchmarkReport { operation: operation_name, workload: workload.name.clone(), mode: operation_mode, samples })
 }
 ```
+
+## Follow-up: seven workloads and allocation regimes
+
+The CLI uses `followup::make_suite`: NagoyaAuth, ExchangeOrder, RpcEnvelope,
+LargeCatalog, VectorCoordinates, DeepNesting, and EscapedUnicode. Legacy
+`corpus::make_suite` remains available. VectorCoordinates captures its coordinates
+array and DeepNesting captures its root container, so every Extract operation
+publishes selected output after validating the entire payload.
+
+The CLI runs Cold-Alloc and Warm-Scratch (Zero-Alloc Reuse) for Parse, Validate,
+Extract, and Serialize. Cold-Alloc constructs and drops engine scratch per message;
+all schemas and immutable input owners are prepared beforehand. Warm entry points
+prewarm the complete corpus even if `--warmup 0`, then retain cursor, VM, DOM,
+selection, output and writer-frame allocations. Allocation regression checks live
+in integration tests, without conditional unit-test modules. The external comparison runner
+and its dependency manifest are built outside the workspace; the report archives
+source, a lockfile, complete tables, and raw samples.

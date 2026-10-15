@@ -321,3 +321,67 @@ fn key_span(raw: &[u8], before: u32, after: u32) -> Result<Span32> {
         ErrorCode::PayloadTooLarge, after, "DOM key start exceeds u32"))?;
     Ok(Span32::new(start, after - start))
 }
+
+/// Reusable DOM construction storage. Results borrow this scratch, so the next
+/// parse cannot overwrite a live document. Growth can allocate; warmed capacities
+/// are retained across successful calls and after syntax errors.
+pub struct ParseScratch {
+    cursor: Cursor,
+    builder: Builder,
+    document: Option<Document>,
+}
+impl Default for ParseScratch {
+    fn default() -> Self { Self {
+        cursor: Cursor::new(Limits::strict_default(), SkipMode::Strict),
+        builder: Builder::new(), document: None,
+    } }
+}
+impl ParseScratch {
+    pub fn document(&self) -> Option<&Document> { self.document.as_ref() }
+}
+
+pub fn parse_into(payload: Payload, limits: Limits, scratch: &mut ParseScratch)
+    -> Result<&Document> {
+    parse_with_options_into(payload, limits, None, scratch)
+}
+
+pub fn parse_with_numeric_into(payload: Payload, limits: Limits,
+    numeric: jmax_abi::number::NumericPolicy, scratch: &mut ParseScratch) -> Result<&Document> {
+    parse_with_options_into(payload, limits, Some(numeric), scratch)
+}
+fn parse_with_options_into(payload: Payload, limits: Limits,
+    numeric: Option<jmax_abi::number::NumericPolicy>, scratch: &mut ParseScratch) -> Result<&Document> {
+    if let Some(document) = scratch.document.take() {
+        scratch.builder.parts = document.parts;
+        scratch.builder.metadata = core::mem::take(&mut scratch.builder.parts.node_metadata);
+        scratch.cursor.swap_decoded(&mut scratch.builder.parts.decoded);
+    }
+    let builder = &mut scratch.builder;
+    builder.parts.clear_keep_capacity();
+    builder.metadata.clear();
+    builder.stack.clear();
+    let cursor = &mut scratch.cursor;
+    cursor.reset_with_payload(payload.clone(), limits, SkipMode::Strict, numeric)?;
+    loop {
+        let before = cursor.state().byte_offset;
+        match jmax_cursor::walk::next(cursor)? {
+            ScanStep::Emit(event) => builder.event(event, cursor, before, cursor.state().byte_offset)?,
+            ScanStep::Finished => break,
+            ScanStep::NeedMore => return Err(dom_error(ErrorCode::InternalError,
+                cursor.state().byte_offset, "complete DOM input requested more bytes")),
+        }
+    }
+    builder.complete(cursor.state().byte_offset)?;
+    cursor.swap_decoded(&mut builder.parts.decoded);
+    builder.parts.node_metadata = core::mem::take(&mut builder.metadata);
+    let payload_len = u32::try_from(payload.len()).map_err(|_| dom_error(
+        ErrorCode::PayloadTooLarge, 0, "DOM payload length exceeds u32"))?;
+    let decoded_len = u32::try_from(builder.parts.decoded.len()).map_err(|_| dom_error(
+        ErrorCode::DecodedArenaOverflow, 0, "DOM decoded length exceeds u32"))?;
+    // SAFETY: The strict cursor reached EOF, Builder checked all links and
+    // references, and the exact payload and decoded arena move into the document.
+    let proof = unsafe { ValidationProof::issue_unchecked(0, payload_len, decoded_len) };
+    scratch.document = Some(Document { payload, parts: core::mem::take(&mut builder.parts), proof });
+    scratch.document.as_ref().ok_or_else(|| dom_error(ErrorCode::InternalError, 0,
+        "completed DOM document is missing"))
+}

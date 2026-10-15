@@ -27,11 +27,7 @@ pub fn run_serialize(
     config: BenchmarkConfig,
     clock: &mut dyn Clock,
 ) -> Result<BenchmarkReport> {
-    prepare(workload, config)?;
-    let documents = prepare_documents(workload)?;
-    for document in &documents { verify_serialized(document)?; }
-    let mut operation = PreparedOperation::new("jsonmax.serialize", BenchmarkMode::Serialize, documents)?;
-    measure(workload, &mut operation, config, clock)
+    run_serialize_regime(workload, config, clock, true)
 }
 
 /// Measure quoted JSON escaping of every string and object key in source order.
@@ -423,4 +419,53 @@ fn add_usize(total: &mut u64, amount: usize) -> Result<()> {
 
 fn encode_error(code: ErrorCode, detail: &'static str) -> Error {
     Error::new(code, ErrorSource::Encode, 0, detail)
+}
+
+pub fn run_serialize_cold(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock) -> Result<BenchmarkReport> {
+    run_serialize_regime(workload, config, clock, false)
+}
+fn run_serialize_regime(workload: &Workload, config: BenchmarkConfig,
+    clock: &mut dyn Clock, warm: bool) -> Result<BenchmarkReport> {
+    prepare(workload, config)?;
+    let documents = prepare_documents(workload)?;
+    let retained = retained_documents_bytes(&documents)?;
+    let mut operation = ReuseSerialize { documents, retained, next: 0, warm,
+        output: jsonmax::OutputBuffer::new(MAX_OUTPUT), frames: Default::default() };
+    for input in &workload.payloads {
+        operation.execute(input)?;
+        let index = (operation.next + workload.payloads.len() - 1) % workload.payloads.len();
+        verify_serialized(&operation.documents[index])?;
+        if warm {
+            let expected = jsonmax::encode::document_to_vec(&operation.documents[index], Default::default())?;
+            if expected != operation.output.as_bytes() {
+                return Err(encode_error(ErrorCode::InternalError, "warm serialization differs from cold"));
+            }
+        }
+    }
+    measure(workload, &mut operation, config, clock)
+}
+struct ReuseSerialize {
+    documents: Vec<jsonmax::Document>, retained: u64, next: usize, warm: bool,
+    output: jsonmax::OutputBuffer, frames: jmax_encode::WriterScratch,
+}
+impl BenchmarkOperation for ReuseSerialize {
+    fn name(&self) -> &str { if self.warm { "jsonmax.serialize.Warm-Scratch" } else { "jsonmax.serialize.Cold-Alloc" } }
+    fn mode(&self) -> BenchmarkMode { BenchmarkMode::Serialize }
+    fn execute(&mut self, _: &Payload) -> Result<Observation> {
+        let document = &self.documents[self.next];
+        let mut retained_bytes = self.retained;
+        let len = if self.warm {
+            jsonmax::encode::document_to_buffer(document, &mut self.output, &mut self.frames)?;
+            add_usize(&mut retained_bytes, self.output.capacity())?;
+            add_usize(&mut retained_bytes, self.frames.retained_bytes())?;
+            core::hint::black_box(self.output.as_bytes()).len()
+        } else {
+            let bytes = jsonmax::encode::document_to_vec(document, Default::default())?;
+            add_usize(&mut retained_bytes, bytes.capacity())?;
+            core::hint::black_box(bytes).len()
+        };
+        self.next = (self.next + 1) % self.documents.len();
+        Ok(Observation { digest: mix_digest(SERIALIZE_TAG, len as u64), output_bytes: len as u64, retained_bytes })
+    }
 }

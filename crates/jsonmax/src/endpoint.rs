@@ -376,3 +376,41 @@ fn model_error(mut error: Error) -> Error {
     error.source = ErrorSource::SchemaCompile;
     error
 }
+
+/// Reusable complete-input schema validation storage.
+pub use jmax_schema_vm::ValidationScratch;
+
+pub fn validate_payload_into<'a>(input: &Payload, schema: &CompiledSchema,
+    options: ParseOptions, scratch: &'a mut ValidationScratch) -> Result<&'a ValidatedSlots> {
+    jmax_schema_vm::execute::validate_into(schema.program(), input.clone(),
+        &schema.selection, VmLimits { syntax: options.limits, ..VmLimits::default() },
+        options.numeric, scratch)
+}
+
+pub fn extract_payload_into<'a>(input: &Payload, schema: &CompiledSchema,
+    selection: &Selection, options: ParseOptions,
+    scratch: &'a mut ValidationScratch) -> Result<&'a ValidatedSlots> {
+    jmax_schema_vm::execute::validate_into(schema.program(), input.clone(), selection,
+        VmLimits { syntax: options.limits, ..VmLimits::default() }, options.numeric, scratch)?;
+    scratch.order_selection(schema.program(), selection)
+}
+
+/// Cache one compilation (including failures) per Rust type in std builds.
+/// Compile under the lock so simultaneous first calls cannot compile twice.
+#[cfg(feature = "std")]
+pub(crate) fn cached_schema<T: super::SchemaProvider + 'static>() -> Result<Arc<CompiledSchema>> {
+    use core::any::TypeId;
+    use std::{collections::HashMap, sync::{Mutex, OnceLock}};
+    static CACHE: OnceLock<Mutex<HashMap<TypeId, Result<Arc<CompiledSchema>>>>> = OnceLock::new();
+    let mut cache = CACHE.get_or_init(|| Mutex::new(HashMap::new())).lock()
+        .map_err(|_| facade_error(ErrorCode::InternalError, ErrorSource::SchemaCompile,
+            "typed schema cache lock is poisoned"))?;
+    cache.entry(TypeId::of::<T>()).or_insert_with(|| {
+        let schema = compile_schema(&T::schema_ir(), CompileLimits::default_limits())?;
+        if schema.fingerprint() != T::schema_fingerprint() {
+            return Err(facade_error(ErrorCode::SchemaImageInvalid, ErrorSource::SchemaCompile,
+                "type schema fingerprint does not match its compiled schema"));
+        }
+        Ok(Arc::new(schema))
+    }).clone()
+}

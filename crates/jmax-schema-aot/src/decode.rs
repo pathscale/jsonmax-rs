@@ -231,7 +231,7 @@ fn validate_shape(slot_count: usize, specs: &[SlotSpec]) -> Result<()> {
             ErrorCode::SchemaImageInvalid, "decode plan does not cover the slot array",
         ));
     }
-    let mut ordered = Vec::new();
+    let mut ordered: Vec<&SlotSpec> = Vec::new();
     ordered.try_reserve_exact(specs.len()).map_err(|_| decode_error(
         ErrorCode::BudgetExhausted, "cannot allocate decode plan validation scratch",
     ))?;

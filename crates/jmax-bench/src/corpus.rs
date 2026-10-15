@@ -21,6 +21,7 @@ const UNICODE_SCHEMA_ID: u32 = 0x4a4d_0003;
 /// Build one reproducible corpus of the requested workload kind.
 pub fn make_workload(kind: WorkloadKind, config: CorpusConfig) -> Result<Workload> {
     validate_config(config)?;
+    if crate::followup::is_followup(kind) { return crate::followup::make_workload(kind, config); }
     validate_kind_config(kind, config)?;
     build_workload(kind, config, config.max_bytes)
 }
@@ -155,6 +156,7 @@ fn minimum_workload_bytes(kind: WorkloadKind, config: CorpusConfig) -> Result<u6
             .ok_or_else(|| budget_error("minimum payload size overflow"))?),
         WorkloadKind::AggTrade => Some(120),
         WorkloadKind::Nested => Some(u64::from((config.items_per_document % MAX_NESTING).max(1)) * 2 + 1),
+        _ => return Err(constraint_error("use followup suite for this workload")),
     }.ok_or_else(|| budget_error("minimum payload size overflow"))?;
     per_document.checked_mul(u64::from(config.documents))
         .ok_or_else(|| budget_error("minimum corpus size overflow"))
@@ -217,6 +219,7 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
         WorkloadKind::NumberArray | WorkloadKind::DepthBook | WorkloadKind::Nested => {
             native_workload_schema(kind, config.items_per_document)?
         }
+        _ => return Err(constraint_error("use followup suite for this workload")),
     };
     let schema = Some(compiled_schema.image().clone());
     Ok(Workload { name, kind, payloads, schema, compiled_schema, selection })
@@ -428,6 +431,7 @@ fn kind_name(kind: WorkloadKind) -> &'static str {
         WorkloadKind::DepthBook => "depth_book",
         WorkloadKind::AggTrade => "agg_trade",
         WorkloadKind::Nested => "nested",
+        _ => "followup",
     }
 }
 
@@ -509,6 +513,7 @@ fn write_document(
         WorkloadKind::DepthBook => write_depth_book(writer, items, document_index, rng),
         WorkloadKind::AggTrade => write_agg_trade(writer, document_index, rng),
         WorkloadKind::Nested => write_nested(writer, items, document_index, rng),
+        _ => Err(constraint_error("use followup suite for this workload")),
     }
 }
 
@@ -718,4 +723,282 @@ fn constraint_error(detail: &'static str) -> crate::Error {
 
 fn budget_error(detail: &'static str) -> crate::Error {
     bench_error(ErrorCode::BudgetExhausted, detail)
+}
+
+pub mod followup {
+    //! The seven follow-up workloads, with exact native shape schemas.
+    use crate::{
+        CorpusConfig, ErrorCode, Payload, Result, Selection, Workload, WorkloadKind, bench_error,
+    };
+    use alloc::{string::String, vec, vec::Vec};
+    use core::fmt::Write;
+    use jmax_abi::schema::{FieldId, SchemaId};
+    use jmax_schema_ir::{
+        ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
+    };
+
+    pub const KINDS: [WorkloadKind; 7] = [
+        WorkloadKind::NagoyaAuth,
+        WorkloadKind::ExchangeOrder,
+        WorkloadKind::RpcEnvelope,
+        WorkloadKind::LargeCatalog,
+        WorkloadKind::VectorCoordinates,
+        WorkloadKind::DeepNesting,
+        WorkloadKind::EscapedUnicode,
+    ];
+    pub fn is_followup(kind: WorkloadKind) -> bool {
+        KINDS.contains(&kind)
+    }
+    pub fn name(kind: WorkloadKind) -> &'static str {
+        match kind {
+            WorkloadKind::NagoyaAuth => "NagoyaAuth",
+            WorkloadKind::ExchangeOrder => "ExchangeOrder",
+            WorkloadKind::RpcEnvelope => "RpcEnvelope",
+            WorkloadKind::LargeCatalog => "LargeCatalog",
+            WorkloadKind::VectorCoordinates => "VectorCoordinates",
+            WorkloadKind::DeepNesting => "DeepNesting",
+            WorkloadKind::EscapedUnicode => "EscapedUnicode",
+            _ => "Legacy",
+        }
+    }
+    pub fn make_suite(config: CorpusConfig) -> Result<Vec<Workload>> {
+        let mut remaining = config.max_bytes;
+        let mut suite = Vec::new();
+        for kind in KINDS {
+            let workload = make_workload(
+                kind,
+                CorpusConfig {
+                    max_bytes: remaining,
+                    ..config
+                },
+            )?;
+            remaining = remaining
+                .checked_sub(workload.total_bytes()?)
+                .ok_or_else(budget)?;
+            suite.push(workload);
+        }
+        Ok(suite)
+    }
+    pub fn make_workload(kind: WorkloadKind, config: CorpusConfig) -> Result<Workload> {
+        if !is_followup(kind)
+            || config.documents == 0
+            || config.items_per_document == 0
+            || config.documents > 1_000_000
+            || config.items_per_document > 1_000_000
+        {
+            return Err(bench_error(
+                ErrorCode::ConstraintViolation,
+                "invalid followup corpus dimensions",
+            ));
+        }
+        let mut nodes = graph(kind, config.items_per_document);
+        let mut field_id = 0u32;
+        for node in &mut nodes {
+            if let TypeNode::Object(object) = node {
+                for property in &mut object.properties {
+                    property.field_id = FieldId(field_id);
+                    field_id += 1;
+                }
+            }
+        }
+        let schema = Schema {
+            name: String::from(name(kind)),
+            schema_id: SchemaId(0x4a4e_0000 + kind as u32),
+            root: TypeId(0),
+            nodes,
+            definitions: Vec::new(),
+        };
+        let compiled_schema = jsonmax::endpoint::compile_native_schema(
+            &schema,
+            jsonmax::CompileLimits::default_limits(),
+        )?;
+        let selection = Selection {
+            field_ids: compiled_schema
+                .program()
+                .program()
+                .slots
+                .iter()
+                .map(|s| s.field_id)
+                .collect(),
+            strict_validate_unselected: true,
+        };
+        let mut payloads = Vec::new();
+        let mut total = 0u64;
+        for doc in 0..config.documents {
+            let limit = config.max_bytes.checked_sub(total).ok_or_else(budget)?.min(16 * 1024 * 1024);
+            let bytes = document(kind, config.items_per_document, doc, config.seed, limit)?;
+            total = total.checked_add(bytes.len() as u64).ok_or_else(budget)?;
+            if total > config.max_bytes {
+                return Err(budget());
+            }
+            payloads.push(Payload::from_vec(bytes.into_bytes()));
+        }
+        Ok(Workload {
+            name: String::from(name(kind)),
+            kind,
+            payloads,
+            schema: None,
+            compiled_schema,
+            selection,
+        })
+    }
+    fn budget() -> crate::Error {
+        bench_error(
+            ErrorCode::BudgetExhausted,
+            "followup corpus budget exceeded",
+        )
+    }
+    fn scalar(kind: ValueKind) -> TypeNode {
+        TypeNode::Scalar(ScalarConstraints::new(kind))
+    }
+    fn array(ty: u32, count: u32) -> TypeNode {
+        TypeNode::Array(ArrayShape {
+            items: TypeId(ty),
+            min_items: Some(count),
+            max_items: Some(count),
+        })
+    }
+    fn object(fields: &[(&str, u32)], capture: bool) -> TypeNode {
+        TypeNode::Object(ObjectShape {
+            properties: fields
+                .iter()
+                .enumerate()
+                .map(|(i, (name, ty))| Property {
+                    name: String::from(*name),
+                    field_id: FieldId(i as u32),
+                    ty: TypeId(*ty),
+                    required: true,
+                    slot: capture.then_some(i as u32),
+                })
+                .collect(),
+            reject_unknown: true,
+            min_properties: None,
+            max_properties: None,
+        })
+    }
+    fn graph(kind: WorkloadKind, items: u32) -> Vec<TypeNode> {
+        let string = || scalar(ValueKind::String);
+        let number = || scalar(ValueKind::Number);
+        let boolean = || scalar(ValueKind::Boolean);
+        match kind {
+            WorkloadKind::NagoyaAuth => vec![
+                object(
+                    &[("user", 1), ("token", 1), ("expires", 2), ("admin", 3)],
+                    true,
+                ),
+                string(),
+                number(),
+                boolean(),
+            ],
+            WorkloadKind::ExchangeOrder => vec![
+                object(
+                    &[
+                        ("symbol", 1),
+                        ("side", 1),
+                        ("price", 1),
+                        ("quantity", 1),
+                        ("id", 2),
+                    ],
+                    true,
+                ),
+                string(),
+                number(),
+            ],
+            WorkloadKind::RpcEnvelope => vec![
+                object(
+                    &[("jsonrpc", 1), ("id", 2), ("method", 1), ("params", 3)],
+                    true,
+                ),
+                string(),
+                number(),
+                object(&[("account", 1), ("limit", 2), ("active", 4)], false),
+                boolean(),
+            ],
+            WorkloadKind::LargeCatalog => vec![
+                object(&[("catalog", 1), ("version", 4)], true),
+                array(2, items * 16),
+                object(
+                    &[("id", 4), ("name", 3), ("price", 4), ("active", 5)],
+                    false,
+                ),
+                string(),
+                number(),
+                boolean(),
+            ],
+            WorkloadKind::VectorCoordinates => vec![
+                object(&[("coordinates", 1)], true),
+                array(2, items * 3),
+                number(),
+            ],
+            WorkloadKind::EscapedUnicode => {
+                vec![object(&[("text", 1), ("id", 2)], true), string(), number()]
+            }
+            WorkloadKind::DeepNesting => {
+                let depth = items.clamp(1, 64);
+                let mut nodes = vec![object(&[("root", 1)], true)];
+                nodes.extend((0..depth).map(|level| {
+                    if level % 2 == 0 {
+                        array(level + 2, 1)
+                    } else {
+                        object(&[("v", level + 2)], false)
+                    }
+                }));
+                nodes.push(number());
+                nodes
+            }
+            _ => Vec::new(),
+        }
+    }
+    fn document(kind: WorkloadKind, items: u32, doc: u32, seed: u64, limit: u64) -> Result<String> {
+        let id = (seed % 1_000_000) + u64::from(doc);
+        let minimum = match kind {
+            WorkloadKind::LargeCatalog => u64::from(items) * 16 * 40,
+            WorkloadKind::VectorCoordinates => u64::from(items) * 3 * 2,
+            WorkloadKind::EscapedUnicode => u64::from(items) * 50,
+            WorkloadKind::DeepNesting => u64::from(items.clamp(1,64)) * 2,
+            _ => 1,
+        };
+        if minimum > limit { return Err(budget()); }
+        let mut out = String::new();
+        match kind {
+            WorkloadKind::NagoyaAuth => write!(out,"{{\"user\":\"user-{doc}\",\"token\":\"tok-{id:016x}\",\"expires\":{},\"admin\":false}}",1_800_000_000+id),
+            WorkloadKind::ExchangeOrder => write!(out,"{{\"symbol\":\"BTCUSDT\",\"side\":\"BUY\",\"price\":\"30000.125\",\"quantity\":\"0.0125\",\"id\":{id}}}"),
+            WorkloadKind::RpcEnvelope => write!(out,"{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"submit\",\"params\":{{\"account\":\"acct-{doc}\",\"limit\":100,\"active\":true}}}}"),
+            WorkloadKind::LargeCatalog => {
+                out.push_str("{\"catalog\":[");
+                for i in 0..items*16 {
+                    if i>0 { out.push(','); }
+                    write!(out,"{{\"id\":{},\"name\":\"product-{doc}-{i}\",\"price\":{}.125,\"active\":true}}",id+u64::from(i),i+1).map_err(|_| budget())?;
+                    if out.len() as u64 > limit { return Err(budget()); }
+                }
+                write!(out,"],\"version\":{id}}}")
+            }
+            WorkloadKind::VectorCoordinates => {
+                out.push_str("{\"coordinates\":[");
+                for i in 0..items*3 {
+                    if i>0 { out.push(','); }
+                    write!(out,"-{}.125",id%1000+u64::from(i)).map_err(|_|budget())?;
+                    if out.len() as u64 > limit { return Err(budget()); }
+                }
+                out.push_str("]}"); Ok(())
+            }
+            WorkloadKind::DeepNesting => {
+                let depth=items.clamp(1,64);
+                out.push_str("{\"root\":");
+                for i in 0..depth { out.push_str(if i%2==0 { "[" } else { "{\"v\":" }); }
+                write!(out,"{id}").map_err(|_|budget())?;
+                for i in (0..depth).rev() { out.push(if i%2==0 { ']' } else { '}' }); }
+                out.push('}');
+                Ok(())
+            }
+            WorkloadKind::EscapedUnicode => {
+                out.push_str("{\"text\":\"");
+                for _ in 0..items { out.push_str("quote=\\\" slash=\\\\ newline=\\n 漢字-é-🧭 pair=\\ud83d\\ude00 "); if out.len() as u64 > limit { return Err(budget()); } }
+                write!(out,"doc-{doc}\",\"id\":{id}}}")
+            }
+            _ => return Err(bench_error(ErrorCode::ConstraintViolation,"unsupported followup kind")),
+        }.map_err(|_|budget())?;
+        if out.len() as u64 > limit { return Err(budget()); }
+        Ok(out)
+    }
 }

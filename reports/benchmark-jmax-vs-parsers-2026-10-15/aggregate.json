@@ -1,0 +1,4502 @@
+[
+  {
+    "bytes": 631515,
+    "category": "A-scan",
+    "corpus": "twitter",
+    "gb_s": 0.2125508014640919,
+    "mb_s": 212.55080146409188,
+    "median_ns": 2971125.0,
+    "p95_ns": 3361625.0,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2646625.0,
+      3097000.0,
+      3103875.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2971.125,
+    "p95_us": 3361.625,
+    "speedup": 0.11062958755802375
+  },
+  {
+    "bytes": 631515,
+    "category": "A-scan",
+    "corpus": "twitter",
+    "gb_s": 0.12688456270470072,
+    "mb_s": 126.88456270470073,
+    "median_ns": 4977083.0,
+    "p95_ns": 5696667.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      4523666.0,
+      5154875.0,
+      5144459.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 4977.083,
+    "p95_us": 5696.667,
+    "speedup": 0.0660415615599204
+  },
+  {
+    "bytes": 631515,
+    "category": "A-scan",
+    "corpus": "twitter",
+    "gb_s": 1.921283502504353,
+    "mb_s": 1921.2835025043532,
+    "median_ns": 328694.3333333333,
+    "p95_ns": 375034.6666666667,
+    "parser": "serde-json-ignored",
+    "reps": 7,
+    "samples": 183,
+    "run_medians_ns": [
+      294803.5714285714,
+      341083.3333333333,
+      342611.1666666667
+    ],
+    "run_reps": [
+      7,
+      6,
+      6
+    ],
+    "median_us": 328.6943333333333,
+    "p95_us": 375.0346666666667,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 631515,
+    "category": "A-scan",
+    "corpus": "twitter",
+    "gb_s": 2.490714624578975,
+    "mb_s": 2490.7146245789745,
+    "median_ns": 253547.7142857143,
+    "p95_ns": 285765.625,
+    "parser": "simd-json-tape+copy",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      226018.55555555556,
+      259953.125,
+      265178.5714285714
+    ],
+    "run_reps": [
+      9,
+      8,
+      7
+    ],
+    "median_us": 253.54771428571428,
+    "p95_us": 285.765625,
+    "speedup": 1.2963805816957152
+  },
+  {
+    "bytes": 631515,
+    "category": "A-scan",
+    "corpus": "twitter",
+    "gb_s": 1.6452489777033028,
+    "mb_s": 1645.2489777033027,
+    "median_ns": 383841.6,
+    "p95_ns": 440183.4,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      341923.6666666667,
+      396783.4,
+      402925.0
+    ],
+    "run_reps": [
+      6,
+      5,
+      5
+    ],
+    "median_us": 383.84159999999997,
+    "p95_us": 440.1834,
+    "speedup": 0.8563280617143461
+  },
+  {
+    "bytes": 631515,
+    "category": "A-query-partial",
+    "corpus": "twitter",
+    "gb_s": 1.6473235736186156,
+    "mb_s": 1647.3235736186157,
+    "median_ns": 383358.2,
+    "p95_ns": 435508.2,
+    "parser": "sonic-rs-get-field",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      343055.6666666667,
+      399983.4,
+      402233.2
+    ],
+    "run_reps": [
+      6,
+      5,
+      5
+    ],
+    "median_us": 383.3582,
+    "p95_us": 435.5082,
+    "speedup": null
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.17764964552493873,
+    "mb_s": 177.6496455249387,
+    "median_ns": 3554834.0,
+    "p95_ns": 4195542.0,
+    "parser": "jmax-dom+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      3181750.0,
+      3726125.0,
+      3702750.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 3554.834,
+    "p95_us": 4195.542,
+    "speedup": 0.42820789944059273
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.17701063468087128,
+    "mb_s": 177.01063468087128,
+    "median_ns": 3567667.0,
+    "p95_ns": 4070375.0,
+    "parser": "jmax-dom-shared-input",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      3194958.0,
+      3734750.0,
+      3689417.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 3567.667,
+    "p95_us": 4070.375,
+    "speedup": 0.4266676234076779
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.1748985667797549,
+    "mb_s": 174.8985667797549,
+    "median_ns": 3610750.0,
+    "p95_ns": 4223666.0,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      3269667.0,
+      3777291.0,
+      3796542.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 3610.75,
+    "p95_us": 4223.666,
+    "speedup": 0.4215766807449976
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.414867744749732,
+    "mb_s": 414.86774474973197,
+    "median_ns": 1522208.0,
+    "p95_ns": 1759708.5,
+    "parser": "serde-json-value",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1326937.5,
+      1539979.5,
+      1593083.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      1
+    ],
+    "median_us": 1522.208,
+    "p95_us": 1759.7085,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 1.2302487907224107,
+    "mb_s": 1230.2487907224106,
+    "median_ns": 513323.0,
+    "p95_ns": 599194.3333333334,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      456333.4,
+      528656.25,
+      545083.3333333334
+    ],
+    "run_reps": [
+      5,
+      4,
+      3
+    ],
+    "median_us": 513.323,
+    "p95_us": 599.1943333333334,
+    "speedup": 2.965399952856194
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.6992339427295053,
+    "mb_s": 699.2339427295053,
+    "median_ns": 903152.6666666666,
+    "p95_ns": 1039271.0,
+    "parser": "simd-json-owned+copy",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      805847.3333333334,
+      925152.6666666666,
+      963166.5
+    ],
+    "run_reps": [
+      3,
+      3,
+      2
+    ],
+    "median_us": 903.1526666666666,
+    "p95_us": 1039.271,
+    "speedup": 1.68543819465
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 2.2826702812605895,
+    "mb_s": 2282.6702812605895,
+    "median_ns": 276656.25,
+    "p95_ns": 313750.0,
+    "parser": "sonic-rs-value",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      243592.55555555556,
+      283156.25,
+      289714.28571428574
+    ],
+    "run_reps": [
+      9,
+      8,
+      7
+    ],
+    "median_us": 276.65625,
+    "p95_us": 313.75,
+    "speedup": 5.502163786287134
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.789078447403725,
+    "mb_s": 789.078447403725,
+    "median_ns": 800319.6666666666,
+    "p95_ns": 936819.3333333334,
+    "parser": "json-rust-value",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      718889.0,
+      833555.3333333334,
+      826527.6666666666
+    ],
+    "run_reps": [
+      3,
+      3,
+      3
+    ],
+    "median_us": 800.3196666666666,
+    "p95_us": 936.8193333333334,
+    "speedup": 1.9019999925029958
+  },
+  {
+    "bytes": 631515,
+    "category": "B-dom",
+    "corpus": "twitter",
+    "gb_s": 0.4654759904120857,
+    "mb_s": 465.4759904120857,
+    "median_ns": 1356708.0,
+    "p95_ns": 1514041.5,
+    "parser": "miniserde-value",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1205208.0,
+      1396833.5,
+      1407625.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1356.708,
+    "p95_us": 1514.0415,
+    "speedup": 1.1219864554495145
+  },
+  {
+    "bytes": 631515,
+    "category": "C-typed",
+    "corpus": "twitter",
+    "gb_s": 0.125941974735224,
+    "mb_s": 125.94197473522401,
+    "median_ns": 5014333.0,
+    "p95_ns": 5624042.0,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      4509291.0,
+      5165333.0,
+      5198125.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 5014.333,
+    "p95_us": 5624.042,
+    "speedup": 0.06514183584194691
+  },
+  {
+    "bytes": 631515,
+    "category": "C-typed",
+    "corpus": "twitter",
+    "gb_s": 1.9333500984036736,
+    "mb_s": 1933.3500984036737,
+    "median_ns": 326642.85714285716,
+    "p95_ns": 375375.0,
+    "parser": "serde-json-typed",
+    "reps": 7,
+    "samples": 183,
+    "run_medians_ns": [
+      292541.5714285714,
+      340053.5714285714,
+      341159.8333333333
+    ],
+    "run_reps": [
+      7,
+      7,
+      6
+    ],
+    "median_us": 326.64285714285717,
+    "p95_us": 375.375,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 631515,
+    "category": "C-typed",
+    "corpus": "twitter",
+    "gb_s": 1.9698934234468417,
+    "mb_s": 1969.8934234468418,
+    "median_ns": 320583.3333333333,
+    "p95_ns": 379982.14285714284,
+    "parser": "simd-json-typed+copy",
+    "reps": 8,
+    "samples": 183,
+    "run_medians_ns": [
+      285765.625,
+      329910.71428571426,
+      336152.8333333333
+    ],
+    "run_reps": [
+      8,
+      7,
+      6
+    ],
+    "median_us": 320.5833333333333,
+    "p95_us": 379.98214285714283,
+    "speedup": 1.018901555943407
+  },
+  {
+    "bytes": 631515,
+    "category": "C-typed",
+    "corpus": "twitter",
+    "gb_s": 1.6227949956229688,
+    "mb_s": 1622.7949956229688,
+    "median_ns": 389152.6666666667,
+    "p95_ns": 444020.8333333333,
+    "parser": "miniserde-typed",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      349319.3333333333,
+      404930.6666666667,
+      411458.4
+    ],
+    "run_reps": [
+      6,
+      6,
+      5
+    ],
+    "median_us": 389.1526666666667,
+    "p95_us": 444.0208333333333,
+    "speedup": 0.8393694432078682
+  },
+  {
+    "bytes": 631515,
+    "category": "C-typed",
+    "corpus": "twitter",
+    "gb_s": 1.6657171117705243,
+    "mb_s": 1665.7171117705243,
+    "median_ns": 379125.0,
+    "p95_ns": 428908.2,
+    "parser": "sonic-rs-typed",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      340757.0,
+      390215.3333333333,
+      399416.8
+    ],
+    "run_reps": [
+      6,
+      6,
+      5
+    ],
+    "median_us": 379.125,
+    "p95_us": 428.9082,
+    "speedup": 0.8615703452498705
+  },
+  {
+    "bytes": 631515,
+    "category": "D-serialize",
+    "corpus": "twitter",
+    "gb_s": 0.3902556438184573,
+    "mb_s": 390.25564381845726,
+    "median_ns": 1618208.5,
+    "p95_ns": 1847896.0,
+    "parser": "jmax-dom-writer",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1476812.5,
+      1646792.0,
+      1682333.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1618.2085,
+    "p95_us": 1847.896,
+    "speedup": 0.19711015813681199
+  },
+  {
+    "bytes": 631515,
+    "category": "D-serialize",
+    "corpus": "twitter",
+    "gb_s": 1.9798860064207606,
+    "mb_s": 1979.8860064207606,
+    "median_ns": 318965.3333333333,
+    "p95_ns": 373340.1666666667,
+    "parser": "serde-json-to-vec",
+    "reps": 8,
+    "samples": 183,
+    "run_medians_ns": [
+      283083.375,
+      329476.14285714284,
+      334097.3333333333
+    ],
+    "run_reps": [
+      8,
+      7,
+      6
+    ],
+    "median_us": 318.9653333333333,
+    "p95_us": 373.3401666666667,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 631515,
+    "category": "D-serialize",
+    "corpus": "twitter",
+    "gb_s": 1.9673364485981308,
+    "mb_s": 1967.3364485981308,
+    "median_ns": 321000.0,
+    "p95_ns": 399541.6666666667,
+    "parser": "simd-json-to-vec",
+    "reps": 8,
+    "samples": 183,
+    "run_medians_ns": [
+      290968.75,
+      328994.875,
+      339930.6666666667
+    ],
+    "run_reps": [
+      8,
+      8,
+      6
+    ],
+    "median_us": 321.0,
+    "p95_us": 399.5416666666667,
+    "speedup": 0.9936614745586707
+  },
+  {
+    "bytes": 631515,
+    "category": "D-serialize",
+    "corpus": "twitter",
+    "gb_s": 1.3646016689449103,
+    "mb_s": 1364.6016689449102,
+    "median_ns": 462783.4,
+    "p95_ns": 524441.6,
+    "parser": "miniserde-to-string",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      417708.4,
+      479333.2,
+      483375.0
+    ],
+    "run_reps": [
+      5,
+      5,
+      5
+    ],
+    "median_us": 462.78340000000003,
+    "p95_us": 524.4416,
+    "speedup": 0.6892324429383883
+  },
+  {
+    "bytes": 631515,
+    "category": "D-serialize",
+    "corpus": "twitter",
+    "gb_s": 3.2706225829324307,
+    "mb_s": 3270.6225829324308,
+    "median_ns": 193087.0909090909,
+    "p95_ns": 218401.54545454544,
+    "parser": "sonic-rs-to-vec",
+    "reps": 11,
+    "samples": 183,
+    "run_medians_ns": [
+      170227.27272727274,
+      201503.81818181818,
+      201745.44444444444
+    ],
+    "run_reps": [
+      11,
+      11,
+      9
+    ],
+    "median_us": 193.0870909090909,
+    "p95_us": 218.40154545454544,
+    "speedup": 1.6519246927983822
+  },
+  {
+    "bytes": 367917,
+    "category": "D-escape-strings",
+    "corpus": "twitter",
+    "gb_s": 0.38577510843197893,
+    "mb_s": 385.77510843197894,
+    "median_ns": 953708.5,
+    "p95_ns": 1111500.0,
+    "parser": "jmax-string-writer",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      859389.0,
+      992514.0,
+      996916.5
+    ],
+    "run_reps": [
+      3,
+      3,
+      2
+    ],
+    "median_us": 953.7085,
+    "p95_us": 1111.5,
+    "speedup": 0.26277121663185643
+  },
+  {
+    "bytes": 367917,
+    "category": "D-escape-strings",
+    "corpus": "twitter",
+    "gb_s": 1.4681026079521162,
+    "mb_s": 1468.1026079521162,
+    "median_ns": 250607.14285714287,
+    "p95_ns": 292875.0,
+    "parser": "serde-json-strings",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      225000.0,
+      260629.66666666666,
+      261934.57142857142
+    ],
+    "run_reps": [
+      9,
+      9,
+      7
+    ],
+    "median_us": 250.60714285714286,
+    "p95_us": 292.875,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 367917,
+    "category": "D-escape-strings",
+    "corpus": "twitter",
+    "gb_s": 1.745443533338534,
+    "mb_s": 1745.4435333385343,
+    "median_ns": 210787.11111111112,
+    "p95_ns": 237856.44444444444,
+    "parser": "simd-json-strings",
+    "reps": 11,
+    "samples": 183,
+    "run_medians_ns": [
+      189628.81818181818,
+      219900.0,
+      222430.55555555556
+    ],
+    "run_reps": [
+      11,
+      10,
+      9
+    ],
+    "median_us": 210.78711111111113,
+    "p95_us": 237.85644444444443,
+    "speedup": 1.188911131881501
+  },
+  {
+    "bytes": 367917,
+    "category": "D-escape-strings",
+    "corpus": "twitter",
+    "gb_s": 1.1580338360655738,
+    "mb_s": 1158.033836065574,
+    "median_ns": 317708.3333333333,
+    "p95_ns": 362708.3333333333,
+    "parser": "miniserde-strings",
+    "reps": 7,
+    "samples": 183,
+    "run_medians_ns": [
+      288702.28571428574,
+      333291.71428571426,
+      335007.0
+    ],
+    "run_reps": [
+      7,
+      7,
+      6
+    ],
+    "median_us": 317.7083333333333,
+    "p95_us": 362.7083333333333,
+    "speedup": 0.7887962529274005
+  },
+  {
+    "bytes": 367917,
+    "category": "D-escape-strings",
+    "corpus": "twitter",
+    "gb_s": 4.721050402891738,
+    "mb_s": 4721.0504028917385,
+    "median_ns": 77931.17391304347,
+    "p95_ns": 99338.36,
+    "parser": "sonic-rs-strings",
+    "reps": 26,
+    "samples": 183,
+    "run_medians_ns": [
+      70828.53846153847,
+      79020.0,
+      80748.17391304347
+    ],
+    "run_reps": [
+      26,
+      25,
+      23
+    ],
+    "median_us": 77.93117391304347,
+    "p95_us": 99.33836,
+    "speedup": 3.2157496194882587
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-scan",
+    "corpus": "citm_catalog",
+    "gb_s": 0.2931086534223903,
+    "mb_s": 293.10865342239026,
+    "median_ns": 5892709.0,
+    "p95_ns": 7286958.0,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      5626250.0,
+      6394459.0,
+      5662291.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 5892.709,
+    "p95_us": 7286.958,
+    "speedup": 0.1552695882318302
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-scan",
+    "corpus": "citm_catalog",
+    "gb_s": 0.1893163440064669,
+    "mb_s": 189.3163440064669,
+    "median_ns": 9123375.0,
+    "p95_ns": 11516375.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      8716083.0,
+      9799875.0,
+      8799958.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 9123.375,
+    "p95_us": 11516.375,
+    "speedup": 0.10028728403688328
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-scan",
+    "corpus": "citm_catalog",
+    "gb_s": 1.8877402636294434,
+    "mb_s": 1887.7402636294432,
+    "median_ns": 914958.5,
+    "p95_ns": 1312097.3333333333,
+    "parser": "serde-json-ignored",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      875680.6666666666,
+      1002896.0,
+      856930.6666666666
+    ],
+    "run_reps": [
+      3,
+      2,
+      3
+    ],
+    "median_us": 914.9585,
+    "p95_us": 1312.0973333333332,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-scan",
+    "corpus": "citm_catalog",
+    "gb_s": 2.8794231831206045,
+    "mb_s": 2879.4231831206043,
+    "median_ns": 599843.75,
+    "p95_ns": 746906.25,
+    "parser": "simd-json-tape+copy",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      567062.5,
+      640802.0,
+      575708.25
+    ],
+    "run_reps": [
+      4,
+      4,
+      4
+    ],
+    "median_us": 599.84375,
+    "p95_us": 746.90625,
+    "speedup": 1.5253280541807763
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-scan",
+    "corpus": "citm_catalog",
+    "gb_s": 2.231609484749024,
+    "mb_s": 2231.609484749024,
+    "median_ns": 773972.3333333334,
+    "p95_ns": 898000.0,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      740177.0,
+      826861.3333333334,
+      734916.6666666666
+    ],
+    "run_reps": [
+      4,
+      3,
+      3
+    ],
+    "median_us": 773.9723333333334,
+    "p95_us": 898.0,
+    "speedup": 1.182159181400541
+  },
+  {
+    "bytes": 1727204,
+    "category": "A-query-partial",
+    "corpus": "citm_catalog",
+    "gb_s": 2.2549993842024203,
+    "mb_s": 2254.99938420242,
+    "median_ns": 765944.3333333334,
+    "p95_ns": 946041.6666666666,
+    "parser": "sonic-rs-get-field",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      726361.0,
+      823208.3333333334,
+      746000.0
+    ],
+    "run_reps": [
+      3,
+      3,
+      3
+    ],
+    "median_us": 765.9443333333334,
+    "p95_us": 946.0416666666666,
+    "speedup": null
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.23977844700501838,
+    "mb_s": 239.77844700501836,
+    "median_ns": 7203333.0,
+    "p95_ns": 9154542.0,
+    "parser": "jmax-dom+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      6792667.0,
+      7771625.0,
+      6868875.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 7203.333,
+    "p95_us": 9154.542,
+    "speedup": 0.3374596176519953
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.23985336650056666,
+    "mb_s": 239.85336650056666,
+    "median_ns": 7201083.0,
+    "p95_ns": 9167375.0,
+    "parser": "jmax-dom-shared-input",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      6833291.0,
+      7866125.0,
+      6912292.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 7201.083,
+    "p95_us": 9167.375,
+    "speedup": 0.3375650579225375
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.231716357940305,
+    "mb_s": 231.71635794030502,
+    "median_ns": 7453958.0,
+    "p95_ns": 9196250.0,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      7016209.0,
+      7986417.0,
+      7155333.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 7453.958,
+    "p95_us": 9196.25,
+    "speedup": 0.32611318711481874
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.7105396748605622,
+    "mb_s": 710.5396748605623,
+    "median_ns": 2430834.0,
+    "p95_ns": 3223917.0,
+    "parser": "serde-json-value",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2352334.0,
+      2663459.0,
+      2315042.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2430.834,
+    "p95_us": 3223.917,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 1.233423764204657,
+    "mb_s": 1233.4237642046571,
+    "median_ns": 1400333.0,
+    "p95_ns": 1854458.0,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1327917.0,
+      1524292.0,
+      1342333.0
+    ],
+    "run_reps": [
+      2,
+      1,
+      2
+    ],
+    "median_us": 1400.333,
+    "p95_us": 1854.458,
+    "speedup": 1.7358971044744358
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.9239678206162785,
+    "mb_s": 923.9678206162785,
+    "median_ns": 1869333.5,
+    "p95_ns": 2507541.0,
+    "parser": "simd-json-owned+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1760875.0,
+      2036333.0,
+      1800208.5
+    ],
+    "run_reps": [
+      2,
+      1,
+      2
+    ],
+    "median_us": 1869.3335,
+    "p95_us": 2507.541,
+    "speedup": 1.3003747057440527
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 2.889459444651932,
+    "mb_s": 2889.459444651932,
+    "median_ns": 597760.25,
+    "p95_ns": 820562.5,
+    "parser": "sonic-rs-value",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      575687.5,
+      643843.75,
+      570937.5
+    ],
+    "run_reps": [
+      4,
+      4,
+      4
+    ],
+    "median_us": 597.76025,
+    "p95_us": 820.5625,
+    "speedup": 4.066570167554634
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 1.0110955656373481,
+    "mb_s": 1011.0955656373482,
+    "median_ns": 1708250.0,
+    "p95_ns": 2265584.0,
+    "parser": "json-rust-value",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1626604.0,
+      1855875.0,
+      1585604.5
+    ],
+    "run_reps": [
+      2,
+      1,
+      2
+    ],
+    "median_us": 1708.25,
+    "p95_us": 2265.584,
+    "speedup": 1.4229966339821454
+  },
+  {
+    "bytes": 1727204,
+    "category": "B-dom",
+    "corpus": "citm_catalog",
+    "gb_s": 0.6261481501084483,
+    "mb_s": 626.1481501084482,
+    "median_ns": 2758459.0,
+    "p95_ns": 3660250.0,
+    "parser": "miniserde-value",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2680083.0,
+      2962625.0,
+      2688458.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2758.459,
+    "p95_us": 3660.25,
+    "speedup": 0.8812289760333577
+  },
+  {
+    "bytes": 1727204,
+    "category": "C-typed",
+    "corpus": "citm_catalog",
+    "gb_s": 0.18863832431190913,
+    "mb_s": 188.63832431190912,
+    "median_ns": 9156167.0,
+    "p95_ns": 11147667.0,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      8826167.0,
+      10112458.0,
+      8828458.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 9156.167,
+    "p95_us": 11147.667,
+    "speedup": 0.10066985453629232
+  },
+  {
+    "bytes": 1727204,
+    "category": "C-typed",
+    "corpus": "citm_catalog",
+    "gb_s": 1.873831299159208,
+    "mb_s": 1873.8312991592081,
+    "median_ns": 921750.0,
+    "p95_ns": 1179708.5,
+    "parser": "serde-json-typed",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      881389.0,
+      985875.0,
+      870611.0
+    ],
+    "run_reps": [
+      3,
+      2,
+      3
+    ],
+    "median_us": 921.75,
+    "p95_us": 1179.7085,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 1727204,
+    "category": "C-typed",
+    "corpus": "citm_catalog",
+    "gb_s": 2.329686574794069,
+    "mb_s": 2329.6865747940687,
+    "median_ns": 741389.0,
+    "p95_ns": 1028208.3333333334,
+    "parser": "simd-json-typed+copy",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      699510.5,
+      806055.3333333334,
+      716277.6666666666
+    ],
+    "run_reps": [
+      4,
+      3,
+      3
+    ],
+    "median_us": 741.389,
+    "p95_us": 1028.2083333333335,
+    "speedup": 1.2432744483665121
+  },
+  {
+    "bytes": 1727204,
+    "category": "C-typed",
+    "corpus": "citm_catalog",
+    "gb_s": 1.754397155916709,
+    "mb_s": 1754.397155916709,
+    "median_ns": 984500.0,
+    "p95_ns": 1181541.5,
+    "parser": "miniserde-typed",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      947597.0,
+      1053875.0,
+      937861.3333333334
+    ],
+    "run_reps": [
+      3,
+      2,
+      3
+    ],
+    "median_us": 984.5,
+    "p95_us": 1181.5415,
+    "speedup": 0.936262061960386
+  },
+  {
+    "bytes": 1727204,
+    "category": "C-typed",
+    "corpus": "citm_catalog",
+    "gb_s": 2.241787680493213,
+    "mb_s": 2241.787680493213,
+    "median_ns": 770458.3333333334,
+    "p95_ns": 1007444.3333333334,
+    "parser": "sonic-rs-typed",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      735986.0,
+      822625.0,
+      743027.6666666666
+    ],
+    "run_reps": [
+      3,
+      2,
+      3
+    ],
+    "median_us": 770.4583333333334,
+    "p95_us": 1007.4443333333334,
+    "speedup": 1.1963657995781731
+  },
+  {
+    "bytes": 1727204,
+    "category": "D-serialize",
+    "corpus": "citm_catalog",
+    "gb_s": 0.5567136180499597,
+    "mb_s": 556.7136180499597,
+    "median_ns": 3102500.0,
+    "p95_ns": 4069959.0,
+    "parser": "jmax-dom-writer",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2985750.0,
+      3389167.0,
+      2992625.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 3102.5,
+    "p95_us": 4069.959,
+    "speedup": 0.14055197421434326
+  },
+  {
+    "bytes": 1727204,
+    "category": "D-serialize",
+    "corpus": "citm_catalog",
+    "gb_s": 3.960909273326645,
+    "mb_s": 3960.909273326645,
+    "median_ns": 436062.5,
+    "p95_ns": 581138.8333333334,
+    "parser": "serde-json-to-vec",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      421944.5,
+      466925.0,
+      415493.0
+    ],
+    "run_reps": [
+      6,
+      5,
+      6
+    ],
+    "median_us": 436.0625,
+    "p95_us": 581.1388333333334,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 1727204,
+    "category": "D-serialize",
+    "corpus": "citm_catalog",
+    "gb_s": 4.257766157016678,
+    "mb_s": 4257.766157016678,
+    "median_ns": 405659.6666666667,
+    "p95_ns": 525716.6,
+    "parser": "simd-json-to-vec",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      389687.5,
+      448258.4,
+      386173.6666666667
+    ],
+    "run_reps": [
+      6,
+      5,
+      6
+    ],
+    "median_us": 405.6596666666667,
+    "p95_us": 525.7166,
+    "speedup": 1.0749466506817291
+  },
+  {
+    "bytes": 1727204,
+    "category": "D-serialize",
+    "corpus": "citm_catalog",
+    "gb_s": 1.967171366288009,
+    "mb_s": 1967.171366288009,
+    "median_ns": 878014.0,
+    "p95_ns": 1190875.0,
+    "parser": "miniserde-to-string",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      848152.6666666666,
+      944986.0,
+      851555.6666666666
+    ],
+    "run_reps": [
+      3,
+      3,
+      3
+    ],
+    "median_us": 878.014,
+    "p95_us": 1190.875,
+    "speedup": 0.4966464088271941
+  },
+  {
+    "bytes": 1727204,
+    "category": "D-serialize",
+    "corpus": "citm_catalog",
+    "gb_s": 4.290746596128201,
+    "mb_s": 4290.746596128201,
+    "median_ns": 402541.6,
+    "p95_ns": 510583.2,
+    "parser": "sonic-rs-to-vec",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      387575.0,
+      448391.6,
+      386145.8333333333
+    ],
+    "run_reps": [
+      5,
+      5,
+      6
+    ],
+    "median_us": 402.54159999999996,
+    "p95_us": 510.58320000000003,
+    "speedup": 1.0832731325159934
+  },
+  {
+    "bytes": 221379,
+    "category": "D-escape-strings",
+    "corpus": "citm_catalog",
+    "gb_s": 0.1927934228041215,
+    "mb_s": 192.7934228041215,
+    "median_ns": 1148270.5,
+    "p95_ns": 1429125.0,
+    "parser": "jmax-string-writer",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1108520.5,
+      1247271.0,
+      1094708.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1148.2705,
+    "p95_us": 1429.125,
+    "speedup": 0.19824379360089806
+  },
+  {
+    "bytes": 221379,
+    "category": "D-escape-strings",
+    "corpus": "citm_catalog",
+    "gb_s": 0.9725067267036407,
+    "mb_s": 972.5067267036407,
+    "median_ns": 227637.5,
+    "p95_ns": 323731.44444444444,
+    "parser": "serde-json-strings",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      219185.22222222222,
+      250572.875,
+      218000.0
+    ],
+    "run_reps": [
+      9,
+      8,
+      10
+    ],
+    "median_us": 227.6375,
+    "p95_us": 323.73144444444443,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 221379,
+    "category": "D-escape-strings",
+    "corpus": "citm_catalog",
+    "gb_s": 0.906998563304727,
+    "mb_s": 906.9985633047269,
+    "median_ns": 244078.66666666666,
+    "p95_ns": 291152.77777777775,
+    "parser": "simd-json-strings",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      237287.0,
+      264114.625,
+      233893.55555555556
+    ],
+    "run_reps": [
+      9,
+      8,
+      9
+    ],
+    "median_us": 244.07866666666666,
+    "p95_us": 291.15277777777777,
+    "speedup": 0.9326398865939397
+  },
+  {
+    "bytes": 221379,
+    "category": "D-escape-strings",
+    "corpus": "citm_catalog",
+    "gb_s": 0.6725012340991077,
+    "mb_s": 672.5012340991077,
+    "median_ns": 329187.5,
+    "p95_ns": 418583.3333333333,
+    "parser": "miniserde-strings",
+    "reps": 7,
+    "samples": 183,
+    "run_medians_ns": [
+      319148.85714285716,
+      359465.1666666667,
+      316077.4285714286
+    ],
+    "run_reps": [
+      7,
+      6,
+      7
+    ],
+    "median_us": 329.1875,
+    "p95_us": 418.5833333333333,
+    "speedup": 0.6915131953673818
+  },
+  {
+    "bytes": 221379,
+    "category": "D-escape-strings",
+    "corpus": "citm_catalog",
+    "gb_s": 2.5375264111942526,
+    "mb_s": 2537.526411194253,
+    "median_ns": 87242.04761904762,
+    "p95_ns": 151319.42857142858,
+    "parser": "sonic-rs-strings",
+    "reps": 22,
+    "samples": 183,
+    "run_medians_ns": [
+      90481.09090909091,
+      92932.52380952382,
+      81089.76923076923
+    ],
+    "run_reps": [
+      22,
+      21,
+      26
+    ],
+    "median_us": 87.24204761904763,
+    "p95_us": 151.31942857142857,
+    "speedup": 2.6092636086902177
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-scan",
+    "corpus": "canada",
+    "gb_s": 0.1668619398836218,
+    "mb_s": 166.8619398836218,
+    "median_ns": 13490500.0,
+    "p95_ns": 32425833.0,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      14639791.0,
+      13623375.0,
+      11621000.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 13490.5,
+    "p95_us": 32425.833,
+    "speedup": 0.11073685185871539
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-scan",
+    "corpus": "canada",
+    "gb_s": 0.08198272793076604,
+    "mb_s": 81.98272793076605,
+    "median_ns": 27457625.0,
+    "p95_ns": 69390125.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      32570792.0,
+      27870125.0,
+      23958792.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 27457.625,
+    "p95_us": 69390.125,
+    "speedup": 0.05440730944500845
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-scan",
+    "corpus": "canada",
+    "gb_s": 1.5068329745956126,
+    "mb_s": 1506.8329745956125,
+    "median_ns": 1493895.5,
+    "p95_ns": 2851687.5,
+    "parser": "serde-json-ignored",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1559833.5,
+      1554791.5,
+      1343354.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1493.8955,
+    "p95_us": 2851.6875,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-scan",
+    "corpus": "canada",
+    "gb_s": 0.8639473092354681,
+    "mb_s": 863.9473092354681,
+    "median_ns": 2605542.0,
+    "p95_ns": 4682250.0,
+    "parser": "simd-json-tape+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2868875.0,
+      2771458.0,
+      2513292.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2605.542,
+    "p95_us": 4682.25,
+    "speedup": 0.5733530681908026
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-scan",
+    "corpus": "canada",
+    "gb_s": 1.39509953726012,
+    "mb_s": 1395.09953726012,
+    "median_ns": 1613541.5,
+    "p95_ns": 2956771.0,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1661250.0,
+      1627396.0,
+      1390083.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1613.5415,
+    "p95_us": 2956.771,
+    "speedup": 0.9258488238449398
+  },
+  {
+    "bytes": 2251051,
+    "category": "A-query-partial",
+    "corpus": "canada",
+    "gb_s": 59629.86309525478,
+    "mb_s": 59629863.09525479,
+    "median_ns": 37.75039691780097,
+    "p95_ns": 66.37610872372404,
+    "parser": "sonic-rs-get-field",
+    "reps": 47239,
+    "samples": 183,
+    "run_medians_ns": [
+      38.53278011812274,
+      40.00010146515687,
+      34.22606627159669
+    ],
+    "run_reps": [
+      47239,
+      49278,
+      47924
+    ],
+    "median_us": 0.03775039691780097,
+    "p95_us": 0.06637610872372404,
+    "speedup": null
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.11047741948655813,
+    "mb_s": 110.47741948655813,
+    "median_ns": 20375666.0,
+    "p95_ns": 59759459.0,
+    "parser": "jmax-dom+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      20954917.0,
+      20503333.0,
+      17971209.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 20375.666,
+    "p95_us": 59759.459,
+    "speedup": 0.2400146822194671
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.11019573863984042,
+    "mb_s": 110.19573863984041,
+    "median_ns": 20427750.0,
+    "p95_ns": 46661083.0,
+    "parser": "jmax-dom-shared-input",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      24468959.0,
+      20619708.0,
+      18003333.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 20427.75,
+    "p95_us": 46661.083,
+    "speedup": 0.23940272423541506
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.0973599360267588,
+    "mb_s": 97.3599360267588,
+    "median_ns": 23120917.0,
+    "p95_ns": 53363833.0,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      29285042.0,
+      23554917.0,
+      20280167.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 23120.917,
+    "p95_us": 53363.833,
+    "speedup": 0.21151665394586208
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.4602944222617959,
+    "mb_s": 460.2944222617959,
+    "median_ns": 4890459.0,
+    "p95_ns": 8745542.0,
+    "parser": "serde-json-value",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      5045500.0,
+      4983584.0,
+      4265750.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 4890.459,
+    "p95_us": 8745.542,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.4268406731452951,
+    "mb_s": 426.8406731452951,
+    "median_ns": 5273750.0,
+    "p95_ns": 9609417.0,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      5707917.0,
+      5580542.0,
+      4837708.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 5273.75,
+    "p95_us": 9609.417,
+    "speedup": 0.9273209765347239
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.41906659545240205,
+    "mb_s": 419.066595452402,
+    "median_ns": 5371583.0,
+    "p95_ns": 12126166.0,
+    "parser": "simd-json-owned+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      5742500.0,
+      5646958.0,
+      4959500.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 5371.583,
+    "p95_us": 12126.166,
+    "speedup": 0.9104316176441842
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 1.4071817151787458,
+    "mb_s": 1407.181715178746,
+    "median_ns": 1599687.5,
+    "p95_ns": 3151958.5,
+    "parser": "sonic-rs-value",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1624895.5,
+      1617812.5,
+      1393666.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1599.6875,
+    "p95_us": 3151.9585,
+    "speedup": 3.0571339714788044
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.7661957727101613,
+    "mb_s": 766.1957727101612,
+    "median_ns": 2937958.0,
+    "p95_ns": 6154833.0,
+    "parser": "json-rust-value",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      3064209.0,
+      2979375.0,
+      2568917.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2937.958,
+    "p95_us": 6154.833,
+    "speedup": 1.6645775739476194
+  },
+  {
+    "bytes": 2251051,
+    "category": "B-dom",
+    "corpus": "canada",
+    "gb_s": 0.35867841074168905,
+    "mb_s": 358.67841074168905,
+    "median_ns": 6275959.0,
+    "p95_ns": 11011666.0,
+    "parser": "miniserde-value",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      6366000.0,
+      6401375.0,
+      5527875.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 6275.959,
+    "p95_us": 11011.666,
+    "speedup": 0.7792369261813215
+  },
+  {
+    "bytes": 2251051,
+    "category": "C-typed",
+    "corpus": "canada",
+    "gb_s": 0.08160576939355599,
+    "mb_s": 81.60576939355599,
+    "median_ns": 27584459.0,
+    "p95_ns": 64692084.0,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      31826167.0,
+      27849666.0,
+      23910042.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 27584.459,
+    "p95_us": 64692.084,
+    "speedup": 0.05578624906147334
+  },
+  {
+    "bytes": 2251051,
+    "category": "C-typed",
+    "corpus": "canada",
+    "gb_s": 1.462829474403826,
+    "mb_s": 1462.829474403826,
+    "median_ns": 1538833.5,
+    "p95_ns": 3021312.5,
+    "parser": "serde-json-typed",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1556958.5,
+      1565000.0,
+      1337125.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1538.8335,
+    "p95_us": 3021.3125,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 2251051,
+    "category": "C-typed",
+    "corpus": "canada",
+    "gb_s": 0.7194922692291219,
+    "mb_s": 719.4922692291219,
+    "median_ns": 3128666.0,
+    "p95_ns": 5685792.0,
+    "parser": "simd-json-typed+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      3281250.0,
+      3387000.0,
+      2865792.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 3128.666,
+    "p95_us": 5685.792,
+    "speedup": 0.4918497212550013
+  },
+  {
+    "bytes": 2251051,
+    "category": "C-typed",
+    "corpus": "canada",
+    "gb_s": 0.9173921548650026,
+    "mb_s": 917.3921548650026,
+    "median_ns": 2453750.0,
+    "p95_ns": 5054917.0,
+    "parser": "miniserde-typed",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      2567833.0,
+      2572375.0,
+      2209250.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 2453.75,
+    "p95_us": 5054.917,
+    "speedup": 0.6271354049923586
+  },
+  {
+    "bytes": 2251051,
+    "category": "C-typed",
+    "corpus": "canada",
+    "gb_s": 1.4031617485953896,
+    "mb_s": 1403.1617485953896,
+    "median_ns": 1604270.5,
+    "p95_ns": 2983792.0,
+    "parser": "sonic-rs-typed",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1622125.0,
+      1631020.5,
+      1390395.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1604.2705,
+    "p95_us": 2983.792,
+    "speedup": 0.9592107440733966
+  },
+  {
+    "bytes": 2251051,
+    "category": "D-serialize",
+    "corpus": "canada",
+    "gb_s": 0.21249777689503885,
+    "mb_s": 212.49777689503887,
+    "median_ns": 10593292.0,
+    "p95_ns": 21201209.0,
+    "parser": "jmax-dom-writer",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      10942958.0,
+      10995625.0,
+      9313333.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 10593.292,
+    "p95_us": 21201.209,
+    "speedup": 0.1983330583165271
+  },
+  {
+    "bytes": 2251051,
+    "category": "D-serialize",
+    "corpus": "canada",
+    "gb_s": 1.0714188481675393,
+    "mb_s": 1071.4188481675392,
+    "median_ns": 2101000.0,
+    "p95_ns": 7425875.0,
+    "parser": "serde-json-to-vec",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      2121312.5,
+      2136854.0,
+      1837791.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 2101.0,
+    "p95_us": 7425.875,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 2251051,
+    "category": "D-serialize",
+    "corpus": "canada",
+    "gb_s": 0.9318710478654593,
+    "mb_s": 931.8710478654592,
+    "median_ns": 2415625.0,
+    "p95_ns": 4854458.0,
+    "parser": "simd-json-to-vec",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      2437875.0,
+      2465291.0,
+      2123375.0
+    ],
+    "run_reps": [
+      2,
+      1,
+      1
+    ],
+    "median_us": 2415.625,
+    "p95_us": 4854.458,
+    "speedup": 0.8697542043984476
+  },
+  {
+    "bytes": 2251051,
+    "category": "D-serialize",
+    "corpus": "canada",
+    "gb_s": 0.5232365456757025,
+    "mb_s": 523.2365456757025,
+    "median_ns": 4302167.0,
+    "p95_ns": 10044875.0,
+    "parser": "miniserde-to-string",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      4354875.0,
+      4376333.0,
+      3762750.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      1
+    ],
+    "median_us": 4302.167,
+    "p95_us": 10044.875,
+    "speedup": 0.4883585411723906
+  },
+  {
+    "bytes": 2251051,
+    "category": "D-serialize",
+    "corpus": "canada",
+    "gb_s": 1.0445205789324834,
+    "mb_s": 1044.5205789324834,
+    "median_ns": 2155104.5,
+    "p95_ns": 3910500.0,
+    "parser": "sonic-rs-to-vec",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      2225479.0,
+      2222229.5,
+      1937125.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 2155.1045,
+    "p95_us": 3910.5,
+    "speedup": 0.9748947208824444
+  },
+  {
+    "bytes": 90,
+    "category": "D-escape-strings",
+    "corpus": "canada",
+    "gb_s": 0.12230988761336742,
+    "mb_s": 122.30988761336741,
+    "median_ns": 735.8358490566038,
+    "p95_ns": 1100.4289324068225,
+    "parser": "jmax-string-writer",
+    "reps": 3333,
+    "samples": 183,
+    "run_medians_ns": [
+      762.2889288928893,
+      755.4485154769425,
+      656.1842767295598
+    ],
+    "run_reps": [
+      3333,
+      3166,
+      3180
+    ],
+    "median_us": 0.7358358490566038,
+    "p95_us": 1.1004289324068224,
+    "speedup": 0.16408703470868752
+  },
+  {
+    "bytes": 90,
+    "category": "D-escape-strings",
+    "corpus": "canada",
+    "gb_s": 0.7453964161794422,
+    "mb_s": 745.3964161794422,
+    "median_ns": 120.7411225040475,
+    "p95_ns": 199.3943411927878,
+    "parser": "serde-json-strings",
+    "reps": 18530,
+    "samples": 183,
+    "run_medians_ns": [
+      124.92806260118726,
+      123.91583911234396,
+      106.78307870498043
+    ],
+    "run_reps": [
+      18530,
+      18025,
+      18131
+    ],
+    "median_us": 0.12074112250404749,
+    "p95_us": 0.19939434119278782,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 90,
+    "category": "D-escape-strings",
+    "corpus": "canada",
+    "gb_s": 0.67684952342605,
+    "mb_s": 676.84952342605,
+    "median_ns": 132.96899367593787,
+    "p95_ns": 235.05951824134706,
+    "parser": "simd-json-strings",
+    "reps": 17104,
+    "samples": 183,
+    "run_medians_ns": [
+      136.66879092609915,
+      136.6600790513834,
+      118.6529133664886
+    ],
+    "run_reps": [
+      17104,
+      16445,
+      16287
+    ],
+    "median_us": 0.13296899367593787,
+    "p95_us": 0.23505951824134708,
+    "speedup": 0.9080396802754541
+  },
+  {
+    "bytes": 90,
+    "category": "D-escape-strings",
+    "corpus": "canada",
+    "gb_s": 0.2925015773122599,
+    "mb_s": 292.50157731225994,
+    "median_ns": 307.6906484641638,
+    "p95_ns": 631.1661546680914,
+    "parser": "miniserde-strings",
+    "reps": 7487,
+    "samples": 183,
+    "run_medians_ns": [
+      316.18138106050486,
+      317.3094880546075,
+      272.8428803026209
+    ],
+    "run_reps": [
+      7487,
+      7325,
+      7402
+    ],
+    "median_us": 0.30769064846416383,
+    "p95_us": 0.6311661546680913,
+    "speedup": 0.39241076420985216
+  },
+  {
+    "bytes": 90,
+    "category": "D-escape-strings",
+    "corpus": "canada",
+    "gb_s": 1.0760638431569687,
+    "mb_s": 1076.0638431569687,
+    "median_ns": 83.63816010763539,
+    "p95_ns": 180.81092804839224,
+    "parser": "sonic-rs-strings",
+    "reps": 25128,
+    "samples": 183,
+    "run_medians_ns": [
+      85.25350206940465,
+      86.67940632357887,
+      73.74116721202833
+    ],
+    "run_reps": [
+      25128,
+      23784,
+      24143
+    ],
+    "median_us": 0.08363816010763539,
+    "p95_us": 0.18081092804839224,
+    "speedup": 1.4436128478754635
+  },
+  {
+    "bytes": 65132,
+    "category": "A-scan",
+    "corpus": "github_events",
+    "gb_s": 0.22969186687238263,
+    "mb_s": 229.69186687238263,
+    "median_ns": 283562.5,
+    "p95_ns": 570520.75,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      285652.6666666667,
+      284786.375,
+      253468.75
+    ],
+    "run_reps": [
+      3,
+      8,
+      8
+    ],
+    "median_us": 283.5625,
+    "p95_us": 570.52075,
+    "speedup": 0.11942956502268821
+  },
+  {
+    "bytes": 65132,
+    "category": "A-scan",
+    "corpus": "github_events",
+    "gb_s": 0.12038958596440641,
+    "mb_s": 120.38958596440641,
+    "median_ns": 541010.25,
+    "p95_ns": 1169521.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      556083.5,
+      549812.5,
+      487791.75
+    ],
+    "run_reps": [
+      2,
+      4,
+      4
+    ],
+    "median_us": 541.01025,
+    "p95_us": 1169.521,
+    "speedup": 0.06259723550846963
+  },
+  {
+    "bytes": 65132,
+    "category": "A-scan",
+    "corpus": "github_events",
+    "gb_s": 1.9232412579644556,
+    "mb_s": 1923.2412579644556,
+    "median_ns": 33865.74603174603,
+    "p95_ns": 60466.36842105263,
+    "parser": "serde-json-ignored",
+    "reps": 57,
+    "samples": 183,
+    "run_medians_ns": [
+      33960.52631578947,
+      34099.87301587302,
+      30255.95238095238
+    ],
+    "run_reps": [
+      57,
+      63,
+      63
+    ],
+    "median_us": 33.86574603174603,
+    "p95_us": 60.466368421052636,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 65132,
+    "category": "A-scan",
+    "corpus": "github_events",
+    "gb_s": 2.3085986849933793,
+    "mb_s": 2308.5986849933793,
+    "median_ns": 28212.785714285714,
+    "p95_ns": 55880.56,
+    "parser": "simd-json-tape+copy",
+    "reps": 28,
+    "samples": 183,
+    "run_medians_ns": [
+      28297.60714285714,
+      28576.666666666668,
+      25184.21052631579
+    ],
+    "run_reps": [
+      28,
+      75,
+      76
+    ],
+    "median_us": 28.212785714285715,
+    "p95_us": 55.880559999999996,
+    "speedup": 1.2003687397164011
+  },
+  {
+    "bytes": 65132,
+    "category": "A-scan",
+    "corpus": "github_events",
+    "gb_s": 1.6265431827567725,
+    "mb_s": 1626.5431827567725,
+    "median_ns": 40043.2037037037,
+    "p95_ns": 73889.52173913043,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 23,
+    "samples": 183,
+    "run_medians_ns": [
+      41103.260869565216,
+      40181.333333333336,
+      36015.15151515151
+    ],
+    "run_reps": [
+      23,
+      54,
+      33
+    ],
+    "median_us": 40.0432037037037,
+    "p95_us": 73.88952173913043,
+    "speedup": 0.8457301838867027
+  },
+  {
+    "bytes": 65132,
+    "category": "A-query-partial",
+    "corpus": "github_events",
+    "gb_s": 76.04380052128383,
+    "mb_s": 76043.80052128383,
+    "median_ns": 856.5063759769643,
+    "p95_ns": 2066.2106129164954,
+    "parser": "sonic-rs-get-index0",
+    "reps": 984,
+    "samples": 183,
+    "run_medians_ns": [
+      875.8892276422764,
+      900.178527354998,
+      776.9835002946376
+    ],
+    "run_reps": [
+      984,
+      2431,
+      1697
+    ],
+    "median_us": 0.8565063759769642,
+    "p95_us": 2.066210612916495,
+    "speedup": null
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.19332805267541084,
+    "mb_s": 193.32805267541085,
+    "median_ns": 336898.85714285716,
+    "p95_ns": 1049069.3333333333,
+    "parser": "jmax-dom+copy",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      343041.6666666667,
+      341797.5714285714,
+      304839.28571428574
+    ],
+    "run_reps": [
+      3,
+      7,
+      7
+    ],
+    "median_us": 336.89885714285714,
+    "p95_us": 1049.0693333333334,
+    "speedup": 0.3549395306245179
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.1944722567802936,
+    "mb_s": 194.4722567802936,
+    "median_ns": 334916.6666666667,
+    "p95_ns": 937555.3333333334,
+    "parser": "jmax-dom-shared-input",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      344138.6666666667,
+      341256.0,
+      309135.25
+    ],
+    "run_reps": [
+      3,
+      7,
+      4
+    ],
+    "median_us": 334.9166666666667,
+    "p95_us": 937.5553333333334,
+    "speedup": 0.35704022559508997
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.19045604629911664,
+    "mb_s": 190.45604629911665,
+    "median_ns": 341979.1666666667,
+    "p95_ns": 794708.3333333334,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      348641.6,
+      347493.0,
+      312283.4
+    ],
+    "run_reps": [
+      5,
+      6,
+      5
+    ],
+    "median_us": 341.9791666666667,
+    "p95_us": 794.7083333333334,
+    "speedup": 0.3496666869732967
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.5446788424362008,
+    "mb_s": 544.6788424362009,
+    "median_ns": 119578.72222222222,
+    "p95_ns": 323449.05555555556,
+    "parser": "serde-json-value",
+    "reps": 18,
+    "samples": 183,
+    "run_medians_ns": [
+      119743.05555555556,
+      122333.33333333333,
+      113541.66666666667
+    ],
+    "run_reps": [
+      18,
+      18,
+      15
+    ],
+    "median_us": 119.57872222222223,
+    "p95_us": 323.44905555555556,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 1.3735824096818643,
+    "mb_s": 1373.5824096818644,
+    "median_ns": 47417.61363636364,
+    "p95_ns": 112812.5,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      60458.5,
+      47309.65909090909,
+      43509.76470588235
+    ],
+    "run_reps": [
+      2,
+      44,
+      17
+    ],
+    "median_us": 47.41761363636364,
+    "p95_us": 112.8125,
+    "speedup": 2.521820755030988
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.7552098640121695,
+    "mb_s": 755.2098640121695,
+    "median_ns": 86243.57692307692,
+    "p95_ns": 217465.25,
+    "parser": "simd-json-owned+copy",
+    "reps": 12,
+    "samples": 183,
+    "run_medians_ns": [
+      90996.58333333333,
+      86722.76923076923,
+      79105.6
+    ],
+    "run_reps": [
+      12,
+      26,
+      15
+    ],
+    "median_us": 86.24357692307692,
+    "p95_us": 217.46525,
+    "speedup": 1.3865232228120346
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 2.5877043123107852,
+    "mb_s": 2587.704312310785,
+    "median_ns": 25169.8,
+    "p95_ns": 53430.225,
+    "parser": "sonic-rs-value",
+    "reps": 40,
+    "samples": 183,
+    "run_medians_ns": [
+      25839.575,
+      25575.581395348836,
+      22649.90243902439
+    ],
+    "run_reps": [
+      40,
+      86,
+      82
+    ],
+    "median_us": 25.1698,
+    "p95_us": 53.430225,
+    "speedup": 4.750880905776852
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.6781637866524457,
+    "mb_s": 678.1637866524458,
+    "median_ns": 96041.69565217392,
+    "p95_ns": 315149.4705882353,
+    "parser": "json-rust-value",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      98242.64705882352,
+      96728.26086956522,
+      85612.30434782608
+    ],
+    "run_reps": [
+      17,
+      23,
+      23
+    ],
+    "median_us": 96.04169565217391,
+    "p95_us": 315.1494705882353,
+    "speedup": 1.2450709185236624
+  },
+  {
+    "bytes": 65132,
+    "category": "B-dom",
+    "corpus": "github_events",
+    "gb_s": 0.47016976176865893,
+    "mb_s": 470.16976176865893,
+    "median_ns": 138528.6875,
+    "p95_ns": 421466.1875,
+    "parser": "miniserde-value",
+    "reps": 16,
+    "samples": 183,
+    "run_medians_ns": [
+      138528.6875,
+      141718.75,
+      120125.0
+    ],
+    "run_reps": [
+      16,
+      16,
+      17
+    ],
+    "median_us": 138.5286875,
+    "p95_us": 421.4661875,
+    "speedup": 0.8632054802527614
+  },
+  {
+    "bytes": 65132,
+    "category": "C-typed",
+    "corpus": "github_events",
+    "gb_s": 0.07339850683194817,
+    "mb_s": 73.39850683194817,
+    "median_ns": 887375.0,
+    "p95_ns": 2419875.0,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      934708.0,
+      890666.6666666666,
+      802111.3333333334
+    ],
+    "run_reps": [
+      1,
+      3,
+      3
+    ],
+    "median_us": 887.375,
+    "p95_us": 2419.875,
+    "speedup": 0.04145119030849415
+  },
+  {
+    "bytes": 65132,
+    "category": "C-typed",
+    "corpus": "github_events",
+    "gb_s": 1.77072132997125,
+    "mb_s": 1770.72132997125,
+    "median_ns": 36782.75,
+    "p95_ns": 105633.92857142857,
+    "parser": "serde-json-typed",
+    "reps": 28,
+    "samples": 183,
+    "run_medians_ns": [
+      37257.46428571428,
+      36942.26315789474,
+      32862.57894736842
+    ],
+    "run_reps": [
+      28,
+      57,
+      57
+    ],
+    "median_us": 36.78275,
+    "p95_us": 105.63392857142857,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 65132,
+    "category": "C-typed",
+    "corpus": "github_events",
+    "gb_s": 1.8283023302506287,
+    "mb_s": 1828.3023302506288,
+    "median_ns": 35624.30508474576,
+    "p95_ns": 77881.42307692308,
+    "parser": "simd-json-typed+copy",
+    "reps": 26,
+    "samples": 183,
+    "run_medians_ns": [
+      36097.730769230766,
+      35958.338983050846,
+      31692.021739130436
+    ],
+    "run_reps": [
+      26,
+      59,
+      46
+    ],
+    "median_us": 35.624305084745764,
+    "p95_us": 77.88142307692308,
+    "speedup": 1.0325183863235632
+  },
+  {
+    "bytes": 65132,
+    "category": "C-typed",
+    "corpus": "github_events",
+    "gb_s": 1.3408206866252432,
+    "mb_s": 1340.8206866252433,
+    "median_ns": 48576.21951219512,
+    "p95_ns": 94073.93548387097,
+    "parser": "miniserde-typed",
+    "reps": 31,
+    "samples": 183,
+    "run_medians_ns": [
+      49151.87096774193,
+      49288.634146341465,
+      44038.525
+    ],
+    "run_reps": [
+      31,
+      41,
+      40
+    ],
+    "median_us": 48.576219512195124,
+    "p95_us": 94.07393548387097,
+    "speedup": 0.7572172221176175
+  },
+  {
+    "bytes": 65132,
+    "category": "C-typed",
+    "corpus": "github_events",
+    "gb_s": 1.6262519389643668,
+    "mb_s": 1626.2519389643667,
+    "median_ns": 40050.375,
+    "p95_ns": 77338.54166666667,
+    "parser": "sonic-rs-typed",
+    "reps": 24,
+    "samples": 183,
+    "run_medians_ns": [
+      40682.291666666664,
+      40477.04081632653,
+      37198.529411764706
+    ],
+    "run_reps": [
+      24,
+      49,
+      17
+    ],
+    "median_us": 40.050375,
+    "p95_us": 77.33854166666667,
+    "speedup": 0.9184121247304177
+  },
+  {
+    "bytes": 65132,
+    "category": "D-serialize",
+    "corpus": "github_events",
+    "gb_s": 0.41413480378490636,
+    "mb_s": 414.13480378490635,
+    "median_ns": 157272.46153846153,
+    "p95_ns": 403342.6666666667,
+    "parser": "jmax-dom-writer",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      165805.55555555556,
+      160794.92307692306,
+      144607.14285714287
+    ],
+    "run_reps": [
+      9,
+      13,
+      14
+    ],
+    "median_us": 157.27246153846153,
+    "p95_us": 403.3426666666667,
+    "speedup": 0.25246383446438286
+  },
+  {
+    "bytes": 65132,
+    "category": "D-serialize",
+    "corpus": "github_events",
+    "gb_s": 1.6403727871103524,
+    "mb_s": 1640.3727871103524,
+    "median_ns": 39705.608695652176,
+    "p95_ns": 76001.80434782608,
+    "parser": "serde-json-to-vec",
+    "reps": 22,
+    "samples": 183,
+    "run_medians_ns": [
+      40821.954545454544,
+      40011.760869565216,
+      35703.125
+    ],
+    "run_reps": [
+      22,
+      46,
+      40
+    ],
+    "median_us": 39.705608695652174,
+    "p95_us": 76.00180434782608,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 65132,
+    "category": "D-serialize",
+    "corpus": "github_events",
+    "gb_s": 2.1242231973400605,
+    "mb_s": 2124.223197340061,
+    "median_ns": 30661.56140350877,
+    "p95_ns": 46294.88461538462,
+    "parser": "simd-json-to-vec",
+    "reps": 26,
+    "samples": 183,
+    "run_medians_ns": [
+      31589.73076923077,
+      30806.280701754386,
+      27377.5
+    ],
+    "run_reps": [
+      26,
+      57,
+      50
+    ],
+    "median_us": 30.66156140350877,
+    "p95_us": 46.29488461538462,
+    "speedup": 1.2949636899805255
+  },
+  {
+    "bytes": 65132,
+    "category": "D-serialize",
+    "corpus": "github_events",
+    "gb_s": 1.2405274783413796,
+    "mb_s": 1240.5274783413797,
+    "median_ns": 52503.47222222222,
+    "p95_ns": 117091.125,
+    "parser": "miniserde-to-string",
+    "reps": 16,
+    "samples": 183,
+    "run_medians_ns": [
+      54604.1875,
+      53280.11111111111,
+      47272.05882352941
+    ],
+    "run_reps": [
+      16,
+      36,
+      34
+    ],
+    "median_us": 52.50347222222222,
+    "p95_us": 117.091125,
+    "speedup": 0.7562472921333131
+  },
+  {
+    "bytes": 65132,
+    "category": "D-serialize",
+    "corpus": "github_events",
+    "gb_s": 3.0964552072500373,
+    "mb_s": 3096.4552072500373,
+    "median_ns": 21034.375,
+    "p95_ns": 45873.444444444445,
+    "parser": "sonic-rs-to-vec",
+    "reps": 27,
+    "samples": 183,
+    "run_medians_ns": [
+      21709.85185185185,
+      21502.0875,
+      18736.858695652172
+    ],
+    "run_reps": [
+      27,
+      80,
+      92
+    ],
+    "median_us": 21.034375,
+    "p95_us": 45.873444444444445,
+    "speedup": 1.8876533624437226
+  },
+  {
+    "bytes": 45778,
+    "category": "D-escape-strings",
+    "corpus": "github_events",
+    "gb_s": 0.4138124293785311,
+    "mb_s": 413.8124293785311,
+    "median_ns": 110625.0,
+    "p95_ns": 222740.77777777778,
+    "parser": "jmax-string-writer",
+    "reps": 13,
+    "samples": 183,
+    "run_medians_ns": [
+      112955.07692307692,
+      116942.16666666667,
+      102230.53333333334
+    ],
+    "run_reps": [
+      13,
+      18,
+      15
+    ],
+    "median_us": 110.625,
+    "p95_us": 222.7407777777778,
+    "speedup": 0.3132477863379558
+  },
+  {
+    "bytes": 45778,
+    "category": "D-escape-strings",
+    "corpus": "github_events",
+    "gb_s": 1.3210386391432576,
+    "mb_s": 1321.0386391432576,
+    "median_ns": 34653.03636363636,
+    "p95_ns": 85550.51515151515,
+    "parser": "serde-json-strings",
+    "reps": 33,
+    "samples": 183,
+    "run_medians_ns": [
+      35205.78787878788,
+      34982.56363636364,
+      31019.607843137255
+    ],
+    "run_reps": [
+      33,
+      55,
+      51
+    ],
+    "median_us": 34.65303636363636,
+    "p95_us": 85.55051515151516,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 45778,
+    "category": "D-escape-strings",
+    "corpus": "github_events",
+    "gb_s": 1.7155818808870795,
+    "mb_s": 1715.5818808870795,
+    "median_ns": 26683.657894736843,
+    "p95_ns": 45625.0,
+    "parser": "simd-json-strings",
+    "reps": 29,
+    "samples": 183,
+    "run_medians_ns": [
+      27206.896551724138,
+      26791.67105263158,
+      23820.075757575756
+    ],
+    "run_reps": [
+      29,
+      76,
+      66
+    ],
+    "median_us": 26.683657894736843,
+    "p95_us": 45.625,
+    "speedup": 1.2986613941888163
+  },
+  {
+    "bytes": 45778,
+    "category": "D-escape-strings",
+    "corpus": "github_events",
+    "gb_s": 1.0533997515852782,
+    "mb_s": 1053.3997515852782,
+    "median_ns": 43457.38636363636,
+    "p95_ns": 86662.88636363637,
+    "parser": "miniserde-strings",
+    "reps": 22,
+    "samples": 183,
+    "run_medians_ns": [
+      44407.22727272727,
+      43773.65909090909,
+      38976.634146341465
+    ],
+    "run_reps": [
+      22,
+      44,
+      41
+    ],
+    "median_us": 43.45738636363636,
+    "p95_us": 86.66288636363637,
+    "speedup": 0.7974026802641041
+  },
+  {
+    "bytes": 45778,
+    "category": "D-escape-strings",
+    "corpus": "github_events",
+    "gb_s": 4.2017892912484545,
+    "mb_s": 4201.789291248454,
+    "median_ns": 10894.882352941177,
+    "p95_ns": 31070.261437908495,
+    "parser": "sonic-rs-strings",
+    "reps": 63,
+    "samples": 183,
+    "run_medians_ns": [
+      11338.63492063492,
+      11478.21568627451,
+      9430.559523809523
+    ],
+    "run_reps": [
+      63,
+      153,
+      168
+    ],
+    "median_us": 10.894882352941176,
+    "p95_us": 31.070261437908496,
+    "speedup": 3.180671001397408
+  },
+  {
+    "bytes": 127275,
+    "category": "A-scan",
+    "corpus": "apache_builds",
+    "gb_s": 0.2319007204364161,
+    "mb_s": 231.90072043641612,
+    "median_ns": 548834.0,
+    "p95_ns": 1027986.0,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      551250.0,
+      551527.6666666666,
+      467108.4
+    ],
+    "run_reps": [
+      1,
+      3,
+      5
+    ],
+    "median_us": 548.834,
+    "p95_us": 1027.986,
+    "speedup": 0.16057847832209476
+  },
+  {
+    "bytes": 127275,
+    "category": "A-scan",
+    "corpus": "apache_builds",
+    "gb_s": 0.11332644158980236,
+    "mb_s": 113.32644158980236,
+    "median_ns": 1123083.0,
+    "p95_ns": 2660791.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      1171291.0,
+      1155167.0,
+      939986.0
+    ],
+    "run_reps": [
+      1,
+      1,
+      3
+    ],
+    "median_us": 1123.083,
+    "p95_us": 2660.791,
+    "speedup": 0.07847232000789663
+  },
+  {
+    "bytes": 127275,
+    "category": "A-scan",
+    "corpus": "apache_builds",
+    "gb_s": 1.4441581640303025,
+    "mb_s": 1444.1581640303025,
+    "median_ns": 88130.92857142857,
+    "p95_ns": 150003.0,
+    "parser": "serde-json-ignored",
+    "reps": 14,
+    "samples": 183,
+    "run_medians_ns": [
+      88589.28571428571,
+      88822.36842105263,
+      73996.92592592593
+    ],
+    "run_reps": [
+      14,
+      19,
+      27
+    ],
+    "median_us": 88.13092857142857,
+    "p95_us": 150.003,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 127275,
+    "category": "A-scan",
+    "corpus": "apache_builds",
+    "gb_s": 2.377438213424931,
+    "mb_s": 2377.438213424931,
+    "median_ns": 53534.514285714286,
+    "p95_ns": 121870.22857142857,
+    "parser": "simd-json-tape+copy",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      55321.05882352941,
+      54297.62857142857,
+      45133.333333333336
+    ],
+    "run_reps": [
+      17,
+      35,
+      45
+    ],
+    "median_us": 53.53451428571429,
+    "p95_us": 121.87022857142857,
+    "speedup": 1.646245039248378
+  },
+  {
+    "bytes": 127275,
+    "category": "A-scan",
+    "corpus": "apache_builds",
+    "gb_s": 1.1943228026274633,
+    "mb_s": 1194.3228026274633,
+    "median_ns": 106566.66666666667,
+    "p95_ns": 163463.86666666667,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 15,
+    "samples": 183,
+    "run_medians_ns": [
+      109733.33333333333,
+      108359.375,
+      90619.56521739131
+    ],
+    "run_reps": [
+      15,
+      16,
+      23
+    ],
+    "median_us": 106.56666666666668,
+    "p95_us": 163.46386666666666,
+    "speedup": 0.8270027704544438
+  },
+  {
+    "bytes": 127275,
+    "category": "A-query-partial",
+    "corpus": "apache_builds",
+    "gb_s": 1691.8356834629353,
+    "mb_s": 1691835.6834629353,
+    "median_ns": 75.22893697305584,
+    "p95_ns": 153.83130766783327,
+    "parser": "sonic-rs-get-field",
+    "reps": 15715,
+    "samples": 183,
+    "run_medians_ns": [
+      79.81228125994274,
+      77.25075172454454,
+      63.45434684606582
+    ],
+    "run_reps": [
+      15715,
+      16961,
+      28837
+    ],
+    "median_us": 0.07522893697305584,
+    "p95_us": 0.15383130766783326,
+    "speedup": null
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.18840441334840272,
+    "mb_s": 188.40441334840273,
+    "median_ns": 675541.5,
+    "p95_ns": 1271666.6666666667,
+    "parser": "jmax-dom+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      688083.5,
+      693597.3333333334,
+      573833.25
+    ],
+    "run_reps": [
+      2,
+      3,
+      4
+    ],
+    "median_us": 675.5415,
+    "p95_us": 1271.6666666666667,
+    "speedup": 0.4529083705442227
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.18941291792875803,
+    "mb_s": 189.41291792875802,
+    "median_ns": 671944.6666666666,
+    "p95_ns": 1365277.6666666667,
+    "parser": "jmax-dom-shared-input",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      679319.3333333334,
+      701555.3333333334,
+      572729.25
+    ],
+    "run_reps": [
+      3,
+      3,
+      4
+    ],
+    "median_us": 671.9446666666666,
+    "p95_us": 1365.2776666666668,
+    "speedup": 0.4553327307704901
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.1877098877501508,
+    "mb_s": 187.7098877501508,
+    "median_ns": 678041.0,
+    "p95_ns": 1379375.0,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      690959.0,
+      696625.0,
+      567687.5
+    ],
+    "run_reps": [
+      1,
+      3,
+      4
+    ],
+    "median_us": 678.041,
+    "p95_us": 1379.375,
+    "speedup": 0.45123878939474166
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.41598792515583816,
+    "mb_s": 415.9879251558381,
+    "median_ns": 305958.4,
+    "p95_ns": 655035.7142857143,
+    "parser": "serde-json-value",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      310766.6,
+      311071.4285714286,
+      257578.66666666666
+    ],
+    "run_reps": [
+      5,
+      7,
+      9
+    ],
+    "median_us": 305.95840000000004,
+    "p95_us": 655.0357142857143,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 1.1983758018007415,
+    "mb_s": 1198.3758018007416,
+    "median_ns": 106206.25,
+    "p95_ns": 217708.3,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 20,
+    "samples": 183,
+    "run_medians_ns": [
+      107597.9,
+      107811.42105263157,
+      90446.16666666667
+    ],
+    "run_reps": [
+      20,
+      19,
+      24
+    ],
+    "median_us": 106.20625,
+    "p95_us": 217.70829999999998,
+    "speedup": 2.88079468016242
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.560862876132591,
+    "mb_s": 560.862876132591,
+    "median_ns": 226927.125,
+    "p95_ns": 430010.5,
+    "parser": "simd-json-owned+copy",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      231271.0,
+      228593.75,
+      192674.18181818182
+    ],
+    "run_reps": [
+      4,
+      8,
+      11
+    ],
+    "median_us": 226.927125,
+    "p95_us": 430.0105,
+    "speedup": 1.3482672025215146
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 1.9439674816776498,
+    "mb_s": 1943.9674816776499,
+    "median_ns": 65471.77419354839,
+    "p95_ns": 131494.61290322582,
+    "parser": "sonic-rs-value",
+    "reps": 13,
+    "samples": 183,
+    "run_medians_ns": [
+      66230.76923076923,
+      65802.41935483871,
+      55337.73684210526
+    ],
+    "run_reps": [
+      13,
+      31,
+      38
+    ],
+    "median_us": 65.47177419354838,
+    "p95_us": 131.49461290322583,
+    "speedup": 4.673134396748168
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.7830744220641076,
+    "mb_s": 783.0744220641076,
+    "median_ns": 162532.44444444444,
+    "p95_ns": 312197.75,
+    "parser": "json-rust-value",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      170895.75,
+      164666.66666666666,
+      137143.25
+    ],
+    "run_reps": [
+      4,
+      9,
+      16
+    ],
+    "median_us": 162.53244444444445,
+    "p95_us": 312.19775,
+    "speedup": 1.8824450776323636
+  },
+  {
+    "bytes": 127275,
+    "category": "B-dom",
+    "corpus": "apache_builds",
+    "gb_s": 0.39008983329808655,
+    "mb_s": 390.08983329808655,
+    "median_ns": 326271.0,
+    "p95_ns": 664200.0,
+    "parser": "miniserde-value",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      330270.5,
+      331941.6,
+      272130.25
+    ],
+    "run_reps": [
+      2,
+      5,
+      8
+    ],
+    "median_us": 326.271,
+    "p95_us": 664.2,
+    "speedup": 0.9377431644246654
+  },
+  {
+    "bytes": 127275,
+    "category": "C-typed",
+    "corpus": "apache_builds",
+    "gb_s": 0.11312916012431541,
+    "mb_s": 113.12916012431542,
+    "median_ns": 1125041.5,
+    "p95_ns": 2157062.5,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 1,
+    "samples": 183,
+    "run_medians_ns": [
+      1163209.0,
+      1132666.5,
+      943888.6666666666
+    ],
+    "run_reps": [
+      1,
+      2,
+      3
+    ],
+    "median_us": 1125.0415,
+    "p95_us": 2157.0625,
+    "speedup": 0.07852145430798962
+  },
+  {
+    "bytes": 127275,
+    "category": "C-typed",
+    "corpus": "apache_builds",
+    "gb_s": 1.440742038227945,
+    "mb_s": 1440.742038227945,
+    "median_ns": 88339.8947368421,
+    "p95_ns": 124895.78571428571,
+    "parser": "serde-json-typed",
+    "reps": 14,
+    "samples": 183,
+    "run_medians_ns": [
+      88854.21428571429,
+      88914.47368421052,
+      74797.60714285714
+    ],
+    "run_reps": [
+      14,
+      19,
+      28
+    ],
+    "median_us": 88.33989473684211,
+    "p95_us": 124.89578571428571,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 127275,
+    "category": "C-typed",
+    "corpus": "apache_builds",
+    "gb_s": 1.820500024634104,
+    "mb_s": 1820.5000246341042,
+    "median_ns": 69912.11111111111,
+    "p95_ns": 141625.0,
+    "parser": "simd-json-typed+copy",
+    "reps": 9,
+    "samples": 183,
+    "run_medians_ns": [
+      71449.11111111111,
+      70516.7,
+      58875.0
+    ],
+    "run_reps": [
+      9,
+      20,
+      35
+    ],
+    "median_us": 69.91211111111112,
+    "p95_us": 141.625,
+    "speedup": 1.2635849974040088
+  },
+  {
+    "bytes": 127275,
+    "category": "C-typed",
+    "corpus": "apache_builds",
+    "gb_s": 1.281372354573928,
+    "mb_s": 1281.3723545739279,
+    "median_ns": 99327.1,
+    "p95_ns": 155737.5,
+    "parser": "miniserde-typed",
+    "reps": 7,
+    "samples": 183,
+    "run_medians_ns": [
+      100529.71428571429,
+      99812.5,
+      84335.0
+    ],
+    "run_reps": [
+      7,
+      20,
+      25
+    ],
+    "median_us": 99.3271,
+    "p95_us": 155.7375,
+    "speedup": 0.8893836096779439
+  },
+  {
+    "bytes": 127275,
+    "category": "C-typed",
+    "corpus": "apache_builds",
+    "gb_s": 1.144145973497726,
+    "mb_s": 1144.145973497726,
+    "median_ns": 111240.17647058824,
+    "p95_ns": 196436.42105263157,
+    "parser": "sonic-rs-typed",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      112933.82352941176,
+      112103.05263157895,
+      93907.60869565218
+    ],
+    "run_reps": [
+      17,
+      19,
+      23
+    ],
+    "median_us": 111.24017647058824,
+    "p95_us": 196.43642105263157,
+    "speedup": 0.7941365929080404
+  },
+  {
+    "bytes": 127275,
+    "category": "D-serialize",
+    "corpus": "apache_builds",
+    "gb_s": 0.3300307925017557,
+    "mb_s": 330.03079250175574,
+    "median_ns": 385645.8333333333,
+    "p95_ns": 800208.3333333334,
+    "parser": "jmax-dom-writer",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      399514.0,
+      388444.3333333333,
+      320160.71428571426
+    ],
+    "run_reps": [
+      3,
+      6,
+      7
+    ],
+    "median_us": 385.6458333333333,
+    "p95_us": 800.2083333333334,
+    "speedup": 0.22070333099238293
+  },
+  {
+    "bytes": 127275,
+    "category": "D-serialize",
+    "corpus": "apache_builds",
+    "gb_s": 1.4953593632583007,
+    "mb_s": 1495.3593632583006,
+    "median_ns": 85113.32,
+    "p95_ns": 173229.16666666666,
+    "parser": "serde-json-to-vec",
+    "reps": 25,
+    "samples": 183,
+    "run_medians_ns": [
+      86368.36,
+      85951.375,
+      71841.96551724138
+    ],
+    "run_reps": [
+      25,
+      24,
+      29
+    ],
+    "median_us": 85.11332,
+    "p95_us": 173.22916666666666,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 127275,
+    "category": "D-serialize",
+    "corpus": "apache_builds",
+    "gb_s": 1.8059125812028067,
+    "mb_s": 1805.9125812028067,
+    "median_ns": 70476.83333333333,
+    "p95_ns": 123196.72222222222,
+    "parser": "simd-json-to-vec",
+    "reps": 18,
+    "samples": 183,
+    "run_medians_ns": [
+      71622.66666666667,
+      71380.20833333333,
+      59792.857142857145
+    ],
+    "run_reps": [
+      18,
+      24,
+      35
+    ],
+    "median_us": 70.47683333333333,
+    "p95_us": 123.19672222222222,
+    "speedup": 1.207677984018389
+  },
+  {
+    "bytes": 127275,
+    "category": "D-serialize",
+    "corpus": "apache_builds",
+    "gb_s": 1.0509095600567668,
+    "mb_s": 1050.9095600567668,
+    "median_ns": 121109.375,
+    "p95_ns": 241356.75,
+    "parser": "miniserde-to-string",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      126402.66666666667,
+      121533.875,
+      100843.23809523809
+    ],
+    "run_reps": [
+      3,
+      16,
+      21
+    ],
+    "median_us": 121.109375,
+    "p95_us": 241.35675,
+    "speedup": 0.7027806063733713
+  },
+  {
+    "bytes": 127275,
+    "category": "D-serialize",
+    "corpus": "apache_builds",
+    "gb_s": 2.6683282310030334,
+    "mb_s": 2668.3282310030336,
+    "median_ns": 47698.40476190476,
+    "p95_ns": 98923.8,
+    "parser": "sonic-rs-to-vec",
+    "reps": 35,
+    "samples": 183,
+    "run_medians_ns": [
+      48229.77142857143,
+      49410.71428571428,
+      40240.19607843137
+    ],
+    "run_reps": [
+      35,
+      42,
+      51
+    ],
+    "median_us": 47.69840476190476,
+    "p95_us": 98.9238,
+    "speedup": 1.784406007388687
+  },
+  {
+    "bytes": 76964,
+    "category": "D-escape-strings",
+    "corpus": "apache_builds",
+    "gb_s": 0.2729277927899175,
+    "mb_s": 272.92779278991753,
+    "median_ns": 281994.0,
+    "p95_ns": 446944.3333333333,
+    "parser": "jmax-string-writer",
+    "reps": 3,
+    "samples": 183,
+    "run_medians_ns": [
+      293388.6666666667,
+      295684.5714285714,
+      230495.44444444444
+    ],
+    "run_reps": [
+      3,
+      7,
+      9
+    ],
+    "median_us": 281.994,
+    "p95_us": 446.9443333333333,
+    "speedup": 0.26177664930617117
+  },
+  {
+    "bytes": 76964,
+    "category": "D-escape-strings",
+    "corpus": "apache_builds",
+    "gb_s": 1.042597930385701,
+    "mb_s": 1042.597930385701,
+    "median_ns": 73819.44444444444,
+    "p95_ns": 116733.3,
+    "parser": "serde-json-strings",
+    "reps": 10,
+    "samples": 183,
+    "run_medians_ns": [
+      73983.3,
+      75527.77777777778,
+      61988.970588235294
+    ],
+    "run_reps": [
+      10,
+      9,
+      34
+    ],
+    "median_us": 73.81944444444444,
+    "p95_us": 116.7333,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 76964,
+    "category": "D-escape-strings",
+    "corpus": "apache_builds",
+    "gb_s": 1.2113811482740118,
+    "mb_s": 1211.3811482740118,
+    "median_ns": 63534.09090909091,
+    "p95_ns": 100049.22727272728,
+    "parser": "simd-json-strings",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      64326.0,
+      64378.77272727273,
+      53880.333333333336
+    ],
+    "run_reps": [
+      17,
+      22,
+      39
+    ],
+    "median_us": 63.534090909090914,
+    "p95_us": 100.04922727272728,
+    "speedup": 1.161887159919712
+  },
+  {
+    "bytes": 76964,
+    "category": "D-escape-strings",
+    "corpus": "apache_builds",
+    "gb_s": 0.7811938571472072,
+    "mb_s": 781.1938571472072,
+    "median_ns": 98521.0,
+    "p95_ns": 181958.5,
+    "parser": "miniserde-strings",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      103750.0,
+      98713.23529411765,
+      82326.92307692308
+    ],
+    "run_reps": [
+      2,
+      17,
+      26
+    ],
+    "median_us": 98.521,
+    "p95_us": 181.9585,
+    "speedup": 0.7492762400345555
+  },
+  {
+    "bytes": 76964,
+    "category": "D-escape-strings",
+    "corpus": "apache_builds",
+    "gb_s": 3.1788149324861004,
+    "mb_s": 3178.8149324861,
+    "median_ns": 24211.53846153846,
+    "p95_ns": 67281.07936507936,
+    "parser": "sonic-rs-strings",
+    "reps": 39,
+    "samples": 183,
+    "run_medians_ns": [
+      27816.23076923077,
+      26881.619047619046,
+      20309.757575757576
+    ],
+    "run_reps": [
+      39,
+      63,
+      99
+    ],
+    "median_us": 24.21153846153846,
+    "p95_us": 67.28107936507936,
+    "speedup": 3.048936545759421
+  },
+  {
+    "bytes": 102494,
+    "category": "A-scan",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.09794497813867528,
+    "mb_s": 97.94497813867528,
+    "median_ns": 1046444.6666666666,
+    "p95_ns": 2235236.0,
+    "parser": "jmax-cursor-strict+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1045729.0,
+      1047792.0,
+      1046208.3333333334
+    ],
+    "run_reps": [
+      2,
+      2,
+      3
+    ],
+    "median_us": 1046.4446666666665,
+    "p95_us": 2235.236,
+    "speedup": 0.11353569597508112
+  },
+  {
+    "bytes": 102494,
+    "category": "A-scan",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.059204447814000506,
+    "mb_s": 59.2044478140005,
+    "median_ns": 1731187.5,
+    "p95_ns": 3717979.0,
+    "parser": "jmax-vm-any+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1710771.0,
+      1756041.0,
+      1727833.5
+    ],
+    "run_reps": [
+      2,
+      1,
+      2
+    ],
+    "median_us": 1731.1875,
+    "p95_us": 3717.979,
+    "speedup": 0.06862851281528533
+  },
+  {
+    "bytes": 102494,
+    "category": "A-scan",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.8626800346577547,
+    "mb_s": 862.6800346577547,
+    "median_ns": 118808.82352941176,
+    "p95_ns": 208210.82352941178,
+    "parser": "serde-json-ignored",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      118700.94117647059,
+      119321.11764705883,
+      118800.0
+    ],
+    "run_reps": [
+      17,
+      17,
+      20
+    ],
+    "median_us": 118.80882352941177,
+    "p95_us": 208.21082352941178,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 102494,
+    "category": "A-scan",
+    "corpus": "endpoint_batch",
+    "gb_s": 1.1929466537342386,
+    "mb_s": 1192.9466537342385,
+    "median_ns": 85916.66666666667,
+    "p95_ns": 164284.70833333334,
+    "parser": "simd-json-tape+copy",
+    "reps": 24,
+    "samples": 183,
+    "run_medians_ns": [
+      85378.5,
+      86008.70833333333,
+      86355.64285714286
+    ],
+    "run_reps": [
+      24,
+      24,
+      28
+    ],
+    "median_us": 85.91666666666667,
+    "p95_us": 164.28470833333336,
+    "speedup": 1.3828379072288468
+  },
+  {
+    "bytes": 102494,
+    "category": "A-scan",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.7779244519617396,
+    "mb_s": 777.9244519617397,
+    "median_ns": 131753.15384615384,
+    "p95_ns": 205948.6923076923,
+    "parser": "sonic-rs-lazy-document",
+    "reps": 15,
+    "samples": 183,
+    "run_medians_ns": [
+      131486.06666666668,
+      132679.53846153847,
+      130821.77777777778
+    ],
+    "run_reps": [
+      15,
+      13,
+      18
+    ],
+    "median_us": 131.75315384615385,
+    "p95_us": 205.9486923076923,
+    "speedup": 0.9017531653788191
+  },
+  {
+    "bytes": 102494,
+    "category": "A-query-partial",
+    "corpus": "endpoint_batch",
+    "gb_s": 2804.555257687526,
+    "mb_s": 2804555.257687526,
+    "median_ns": 36.54554486635811,
+    "p95_ns": 74.02486664419283,
+    "parser": "sonic-rs-get-field",
+    "reps": 41267,
+    "samples": 183,
+    "run_medians_ns": [
+      35.63278164150532,
+      36.77421626152557,
+      36.97277360249063
+    ],
+    "run_reps": [
+      41267,
+      29825,
+      50429
+    ],
+    "median_us": 0.03654554486635811,
+    "p95_us": 0.07402486664419283,
+    "speedup": null
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.08369986492909186,
+    "mb_s": 83.69986492909186,
+    "median_ns": 1224542.0,
+    "p95_ns": 2565458.0,
+    "parser": "jmax-dom+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1213895.5,
+      1238479.0,
+      1223291.5
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1224.542,
+    "p95_us": 2565.458,
+    "speedup": 0.3635576403259341
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.08355490265691612,
+    "mb_s": 83.55490265691613,
+    "median_ns": 1226666.5,
+    "p95_ns": 2375750.0,
+    "parser": "jmax-dom-shared-input",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1213416.5,
+      1241562.5,
+      1229354.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1226.6665,
+    "p95_us": 2375.75,
+    "speedup": 0.3629279840934761
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.08217460359456766,
+    "mb_s": 82.17460359456766,
+    "median_ns": 1247271.0,
+    "p95_ns": 2554417.0,
+    "parser": "jmax-dom+number-conversion+copy",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1233312.5,
+      1259187.5,
+      1243229.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1247.271,
+    "p95_us": 2554.417,
+    "speedup": 0.35693253511065354
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.23022446964408136,
+    "mb_s": 230.22446964408135,
+    "median_ns": 445191.6,
+    "p95_ns": 926058.2,
+    "parser": "serde-json-value",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      439758.2,
+      449400.0,
+      445687.5
+    ],
+    "run_reps": [
+      5,
+      5,
+      6
+    ],
+    "median_us": 445.1916,
+    "p95_us": 926.0581999999999,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.5283918886745514,
+    "mb_s": 528.3918886745515,
+    "median_ns": 193973.45454545456,
+    "p95_ns": 375387.8461538461,
+    "parser": "simd-json-borrowed+copy",
+    "reps": 11,
+    "samples": 183,
+    "run_medians_ns": [
+      193106.0,
+      195265.625,
+      194266.0
+    ],
+    "run_reps": [
+      11,
+      8,
+      13
+    ],
+    "median_us": 193.97345454545456,
+    "p95_us": 375.3878461538461,
+    "speedup": 2.295116107733579
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.30182282208588956,
+    "mb_s": 301.8228220858896,
+    "median_ns": 339583.3333333333,
+    "p95_ns": 694208.2857142857,
+    "parser": "simd-json-owned+copy",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      335395.8333333333,
+      342361.1666666667,
+      341047.71428571426
+    ],
+    "run_reps": [
+      6,
+      6,
+      7
+    ],
+    "median_us": 339.5833333333333,
+    "p95_us": 694.2082857142857,
+    "speedup": 1.3109936687116563
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 1.5894152369823777,
+    "mb_s": 1589.4152369823776,
+    "median_ns": 64485.35135135135,
+    "p95_ns": 129831.08108108108,
+    "parser": "sonic-rs-value",
+    "reps": 31,
+    "samples": 183,
+    "run_medians_ns": [
+      64219.06451612903,
+      64683.93103448276,
+      64485.35135135135
+    ],
+    "run_reps": [
+      31,
+      29,
+      37
+    ],
+    "median_us": 64.48535135135135,
+    "p95_us": 129.83108108108107,
+    "speedup": 6.90376326825535
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.3994814232699858,
+    "mb_s": 399.48142326998584,
+    "median_ns": 256567.625,
+    "p95_ns": 499226.28571428574,
+    "parser": "json-rust-value",
+    "reps": 8,
+    "samples": 183,
+    "run_medians_ns": [
+      254453.125,
+      256851.2857142857,
+      257833.4
+    ],
+    "run_reps": [
+      8,
+      7,
+      10
+    ],
+    "median_us": 256.567625,
+    "p95_us": 499.2262857142857,
+    "speedup": 1.735182293557108
+  },
+  {
+    "bytes": 102494,
+    "category": "B-dom",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.2279016074489276,
+    "mb_s": 227.9016074489276,
+    "median_ns": 449729.1666666667,
+    "p95_ns": 1376611.1666666667,
+    "parser": "miniserde-value",
+    "reps": 5,
+    "samples": 183,
+    "run_medians_ns": [
+      445216.6,
+      453708.2,
+      449479.1666666667
+    ],
+    "run_reps": [
+      5,
+      5,
+      6
+    ],
+    "median_us": 449.7291666666667,
+    "p95_us": 1376.6111666666668,
+    "speedup": 0.9899104461018204
+  },
+  {
+    "bytes": 102494,
+    "category": "C-typed",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.05944481096168485,
+    "mb_s": 59.44481096168485,
+    "median_ns": 1724187.5,
+    "p95_ns": 3232687.5,
+    "parser": "jmax-vm-owned-extract",
+    "reps": 2,
+    "samples": 183,
+    "run_medians_ns": [
+      1710042.0,
+      1740083.5,
+      1725500.0
+    ],
+    "run_reps": [
+      2,
+      2,
+      2
+    ],
+    "median_us": 1724.1875,
+    "p95_us": 3232.6875,
+    "speedup": 0.06903790574844502
+  },
+  {
+    "bytes": 102494,
+    "category": "C-typed",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.8610459763696374,
+    "mb_s": 861.0459763696374,
+    "median_ns": 119034.29411764706,
+    "p95_ns": 190531.25,
+    "parser": "serde-json-typed",
+    "reps": 17,
+    "samples": 183,
+    "run_medians_ns": [
+      118637.23529411765,
+      119280.53333333334,
+      119272.95
+    ],
+    "run_reps": [
+      17,
+      15,
+      20
+    ],
+    "median_us": 119.03429411764706,
+    "p95_us": 190.53125,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 102494,
+    "category": "C-typed",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.8842677403120283,
+    "mb_s": 884.2677403120282,
+    "median_ns": 115908.33333333333,
+    "p95_ns": 208002.8,
+    "parser": "simd-json-typed+copy",
+    "reps": 18,
+    "samples": 183,
+    "run_medians_ns": [
+      114699.05555555556,
+      116758.33333333333,
+      116289.71428571429
+    ],
+    "run_reps": [
+      18,
+      15,
+      21
+    ],
+    "median_us": 115.90833333333333,
+    "p95_us": 208.00279999999998,
+    "speedup": 1.0269692497029008
+  },
+  {
+    "bytes": 102494,
+    "category": "C-typed",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.9142826316059991,
+    "mb_s": 914.2826316059991,
+    "median_ns": 112103.19047619047,
+    "p95_ns": 228125.0,
+    "parser": "miniserde-typed",
+    "reps": 18,
+    "samples": 183,
+    "run_medians_ns": [
+      111319.44444444444,
+      112568.42857142857,
+      112236.09523809524
+    ],
+    "run_reps": [
+      18,
+      14,
+      21
+    ],
+    "median_us": 112.10319047619048,
+    "p95_us": 228.125,
+    "speedup": 1.061827889215416
+  },
+  {
+    "bytes": 102494,
+    "category": "C-typed",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.785545123586894,
+    "mb_s": 785.5451235868941,
+    "median_ns": 130475.0,
+    "p95_ns": 219016.66666666666,
+    "parser": "sonic-rs-typed",
+    "reps": 16,
+    "samples": 183,
+    "run_medians_ns": [
+      129257.8125,
+      130605.53333333334,
+      130840.27777777778
+    ],
+    "run_reps": [
+      16,
+      15,
+      18
+    ],
+    "median_us": 130.475,
+    "p95_us": 219.01666666666665,
+    "speedup": 0.9123149577899756
+  },
+  {
+    "bytes": 102494,
+    "category": "D-serialize",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.14993329406395187,
+    "mb_s": 149.93329406395188,
+    "median_ns": 683597.3333333334,
+    "p95_ns": 1224069.3333333333,
+    "parser": "jmax-dom-writer",
+    "reps": 4,
+    "samples": 183,
+    "run_medians_ns": [
+      674020.75,
+      690250.0,
+      674406.25
+    ],
+    "run_reps": [
+      4,
+      3,
+      4
+    ],
+    "median_us": 683.5973333333334,
+    "p95_us": 1224.0693333333334,
+    "speedup": 0.16228343558418964
+  },
+  {
+    "bytes": 102494,
+    "category": "D-serialize",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.9238977072688929,
+    "mb_s": 923.8977072688929,
+    "median_ns": 110936.52380952382,
+    "p95_ns": 261878.95238095237,
+    "parser": "serde-json-to-vec",
+    "reps": 20,
+    "samples": 183,
+    "run_medians_ns": [
+      110447.95,
+      111044.0,
+      111513.90476190476
+    ],
+    "run_reps": [
+      20,
+      18,
+      21
+    ],
+    "median_us": 110.93652380952382,
+    "p95_us": 261.87895238095234,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 102494,
+    "category": "D-serialize",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.8549134610108106,
+    "mb_s": 854.9134610108106,
+    "median_ns": 119888.15789473684,
+    "p95_ns": 182589.8947368421,
+    "parser": "simd-json-to-vec",
+    "reps": 18,
+    "samples": 183,
+    "run_medians_ns": [
+      117520.83333333333,
+      120119.07142857143,
+      120133.78947368421
+    ],
+    "run_reps": [
+      18,
+      14,
+      19
+    ],
+    "median_us": 119.88815789473684,
+    "p95_us": 182.5898947368421,
+    "speedup": 0.9253334587635198
+  },
+  {
+    "bytes": 102494,
+    "category": "D-serialize",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.5616308438317732,
+    "mb_s": 561.6308438317732,
+    "median_ns": 182493.53846153847,
+    "p95_ns": 365111.0833333333,
+    "parser": "miniserde-to-string",
+    "reps": 12,
+    "samples": 183,
+    "run_medians_ns": [
+      180395.83333333334,
+      182875.0,
+      183474.38461538462
+    ],
+    "run_reps": [
+      12,
+      9,
+      13
+    ],
+    "median_us": 182.49353846153846,
+    "p95_us": 365.11108333333334,
+    "speedup": 0.6078928862070605
+  },
+  {
+    "bytes": 102494,
+    "category": "D-serialize",
+    "corpus": "endpoint_batch",
+    "gb_s": 1.0773558994639802,
+    "mb_s": 1077.3558994639802,
+    "median_ns": 95134.76470588235,
+    "p95_ns": 236385.86956521738,
+    "parser": "sonic-rs-to-vec",
+    "reps": 23,
+    "samples": 183,
+    "run_medians_ns": [
+      93885.86956521739,
+      96284.29411764706,
+      96402.79166666667
+    ],
+    "run_reps": [
+      23,
+      17,
+      24
+    ],
+    "median_us": 95.13476470588235,
+    "p95_us": 236.38586956521738,
+    "speedup": 1.1660986827737896
+  },
+  {
+    "bytes": 66240,
+    "category": "D-escape-strings",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.16046025738077213,
+    "mb_s": 160.46025738077213,
+    "median_ns": 412812.5,
+    "p95_ns": 882937.5,
+    "parser": "jmax-string-writer",
+    "reps": 6,
+    "samples": 183,
+    "run_medians_ns": [
+      405763.8333333333,
+      422750.0,
+      408784.6666666667
+    ],
+    "run_reps": [
+      6,
+      4,
+      6
+    ],
+    "median_us": 412.8125,
+    "p95_us": 882.9375,
+    "speedup": 0.1961746555639667
+  },
+  {
+    "bytes": 66240,
+    "category": "D-escape-strings",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.8179459111039491,
+    "mb_s": 817.9459111039491,
+    "median_ns": 80983.35,
+    "p95_ns": 165452.05,
+    "parser": "serde-json-strings",
+    "reps": 28,
+    "samples": 183,
+    "run_medians_ns": [
+      80604.17857142857,
+      81408.35,
+      80990.74074074074
+    ],
+    "run_reps": [
+      28,
+      20,
+      27
+    ],
+    "median_us": 80.98335,
+    "p95_us": 165.45204999999999,
+    "speedup": 1.0
+  },
+  {
+    "bytes": 66240,
+    "category": "D-escape-strings",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.7836527873584662,
+    "mb_s": 783.6527873584662,
+    "median_ns": 84527.23076923077,
+    "p95_ns": 156567.3076923077,
+    "parser": "simd-json-strings",
+    "reps": 26,
+    "samples": 183,
+    "run_medians_ns": [
+      82469.57692307692,
+      85335.04166666667,
+      84807.69230769231
+    ],
+    "run_reps": [
+      26,
+      24,
+      26
+    ],
+    "median_us": 84.52723076923077,
+    "p95_us": 156.56730769230768,
+    "speedup": 0.9580740935556499
+  },
+  {
+    "bytes": 66240,
+    "category": "D-escape-strings",
+    "corpus": "endpoint_batch",
+    "gb_s": 0.5971489383568127,
+    "mb_s": 597.1489383568127,
+    "median_ns": 110927.1,
+    "p95_ns": 171604.125,
+    "parser": "miniserde-strings",
+    "reps": 21,
+    "samples": 183,
+    "run_medians_ns": [
+      108970.23809523809,
+      110974.0,
+      111747.95
+    ],
+    "run_reps": [
+      21,
+      16,
+      20
+    ],
+    "median_us": 110.92710000000001,
+    "p95_us": 171.604125,
+    "speedup": 0.730059201042847
+  },
+  {
+    "bytes": 66240,
+    "category": "D-escape-strings",
+    "corpus": "endpoint_batch",
+    "gb_s": 1.7982176633350504,
+    "mb_s": 1798.2176633350505,
+    "median_ns": 36836.475,
+    "p95_ns": 75166.67272727273,
+    "parser": "sonic-rs-strings",
+    "reps": 58,
+    "samples": 183,
+    "run_medians_ns": [
+      36275.862068965514,
+      39608.35,
+      36988.63636363636
+    ],
+    "run_reps": [
+      58,
+      40,
+      55
+    ],
+    "median_us": 36.836475,
+    "p95_us": 75.16667272727273,
+    "speedup": 2.198455471105745
+  }
+]
