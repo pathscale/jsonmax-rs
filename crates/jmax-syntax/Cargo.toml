@@ -1,0 +1,20 @@
+[package]
+name = "jmax-syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-dispatch = { workspace = true }
+jmax-utf8 = { workspace = true }
+jmax-string = { workspace = true }
+jmax-number = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-error = { workspace = true }

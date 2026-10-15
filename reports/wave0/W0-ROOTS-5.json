@@ -1,0 +1,95 @@
+{
+  "task": "W0-ROOTS-5",
+  "wave": 0,
+  "status": "complete",
+  "scope": "Crate roots and contracts for ownership rows 21 through 25",
+  "files_written": [
+    "crates/jmax-derive/src/lib.rs",
+    "contracts/jmax-derive.md",
+    "crates/jmax-schema-aot/src/lib.rs",
+    "contracts/jmax-schema-aot.md",
+    "crates/jmax-endpoint-model/src/lib.rs",
+    "contracts/jmax-endpoint-model.md",
+    "crates/jmax-endpoint-ron/src/lib.rs",
+    "contracts/jmax-endpoint-ron.md",
+    "crates/jmax-codegen-rust/src/lib.rs",
+    "contracts/jmax-codegen-rust.md",
+    "reports/wave0/W0-ROOTS-5.json"
+  ],
+  "crate_handoffs": [
+    {
+      "crate": "jmax-derive",
+      "row": 21,
+      "modules": ["decode", "encode", "schema", "attributes"],
+      "module_visibility": "private",
+      "exports": ["JsonDecode", "JsonEncode", "JsonSchema", "DefinitionVariant"],
+      "root_implementation": "Four proc macro entry points, span-safe compile errors, shared immutable derive AST, attribute defaults, literal escaping and dispatch",
+      "contract": "contracts/jmax-derive.md"
+    },
+    {
+      "crate": "jmax-schema-aot",
+      "row": 22,
+      "modules": ["tables", "decode", "encode", "verify"],
+      "module_visibility": "public",
+      "root_implementation": "Canonical ABI re-exports, borrowed image projection, typed slot plans, checked owner-bound slot reader, authoritative canonical fingerprint and compiler facades, Rust identifier/path/literal helpers",
+      "contract": "contracts/jmax-schema-aot.md"
+    },
+    {
+      "crate": "jmax-endpoint-model",
+      "row": 23,
+      "modules": ["registry", "legacy", "wire_names", "utilities"],
+      "module_visibility": "public",
+      "root_implementation": "Canonical endpoint re-exports, version and metadata records, immutable borrowed registry layout, versioned legacy documents, wire naming policies and PostgreSQL/header helper types",
+      "contract": "contracts/jmax-endpoint-model.md"
+    },
+    {
+      "crate": "jmax-endpoint-ron",
+      "row": 24,
+      "modules": ["load", "normalize", "validate", "version"],
+      "module_visibility": "public",
+      "root_implementation": "Located bounded configuration syntax, resource limits, defaults/version requirements, input-size validation and complete load-normalize-validate-version orchestration",
+      "contract": "contracts/jmax-endpoint-ron.md"
+    },
+    {
+      "crate": "jmax-codegen-rust",
+      "row": 25,
+      "modules": ["models", "endpoints", "registries", "compat"],
+      "module_visibility": "public",
+      "root_implementation": "Generator options, complete artifact and registry-pair types, deterministic collision-checked insertion, portable path validation, crate path validation and six-artifact generation orchestration",
+      "contract": "contracts/jmax-codegen-rust.md"
+    }
+  ],
+  "dependency_alignment": [
+    "Schema identity delegates to jmax-schema-ir normalization, resolution and canonical fingerprint APIs with default policy; no competing fingerprint grammar",
+    "Compilation and complete program loading delegate to jmax-schema-compile through the AOT facade",
+    "Compiler opcode bytes are 1 through 14 and StateId addresses the state vector, not instructions",
+    "Static ABI image projections are distinguished from complete validated programs with executable side tables",
+    "Boolean flat schemas use the upstream True/False-to-Boolean adapter convention",
+    "Rust schema_tables.rs output matches the adjacent generator CLI artifact requirement"
+  ],
+  "wave_requirements": [
+    "Implement only each later wave's owned module against the exact contract signatures; module files are intentionally not created by Wave 0",
+    "No wave may redefine ABI types, expose proc macro helper modules publicly, or add unlisted dependencies",
+    "Schema and slot identities must agree across derives, compiler images, registries and decoders",
+    "Optional scalar properties permit absence, not explicit JSON null; unsupported flat-schema projections must fail explicitly",
+    "RON and version metadata parsing use the documented bounded grammar without adding parser dependencies",
+    "Generated files are returned in memory and complete executable schema side tables are retained"
+  ],
+  "verification": {
+    "method": "Source and adjacent contract inspection only",
+    "build_commands_run": false,
+    "check_commands_run": false,
+    "compiler_commands_run": false,
+    "formatter_commands_run": false,
+    "tests_run": false,
+    "git_commit_run": false,
+    "reason": "The task explicitly prohibits compilation, formatting, build and check commands",
+    "limitation": "Compilation is unverified; owned wave module implementations are pending by design"
+  },
+  "scope_compliance": {
+    "manifests_modified": false,
+    "ownership_modified": false,
+    "unassigned_files_written": false,
+    "forbidden_runtime_or_placeholder_constructs_used": false
+  }
+}

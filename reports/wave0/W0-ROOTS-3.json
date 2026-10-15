@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "task_id": "W0-ROOTS-3",
+  "wave": 0,
+  "status": "complete",
+  "summary": "Created five crate roots and froze the public APIs, shared state, error behavior, ownership rules, and cross-module invariants for twenty implementation modules.",
+  "rows": [11, 12, 13, 14, 15],
+  "files_written": [
+    "crates/jmax-decimal/src/lib.rs",
+    "contracts/jmax-decimal.md",
+    "crates/jmax-syntax/src/lib.rs",
+    "contracts/jmax-syntax.md",
+    "crates/jmax-cursor/src/lib.rs",
+    "contracts/jmax-cursor.md",
+    "crates/jmax-path/src/lib.rs",
+    "contracts/jmax-path.md",
+    "crates/jmax-dom/src/lib.rs",
+    "contracts/jmax-dom.md",
+    "reports/wave0/W0-ROOTS-3.json"
+  ],
+  "crates": [
+    {
+      "crate": "jmax-decimal",
+      "row": 11,
+      "root": "crates/jmax-decimal/src/lib.rs",
+      "contract": "contracts/jmax-decimal.md",
+      "modules": ["lex", "parse", "bounds", "write"],
+      "shared_types": ["DecimalLexeme", "DecimalBounds", "AccumulatedDecimal"],
+      "implemented_root_behavior": [
+        "Canonical ABI decimal, span, error, and sink re-exports",
+        "Policy validation and overflow-safe coefficient precision",
+        "Borrowed lexical accessors and fixed output/chunk bounds"
+      ],
+      "handoff": {
+        "wave1": "lex::lex_quoted",
+        "wave2": "parse::accumulate and parse::parse_quoted",
+        "wave3": "bounds::rescale, bounds::validate, and bounds::compare",
+        "wave4": "write::encoded_len, write::write_quoted, and write::write_to_slice"
+      },
+      "decisions": [
+        "Quoted strict ASCII decimal grammar with optionally enabled bounded exponent",
+        "Full signed i128 coefficient range and target scales through 255",
+        "Checked accumulation precedes rescaling; no arbitrary-precision intermediate",
+        "Final precision, inclusive numeric bounds, exact scale, and target-unit tick checks",
+        "Optional inexact rescaling truncates toward zero"
+      ]
+    },
+    {
+      "crate": "jmax-syntax",
+      "row": 12,
+      "root": "crates/jmax-syntax/src/lib.rs",
+      "contract": "contracts/jmax-syntax.md",
+      "modules": ["machine", "frames", "feed", "finish"],
+      "shared_types": [
+        "Token", "FrameAction", "Transition", "ContainerKind", "Frame",
+        "SyntaxState", "SyntaxOutput"
+      ],
+      "implemented_root_behavior": [
+        "Allocation-free parser initialization",
+        "Read-only buffer, limits, state, completion, and failure accessors",
+        "Checked owner-relative string resolution and sticky failure recording",
+        "Private pending-token carry for incremental boundary scanning"
+      ],
+      "handoff": {
+        "wave1": "machine::transition and machine::is_value_start",
+        "wave2": "frames::current_phase, frames::check_payload_growth, and crate-private frames::apply",
+        "wave3": "feed::push and feed::next",
+        "wave4": "finish::end_input, finish::finish, and finish::into_output"
+      },
+      "decisions": [
+        "Root phase is separate from container depth",
+        "Initial container phases permit empty containers; post-comma phases reject trailing commas",
+        "Payload and decoded arena remain owned and offset-stable across feeds",
+        "Duplicate keys compare decoded UTF-8 bytes without normalization",
+        "Only confirmed EOF permits Finished and successful full finalization",
+        "Unknown-key policy belongs to schema validation, not generic syntax"
+      ]
+    },
+    {
+      "crate": "jmax-cursor",
+      "row": 13,
+      "root": "crates/jmax-cursor/src/lib.rs",
+      "contract": "contracts/jmax-cursor.md",
+      "modules": ["walk", "skip", "select", "resume"],
+      "shared_types": [
+        "SkipMode", "ValueKind", "SelectedValue", "SkipStep", "Segment",
+        "SelectorEdge", "SelectorNode", "SelectorPlan", "Cursor",
+        "SuspendedCursor", "CursorOutput", "SelectedValues"
+      ],
+      "implemented_root_behavior": [
+        "Checked reachable acyclic selector graph construction with complete unique slot assignment",
+        "Fallible validation storage and sorted borrowed-key duplicate detection",
+        "Allocation-free cursor initialization and read-only parser access",
+        "Owner-bound raw and cooked selection accessors",
+        "Private resumable subtree skip progress"
+      ],
+      "handoff": {
+        "wave1": "walk::from_payload, walk::push, walk::end_input, and walk::next",
+        "wave2": "skip::subtree",
+        "wave3": "select::extract",
+        "wave4": "resume::suspend, resume::resume, resume::finish, and resume::into_partial"
+      },
+      "decisions": [
+        "Tapeless forward event traversal reuses the canonical syntax stream",
+        "Shared selector types live in cursor to avoid a path dependency cycle",
+        "Slots use first complete matching value in document order",
+        "Strict extraction validates through EOF; query may stop early and reports validation status",
+        "Suspend and resume move all parser buffers and skip carry without cloning",
+        "Partially released query buffers use fallible copies of syntax read-only storage"
+      ]
+    },
+    {
+      "crate": "jmax-path",
+      "row": 14,
+      "root": "crates/jmax-path/src/lib.rs",
+      "contract": "contracts/jmax-path.md",
+      "modules": ["parse", "compile", "query", "extensions"],
+      "shared_types": [
+        "PathLimits", "Path", "CompiledPaths", "FilterValue",
+        "ExtensionSegment", "ExtensionPath", "QueryResults"
+      ],
+      "implemented_root_behavior": [
+        "Bounded default path limits",
+        "Checked ownership-taking path construction and root paths",
+        "Read-only compiled plan and extension program accessors",
+        "Owner-bound extension result raw and cooked accessors"
+      ],
+      "handoff": {
+        "wave1": "parse::parse and parse::parse_many",
+        "wave2": "compile::compile and compile::compile_strings",
+        "wave3": "query::execute, query::span, query::raw, and query::string",
+        "wave4": "extensions::compile, extensions::parse, and extensions::query"
+      },
+      "decisions": [
+        "Dot keys, escaped Unicode scalars, checked u32 indices, and JSON bracket-quoted keys",
+        "Stable input-slot order and shared-prefix selector trie",
+        "Basic parsing never silently enables extension syntax",
+        "Extensions are immediate wildcards and immediate scalar member equality filters only",
+        "Numeric filter equality uses exact validated lexical spelling",
+        "Extension results and traversal/candidate work have explicit rejecting budgets"
+      ]
+    },
+    {
+      "crate": "jmax-dom",
+      "row": 15,
+      "root": "crates/jmax-dom/src/lib.rs",
+      "contract": "contracts/jmax-dom.md",
+      "modules": ["build", "navigate", "scalar", "rebuild"],
+      "shared_types": [
+        "NodeKind", "NodeMeta", "Document", "Node", "Object", "Array",
+        "Children", "Member", "Members", "Scalar", "EditAction", "Edit"
+      ],
+      "implemented_root_behavior": [
+        "Stable local node tags and unknown-tag rejection",
+        "Immutable document storage and owner-bound node/container handles",
+        "Checked raw/decoded string resolution",
+        "Explicit edit actions and flat-node metadata definitions"
+      ],
+      "handoff": {
+        "wave1": "build::parse and build::from_validated",
+        "wave2": "navigate functions, object/array views, and exact-size fused iterators",
+        "wave3": "scalar raw/cooked access and checked numeric conversion functions",
+        "wave4": "rebuild::apply, rebuild::compact, and rebuild::write_document"
+      },
+      "decisions": [
+        "Preorder values-only flat nodes; object keys attach to value metadata",
+        "One raw span and metadata record per node with exclusive subtree end indices",
+        "Raw number spellings remain available without eager numeric conversion",
+        "Foreign ValidatedDocument payloads are reparsed rather than assuming a DOM layout",
+        "Immutable edits reject same-target and ancestor/descendant conflicts",
+        "Rebuilds compact payload and arena and produce fresh document-local node IDs"
+      ]
+    }
+  ],
+  "validation": {
+    "mode": "manual source and contract review only",
+    "build_commands_run": false,
+    "compiler_commands_run": false,
+    "formatter_commands_run": false,
+    "test_or_check_commands_run": false,
+    "commit_created": false,
+    "reason": "Execution of build, compiler, formatter, and check commands was expressly prohibited.",
+    "compilation_status": "not verified",
+    "future_wave_modules_created": false
+  },
+  "scope_compliance": {
+    "writes_limited_to_assigned_files": true,
+    "manifests_modified": false,
+    "ownership_file_modified": false,
+    "canonical_abi_types_reused": true,
+    "root_function_bodies_complete": true,
+    "new_external_dependencies": [],
+    "unsafe_code_forbidden_in_all_five_crates": true
+  },
+  "integration_notes": [
+    "The twenty declared implementation modules belong to Waves 1 through 4 and were intentionally not created by this task.",
+    "Wave implementers must preserve the frozen roots and implement the exact signatures and invariants in their corresponding contracts.",
+    "All five roots use no_std; allocation-using roots explicitly import alloc.",
+    "No syntax, cursor, path, or DOM operation issues a schema validation proof.",
+    "Downstream compilation and behavioral verification remain for a stage authorized to execute them after the wave modules exist."
+  ]
+}

@@ -1,0 +1,301 @@
+{
+  "task_id": "W0-ROOTS-2",
+  "wave": 0,
+  "status": "complete",
+  "scope": "Rows 06 through 10: crate roots and four-wave contracts only",
+  "files_written": [
+    "crates/jmax-scan-avx2/src/lib.rs",
+    "contracts/jmax-scan-avx2.md",
+    "crates/jmax-scan-avx512/src/lib.rs",
+    "contracts/jmax-scan-avx512.md",
+    "crates/jmax-utf8/src/lib.rs",
+    "contracts/jmax-utf8.md",
+    "crates/jmax-string/src/lib.rs",
+    "contracts/jmax-string.md",
+    "crates/jmax-number/src/lib.rs",
+    "contracts/jmax-number.md",
+    "reports/wave0/W0-ROOTS-2.json"
+  ],
+  "crates": [
+    {
+      "row": "06",
+      "crate": "jmax-scan-avx2",
+      "root": "crates/jmax-scan-avx2/src/lib.rs",
+      "contract": "contracts/jmax-scan-avx2.md",
+      "declared_modules": [
+        "classify",
+        "quotes",
+        "structural",
+        "tails"
+      ],
+      "shared_definitions": [
+        "StructuralMasks",
+        "RawMasks",
+        "QuoteMasks",
+        "BLOCK_BYTES",
+        "LANE_BYTES",
+        "BACKEND",
+        "BACKEND_TAG"
+      ],
+      "implemented_root_behavior": [
+        "CPU and OS support detection",
+        "bounded valid-bit mask construction",
+        "quote carry validation",
+        "clipped canonical BlockMasks assembly",
+        "fully initialized scalar raw-mask default"
+      ],
+      "wave_entry_points": {
+        "1": [
+          "classify::classify",
+          "classify::classify_block",
+          "classify::classify_raw"
+        ],
+        "2": [
+          "quotes::quote_masks"
+        ],
+        "3": [
+          "structural::classify_structural"
+        ],
+        "4": [
+          "tails::load_block",
+          "tails::classify_scalar_raw"
+        ]
+      },
+      "required_features": [
+        "AVX2"
+      ],
+      "native_lane_bytes": 32,
+      "fallback_backend_tag": 0,
+      "native_backend_tag": 2
+    },
+    {
+      "row": "07",
+      "crate": "jmax-scan-avx512",
+      "root": "crates/jmax-scan-avx512/src/lib.rs",
+      "contract": "contracts/jmax-scan-avx512.md",
+      "declared_modules": [
+        "classify",
+        "quotes",
+        "structural",
+        "tails"
+      ],
+      "shared_definitions": [
+        "StructuralMasks",
+        "RawMasks",
+        "QuoteMasks",
+        "BLOCK_BYTES",
+        "LANE_BYTES",
+        "BACKEND",
+        "BACKEND_TAG"
+      ],
+      "implemented_root_behavior": [
+        "CPU and OS support detection",
+        "bounded valid-bit mask construction",
+        "quote carry validation",
+        "clipped canonical BlockMasks assembly",
+        "fully initialized scalar raw-mask default"
+      ],
+      "wave_entry_points": {
+        "1": [
+          "classify::classify",
+          "classify::classify_block",
+          "classify::classify_raw"
+        ],
+        "2": [
+          "quotes::quote_masks"
+        ],
+        "3": [
+          "structural::classify_structural"
+        ],
+        "4": [
+          "tails::load_block",
+          "tails::classify_scalar_raw"
+        ]
+      },
+      "required_features": [
+        "AVX-512F",
+        "AVX-512BW"
+      ],
+      "native_lane_bytes": 64,
+      "fallback_backend_tag": 0,
+      "native_backend_tag": 3
+    },
+    {
+      "row": "08",
+      "crate": "jmax-utf8",
+      "root": "crates/jmax-utf8/src/lib.rs",
+      "contract": "contracts/jmax-utf8.md",
+      "declared_modules": [
+        "validate",
+        "stream",
+        "proof",
+        "fused"
+      ],
+      "shared_definitions": [
+        "Utf8Summary",
+        "Utf8Stream",
+        "Utf8Proof",
+        "MAX_SEQUENCE_BYTES",
+        "MAX_PENDING_BYTES",
+        "BLOCK_BYTES"
+      ],
+      "implemented_root_behavior": [
+        "empty ASCII-valid summary default",
+        "private canonical ScanCarry-based stream storage",
+        "stream construction, reset and observation",
+        "immutable borrowed-str proof accessors",
+        "checked ABI length conversion"
+      ],
+      "wave_entry_points": {
+        "1": [
+          "validate::validate",
+          "validate::validate_str"
+        ],
+        "2": [
+          "stream::validate_chunk",
+          "stream::finish"
+        ],
+        "3": [
+          "proof::validate",
+          "proof::validate_span",
+          "proof::slice"
+        ],
+        "4": [
+          "fused::validate_classified"
+        ]
+      },
+      "feature_contracts": {
+        "alloc": "Payload reexport and proof::validate_span are available only with this existing feature.",
+        "simd-utf8": "Wave 1 may use the existing optional dependency through the safe ps_simdutf8::compat::from_utf8 API. No dependency or manifest was added."
+      }
+    },
+    {
+      "row": "09",
+      "crate": "jmax-string",
+      "root": "crates/jmax-string/src/lib.rs",
+      "contract": "contracts/jmax-string.md",
+      "declared_modules": [
+        "scan",
+        "unescape",
+        "length",
+        "escape"
+      ],
+      "shared_definitions": [
+        "StringScan",
+        "StringLengths",
+        "DecodedEscape",
+        "EscapePolicy",
+        "QUOTE",
+        "BACKSLASH",
+        "MAX_ESCAPE_BYTES",
+        "MAX_UTF8_SCALAR_BYTES"
+      ],
+      "implemented_root_behavior": [
+        "checked decoded-length accumulation",
+        "checked ABI input lengths",
+        "overflow-safe bounded content-span resolution",
+        "default escaping policy"
+      ],
+      "wave_entry_points": {
+        "1": [
+          "scan::scan_string",
+          "scan::first_special"
+        ],
+        "2": [
+          "unescape::decode_escape",
+          "unescape::unescape"
+        ],
+        "3": [
+          "length::decoded_length",
+          "length::utf8_length"
+        ],
+        "4": [
+          "escape::find_escape",
+          "escape::escaped_length",
+          "escape::write_escaped",
+          "escape::write_string"
+        ]
+      }
+    },
+    {
+      "row": "10",
+      "crate": "jmax-number",
+      "root": "crates/jmax-number/src/lib.rs",
+      "contract": "contracts/jmax-number.md",
+      "declared_modules": [
+        "lex",
+        "integer",
+        "float",
+        "write"
+      ],
+      "shared_definitions": [
+        "NumberToken",
+        "NumberText",
+        "MAX_U64_TEXT_BYTES",
+        "MAX_I64_TEXT_BYTES",
+        "MAX_F64_TEXT_BYTES"
+      ],
+      "implemented_root_behavior": [
+        "private borrowed lexical-token storage and accessors",
+        "bounded allocation-free core::fmt::Write buffer",
+        "strict JSON number delimiter predicate",
+        "checked ABI input lengths"
+      ],
+      "wave_entry_points": {
+        "1": [
+          "lex::lex_number"
+        ],
+        "2": [
+          "integer::parse_u64",
+          "integer::parse_i64",
+          "integer::convert_integer"
+        ],
+        "3": [
+          "float::parse_f64",
+          "float::convert_float"
+        ],
+        "4": [
+          "write::write_u64",
+          "write::write_i64",
+          "write::write_f64"
+        ]
+      }
+    }
+  ],
+  "frozen_invariants": [
+    "All canonical errors, spans, masks, carry, policies, converted numbers and sinks are imported from jmax-abi without local replacements.",
+    "Both scanners use increasing-address low-bit ordering, 64-byte maximum blocks, zero-or-one quote carry, raw lexical masks and delimiter-excluding string-content masks.",
+    "Both scanners preserve UTF-8 carry, clip padding from every output mask and report the backend actually executed.",
+    "UTF-8 stream state retains at most three valid incomplete bytes, counts scalars once and preserves the first failure until reset.",
+    "UTF-8 proofs contain private immutable str borrows and cannot authorize schema validation or unrelated buffers.",
+    "String decoding validates before sink publication, strictly handles surrogate pairs and distinguishes source bytes, decoded bytes and scalars.",
+    "Number conversion uses exact checked integers or explicit correctly rounded binary64 conversion; serialization emits only legal JSON numeric spellings.",
+    "All source-span, count and formatting arithmetic is bounded and checked."
+  ],
+  "validation": {
+    "method": "Manual source and contract review only; no executable validation was run.",
+    "toolchain_commands_run": false,
+    "build_or_check_commands_run": false,
+    "tests_run": false,
+    "formatters_run": false,
+    "commits_created": false,
+    "compilation_claimed": false,
+    "reason": "The task explicitly prohibits toolchain, build and check commands. Later-wave module files are outside the assigned scope."
+  },
+  "scope_compliance": {
+    "only_assigned_files_written": true,
+    "manifests_changed": false,
+    "ownership_table_changed": false,
+    "later_wave_module_files_written": false,
+    "new_dependencies_added": false,
+    "delegation_used": false
+  },
+  "handoff_notes": [
+    "Every future wave signature, struct definition, error code/source/position rule and cross-module invariant is specified in its crate contract.",
+    "Public entry points are module-qualified; classify::classify has the exact canonical ClassifyFn signature in each scanner.",
+    "Private shared fields are accessible from descendant wave modules through normal Rust privacy rules; no sibling owns shared state.",
+    "The mandatory module declarations intentionally refer to separately owned files to be delivered in Waves 1 through 4.",
+    "Subsequent integration should validate the complete crates only when build/check execution is authorized."
+  ],
+  "blockers": []
+}

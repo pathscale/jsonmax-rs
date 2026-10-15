@@ -1,0 +1,106 @@
+{
+  "task_id": "W0-ROOTS-8",
+  "wave": 0,
+  "status": "complete",
+  "scope": "Crate roots, runner binary entrypoint, and contracts for ownership rows 36 through 39",
+  "contract_version": 1,
+  "files_written": [
+    "crates/jmax-runner/src/lib.rs",
+    "crates/jmax-runner/src/main.rs",
+    "contracts/jmax-runner.md",
+    "crates/jmax-bench/src/lib.rs",
+    "contracts/jmax-bench.md",
+    "crates/jmax-fuzz/src/lib.rs",
+    "contracts/jmax-fuzz.md",
+    "crates/jsonmax/src/lib.rs",
+    "contracts/jsonmax.md",
+    "reports/wave0/W0-ROOTS-8.json"
+  ],
+  "crates": [
+    {
+      "row": 36,
+      "name": "jmax-runner",
+      "modules": ["scenario", "drive", "coverage", "process"],
+      "shared_api": [
+        "Scenario, Step, Expectation, CallRequest, Reply, and Transport",
+        "RunnerError with canonical embedded ABI JSON errors",
+        "CoverageKey, RunReport, CoverageReport",
+        "BootSpec, ProcessState, deterministic literal RedactionPolicy"
+      ],
+      "entrypoint": {
+        "commands": ["validate SCENARIO", "run SCENARIO --replies JSON_LINES", "--help", "--version"],
+        "execution": "Deterministic offline replay through the library Transport interface",
+        "bounds": "16 MiB per input and at most one stored replay body per call or receive step",
+        "exit_codes": {"success": 0, "scenario_or_arguments": 2, "execution_or_io": 1}
+      }
+    },
+    {
+      "row": 37,
+      "name": "jmax-bench",
+      "modules": ["corpus", "parse", "serialize", "service"],
+      "shared_api": [
+        "DeterministicRng, WorkloadKind, CorpusConfig, Workload",
+        "BenchmarkMode, BenchmarkConfig, Observation, BenchmarkOperation, Clock",
+        "SystemClock with std feature, Sample, BenchmarkReport, Summary",
+        "ServiceConfig, Completion, ServiceDriver, ServiceReport",
+        "Implemented bounded measurement loop, exact aggregation, nearest-rank percentiles, and stable digests"
+      ]
+    },
+    {
+      "row": 38,
+      "name": "jmax-fuzz",
+      "modules": ["syntax", "schema", "ownership", "numbers"],
+      "shared_api": [
+        "FuzzConfig, RejectionComparison, Outcome, compare_outcomes",
+        "SyntaxOracle, SchemaOracle, SchemaCase",
+        "FailureKind, Failure, bounded FuzzReport",
+        "OwnershipSnapshot, OwnershipProbe, OwnershipConfig",
+        "NumberMode, NumberConfig, NumberOutcome, NumberCase with optional independent known answers, NumberOracle",
+        "DeterministicRng and canonical ABI error helpers"
+      ]
+    },
+    {
+      "row": 39,
+      "name": "jsonmax",
+      "modules": ["parse", "query", "encode", "endpoint"],
+      "shared_api": [
+        "Canonical ABI reexports and Document alias",
+        "ParseOptions and owner-paired Decoded<T>",
+        "QueryMode, QueryOptions, CompiledQuery, proof-free QueryResult",
+        "CompiledSchema, EncodeOptions, implemented bounded OutputBuffer",
+        "EndpointDirection, EndpointCatalog, EndpointMessage"
+      ]
+    }
+  ],
+  "contracts": {
+    "coverage": "All sixteen wave modules have exact public signatures, shared type definitions, error conditions, ownership rules, and cross-module invariants documented",
+    "root_snapshots": "Each contract embeds the exact corresponding library root source",
+    "integration": "Child modules import shared definitions through super::* without sibling-owned shared types",
+    "features": "Libraries use std by default and support alloc without std; process child management and SystemClock are std-gated"
+  },
+  "validation": {
+    "method": "Manual source and contract review only",
+    "builds_run": false,
+    "compiler_run": false,
+    "formatter_run": false,
+    "tests_run": false,
+    "check_commands_run": false,
+    "git_commit_run": false,
+    "reason": "The task explicitly prohibits build, compiler, formatter, and check commands"
+  },
+  "constraints": {
+    "assigned_files_only": true,
+    "manifests_unchanged": true,
+    "ownership_table_unchanged": true,
+    "new_dependencies": [],
+    "unsafe_code": "Forbidden in all four library roots",
+    "placeholder_implementations": false
+  },
+  "handoff": [
+    "Wave module implementations are intentionally not created: they are outside this task's assigned file list and belong to Waves 1 through 4.",
+    "Roots and CLI refer to the frozen future module APIs. Compilation and execution remain unverified until those files and dependency implementations exist and a later authorized validation wave runs.",
+    "The runner CLI is offline replay. Live reactors can implement Transport; the process lifecycle API is separately frozen in its contract.",
+    "Replay bodies have no application error metadata, so ErrorCode expectations require a richer library Transport implementation.",
+    "Facade proof creation must delegate to validated native lower layers. Partial query results cannot be promoted directly into validation proofs."
+  ]
+}

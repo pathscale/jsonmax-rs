@@ -1,0 +1,211 @@
+path	wave	owner_id	model	crate	role
+crates/jmax-abi/src/lib.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/span.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/buffer.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/error.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/scan.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/syntax.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/number.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/node.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/schema.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/endpoint.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/wire.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-abi/src/traits.rs	W0	W0-ABI	gpt-6-astra	jmax-abi	frozen_abi
+crates/jmax-buffer/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-buffer	frozen_root
+crates/jmax-buffer/src/payload.rs	W1	W1-01	gpt-6.1-sol	jmax-buffer	adopt Bytes/Arc/Vec
+crates/jmax-buffer/src/arena.rs	W2	W2-01	gpt-6.1-sol	jmax-buffer	decoded bulk storage
+crates/jmax-buffer/src/views.rs	W3	W3-01	gpt-6.1-sol	jmax-buffer	checked owner-bound views
+crates/jmax-buffer/src/retention.rs	W4	W4-01	gpt-6.1-sol	jmax-buffer	compact/account retained bytes
+crates/jmax-error/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-error	frozen_root
+crates/jmax-error/src/codes.rs	W1	W1-02	gpt-6-luna	jmax-error	classify error categories
+crates/jmax-error/src/paths.rs	W2	W2-02	gpt-6-luna	jmax-error	bounded JSON/schema paths
+crates/jmax-error/src/diagnostic.rs	W3	W3-02	gpt-6-luna	jmax-error	byte offset/line context
+crates/jmax-error/src/redaction.rs	W4	W4-02	gpt-6-luna	jmax-error	safe display/error adapters
+crates/jmax-dispatch/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-dispatch	frozen_root
+crates/jmax-dispatch/src/detect.rs	W1	W1-03	gpt-6-astra	jmax-dispatch	CPU/OS capability detection
+crates/jmax-dispatch/src/choose.rs	W2	W2-03	gpt-6-astra	jmax-dispatch	backend/size policy
+crates/jmax-dispatch/src/portable.rs	W3	W3-03	gpt-6-astra	jmax-dispatch	scalar fallback wiring
+crates/jmax-dispatch/src/override.rs	W4	W4-03	gpt-6-astra	jmax-dispatch	explicit override/reporting
+crates/jmax-scan-scalar/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-scan-scalar	frozen_root
+crates/jmax-scan-scalar/src/classify.rs	W1	W1-04	gpt-6-astra	jmax-scan-scalar	scalar BlockMasks
+crates/jmax-scan-scalar/src/quotes.rs	W2	W2-04	gpt-6-astra	jmax-scan-scalar	quote/backslash carry
+crates/jmax-scan-scalar/src/structural.rs	W3	W3-04	gpt-6-astra	jmax-scan-scalar	punctuation/space masks
+crates/jmax-scan-scalar/src/tails.rs	W4	W4-04	gpt-6-astra	jmax-scan-scalar	bounded partial blocks
+crates/jmax-scan-neon/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-scan-neon	frozen_root
+crates/jmax-scan-neon/src/classify.rs	W1	W1-05	gpt-6-astra	jmax-scan-neon	four-lane NEON masks
+crates/jmax-scan-neon/src/quotes.rs	W2	W2-05	gpt-6-astra	jmax-scan-neon	quote/carry NEON path
+crates/jmax-scan-neon/src/structural.rs	W3	W3-05	gpt-6-astra	jmax-scan-neon	vector classification
+crates/jmax-scan-neon/src/tails.rs	W4	W4-05	gpt-6-astra	jmax-scan-neon	safe partial/cfg fallback
+crates/jmax-scan-avx2/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-scan-avx2	frozen_root
+crates/jmax-scan-avx2/src/classify.rs	W1	W1-06	gpt-6-astra	jmax-scan-avx2	two-lane AVX2 masks
+crates/jmax-scan-avx2/src/quotes.rs	W2	W2-06	gpt-6-astra	jmax-scan-avx2	quote/carry AVX2 path
+crates/jmax-scan-avx2/src/structural.rs	W3	W3-06	gpt-6-astra	jmax-scan-avx2	vector classification
+crates/jmax-scan-avx2/src/tails.rs	W4	W4-06	gpt-6-astra	jmax-scan-avx2	safe partial/cfg fallback
+crates/jmax-scan-avx512/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-scan-avx512	frozen_root
+crates/jmax-scan-avx512/src/classify.rs	W1	W1-07	gpt-6-astra	jmax-scan-avx512	AVX-512 masks
+crates/jmax-scan-avx512/src/quotes.rs	W2	W2-07	gpt-6-astra	jmax-scan-avx512	quote/carry wide path
+crates/jmax-scan-avx512/src/structural.rs	W3	W3-07	gpt-6-astra	jmax-scan-avx512	vector classification
+crates/jmax-scan-avx512/src/tails.rs	W4	W4-07	gpt-6-astra	jmax-scan-avx512	bounded load/cfg fallback
+crates/jmax-utf8/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-utf8	frozen_root
+crates/jmax-utf8/src/validate.rs	W1	W1-08	gpt-6-astra	jmax-utf8	ps-simdutf8 safe integration
+crates/jmax-utf8/src/stream.rs	W2	W2-08	gpt-6-astra	jmax-utf8	carry-aware streaming
+crates/jmax-utf8/src/proof.rs	W3	W3-08	gpt-6-astra	jmax-utf8	private owner-bound UTF-8 proof
+crates/jmax-utf8/src/fused.rs	W4	W4-08	gpt-6-astra	jmax-utf8	optional shared-load integration
+crates/jmax-string/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-string	frozen_root
+crates/jmax-string/src/scan.rs	W1	W1-09	gpt-6.1-sol	jmax-string	string ends/escape discovery
+crates/jmax-string/src/unescape.rs	W2	W2-09	gpt-6.1-sol	jmax-string	UTF-16 surrogate decoding
+crates/jmax-string/src/length.rs	W3	W3-09	gpt-6.1-sol	jmax-string	decoded scalar/byte lengths
+crates/jmax-string/src/escape.rs	W4	W4-09	gpt-6.1-sol	jmax-string	serializer SIMD escape runs
+crates/jmax-number/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-number	frozen_root
+crates/jmax-number/src/lex.rs	W1	W1-10	gpt-6-astra	jmax-number	strict grammar/boundaries
+crates/jmax-number/src/integer.rs	W2	W2-10	gpt-6-astra	jmax-number	checked SWAR integers
+crates/jmax-number/src/float.rs	W3	W3-10	gpt-6-astra	jmax-number	exact-rounding conversion
+crates/jmax-number/src/write.rs	W4	W4-10	gpt-6-astra	jmax-number	integer/f64 output
+crates/jmax-decimal/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-decimal	frozen_root
+crates/jmax-decimal/src/lex.rs	W1	W1-11	gpt-6.1-sol	jmax-decimal	quoted fixed-point grammar
+crates/jmax-decimal/src/parse.rs	W2	W2-11	gpt-6.1-sol	jmax-decimal	checked chunk accumulation
+crates/jmax-decimal/src/bounds.rs	W3	W3-11	gpt-6.1-sol	jmax-decimal	scale/range/tick checks
+crates/jmax-decimal/src/write.rs	W4	W4-11	gpt-6.1-sol	jmax-decimal	exact lexical output
+crates/jmax-syntax/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-syntax	frozen_root
+crates/jmax-syntax/src/machine.rs	W1	W1-12	gpt-6-astra	jmax-syntax	object/array/root phases
+crates/jmax-syntax/src/frames.rs	W2	W2-12	gpt-6-astra	jmax-syntax	limits/stack state
+crates/jmax-syntax/src/feed.rs	W3	W3-12	gpt-6-astra	jmax-syntax	incremental event feed
+crates/jmax-syntax/src/finish.rs	W4	W4-12	gpt-6-astra	jmax-syntax	finalization/trailing errors
+crates/jmax-cursor/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-cursor	frozen_root
+crates/jmax-cursor/src/walk.rs	W1	W1-13	gpt-6-astra	jmax-cursor	forward tapeless cursor
+crates/jmax-cursor/src/skip.rs	W2	W2-13	gpt-6-astra	jmax-cursor	strict/query subtree modes
+crates/jmax-cursor/src/select.rs	W3	W3-13	gpt-6-astra	jmax-cursor	shared multi-slot extraction
+crates/jmax-cursor/src/resume.rs	W4	W4-13	gpt-6-astra	jmax-cursor	suspend/finish/ownership
+crates/jmax-path/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-path	frozen_root
+crates/jmax-path/src/parse.rs	W1	W1-14	gpt-6.1-sol	jmax-path	dot/escape/index grammar
+crates/jmax-path/src/compile.rs	W2	W2-14	gpt-6.1-sol	jmax-path	shared selector trie
+crates/jmax-path/src/query.rs	W3	W3-14	gpt-6.1-sol	jmax-path	spans and raw results
+crates/jmax-path/src/extensions.rs	W4	W4-14	gpt-6.1-sol	jmax-path	bounded wildcard/filter subset
+crates/jmax-dom/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-dom	frozen_root
+crates/jmax-dom/src/build.rs	W1	W1-15	gpt-6.1-sol	jmax-dom	flat node construction
+crates/jmax-dom/src/navigate.rs	W2	W2-15	gpt-6.1-sol	jmax-dom	node/object/array views
+crates/jmax-dom/src/scalar.rs	W3	W3-15	gpt-6.1-sol	jmax-dom	raw/cooked scalar access
+crates/jmax-dom/src/rebuild.rs	W4	W4-15	gpt-6.1-sol	jmax-dom	immutable edits/compaction
+crates/jmax-schema-ir/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-schema-ir	frozen_root
+crates/jmax-schema-ir/src/model.rs	W1	W1-16	gpt-6-astra	jmax-schema-ir	normalized constraint access
+crates/jmax-schema-ir/src/resolve.rs	W2	W2-16	gpt-6-astra	jmax-schema-ir	references/recursive types
+crates/jmax-schema-ir/src/policy.rs	W3	W3-16	gpt-6-astra	jmax-schema-ir	dialect/support policy
+crates/jmax-schema-ir/src/canonical.rs	W4	W4-16	gpt-6-astra	jmax-schema-ir	stable schema fingerprint input
+crates/jmax-schema-compile/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-schema-compile	frozen_root
+crates/jmax-schema-compile/src/lower.rs	W1	W1-17	gpt-6-astra	jmax-schema-compile	IR -> object/array instructions
+crates/jmax-schema-compile/src/keys.rs	W2	W2-17	gpt-6-astra	jmax-schema-compile	SWAR/perfect-hash tables
+crates/jmax-schema-compile/src/patterns.rs	W3	W3-17	gpt-6-astra	jmax-schema-compile	bounded regex programs
+crates/jmax-schema-compile/src/image.rs	W4	W4-17	gpt-6-astra	jmax-schema-compile	image validation/encoding/cache keys
+crates/jmax-schema-vm/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-schema-vm	frozen_root
+crates/jmax-schema-vm/src/execute.rs	W1	W1-18	gpt-6-astra	jmax-schema-vm	schema event interpreter
+crates/jmax-schema-vm/src/objects.rs	W2	W2-18	gpt-6-astra	jmax-schema-vm	key/required/seen handling
+crates/jmax-schema-vm/src/constraints.rs	W3	W3-18	gpt-6-astra	jmax-schema-vm	bounds/counts/pattern checks
+crates/jmax-schema-vm/src/extract.rs	W4	W4-18	gpt-6-astra	jmax-schema-vm	slots/proof publication
+crates/jmax-format/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-format	frozen_root
+crates/jmax-format/src/uuid_ip.rs	W1	W1-19	gpt-6.1-sol	jmax-format	UUID/IP validators
+crates/jmax-format/src/binary.rs	W2	W2-19	gpt-6.1-sol	jmax-format	base64/hex validators
+crates/jmax-format/src/identity.rs	W3	W3-19	gpt-6.1-sol	jmax-format	NanoId/address/hash validators
+crates/jmax-format/src/registry.rs	W4	W4-19	gpt-6.1-sol	jmax-format	bounded named-format dispatch
+crates/jmax-encode/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-encode	frozen_root
+crates/jmax-encode/src/sink.rs	W1	W1-20	gpt-6.1-sol	jmax-encode	reserve/write/size limits
+crates/jmax-encode/src/writer.rs	W2	W2-20	gpt-6.1-sol	jmax-encode	syntax-aware JSON writer
+crates/jmax-encode/src/raw.rs	W3	W3-20	gpt-6.1-sol	jmax-encode	validated fragment emission
+crates/jmax-encode/src/typed.rs	W4	W4-20	gpt-6.1-sol	jmax-encode	typed schema-aware output
+crates/jmax-derive/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-derive	frozen_root
+crates/jmax-derive/src/decode.rs	W1	W1-21	gpt-6.1-sol	jmax-derive	JsonDecode token generation
+crates/jmax-derive/src/encode.rs	W2	W2-21	gpt-6.1-sol	jmax-derive	JsonEncode token generation
+crates/jmax-derive/src/schema.rs	W3	W3-21	gpt-6.1-sol	jmax-derive	JsonSchema derive output
+crates/jmax-derive/src/attributes.rs	W4	W4-21	gpt-6.1-sol	jmax-derive	attrs/errors/DefinitionVariant bridge
+crates/jmax-schema-aot/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-schema-aot	frozen_root
+crates/jmax-schema-aot/src/tables.rs	W1	W1-22	gpt-6-astra	jmax-schema-aot	static image emission
+crates/jmax-schema-aot/src/decode.rs	W2	W2-22	gpt-6-astra	jmax-schema-aot	generated slot decoders
+crates/jmax-schema-aot/src/encode.rs	W3	W3-22	gpt-6-astra	jmax-schema-aot	generated key/value writers
+crates/jmax-schema-aot/src/verify.rs	W4	W4-22	gpt-6-astra	jmax-schema-aot	schema/table fingerprint assertions
+crates/jmax-endpoint-model/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-endpoint-model	frozen_root
+crates/jmax-endpoint-model/src/registry.rs	W1	W1-23	gpt-6.1-sol	jmax-endpoint-model	endpoint/type/role lookup
+crates/jmax-endpoint-model/src/legacy.rs	W2	W2-23	gpt-6.1-sol	jmax-endpoint-model	versioned legacy shapes
+crates/jmax-endpoint-model/src/wire_names.rs	W3	W3-23	gpt-6.1-sol	jmax-endpoint-model	casing/collision behavior
+crates/jmax-endpoint-model/src/utilities.rs	W4	W4-23	gpt-6.1-sol	jmax-endpoint-model	PG/header/model helpers
+crates/jmax-endpoint-ron/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-endpoint-ron	frozen_root
+crates/jmax-endpoint-ron/src/load.rs	W1	W1-24	gpt-6.1-sol	jmax-endpoint-ron	RON/config loading
+crates/jmax-endpoint-ron/src/normalize.rs	W2	W2-24	gpt-6.1-sol	jmax-endpoint-ron	definitions/defaults
+crates/jmax-endpoint-ron/src/validate.rs	W3	W3-24	gpt-6.1-sol	jmax-endpoint-ron	refs/methods/errors/roles
+crates/jmax-endpoint-ron/src/version.rs	W4	W4-24	gpt-6.1-sol	jmax-endpoint-ron	version.toml requirements
+crates/jmax-codegen-rust/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-codegen-rust	frozen_root
+crates/jmax-codegen-rust/src/models.rs	W1	W1-25	gpt-6.1-sol	jmax-codegen-rust	owned/view Rust types
+crates/jmax-codegen-rust/src/endpoints.rs	W2	W2-25	gpt-6.1-sol	jmax-codegen-rust	requests/responses/errors
+crates/jmax-codegen-rust/src/registries.rs	W3	W3-25	gpt-6.1-sol	jmax-codegen-rust	static schema/type tables
+crates/jmax-codegen-rust/src/compat.rs	W4	W4-25	gpt-6.1-sol	jmax-codegen-rust	legacy derives/flags/artifacts
+crates/jmax-codegen-spec/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-codegen-spec	frozen_root
+crates/jmax-codegen-spec/src/services.rs	W1	W1-26	gpt-6.1-sol	jmax-codegen-spec	public/all services docs
+crates/jmax-codegen-spec/src/json_schema.rs	W2	W2-26	gpt-6.1-sol	jmax-codegen-spec	MCP schema + tools
+crates/jmax-codegen-spec/src/protocol.rs	W3	W3-26	gpt-6.1-sol	jmax-codegen-spec	OpenAPI/AsyncAPI projections
+crates/jmax-codegen-spec/src/markdown.rs	W4	W4-26	gpt-6.1-sol	jmax-codegen-spec	docs/error/systemd helpers
+crates/jmax-wire/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-wire	frozen_root
+crates/jmax-wire/src/envelope.rs	W1	W1-27	gpt-6.1-sol	jmax-wire	RPC request/response decode
+crates/jmax-wire/src/framed.rs	W2	W2-27	gpt-6.1-sol	jmax-wire	neutral framing codec
+crates/jmax-wire/src/dispatch.rs	W3	W3-27	gpt-6.1-sol	jmax-wire	typed/role-aware route contract
+crates/jmax-wire/src/responses.rs	W4	W4-27	gpt-6.1-sol	jmax-wire	all response variants/encode
+crates/jmax-mcp/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-mcp	frozen_root
+crates/jmax-mcp/src/envelope.rs	W1	W1-28	gpt-6.1-sol	jmax-mcp	IDs/request/notification parsing
+crates/jmax-mcp/src/state.rs	W2	W2-28	gpt-6.1-sol	jmax-mcp	initialize/tools routing
+crates/jmax-mcp/src/catalog.rs	W3	W3-28	gpt-6.1-sol	jmax-mcp	role-filtered tools/schema
+crates/jmax-mcp/src/results.rs	W4	W4-28	gpt-6.1-sol	jmax-mcp	structured/text/error output
+crates/jmax-nagoya/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-nagoya	frozen_root
+crates/jmax-nagoya/src/submit.rs	W1	W1-29	gpt-6-astra	jmax-nagoya	Send CPU parse submission
+crates/jmax-nagoya/src/batch.rs	W2	W2-29	gpt-6-astra	jmax-nagoya	par_for owned batches/results
+crates/jmax-nagoya/src/admission.rs	W3	W3-29	gpt-6-astra	jmax-nagoya	credits/bytes/scratch leases
+crates/jmax-nagoya/src/ordered.rs	W4	W4-29	gpt-6-astra	jmax-nagoya	bounded ordered completion/cancel
+crates/jmax-http/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-http	frozen_root
+crates/jmax-http/src/client.rs	W1	W1-30	gpt-6.1-sol	jmax-http	nago-http typed calls
+crates/jmax-http/src/incoming.rs	W2	W2-30	gpt-6.1-sol	jmax-http	complete-body response checks
+crates/jmax-http/src/outgoing.rs	W3	W3-30	gpt-6.1-sol	jmax-http	validated request/response buffers
+crates/jmax-http/src/hosted.rs	W4	W4-30	gpt-6.1-sol	jmax-http	neutral hosted/webhook boundary
+crates/jmax-wss/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-wss	frozen_root
+crates/jmax-wss/src/receive.rs	W1	W1-31	gpt-6.1-sol	jmax-wss	nago-wss Bytes -> protected input
+crates/jmax-wss/src/send.rs	W2	W2-31	gpt-6.1-sol	jmax-wss	validated owned output
+crates/jmax-wss/src/policy.rs	W3	W3-31	gpt-6.1-sol	jmax-wss	control/binary/fragment limits
+crates/jmax-wss/src/bridge.rs	W4	W4-31	gpt-6.1-sol	jmax-wss	endpoint/local reactor seams
+crates/jmax-exchange/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-exchange	frozen_root
+crates/jmax-exchange/src/depth.rs	W1	W1-32	gpt-6.1-sol	jmax-exchange	Spot depth schema/slots
+crates/jmax-exchange/src/trade.rs	W2	W2-32	gpt-6.1-sol	jmax-exchange	aggTrade schema/slots
+crates/jmax-exchange/src/snapshot.rs	W3	W3-32	gpt-6.1-sol	jmax-exchange	REST depth/wrapper profiles
+crates/jmax-exchange/src/profiles.rs	W4	W4-32	gpt-6.1-sol	jmax-exchange	decimals/version/sequence boundary
+crates/jmax-compat/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-compat	frozen_root
+crates/jmax-compat/src/serde.rs	W1	W1-33	gpt-6.1-sol	jmax-compat	optional direct Serde bridge
+crates/jmax-compat/src/endpoint.rs	W2	W2-33	gpt-6.1-sol	jmax-compat	existing endpoint-libs adapter
+crates/jmax-compat/src/schema.rs	W3	W3-33	gpt-6.1-sol	jmax-compat	old schema/docs import/export
+crates/jmax-compat/src/utilities.rs	W4	W4-33	gpt-6.1-sol	jmax-compat	retained utility re-exports
+crates/jmax-gen-cli/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-gen-cli	frozen_root
+crates/jmax-gen-cli/src/main.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-gen-cli	frozen_bin_root
+crates/jmax-gen-cli/src/args.rs	W1	W1-34	gpt-6-luna	jmax-gen-cli	native/legacy option parsing
+crates/jmax-gen-cli/src/pipeline.rs	W2	W2-34	gpt-6-luna	jmax-gen-cli	input -> all outputs
+crates/jmax-gen-cli/src/check.rs	W3	W3-34	gpt-6-luna	jmax-gen-cli	drift comparison/no-write mode
+crates/jmax-gen-cli/src/manifest.rs	W4	W4-34	gpt-6-luna	jmax-gen-cli	deterministic artifact listing
+crates/jmax-validator/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-validator	frozen_root
+crates/jmax-validator/src/main.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-validator	frozen_bin_root
+crates/jmax-validator/src/load.rs	W1	W1-35	gpt-6-luna	jmax-validator	services/preset model loading
+crates/jmax-validator/src/params.rs	W2	W2-35	gpt-6-luna	jmax-validator	grammar-aware inputs
+crates/jmax-validator/src/session.rs	W3	W3-35	gpt-6-luna	jmax-validator	explicit reactor client state
+crates/jmax-validator/src/ui.rs	W4	W4-35	gpt-6-luna	jmax-validator	TUI/list/native view adapter
+crates/jmax-runner/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-runner	frozen_root
+crates/jmax-runner/src/main.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-runner	frozen_bin_root
+crates/jmax-runner/src/scenario.rs	W1	W1-36	gpt-6.1-sol	jmax-runner	complete scenario model
+crates/jmax-runner/src/drive.rs	W2	W2-36	gpt-6.1-sol	jmax-runner	calls/assertions/named connections
+crates/jmax-runner/src/coverage.rs	W3	W3-36	gpt-6.1-sol	jmax-runner	roles/endpoints/suite sets
+crates/jmax-runner/src/process.rs	W4	W4-36	gpt-6.1-sol	jmax-runner	boot/redaction/lifecycle helpers
+crates/jmax-bench/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-bench	frozen_root
+crates/jmax-bench/src/corpus.rs	W1	W1-37	gpt-6-luna	jmax-bench	deterministic workload factory
+crates/jmax-bench/src/parse.rs	W2	W2-37	gpt-6-luna	jmax-bench	fair parse/validate/extract runners
+crates/jmax-bench/src/serialize.rs	W3	W3-37	gpt-6-luna	jmax-bench	output/escaping/format runners
+crates/jmax-bench/src/service.rs	W4	W4-37	gpt-6-luna	jmax-bench	Nagoya throughput/latency/retention
+crates/jmax-fuzz/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-fuzz	frozen_root
+crates/jmax-fuzz/src/syntax.rs	W1	W1-38	gpt-6-luna	jmax-fuzz	differential syntax harness
+crates/jmax-fuzz/src/schema.rs	W2	W2-38	gpt-6-luna	jmax-fuzz	AOT/VM/constraints differential
+crates/jmax-fuzz/src/ownership.rs	W3	W3-38	gpt-6-luna	jmax-fuzz	spans/tails/retention stress
+crates/jmax-fuzz/src/numbers.rs	W4	W4-38	gpt-6-luna	jmax-fuzz	rounding/decimal adversarial corpus
+crates/jsonmax/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jsonmax	frozen_root
+crates/jsonmax/src/parse.rs	W1	W1-39	gpt-6-luna	jsonmax	native facade/owned parse API
+crates/jsonmax/src/query.rs	W2	W2-39	gpt-6-luna	jsonmax	strict/query facade separation
+crates/jsonmax/src/encode.rs	W3	W3-39	gpt-6-luna	jsonmax	typed output facade
+crates/jsonmax/src/endpoint.rs	W4	W4-39	gpt-6-luna	jsonmax	schema/endpoint facade

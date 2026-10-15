@@ -1,0 +1,225 @@
+{
+  "task_id": "W0-ROOTS-6",
+  "wave": 0,
+  "title": "Crate Roots and Contracts Freeze",
+  "status": "complete",
+  "assigned_rows": [
+    26,
+    27,
+    28,
+    29,
+    30
+  ],
+  "files_written": [
+    "crates/jmax-codegen-spec/src/lib.rs",
+    "contracts/jmax-codegen-spec.md",
+    "crates/jmax-wire/src/lib.rs",
+    "contracts/jmax-wire.md",
+    "crates/jmax-mcp/src/lib.rs",
+    "contracts/jmax-mcp.md",
+    "crates/jmax-nagoya/src/lib.rs",
+    "contracts/jmax-nagoya.md",
+    "crates/jmax-http/src/lib.rs",
+    "contracts/jmax-http.md",
+    "reports/wave0/W0-ROOTS-6.json"
+  ],
+  "crates": [
+    {
+      "row": 26,
+      "crate": "jmax-codegen-spec",
+      "root": "crates/jmax-codegen-spec/src/lib.rs",
+      "contract": "contracts/jmax-codegen-spec.md",
+      "contract_version": 1,
+      "wave_modules": {
+        "1": "crates/jmax-codegen-spec/src/services.rs",
+        "2": "crates/jmax-codegen-spec/src/json_schema.rs",
+        "3": "crates/jmax-codegen-spec/src/protocol.rs",
+        "4": "crates/jmax-codegen-spec/src/markdown.rs"
+      },
+      "allowed_dependencies": [
+        "jmax-abi",
+        "jmax-endpoint-model",
+        "jmax-schema-ir",
+        "jmax-encode"
+      ],
+      "summary": "Deterministic service selection, schema registry, projection options, tool identity, documentation models and catalog validation.",
+      "required_module_declarations_present": true,
+      "contract_contains_exact_root_source": true
+    },
+    {
+      "row": 27,
+      "crate": "jmax-wire",
+      "root": "crates/jmax-wire/src/lib.rs",
+      "contract": "contracts/jmax-wire.md",
+      "contract_version": 1,
+      "wave_modules": {
+        "1": "crates/jmax-wire/src/envelope.rs",
+        "2": "crates/jmax-wire/src/framed.rs",
+        "3": "crates/jmax-wire/src/dispatch.rs",
+        "4": "crates/jmax-wire/src/responses.rs"
+      },
+      "allowed_dependencies": [
+        "jmax-abi",
+        "jmax-schema-vm",
+        "jmax-cursor",
+        "jmax-buffer",
+        "jmax-encode",
+        "jmax-endpoint-model"
+      ],
+      "summary": "Owned envelope spans, bounded byte sink, JSON string escaping, framing storage, role-aware dispatch and response variants.",
+      "required_module_declarations_present": true,
+      "contract_contains_exact_root_source": true
+    },
+    {
+      "row": 28,
+      "crate": "jmax-mcp",
+      "root": "crates/jmax-mcp/src/lib.rs",
+      "contract": "contracts/jmax-mcp.md",
+      "contract_version": 1,
+      "wave_modules": {
+        "1": "crates/jmax-mcp/src/envelope.rs",
+        "2": "crates/jmax-mcp/src/state.rs",
+        "3": "crates/jmax-mcp/src/catalog.rs",
+        "4": "crates/jmax-mcp/src/results.rs"
+      },
+      "allowed_dependencies": [
+        "jmax-abi",
+        "jmax-wire",
+        "jmax-endpoint-model",
+        "jmax-schema-vm",
+        "jmax-encode"
+      ],
+      "summary": "Exact request IDs, initialization state, routing actions, role-filtered tool definitions, schema/argument provider traits and result variants.",
+      "required_module_declarations_present": true,
+      "contract_contains_exact_root_source": true
+    },
+    {
+      "row": 29,
+      "crate": "jmax-nagoya",
+      "root": "crates/jmax-nagoya/src/lib.rs",
+      "contract": "contracts/jmax-nagoya.md",
+      "contract_version": 1,
+      "wave_modules": {
+        "1": "crates/jmax-nagoya/src/submit.rs",
+        "2": "crates/jmax-nagoya/src/batch.rs",
+        "3": "crates/jmax-nagoya/src/admission.rs",
+        "4": "crates/jmax-nagoya/src/ordered.rs"
+      },
+      "allowed_dependencies": [
+        "jmax-abi",
+        "jmax-buffer",
+        "jmax-syntax",
+        "jmax-schema-vm"
+      ],
+      "summary": "Owned Send CPU executor/validator traits, cancellation, batch ownership, atomic admission storage, RAII leases and ordered completion storage.",
+      "required_module_declarations_present": true,
+      "contract_contains_exact_root_source": true
+    },
+    {
+      "row": 30,
+      "crate": "jmax-http",
+      "root": "crates/jmax-http/src/lib.rs",
+      "contract": "contracts/jmax-http.md",
+      "contract_version": 1,
+      "wave_modules": {
+        "1": "crates/jmax-http/src/client.rs",
+        "2": "crates/jmax-http/src/incoming.rs",
+        "3": "crates/jmax-http/src/outgoing.rs",
+        "4": "crates/jmax-http/src/hosted.rs"
+      },
+      "allowed_dependencies": [
+        "jmax-abi",
+        "jmax-buffer",
+        "jmax-schema-vm",
+        "jmax-encode",
+        "jmax-nagoya"
+      ],
+      "summary": "Runtime-neutral HTTP transport, complete-body models, validated body ownership, header safety, bounded output, proof binding and webhook/host traits.",
+      "required_module_declarations_present": true,
+      "contract_contains_exact_root_source": true
+    }
+  ],
+  "cross_crate_invariants": [
+    "ABI-owned types are canonical jmax_abi reexports; no alternate ABI layouts or proof issuance.",
+    "Empty endpoint role requirements mean public access; otherwise use exact any-role intersection.",
+    "MCP and specification tool names use the same injective service.endpoint convention.",
+    "Envelope string references remain tied to original payload or owned decoded arena.",
+    "Owned validated HTTP buffers preserve exact bytes and enforce fingerprint and proof lengths.",
+    "Successful CPU results retain their admission reservation through Admitted<T>.",
+    "Ordered completion direct delivery prevents a full out-of-order buffer from blocking the next sequence.",
+    "All roots support no_std plus alloc; hosts supply runtime and transport adapters."
+  ],
+  "verification": {
+    "method": "Manual source review and text-only artifact inspection; no Rust tools or build commands invoked.",
+    "root_count": 5,
+    "contract_count": 5,
+    "required_module_declaration_count": 20,
+    "exact_root_appendices_match": true,
+    "prohibited_source_findings": [],
+    "compilation": "not_run_user_prohibited",
+    "tests": "not_run_user_prohibited",
+    "formatting_tool": "not_run_user_prohibited",
+    "git_commit": "not_run_user_prohibited",
+    "outside_assigned_files_written": false,
+    "manifest_or_ownership_changes": false
+  },
+  "handoff_notes": [
+    "Only assigned roots, contracts, and this report were written. Future wave module files remain unmodified and are intentionally not created in Wave 0.",
+    "Each contract freezes exact wave function signatures, all shared definitions, errors, serialization policy, ownership rules and acyclic module dependencies.",
+    "Compilation remains unverified and requires the independently owned ABI and wave module implementations.",
+    "CpuExecutor and HttpTransport are host adapter contracts; optional runtime packages are not imported beyond the authorized dependency lists.",
+    "Resource accounting relies on truthful retained-byte weights and budget-compliant validators/decoders; standard allocator overhead and infallible collection allocation failures are documented."
+  ],
+  "artifacts": [
+    {
+      "path": "crates/jmax-codegen-spec/src/lib.rs",
+      "bytes": 7168,
+      "sha256": "f0ee06c50437e9902b401fb1c8bace1d8aa01c767482ccbced3ee51e7053348f"
+    },
+    {
+      "path": "contracts/jmax-codegen-spec.md",
+      "bytes": 18023,
+      "sha256": "c5ea31fcf703324a4b3940b66bb45b546792795ca9d5787a74aee6bb1932c329"
+    },
+    {
+      "path": "crates/jmax-wire/src/lib.rs",
+      "bytes": 6520,
+      "sha256": "f39b583085015d60f6edbf1cb75608cdb570667ffbf3ca2ba177b6f91c4bf337"
+    },
+    {
+      "path": "contracts/jmax-wire.md",
+      "bytes": 16306,
+      "sha256": "9519ef6725cb7731d645fedbd191fc0eda445348f7623b5b67115c2295385c94"
+    },
+    {
+      "path": "crates/jmax-mcp/src/lib.rs",
+      "bytes": 5742,
+      "sha256": "7d1b57d2ea6d62f38383ddf10dfa054642740c08f5292af3cd38fa0a1330b5e5"
+    },
+    {
+      "path": "contracts/jmax-mcp.md",
+      "bytes": 18010,
+      "sha256": "128ae768e750a67c5ded6961ccb332f194c2c20d93f352870262a43408792e92"
+    },
+    {
+      "path": "crates/jmax-nagoya/src/lib.rs",
+      "bytes": 6734,
+      "sha256": "eee8bff55a1ab48b431460c8ad3d94bc6c5e49816532fdec35920a3db74b602e"
+    },
+    {
+      "path": "contracts/jmax-nagoya.md",
+      "bytes": 19719,
+      "sha256": "d13054b6c013d06c681472f833a757ec8ec9c160d52839af6809f9378ddada71"
+    },
+    {
+      "path": "crates/jmax-http/src/lib.rs",
+      "bytes": 8965,
+      "sha256": "f2a50cad58e4d08c08ab42c6dd6ed59d23198295997f392c32904336217460ba"
+    },
+    {
+      "path": "contracts/jmax-http.md",
+      "bytes": 22429,
+      "sha256": "65572aa51028f7aacc1fd1e05551378ffb5d3d87c429db1c4e0da03d126e2a6c"
+    }
+  ]
+}

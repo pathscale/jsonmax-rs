@@ -1,0 +1,250 @@
+{
+  "task_id": "W0-ROOTS-4",
+  "title": "Wave 0 Crate Roots & Contracts Freeze",
+  "status": "completed",
+  "scope": "Assigned Wave 0 roots and contracts for rows 16 through 20",
+  "files_written": [
+    "crates/jmax-schema-ir/src/lib.rs",
+    "contracts/jmax-schema-ir.md",
+    "crates/jmax-schema-compile/src/lib.rs",
+    "contracts/jmax-schema-compile.md",
+    "crates/jmax-schema-vm/src/lib.rs",
+    "contracts/jmax-schema-vm.md",
+    "crates/jmax-format/src/lib.rs",
+    "contracts/jmax-format.md",
+    "crates/jmax-encode/src/lib.rs",
+    "contracts/jmax-encode.md",
+    "reports/wave0/W0-ROOTS-4.json"
+  ],
+  "crates": [
+    {
+      "row": 16,
+      "crate": "jmax-schema-ir",
+      "modules": [
+        "model",
+        "resolve",
+        "policy",
+        "canonical"
+      ],
+      "shared_contract": [
+        "ABI reexports",
+        "normalized scalar/object/array/reference graph",
+        "private resolved-graph witness",
+        "dialect and numeric support policy",
+        "versioned canonical byte grammar",
+        "incremental FNV-1a fingerprint"
+      ],
+      "wave_entrypoints": {
+        "wave1": [
+          "model::normalize",
+          "model::validate",
+          "model::constraints",
+          "model::property",
+          "model::required_fields"
+        ],
+        "wave2": [
+          "resolve::resolve",
+          "resolve::resolve_type",
+          "resolve::has_recursion"
+        ],
+        "wave3": [
+          "policy::supports",
+          "policy::validate_policy",
+          "policy::validate_schema",
+          "policy::known_format"
+        ],
+        "wave4": [
+          "canonical::canonicalize",
+          "canonical::fingerprint",
+          "canonical::fingerprint_bytes"
+        ]
+      }
+    },
+    {
+      "row": 17,
+      "crate": "jmax-schema-compile",
+      "modules": [
+        "lower",
+        "keys",
+        "patterns",
+        "image"
+      ],
+      "shared_contract": [
+        "ABI instruction/image reexports",
+        "bounded compiler options",
+        "state and constraint side tables",
+        "SWAR and perfect-hash metadata",
+        "Unicode Thompson NFA representation",
+        "private validated-program witness",
+        "explicit opcode byte mapping",
+        "collision-aware complete-byte cache key"
+      ],
+      "wave_entrypoints": {
+        "wave1": [
+          "lower::lower",
+          "lower::compile"
+        ],
+        "wave2": [
+          "keys::build",
+          "keys::lookup",
+          "keys::validate"
+        ],
+        "wave3": [
+          "patterns::compile",
+          "patterns::validate",
+          "patterns::is_match"
+        ],
+        "wave4": [
+          "image::validate",
+          "image::encoded_len",
+          "image::encode",
+          "image::decode",
+          "image::cache_key"
+        ]
+      }
+    },
+    {
+      "row": 18,
+      "crate": "jmax-schema-vm",
+      "modules": [
+        "execute",
+        "objects",
+        "constraints",
+        "extract"
+      ],
+      "shared_contract": [
+        "ABI event/slot/proof reexports",
+        "audited unsafe EventInput extension contract",
+        "owner-bound input buffers",
+        "per-object seen and pending state",
+        "explicit frame stack",
+        "checked shared step/scratch budget",
+        "private completed-run capability",
+        "checked string resolution"
+      ],
+      "wave_entrypoints": {
+        "wave1": [
+          "execute::run",
+          "execute::validate",
+          "execute::step (crate-private)"
+        ],
+        "wave2": [
+          "objects::begin",
+          "objects::key",
+          "objects::take_value",
+          "objects::finish"
+        ],
+        "wave3": [
+          "constraints::check_scalar",
+          "constraints::check_count",
+          "constraints::check_pattern"
+        ],
+        "wave4": [
+          "extract::selected",
+          "extract::store",
+          "extract::publish"
+        ]
+      }
+    },
+    {
+      "row": 19,
+      "crate": "jmax-format",
+      "modules": [
+        "uuid_ip",
+        "binary",
+        "identity",
+        "registry"
+      ],
+      "shared_contract": [
+        "stable named FormatId values",
+        "base64 padding and hex case policies",
+        "bounded format options",
+        "decoded-relative format failures",
+        "raw-token-relative ABI error conversion"
+      ],
+      "wave_entrypoints": {
+        "wave1": [
+          "uuid_ip::validate_uuid",
+          "uuid_ip::validate_ipv4",
+          "uuid_ip::validate_ipv6",
+          "uuid_ip::validate_ip"
+        ],
+        "wave2": [
+          "binary::validate_base64",
+          "binary::validate_hex"
+        ],
+        "wave3": [
+          "identity::validate_nanoid",
+          "identity::validate_address",
+          "identity::validate_transaction_hash"
+        ],
+        "wave4": [
+          "registry::lookup",
+          "registry::validate",
+          "registry::validate_named"
+        ]
+      }
+    },
+    {
+      "row": 20,
+      "crate": "jmax-encode",
+      "modules": [
+        "sink",
+        "writer",
+        "raw",
+        "typed"
+      ],
+      "shared_contract": [
+        "canonical ABI ByteSink/JsonEncode reexports",
+        "bounded output limits",
+        "owned VecSink and borrowed LimitedSink",
+        "syntax writer frame state",
+        "borrowed validated raw fragment capability",
+        "checked output and escaped-string length helpers"
+      ],
+      "wave_entrypoints": {
+        "wave1": [
+          "sink::reserve",
+          "sink::append",
+          "ByteSink implementations for VecSink and LimitedSink"
+        ],
+        "wave2": [
+          "JsonWriter constructors, syntax/scalar/raw methods and finish"
+        ],
+        "wave3": [
+          "raw::validate",
+          "raw::emit"
+        ],
+        "wave4": [
+          "typed::encode",
+          "typed::encode_to_vec",
+          "typed::encode_slots"
+        ]
+      }
+    }
+  ],
+  "review": {
+    "method": "Manual source and cross-contract review only",
+    "build_commands_run": false,
+    "check_commands_run": false,
+    "format_commands_run": false,
+    "tests_run": false,
+    "commit_created": false,
+    "manifest_or_ownership_modified": false,
+    "unassigned_files_modified": false,
+    "prohibited_source_constructs_used": false,
+    "compilation_verified": false
+  },
+  "handoff_notes": [
+    "Each contract contains exact future module signatures, error behavior, cross-module invariants, and a normative snapshot of the shared root definitions.",
+    "All requested module declarations are present. Wave 1 through Wave 4 implementation files are not authored because they are outside this assignment.",
+    "All roots use no_std; allocation-using roots explicitly import alloc. No dependency manifest changes are required by the roots.",
+    "Four roots forbid unsafe code. The VM root allows only explicitly audited unsafe operations for EventInput implementations and eventual ABI proof publication.",
+    "Image version 1 includes executable side tables and canonical schema bytes, with exact serialization and semantic consistency requirements.",
+    "Schema captures on potentially repeating paths are explicitly rejected, and proof publication rejects query-only selection.",
+    "Version 1 typed slot encoding explicitly rejects named-format constraints because the allowed encode dependencies contain no format registry.",
+    "No cargo, rustc, rustfmt, build, check, test or commit command was run."
+  ],
+  "blockers": [],
+  "remaining_for_later_waves": "Implement only the assigned wave modules against the frozen contracts; compilation and executable validation remain intentionally unperformed under this task restriction."
+}

@@ -1,0 +1,24 @@
+[package]
+name = "jmax-validator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "jmax-validator"
+path = "src/main.rs"
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-endpoint-model = { workspace = true }
+jmax-compat = { workspace = true }
+jmax-wss = { workspace = true }
+jmax-path = { workspace = true }
+jmax-dom = { workspace = true }
+jmax-encode = { workspace = true }

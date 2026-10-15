@@ -1,0 +1,74 @@
+{
+  "task_id": "W0-ABI-1",
+  "wave": 0,
+  "status": "implemented_unverified",
+  "summary": "Implemented all assigned frozen ABI declarations, constructors, methods, trait implementations, root module declarations, and convenient re-exports. Added 31 inline unit tests across the six owned Rust files.",
+  "files_written": [
+    "crates/jmax-abi/src/lib.rs",
+    "crates/jmax-abi/src/span.rs",
+    "crates/jmax-abi/src/buffer.rs",
+    "crates/jmax-abi/src/error.rs",
+    "crates/jmax-abi/src/scan.rs",
+    "crates/jmax-abi/src/syntax.rs",
+    "reports/wave0/W0-ABI-1.json"
+  ],
+  "implementation": {
+    "lib": "Unconditional no_std and alloc, feature-gated std import, all eleven canonical public modules, and explicit canonical type and trait re-exports.",
+    "span": "Exact specified fields, representations, and derives; const construction and checked end arithmetic; checked conversion to usize and bounds-safe slicing.",
+    "buffer": "Arc and Bytes payload ownership, private validation proof metadata, documented unsafe issuance and assembly contracts, immutable message accessors, owned value extraction, and checked raw/string resolution.",
+    "error": "All 33 error codes and 13 error sources, const constructors, schema context attachment, allocation-free Display formatting, core::error::Error, and the canonical Result alias.",
+    "scan": "Exact backend identifiers, C-layout carry and block masks, zeroed defaults, and the canonical ClassifyFn signature.",
+    "syntax": "All tokens, scalar kinds, frame phases, events and scan steps; documented limit presets; default cursor and scratch storage; clear retains allocation capacity while removing all message state."
+  },
+  "decisions_where_specification_did_not_define_behavior": {
+    "strict_limits": {
+      "max_payload_bytes": 16777216,
+      "max_decoded_bytes": 16777216,
+      "max_depth": 128,
+      "max_fields_per_object": 65536,
+      "max_string_bytes": 1048576,
+      "max_number_digits": 1024,
+      "max_array_items": 1048576,
+      "reject_duplicate_keys": true,
+      "reject_unknown_keys": true
+    },
+    "permissive_limits": "All numeric ceilings use their declared integer type maximum; both key rejection flags are false. Zero is a literal resource ceiling, not an unlimited sentinel.",
+    "error_context_defaults": "Error::new initializes schema_id and field_id to zero; with_schema replaces both identifiers.",
+    "error_display": "Source: Code at byte OFFSET (schema SCHEMA_ID, field FIELD_ID), followed by ': DETAIL' when detail is nonempty.",
+    "payload_construction": "from_slice copies into Arc<[u8]>; from_vec transfers ownership into bytes::Bytes.",
+    "string_resolution": "resolve_str selects the requested backing buffer and validates bounds and UTF-8. scalar_len remains metadata and does not truncate or index the returned string.",
+    "proof_contract": "Unsafe callers must establish schema validation, exact buffer lengths, valid references, UTF-8, and scalar counts, and preserve those invariants. Metadata alone does not prove validity."
+  },
+  "inline_tests": {
+    "total": 31,
+    "by_file": {
+      "lib.rs": 2,
+      "span.rs": 5,
+      "buffer.rs": 7,
+      "error.rs": 5,
+      "scan.rs": 6,
+      "syntax.rs": 6
+    },
+    "coverage": [
+      "Canonical root exports and Send/Sync bounds",
+      "Const span construction, u32 overflow, empty spans, bounds, and fixed layouts",
+      "Payload ownership, cheap clones, empty buffers, and proof accessors",
+      "Message accessors, value extraction, buffer selection, UTF-8 boundaries, and invalid spans",
+      "Error context, display formatting, all code/source variants, and core error integration",
+      "Scanner defaults, carry preservation, high-bit masks, backend tags, and classifier function compatibility",
+      "Exact limit presets, cursor defaults, event data, enum distinctions, and scratch capacity reuse"
+    ],
+    "executed": false
+  },
+  "verification": {
+    "method": "Source review only; no executable validation was performed.",
+    "build_test_format_or_check_commands_run": false,
+    "git_commit_run": false,
+    "reason": "The task explicitly prohibits compiler, build, formatting, and check commands."
+  },
+  "integration_notes": [
+    "The six sibling ABI modules number, node, schema, endpoint, wire, and traits are declared and re-exported as required, but their implementations are outside this task's file ownership. Their files were absent at initial inspection.",
+    "No manifests or files owned by other tasks were modified.",
+    "Compilation, feature compatibility, and unit test results remain unverified until the authorized integration phase."
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "task_id": "W0-ABI-2",
+  "wave": 0,
+  "title": "ABI Freeze Part 2",
+  "status": "implemented_unverified",
+  "summary": "Implemented all six assigned ABI modules, their specified constructors and derived traits, the Vec<u8> ByteSink implementation, and 35 inline unit tests. Source was manually reviewed. Compilation and automated validation were not run at the user's instruction.",
+  "files_written": [
+    "crates/jmax-abi/src/number.rs",
+    "crates/jmax-abi/src/node.rs",
+    "crates/jmax-abi/src/schema.rs",
+    "crates/jmax-abi/src/endpoint.rs",
+    "crates/jmax-abi/src/wire.rs",
+    "crates/jmax-abi/src/traits.rs",
+    "reports/wave0/W0-ABI-2.json"
+  ],
+  "implementation": {
+    "number": "NumericPolicy, Decimal128, DecimalPolicy, ConvertedNumber, and const policy/decimal constructors and accessors.",
+    "node": "NodeWord packing and const accessors, Container32, DocumentParts, and ValidatedDocument.",
+    "schema": "Schema identifiers, Opcode, image records, schema IR, compilation limits, SchemaImage, Selection, SlotValue, and ValidatedSlots.",
+    "endpoint": "Every specified EndpointType variant plus EnumVariantSpec, EndpointField, EndpointSchemaSpec, and ServiceSpec.",
+    "wire": "Every specified EnvelopeKind variant plus WireEnvelopeView and FramedHeader.",
+    "traits": "ByteSink, its fallible Vec<u8> implementation, JsonDecode, JsonEncode, SchemaProvider, and ResourceBudget."
+  },
+  "decisions_for_unspecified_behavior": {
+    "numeric_strict_default": {
+      "allow_Quoted_int": false,
+      "reject_non_finite_float": true,
+      "reject_negative_zero": true,
+      "max_exponent_abs": 308
+    },
+    "decimal_spot_8": {
+      "max_precision": 38,
+      "target_scale": 8,
+      "allow_exponent": false,
+      "reject_inexact_rescale": true,
+      "tick_step": 1
+    },
+    "compile_default_limits": {
+      "max_states": 65536,
+      "max_insns": 1048576,
+      "max_keys": 65536,
+      "max_pattern_states": 4096
+    },
+    "node_word": {
+      "kind_bits_inclusive": [0, 7],
+      "aux24_bits_inclusive": [8, 31],
+      "payload_index_bits_inclusive": [32, 63],
+      "oversized_aux24": "Mask to the low 24 bits without affecting kind or payload_index.",
+      "serialization": "Integer bit layout is independent of host byte order; no serialized byte order is introduced."
+    },
+    "vec_byte_sink": {
+      "reservation": "Vec::try_reserve is used before appending, so a reservation error preserves existing bytes.",
+      "error_code": "BudgetExhausted",
+      "error_source": "Encode",
+      "error_offset": "Current output length, saturated at u32::MAX.",
+      "error_detail": "byte sink capacity reservation failed"
+    }
+  },
+  "tests": {
+    "execution_status": "not_run",
+    "reason": "The user explicitly prohibited build, check, formatting, and compiler commands.",
+    "inline_test_count": 35,
+    "per_module": {
+      "number": 4,
+      "node": 6,
+      "schema": 9,
+      "endpoint": 5,
+      "wire": 4,
+      "traits": 7
+    },
+    "coverage": [
+      "Const constructors, policy defaults, decimal bounds, scale preservation, and floating-point bit equality.",
+      "Node bit layout, auxiliary masking, field independence, every single-bit round trip, and container layout.",
+      "Identifier layout, opcode order, image-record offsets, zero defaults, IR constraints, selection, and owned clones.",
+      "All endpoint variants, parameter-sensitive equality, recursive types, service metadata, and response models.",
+      "All envelope kinds, missing versus zero metadata, full-width framing fields, and span preservation.",
+      "Fallible vector capacity reservation, deterministic capacity overflow, unchanged contents on failure, binary appends, and trait-object calls.",
+      "Default sink methods, error propagation, composed decode/encode/schema traits, and resource-budget boundaries.",
+      "Validated document and slot cloning, shared payload lifetime, and independently owned decoded storage."
+    ]
+  },
+  "constraints_observed": {
+    "only_assigned_sources_and_requested_report_written": true,
+    "no_build_or_check_commands_run": true,
+    "no_formatter_or_compiler_commands_run": true,
+    "no_commit_created": true,
+    "no_prohibited_dependencies_or_placeholder_macros_used": true,
+    "no_em_dash_characters_added": true,
+    "production_source_uses_core_and_alloc": true,
+    "production_source_contains_no_unsafe_blocks": true
+  },
+  "integration_notes": [
+    "Preserved the exact frozen field spelling allow_Quoted_int with a narrowly scoped naming-lint allowance.",
+    "All specified field ordering, representations, enum ordering, and derive sets are preserved.",
+    "The supplied specification names default-policy helpers without assigning their values; the selected values are documented above and in source.",
+    "For a concrete Vec<u8>, use ByteSink::reserve explicitly when the fallible trait operation is intended, since Vec also has an inherent reserve method.",
+    "C-layout records are in-memory ABI records; image serializers must handle fields and padding explicitly.",
+    "The sibling ABI modules and crate exports are owned separately and were not modified.",
+    "Build and test execution remains necessary during the later authorized integration phase."
+  ],
+  "known_blockers": []
+}

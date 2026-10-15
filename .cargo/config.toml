@@ -1,0 +1,3 @@
+# Frozen by Wave 0. Do not enable automatic target-cpu=native.
+[build]
+incremental = false

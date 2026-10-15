@@ -1,0 +1,22 @@
+[package]
+name = "jmax-wss"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+nago-wss-transport = ["dep:nago-wss"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-wire = { workspace = true }
+jmax-mcp = { workspace = true }
+jmax-schema-vm = { workspace = true }
+jmax-nagoya = { workspace = true }
+bytes = { workspace = true }
+nago-wss = { workspace = true, optional = true }

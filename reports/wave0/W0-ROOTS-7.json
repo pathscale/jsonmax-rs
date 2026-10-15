@@ -1,0 +1,181 @@
+{
+  "task_id": "W0-ROOTS-7",
+  "wave": 0,
+  "title": "Crate Roots & Contracts Freeze",
+  "status": "complete",
+  "assigned_rows": [
+    31,
+    32,
+    33,
+    34,
+    35
+  ],
+  "files_written": [
+    "crates/jmax-wss/src/lib.rs",
+    "contracts/jmax-wss.md",
+    "crates/jmax-exchange/src/lib.rs",
+    "contracts/jmax-exchange.md",
+    "crates/jmax-compat/src/lib.rs",
+    "contracts/jmax-compat.md",
+    "crates/jmax-gen-cli/src/lib.rs",
+    "crates/jmax-gen-cli/src/main.rs",
+    "contracts/jmax-gen-cli.md",
+    "crates/jmax-validator/src/lib.rs",
+    "crates/jmax-validator/src/main.rs",
+    "contracts/jmax-validator.md",
+    "reports/wave0/W0-ROOTS-7.json"
+  ],
+  "crates": [
+    {
+      "row": 31,
+      "crate": "jmax-wss",
+      "modules": [
+        "receive",
+        "send",
+        "policy",
+        "bridge"
+      ],
+      "contract": "contracts/jmax-wss.md",
+      "root_implementation": [
+        "Canonical ABI re-exports and existing bytes::Bytes transport type",
+        "Transport-protected input and privately constructed validated owned output",
+        "Frame/control/fragment policy configuration and retained assembly state",
+        "Message validator, owned dispatcher, and local transport traits",
+        "Explicit non-Send/non-Sync reactor binding",
+        "Checked payload and validator ownership/proof-length helpers"
+      ],
+      "frozen_invariants": [
+        "Complete transport input is distinct from schema-validated JSON",
+        "Frame/control/fragment limits and close-code handling are specified",
+        "Only owned data crosses CPU dispatch; reactor handles remain local",
+        "Validated output is published only after configured validation"
+      ]
+    },
+    {
+      "row": 32,
+      "crate": "jmax-exchange",
+      "modules": [
+        "depth",
+        "trade",
+        "snapshot",
+        "profiles"
+      ],
+      "contract": "contracts/jmax-exchange.md",
+      "root_implementation": [
+        "Canonical schema IDs, exact-decimal profiles, book levels, and owner-bound message aliases",
+        "Depth, aggregated-trade, and REST snapshot value definitions",
+        "Combined-stream utility owner and complete-input validator seam",
+        "Sequence state/decisions with private mutation fields",
+        "Checked validator ownership and required-slot helpers"
+      ],
+      "frozen_invariants": [
+        "Exact slot indices/types, schema field IDs, and required/optional keys",
+        "Decimal precision/scale/tick policy and zero-quantity depth behavior",
+        "Original owner coordinates remain intact for wrapped typed decoding",
+        "Stable profile fingerprint algorithm and explicit snapshot/gap transitions",
+        "ABI IR limitations for nested arrays and boolean unions require semantic validation"
+      ]
+    },
+    {
+      "row": 33,
+      "crate": "jmax-compat",
+      "modules": [
+        "serde",
+        "endpoint",
+        "schema",
+        "utilities"
+      ],
+      "contract": "contracts/jmax-compat.md",
+      "root_implementation": [
+        "Versioned compatibility options, loss policy, conversions, and warnings",
+        "Optional application-owned direct serialization/deserialization traits",
+        "Native independent validator and explicit legacy schema codec traits",
+        "Canonical endpoint/service wrappers and legacy schema/documentation records",
+        "Fallible bounded ByteSink implementation and version checks"
+      ],
+      "frozen_invariants": [
+        "No implicit unsupported-feature or schema-validation bypass",
+        "Every metadata loss is rejected or returned as an explicit warning",
+        "Direct encoding is bounded and independently validated before publication",
+        "Optional Serde integration uses consumer-owned wrappers because no Serde dependency/feature exists"
+      ]
+    },
+    {
+      "row": 34,
+      "crate": "jmax-gen-cli",
+      "modules": [
+        "args",
+        "pipeline",
+        "check",
+        "manifest"
+      ],
+      "contract": "contracts/jmax-gen-cli.md",
+      "root_implementation": [
+        "Native/legacy CLI command/options and deterministic artifact/manifest/drift records",
+        "Structured errors preserving I/O and ABI causes",
+        "Portable relative-artifact path validation without panic fallbacks",
+        "Stream-injected driver with separate write/check branches and stable exit codes",
+        "Complete binary adapter into the library driver"
+      ],
+      "frozen_invariants": [
+        "Generation produces all selected complete in-memory artifacts before writes",
+        "Check mode compares complete bytes without filesystem mutation",
+        "Manifest path/order/content identity and TSV format are deterministic",
+        "Artifact paths, symlinks, and destination collisions are validated before publication"
+      ]
+    },
+    {
+      "row": 35,
+      "crate": "jmax-validator",
+      "modules": [
+        "load",
+        "params",
+        "session",
+        "ui"
+      ],
+      "contract": "contracts/jmax-validator.md",
+      "root_implementation": [
+        "Versioned model/preset, endpoint selection, grammar input, session, and UI shared records",
+        "Defensive endpoint/preset lookups that return None for ambiguous matches",
+        "Explicit nonblocking reactor trait and pending stream lifecycle metadata",
+        "Complete native argument parser and stream-injected library driver",
+        "Structured errors and complete binary adapter"
+      ],
+      "frozen_invariants": [
+        "Strict service model JSON shape and complete canonical endpoint-type encoding",
+        "Raw text and JSON input grammars remain distinct, including Optional semantics",
+        "Public PreparedParams is revalidated before network submission",
+        "Session phase/sequence/pending transitions and stream completion are explicit",
+        "CLI model/parameter views work offline; live requests require an injected host reactor"
+      ]
+    }
+  ],
+  "verification": {
+    "method": "Manual source and contract review only",
+    "build_or_check_commands_run": false,
+    "tests_run": false,
+    "compiler_or_formatter_run": false,
+    "reason": "The task explicitly prohibits build/check commands and compiler/formatter execution.",
+    "build_status": "Not evaluated. Wave 1 through Wave 4 module source and dependency roots are separate assignments."
+  },
+  "scope": {
+    "cargo_manifests_modified": false,
+    "ownership_file_modified": false,
+    "git_commit_created": false,
+    "dependencies_added": [],
+    "out_of_assignment_files_written": [],
+    "placeholder_module_files_created": false
+  },
+  "handoff": {
+    "shared_definition_owner": "Each crate lib.rs; module implementations may import super::*.",
+    "exact_api_reference": "Each contract includes exact future module signatures and the complete frozen root source snapshot; CLI contracts also include their binary entrypoints.",
+    "next_work": "Wave owners implement the four declared child modules per crate, following the frozen signatures, slot layouts, error rules, and cross-module invariants.",
+    "integration_notes": [
+      "jmax-wss uses the existing manifest bytes dependency and canonical Payload::Bytes; no dependency was added.",
+      "jmax-exchange may need a narrowly audited unsafe ABI ParsedMessage constructor after complete owner/span validation; the root denies unsafe operations inside unsafe functions without explicit blocks.",
+      "Optional direct Serde support requires the consuming application to supply its codec wrapper implementation under the existing dependency constraint.",
+      "Standalone validator startup passes no reactor; an embedding application binds its configured local reactor through the library UI/session API.",
+      "No compilation or automated verification claim is made."
+    ]
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "task_id": "W0-ROOTS-1",
+  "wave": 0,
+  "status": "implemented_unverified",
+  "summary": "Implemented the five assigned crate roots with canonical ABI reexports, shared representations, policy defaults, checked helpers, and required module declarations. Froze exact public APIs, errors, ownership rules, and acyclic module dependencies for all twenty later-wave modules.",
+  "files_written": [
+    "crates/jmax-buffer/src/lib.rs",
+    "contracts/jmax-buffer.md",
+    "crates/jmax-error/src/lib.rs",
+    "contracts/jmax-error.md",
+    "crates/jmax-dispatch/src/lib.rs",
+    "contracts/jmax-dispatch.md",
+    "crates/jmax-scan-scalar/src/lib.rs",
+    "contracts/jmax-scan-scalar.md",
+    "crates/jmax-scan-neon/src/lib.rs",
+    "contracts/jmax-scan-neon.md",
+    "reports/wave0/W0-ROOTS-1.json"
+  ],
+  "contracts_frozen": true,
+  "crates": {
+    "jmax-buffer": {
+      "allowed_crate_dependencies_used": [
+        "jmax-abi"
+      ],
+      "modules": [
+        "payload",
+        "arena",
+        "views",
+        "retention"
+      ],
+      "root_implementation": [
+        "Canonical buffer, error, and span reexports without duplicate ABI types.",
+        "BufferLimits, DecodedArena, OwnerBytes, ByteView, StrView, BackingSize, RetentionStats, RetentionPolicy, and RetainedRange.",
+        "View accessors, byte-limit defaults, backing-size statistics, checked span construction, and checked range resolution."
+      ],
+      "wave_handoff": {
+        "1": "Adopt canonical Payload, including its Bytes variant; Arc adoption, Vec ownership transfer, copying slice construction, and length validation.",
+        "2": "Bounded append-only decoded arena with fallible reservation, string scalar counts, truncation, and owned finalization.",
+        "3": "Checked owner-borrowed byte and UTF-8 string views with exact scalar count validation.",
+        "4": "Truthful retained-backing accounting and independent span compaction with rebased coordinates and no validation proof reuse."
+      }
+    },
+    "jmax-error": {
+      "allowed_crate_dependencies_used": [
+        "jmax-abi"
+      ],
+      "modules": [
+        "codes",
+        "paths",
+        "diagnostic",
+        "redaction"
+      ],
+      "root_implementation": [
+        "Canonical error and span reexports.",
+        "ErrorCategory, bounded path representations, source locations, byte context, Diagnostic, RedactionPolicy, SafeDisplay, and SafeError.",
+        "Bounded defaults, metadata accessors, empty Diagnostic construction, safe redaction defaults, and path error construction."
+      ],
+      "wave_handoff": {
+        "1": "Exhaustive canonical code and source names, exact category mapping, incomplete classification, and conservative retry classification.",
+        "2": "Fallible bounded JSON Pointer paths with exact encoded-byte accounting and transactional mutations.",
+        "3": "Byte-based line and column locations, EOF handling, bounded owned context, and original error preservation.",
+        "4": "Budgeted ASCII-escaped Display, Debug, and Error adapters that omit sensitive fields by default and never expose an underlying error source."
+      }
+    },
+    "jmax-dispatch": {
+      "allowed_crate_dependencies_used": [
+        "jmax-abi"
+      ],
+      "allowed_later_wave_dependencies": [
+        "jmax-scan-scalar",
+        "jmax-scan-neon",
+        "jmax-scan-avx2",
+        "jmax-scan-avx512"
+      ],
+      "modules": [
+        "detect",
+        "choose",
+        "portable",
+        "override"
+      ],
+      "root_implementation": [
+        "Canonical scanner and error reexports.",
+        "CpuCapabilities, DispatchPolicy, BackendOverride, Dispatch, and DispatchReport.",
+        "Capability predicates, policy defaults, safe classifier forwarding, pointer-free Debug, automatic selection forwarding, stable backend names, and unavailable-backend errors."
+      ],
+      "wave_handoff": {
+        "1": "CPU and OS detection intersected with actual backend build availability; conservative static feature handling without std.",
+        "2": "Pure size-hint selection in AVX-512, AVX2, NEON, Scalar priority order with explicit thresholds.",
+        "3": "Fresh capability validation before resolving safe classify::classify ABI entry points; scalar construction never fails.",
+        "4": "Explicit Auto, Require, and Prefer requests, exact textual parsing, truthful selection reports, and scalar recovery for automatic or preferred resolution failures."
+      }
+    },
+    "jmax-scan-scalar": {
+      "allowed_crate_dependencies_used": [
+        "jmax-abi"
+      ],
+      "modules": [
+        "classify",
+        "quotes",
+        "structural",
+        "tails"
+      ],
+      "root_implementation": [
+        "Canonical scan and error reexports, 64-byte blocks, scalar backend tag, and unconditional scalar availability.",
+        "StructuralMasks, RawMasks, QuoteMasks, zero defaults, and raw punctuation aggregation.",
+        "Safe valid-mask construction, canonical quote-carry validation, complete ABI mask assembly, and public classify forwarding."
+      ],
+      "wave_handoff": {
+        "1": "Complete safe scalar full and partial block pipeline plus raw fixed-array classification.",
+        "2": "Backslash-run parity and delimiter quote resolution across block boundaries, with untouched UTF-8 state.",
+        "3": "Unsigned scalar punctuation, JSON whitespace, control, digit, and non-ASCII classification.",
+        "4": "Bounded zero-padded loads and independent complete scalar raw fallback."
+      }
+    },
+    "jmax-scan-neon": {
+      "allowed_crate_dependencies_used": [
+        "jmax-abi"
+      ],
+      "modules": [
+        "classify",
+        "quotes",
+        "structural",
+        "tails"
+      ],
+      "root_implementation": [
+        "Canonical scan and error reexports, 64-byte blocks, four 16-byte lanes, and stable backend tag.",
+        "AArch64 capability gating, shared raw and quote masks, defaults, punctuation aggregation, carry validation, ABI mask assembly, and safe classify forwarding."
+      ],
+      "wave_handoff": {
+        "1": "Actual four-lane AArch64 NEON mask production with truthful scalar fallback on unavailable architectures or builds.",
+        "2": "Quote and parity analysis on the combined 64-bit masks with continuity through all lane and block boundaries.",
+        "3": "Real NEON lexical classification and a safe complete local scalar path.",
+        "4": "Bounded padded storage for native loads and standalone portable scalar raw classification."
+      }
+    }
+  },
+  "cross_crate_decisions": [
+    "All canonical ABI types are reexported directly; no competing definitions or replacement error types were introduced.",
+    "The buffer API accepts Bytes through Payload::Bytes without referencing the external bytes crate, despite the existing manifest dependency.",
+    "Unknown Bytes backing storage is reported as a lower bound; visible-byte retention budgets do not claim to bound hidden allocation size.",
+    "Checked string views enforce scalar counts independently of the ABI message resolver, and never issue validation proofs.",
+    "All four scanner contracts align on raw quote and lexical masks, delimiter-excluding string masks, backslash parity outside strings, block-relative errors, and opaque UTF-8 carry preservation.",
+    "Neighboring AVX root sources and contracts were read to align RawMasks, StructuralMasks, QuoteMasks, safe module entry point names, native support gates, and error conventions. Those files were not modified.",
+    "Dispatch uses backend classify::classify module paths because the AVX roots do not promise root-level classify functions.",
+    "Dispatch detection honors backend is_supported results because the existing manifest does not propagate std into scanner dependencies. Runtime capability alone cannot override a backend build restriction.",
+    "No global override, environment lookup, mutable policy state, logging, proof issuance, or architecture-specific public type was introduced."
+  ],
+  "verification": {
+    "method": "Manual source and contract review only.",
+    "build_test_format_or_check_commands_run": false,
+    "git_commit_run": false,
+    "automated_validation_performed": false,
+    "reason": "The user explicitly prohibits compiler, build, formatting, and check commands.",
+    "results_claimed": []
+  },
+  "scope": {
+    "only_assigned_files_written": true,
+    "manifests_modified": false,
+    "ownership_table_modified": false,
+    "later_wave_module_files_created": false,
+    "subagents_spawned": false
+  },
+  "integration_notes": [
+    "All twenty later-wave module files remain the responsibility of their assigned wave owners. Their public APIs are frozen in the five contract documents.",
+    "Roots intentionally declare later-wave modules and forward to contracted symbols before those separately owned implementations are delivered.",
+    "Compilation, feature compatibility, native instruction generation, and executable behavior remain unverified until an authorized integration phase.",
+    "No known unresolved ABI or contract mismatch remains from the manual review."
+  ]
+}
