@@ -1,0 +1,55 @@
+{
+  "worker_id": "W4-22",
+  "wave": 4,
+  "crate": "jmax-schema-aot",
+  "file": "crates/jmax-schema-aot/src/verify.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn verify_structure(image: StaticSchemaImage<'_>) -> Result<()>",
+    "pub fn verify_image(image: StaticSchemaImage<'_>, expected: ImageIdentity) -> Result<()>",
+    "pub fn verify_fingerprint(image: StaticSchemaImage<'_>, expected: u64) -> Result<()>",
+    "pub fn assert_provider<P: SchemaProvider>(image: StaticSchemaImage<'_>) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "identity",
+      "coverage": "Fingerprints 0, 1, 0x0123456789abcdef and u64::MAX; schema_id u32::MAX; independent expected magic, version, schema and fingerprint mismatches; matching metadata cannot bypass structural validation."
+    },
+    {
+      "category": "instruction_grammar",
+      "coverage": "Every unknown opcode byte; reserved flags and fields; all scalar tags; every combination of optional string checks; required decimal check; wrong constraint families, duplicate checks and incorrect order; malformed object and array templates; every truncated object fixture prefix."
+    },
+    {
+      "category": "operand_boundaries",
+      "coverage": "Header count mismatches, u32::MAX counts, unknown scalar tags, full-width u64 targets, dense state ordinals versus instruction offsets, recursive array edges, format identifier bounds and pattern operand representability without claiming pattern-table validation."
+    },
+    {
+      "category": "keys",
+      "coverage": "FieldId 65535 is valid, including unselected fields with zero slots; duplicate FieldIds fail; empty keys can share offsets; ASCII lengths around eight bytes, Unicode and control-character names; exact SWAR vector 0x6867666564636261; invalid UTF-8, split scalars, overlap, gaps, overflow, trailing bytes and out-of-range targets. Repeated names and required bits across objects remain legal."
+    },
+    {
+      "category": "slots_and_allocation",
+      "coverage": "Nonmonotonic emission order with dense slots; duplicate, missing and oversized slot indices; missing key fields, inconsistent targets and repeated field emissions; deterministic reservation-capacity overflow reports BudgetExhausted with schema context."
+    },
+    {
+      "category": "canonical_vectors",
+      "coverage": "Authoritative FNV-1a vectors: empty bytes -> 0xcbf29ce484222325, a -> 0xaf63dc4c8601ec8c, foobar -> 0x85944171f73967e8. Exact canonical byte vector for an empty flat schema with schema_id 7 and default policy. Root constants and root fingerprint_schema are compared with schema-ir."
+    },
+    {
+      "category": "providers",
+      "coverage": "Valid provider; stale provider and image fingerprints that agree with each other but disagree with canonical identity; independent image fingerprint and schema identifier mismatches; malformed matching projection; exact propagation of normalization and unknown-format policy errors."
+    },
+    {
+      "category": "integration",
+      "coverage": "Flat schema compilation, projection verification, owned table copying, deterministic Rust source emission, complete compiler image encode/load/re-encode and canonical-byte preservation. Rich graph covers all scalar families, integer and decimal bounds, string length, pattern and format instructions, arrays, both matcher selections and repeated names in separate objects. Graph property reordering preserves canonical identity; flat ABI declaration reordering changes explicit slots and identity."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "20 deterministic tests written; not executed",
+    "review": "Source reviewed against the frozen AOT, ABI, compiler and schema IR interfaces. Only the assigned Rust file and this report were written.",
+    "execution": "No cargo, rustc, rustfmt, git commit, build, check or test commands were run, as instructed.",
+    "scope": "ABI projection and metadata assertions only. No authentication, executable witness or validation proof is issued. Missing object ownership, per-object key sorting and uniqueness, required-bit density, PHF layout, constraints and pattern programs remain the complete compiler image validator's responsibility."
+  }
+}

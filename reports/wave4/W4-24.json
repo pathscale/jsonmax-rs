@@ -1,0 +1,78 @@
+{
+  "worker_id": "W4-24",
+  "wave": 4,
+  "crate": "jmax-endpoint-ron",
+  "file": "crates/jmax-endpoint-ron/src/version.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn parse_semver(value: &str) -> Result<ModelVersion>",
+    "pub fn parse_version(input: &str) -> Result<VersionRequirements>",
+    "pub fn validate_version(model: &EndpointModel, requirements: &VersionRequirements) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests in crates/jmax-endpoint-ron/src/version.rs",
+    "test_count": 26,
+    "execution": "Not run. The task prohibits cargo, rustc, rustfmt, and every build/check command. Source and deterministic assertions were reviewed by reading the contract, frozen types, prior modules, and assigned source only.",
+    "implementation": "Allocation-free, nonrecursive, no_std-compatible parsing with canonical ABI errors, checked u32 lengths and absolute byte offsets, a 64 KiB document ceiling, strict keys and values, and deterministic compatibility checks. No dependencies or root definitions changed.",
+    "suites": [
+      {
+        "tests": [
+          "semver_decimal_boundary_product_round_trips",
+          "semver_syntax_vectors_have_exact_offsets",
+          "semver_overflow_is_reported_at_the_first_overflowing_digit",
+          "semver_single_byte_mutations_cover_the_entire_ascii_domain"
+        ],
+        "coverage": "343 combinations of zero, decimal digit boundaries, and u32 limits; exact offsets for malformed components, signs, leading zeroes, whitespace, prefixes, metadata, non-ASCII digits and punctuation; all three overflow positions and long integers; 640 deterministic ASCII substitutions with acceptance and diagnostic assertions."
+      },
+      {
+        "tests": [
+          "canonical_document_and_all_key_permutations_are_equivalent",
+          "whitespace_comments_and_unicode_comment_text_are_supported",
+          "every_subset_of_required_keys_is_checked_without_defaults",
+          "duplicates_are_rejected_at_the_repeated_key_before_its_value",
+          "unknown_keys_are_case_sensitive_and_never_ignored"
+        ],
+        "coverage": "All six key orders crossed with LF/CRLF and optional final newline; spaces, tabs, blank lines, Unicode comments and comments immediately following values; all eight key-presence subsets; missing-key details and EOF offsets; every duplicate key, invalid duplicate values, case-sensitive unknown keys, and byte offsets after Unicode comments."
+      },
+      {
+        "tests": [
+          "unsupported_structural_and_string_forms_have_precise_offsets",
+          "malformed_assignment_vectors_reject_extensions_and_trailing_tokens",
+          "format_u32_boundaries_parse_before_compatibility_is_checked",
+          "version_document_preserves_full_width_model_and_runtime_components",
+          "quoted_semver_errors_are_rebased_to_absolute_utf8_byte_offsets",
+          "string_escapes_controls_and_embedded_comments_are_not_interpreted",
+          "line_ending_and_horizontal_whitespace_boundaries_are_strict"
+        ],
+        "coverage": "Tables, array tables, dotted and quoted keys, arrays, inline tables, literal and triple-quoted strings, multiline strings and assignments; malformed punctuation, missing values, signed or nondecimal integers, leading-zero TOML integers and extra tokens; zero through u32::MAX format values separated from compatibility policy; twelve full-width model/runtime combinations; embedded semver errors rebased after multibyte comments; escape rejection, controls, quoted hashes, bare carriage returns and unsupported whitespace."
+      },
+      {
+        "tests": [
+          "document_size_accepts_the_ceiling_and_rejects_the_next_byte_first",
+          "length_and_diagnostic_arithmetic_are_checked_without_large_allocations",
+          "truncation_at_every_byte_never_accepts_a_partial_assignment"
+        ],
+        "coverage": "Exactly 65,536 bytes accepted and larger inputs rejected before syntax work; multibyte text counted by encoded bytes; synthetic usize::MAX, u32::MAX and next-address boundaries without oversized allocation; checked diagnostic addition; every truncation of the minimal complete document rejected with in-range offsets."
+      },
+      {
+        "tests": [
+          "runtime_compatibility_is_lexicographic_and_inclusive",
+          "model_version_requires_equality_in_every_component",
+          "compatibility_failure_precedence_and_immutability_are_deterministic"
+        ],
+        "coverage": "Inclusive runtime equality, smaller minor versions with maximum patch, future patch/minor/major requirements, maximum versions, exact model matching in each component, independent model/runtime namespaces, deterministic format/model/runtime failure order, repeated errors, and immutable inputs."
+      },
+      {
+        "tests": [
+          "full_pipeline_parses_normalizes_validates_and_preserves_version_namespaces",
+          "full_pipeline_requires_metadata_unless_explicitly_optional",
+          "full_pipeline_never_overwrites_explicit_config_versions",
+          "full_pipeline_error_order_is_parse_then_normalize_then_semantics_then_compatibility"
+        ],
+        "coverage": "Root load_model integration across RON parsing, defaults, zero ids/codes, roles, recursive nominal references, stream responses, errors, headers and version validation; required and optional metadata, supplied invalid metadata, mismatches, future runtimes, record and string model versions, and parse/normalization/semantic/compatibility error precedence."
+      }
+    ]
+  },
+  "status": "Complete. Assigned Rust source and handoff report written; compilation and test execution intentionally not performed under the task instruction. Only the two assigned paths were edited."
+}

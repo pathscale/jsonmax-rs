@@ -1,0 +1,86 @@
+{
+  "worker_id": "W4-07",
+  "wave": 4,
+  "crate": "jmax-scan-avx512",
+  "file": "crates/jmax-scan-avx512/src/tails.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn load_block(input: &[u8]) -> Result<[u8; BLOCK_BYTES]>",
+      "behavior": "Validates the original usize length through the frozen root valid_mask helper before copying exactly the input into a zero-initialized 64-byte array. Oversized input returns InvalidToken, source Scanner, offset zero. Empty and unaligned slices need no readable padding."
+    },
+    {
+      "signature": "pub fn classify_scalar_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks",
+      "behavior": "Computes quote, backslash, all six punctuation, JSON whitespace, control, ASCII digit, and non-ASCII masks locally in increasing byte order. Always reports BackendId::Scalar, including on SIMD-capable hosts. No calls to classify, structural, or quotes occur in production code."
+    }
+  ],
+  "unsafe_justifications": [
+    "No unsafe code was added, including in tests.",
+    "Safe slice copying reads only live input bytes after length validation. Full-block consumers receive an actual owned 64-byte array; no vector load, raw pointer dereference, alignment assumption, or masked-load proof is needed here.",
+    "The scalar classifier iterates a fixed 64-byte array, so mask shifts are restricted to 0 through 63. Both exports are unconditional and require only core and existing root ABI types, preserving non-x86 and no-std availability."
+  ],
+  "test_vectors": [
+    {
+      "test": "signatures_empty_storage_and_literal_raw_masks",
+      "coverage": "Frozen function pointer signatures, empty zero-filled storage, full-width zero controls, and literal hexadecimal assertions for every raw class."
+    },
+    {
+      "test": "every_length_and_address_offset_copies_only_the_slice",
+      "coverage": "All lengths 0 through 64 at every address residue modulo 64, exact prefix copying, zero padding, source canaries, and independently owned output."
+    },
+    {
+      "test": "exact_sized_objects_need_no_readable_padding",
+      "coverage": "Actual arrays of lengths 0, 1, 15, 16, 17, 31, 32, 33, 63, and 64, plus empty slices at each object's end. No guard-page execution is claimed."
+    },
+    {
+      "test": "all_byte_values_at_all_positions_match_scalar_and_vector_paths",
+      "coverage": "All 256 uniform byte values and all 256 byte values individually placed at all 64 positions. Independent membership masks are compared with the scalar fallback, structural dispatch, and raw dispatch. AVX-512 executes only when the existing safe dispatch reports support."
+    },
+    {
+      "test": "lane_boundaries_and_deterministic_mixed_vectors",
+      "coverage": "Adjacent quote and backslash positions across boundaries 1, 8, 16, 32, 48, and 63; explicit alternating 64-bit masks; 256 deterministic mixed-byte permutations."
+    },
+    {
+      "test": "every_tail_length_and_carry_state_matches_independent_oracle",
+      "coverage": "All 65 legal lengths with all four canonical quote carry combinations. Independent bytewise ABI masks are compared with the forced scalar pipeline, canonical ClassifyFn dispatch, and fixed-array entry point at length 64. Opaque UTF-8 state is preserved."
+    },
+    {
+      "test": "zero_padding_is_raw_control_but_never_live_input",
+      "coverage": "All legal lengths distinguish padded zero control bits from real controls, verify valid masks and lengths, and compare zero and space inputs with all quote carry states."
+    },
+    {
+      "test": "trailing_backslash_parity_survives_every_tail_length",
+      "coverage": "Backslash runs of lengths 0 through 64 with all incoming quote states, explicit outgoing parity assertions, and a following quote and colon block."
+    },
+    {
+      "test": "every_stream_split_preserves_masks_and_continuous_state",
+      "coverage": "A deterministic 128-byte stream split at every position 0 through 64, including a backslash run across bytes 63 and 64, empty intervening blocks, all carry states, and comparison with continuous bytewise state."
+    },
+    {
+      "test": "syntax_and_utf8_errors_remain_raw_byte_classes",
+      "coverage": "Punctuation inside strings, invalid escapes, controls, malformed UTF-8, Unicode whitespace and digits, malformed JSON, unclosed strings, and trailing escapes remain classifiable."
+    },
+    {
+      "test": "oversized_slices_fail_before_state_validation_without_side_effects",
+      "coverage": "Every slice length 65 through 257, error metadata, length-error precedence over invalid carry, unchanged input and carry, and a successful load following failures."
+    },
+    {
+      "test": "invalid_quote_state_is_transactional_at_every_tail_length",
+      "coverage": "Noncanonical quote fields 2, 255, 256, the high bit, and u64::MAX across all legal lengths and fixed blocks; full error metadata and unchanged carry. Loading and raw classification remain independent of carry validity."
+    },
+    {
+      "test": "quote_and_assembly_error_boundaries_preserve_carry_and_raw_masks",
+      "coverage": "Assembly lengths 65, 127, 128, 255, 256, and usize::MAX; overlapping quote/backslash bits at every live position; the same overlap ignored outside the live range; unchanged raw masks and transactional carry on errors."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "validation": "Source reviewed against the frozen contract and existing ABI and scanner modules. The 13 inline tests were written but not executed. Compilation, runtime SIMD behavior, and target configurations remain unverified.",
+    "commands": "No cargo, rustc, rustfmt, git commit, build, or check command was run.",
+    "files_written": [
+      "crates/jmax-scan-avx512/src/tails.rs",
+      "reports/wave4/W4-07.json"
+    ]
+  }
+}

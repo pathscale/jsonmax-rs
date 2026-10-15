@@ -1,0 +1,73 @@
+{
+  "worker_id": "W4-09",
+  "wave": 4,
+  "crate": "jmax-string",
+  "file": "crates/jmax-string/src/escape.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "find_escape",
+      "signature": "pub fn find_escape(bytes: &[u8], policy: EscapePolicy) -> Option<usize>",
+      "behavior": "Finds the first mandatory or policy-selected escape byte in arbitrary byte slices without UTF-8 validation or index narrowing. Uses capability-checked AVX2 or AArch64 NEON discovery with bounded loads and a scalar fallback."
+    },
+    {
+      "name": "escaped_length",
+      "signature": "pub fn escaped_length(text: &str, policy: EscapePolicy) -> Result<u32>",
+      "behavior": "Computes the exact serialized content length without wrapper quotes. Uses the same run traversal and scalar spelling as emission. Input and output size overflow return PayloadTooLarge from Encode at u32::MAX."
+    },
+    {
+      "name": "write_escaped",
+      "signature": "pub fn write_escaped(text: &str, policy: EscapePolicy, sink: &mut dyn ByteSink) -> Result<()>",
+      "behavior": "Checks input and complete content output sizes, reserves the exact append size, and emits borrowed UTF-8 runs plus stack-encoded JSON escapes. Preserves sink error metadata and permits an emitted prefix on write failure."
+    },
+    {
+      "name": "write_string",
+      "signature": "pub fn write_string(text: &str, policy: EscapePolicy, sink: &mut dyn ByteSink) -> Result<()>",
+      "behavior": "Checks content plus both wrapper quotes against the u32 ABI limit and reserves the entire append before emitting the opening quote. Applies mandatory short escapes, lowercase Unicode hex, optional solidus escaping, and optional ASCII-only UTF-16 surrogate pairs."
+    }
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "EscapeFinder::find",
+      "justification": "Calls a private unsafe function pointer selected only by EscapeFinder::new. Native targets are installed only after fresh jmax_dispatch capability detection confirms usable CPU and OS state. The scalar target has no feature requirement. Every target independently bounds loads for the actual provided slice, including slices shorter than the selection hint. No caller-provided capabilities or search pointers are accepted by public APIs."
+    },
+    {
+      "location": "x86::find_avx2",
+      "justification": "Architecture-gated AVX2 target-feature function is reachable only through the checked finder. Each unaligned 32-byte load is guarded by bytes.len() - cursor >= 32, cursor advances only by complete vector widths, and all remaining bytes use scalar discovery. Unsigned control comparisons exclude non-ASCII bytes unless ascii_only selects them."
+    },
+    {
+      "location": "neon::find_neon",
+      "justification": "Architecture-gated AArch64 NEON target-feature function is reachable only through the checked finder. Each 16-byte load is guarded by bytes.len() - cursor >= 16. Match vectors are stored only into a local 16-byte array and searched in memory order, avoiding endian-dependent mask packing. Remaining bytes use scalar discovery."
+    }
+  ],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests at the bottom of crates/jmax-string/src/escape.rs",
+    "test_count": 15,
+    "coverage": [
+      "All 256 byte values under all four EscapePolicy combinations at 13 positions around 16-byte, 32-byte, 64-byte, and later vector boundaries",
+      "Every subslice length from zero through 129 at starting offsets zero through 33, with a matching sentinel immediately outside and then inside the logical slice boundary",
+      "Mandatory controls, quotes, backslashes, optional slash, and optional high-bit bytes at every position zero through 129, followed by a later mandatory match to assert earliest discovery",
+      "Invalid UTF-8 and arbitrary byte sequences accepted by discovery, repeated calls without carry state, scalar-reference comparison, and large selection hints applied to short actual slices",
+      "Empty content and quoted strings, existing sink prefixes, exact reservation counts, no empty writes, and a 513-byte ordinary run emitted with one content write",
+      "All 32 control scalars with explicit expected short or lowercase Unicode spellings, including embedded NUL",
+      "Every ASCII value from space through DEL, explicit quote and backslash spellings, optional slash, and unchanged apostrophes, angle brackets, ampersand, and DEL",
+      "Explicit Unicode output vectors at U+0080, U+00FF, U+07FF, U+0800, U+2028, U+2029, U+D7FF, U+E000, U+FEFF, U+FFFF, U+10000, U+103FF, U+10400, U+1D11E, U+1F642, and U+10FFFF",
+      "Default UTF-8 preservation and ASCII-only BMP or surrogate-pair output, including exact lowercase hex and mixed Latin, CJK, and emoji text",
+      "Wave 1 scan, Wave 2 unescape, and Wave 3 decoded_length and utf8_length integration with absolute source offsets, excluded wrapper quotes, existing sink bytes, combining sequences, flags, joined emoji, variation selectors, BOM, and scalar boundaries",
+      "Two-, three-, and four-byte UTF-8 leaders and mixed escaping sequences following every prefix length zero through 97, crossing SIMD boundaries under every policy",
+      "64 deterministic mixed-scalar strings of 64 scalars each, generated from seed 0x5e71c0de with explicit control, ASCII, BMP, and supplementary edge values and round-tripped under all policies",
+      "Reservation failures for empty, ordinary, and mixed escaped text in content-only and quoted output, preserving all sink error metadata and existing bytes",
+      "Failure at every write call, including wrapper quotes, raw runs, and escape buffers, with both untouched failing writes and partial failing writes; no subsequent writes and exact prefix assertions",
+      "Synthetic usize and u32 size boundaries, exact-limit additions for one-, two-, six-, and twelve-byte output widths, output overflow metadata, and quote overflow before any sink call without huge allocations"
+    ],
+    "execution": "Not run. The task prohibits cargo, rustc, rustfmt, and all build/check commands. Source and test vectors were reviewed by inspection against the frozen contract and prior wave modules."
+  },
+  "status": {
+    "state": "implemented_unexecuted",
+    "reasoning": "high",
+    "validation": "Manual source review only. No build, check, test, formatting, or commit command was run.",
+    "allocation": "Production code allocates no memory. Raw runs borrow the original UTF-8; escape spelling uses at most twelve stack bytes plus two UTF-16 units. Tests use fixed stack buffers.",
+    "dependencies": "Uses core, frozen jmax-string root types and constants, and the allowed jmax-dispatch capability detector. Prior wave modules are referenced only by integration tests. No manifest or dependency changes.",
+    "ownership": "Only crates/jmax-string/src/escape.rs and reports/wave4/W4-09.json were written."
+  }
+}

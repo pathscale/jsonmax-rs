@@ -1,0 +1,48 @@
+{
+  "worker_id": "W4-14",
+  "wave": 4,
+  "crate": "jmax-path",
+  "file": "crates/jmax-path/src/extensions.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn compile(segments: &[ExtensionSegment], limits: PathLimits) -> Result<ExtensionPath>",
+    "pub fn parse(input: &str, limits: PathLimits) -> Result<ExtensionPath>",
+    "pub fn query(payload: Payload, path: &ExtensionPath, mode: SkipMode, limits: Limits) -> Result<QueryResults>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Exact grammar and root aliases agree with prior-wave parse output, including escaped punctuation, empty keys, Unicode, repeated indices, and u32::MAX indices.",
+    "Bare, dot, and bracket wildcards compose; quoted and escaped stars remain literal, while embedded unescaped stars are invalid.",
+    "Equality filters support all scalar literals, permitted ASCII whitespace, JSON escapes, surrogate pairs, escaped key punctuation, and exact numeric spelling.",
+    "Basic grammar error codes, sources, and byte offsets agree with the prior parser; extension truncations report UnexpectedEof at input end.",
+    "Recursive descent, negative indices, unions, slices, nested predicate paths, non-equality operators, expressions, function calls, regexes, and container literals reject as UnsupportedSchemaFeature.",
+    "Malformed punctuation, disallowed whitespace, invalid escapes, controls, and invalid filter numbers produce deterministic path errors, including explicit byte-offset assertions.",
+    "Programmatic numeric literals accept strict JSON spelling without conversion and reject empty, truncated, signed-plus, leading-zero, hexadecimal, nonfinite, underscored, whitespace-padded, and compound text.",
+    "Compilation owns independent copies, retains PathLimits, and applies inclusive segment, decoded-key, filter-string, and numeric-spelling bounds; zero limits remain real bounds.",
+    "Textual path limits count source UTF-8 bytes before parsing; decoded string limits count decoded UTF-8 bytes, including escaped Unicode.",
+    "Wildcards select immediate object values and array elements in starting-offset order, never keys or recursive descendants; mismatched container types and out-of-range indices produce no matches.",
+    "Filter matching distinguishes null, booleans, strings, numbers, missing members, and containers; lexical numbers retain negative zero, decimal/exponent spelling, huge exponents, and integers beyond exact floating-point precision.",
+    "Decoded predicate keys and string values compare UTF-8 bytes without Unicode normalization, including surrogate pairs, escaped controls, and programmatic empty keys.",
+    "Only the first immediate predicate member counts, including equivalent decoded duplicate key spellings and container-valued first occurrences; canonical duplicate-key rejection remains effective.",
+    "Delayed and nested filters roll back provisional descendants correctly across earlier values, missing predicates, rejected siblings, and outer predicate failure.",
+    "Terminal filters retain complete object spans, container delimiters, internal whitespace, and string escape spelling; duplicate exact-key matches remain distinct by byte offset.",
+    "Raw and cooked results retain the complete original payload and tagged decoded arena after cloning and owner destruction, for both payload storage variants; borrowed pointer and out-of-range accessor assertions are included.",
+    "All root value kinds exclude outer whitespace. Strict mode reaches syntax completion; query mode establishes all matches within the complete root, retains trailing bytes, and conservatively reports false validation status.",
+    "Visit accounting includes every event and every matching prefix candidate. Exact inclusive boundaries, zero budgets, unmatched events, provisional filter work, current-byte errors, and u32::MAX counter exhaustion are asserted.",
+    "Match ceilings reject overflow without truncation; zero-result limits allow absent paths and candidates discarded by failed filters.",
+    "Unique exact extension queries agree with prior-wave selector spans, decoded references, raw views, cooked strings, decoded arenas, and strict validation flags.",
+    "Syntax failures propagate unchanged from direct cursor traversal, including malformed containers, numbers, UTF-8, escapes, surrogates, duplicate keys, truncation, and trailing content after earlier matches.",
+    "Canonical payload, depth, array-item, object-field, string-byte, number-digit, and decoded-arena limits accept exact boundaries and reject the next unit.",
+    "Deterministic stress vectors cover 64 nested wildcard selectors and 128 sibling objects with alternating late filter predicates."
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "31 deterministic inline tests authored; not executed",
+    "validation": "Source reviewed against contracts/jmax-path.md, crates/jmax-path/src/lib.rs, crates/jmax-abi/src/lib.rs and canonical ABI definitions, prior-wave parse.rs/compile.rs/query.rs, contracts/jmax-cursor.md, and cursor traversal/selection implementations. No cargo, rustc, rustfmt, build, check, or git commit commands were run.",
+    "algorithm": "One forward event traversal with an iterative container stack and rollback checkpoints for delayed nested filters. Each consumed event and matching prefix candidate uses one shared max_visits unit. Final distinct surviving matches are sorted by starting offset and bounded by max_matches. No DOM, recursion, secondary scans, host-language evaluation, or new dependencies are introduced.",
+    "query_policy": "Strict mode consumes ScanStep::Finished. Query mode stops only after the root value completes and returns fully_validated=false without inspecting unrelated trailing bytes. Every supplied payload byte is retained and remains subject to the canonical payload size limit.",
+    "integration": "Compilation and execution remain unverified because build and check commands were explicitly prohibited. The implementation uses only frozen public cursor traversal APIs and canonical shared types.",
+    "ownership": "Only crates/jmax-path/src/extensions.rs and reports/wave4/W4-14.json were written.",
+    "reasoning": "high"
+  }
+}

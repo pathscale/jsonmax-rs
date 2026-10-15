@@ -1,0 +1,66 @@
+{
+  "worker_id": "W4-31",
+  "wave": 4,
+  "crate": "jmax-wss",
+  "file": "crates/jmax-wss/src/bridge.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "submit_input",
+      "signature": "pub fn submit_input(dispatcher: &mut dyn OwnedDispatcher, connection: ConnectionId, input: ProtectedInput, budget: ResourceBudget) -> Result<()>",
+      "behavior": "Rejects zero CPU or timeout allowances and input lengths exceeding the retained-byte budget, including ABI length overflow, with BudgetExhausted from Transport. Transfers the original owned input, connection ID, and unchanged budget exactly once. Dispatcher errors retain all diagnostic metadata."
+    },
+    {
+      "name": "forward_one",
+      "signature": "pub fn forward_one<T: LocalTransport>(binding: &mut ReactorBinding<T>, dispatcher: &mut dyn OwnedDispatcher) -> Result<bool>",
+      "behavior": "Polls once, returns false for no completion, propagates poll or completion errors without sending, and transfers successful validated output once to its exact connection. Send errors propagate without retry. The host transport enforces atomic enqueue and closed-connection rejection; hosts must avoid ID reuse while work remains outstanding."
+    },
+    {
+      "name": "close_connection",
+      "signature": "pub fn close_connection<T: LocalTransport>(binding: &mut ReactorBinding<T>, connection: ConnectionId, code: u16, reason: &str) -> Result<()>",
+      "behavior": "Accepts only codes 1000..=1003, 1007..=1014, and 3000..=4999 and UTF-8 reasons of at most 123 bytes. Rejects invalid arguments before touching the transport. Calls transport.close once and preserves transport errors."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 20,
+    "execution": "Not executed. No cargo, rustc, rustfmt, build, test, or check commands were run, as instructed. Source was reviewed directly against the frozen contract and prior wave modules.",
+    "admission": [
+      "36 combinations: cpu_units and timeout_ms each in [0, 1, u32::MAX], retained_bytes in [0, 3, 4, u32::MAX], and a four-byte null input.",
+      "Empty protected input with zero retained bytes succeeds only with nonzero CPU and timeout allowances.",
+      "Length boundaries 0, 3, 4, and u32::MAX; on 64-bit targets u32::MAX + 1 and usize::MAX are rejected without large allocations.",
+      "Text and permitted Binary sliced Bytes inputs retain their exact pointer, opcode, budget, and connection IDs 0, 1, and u64::MAX after dropping the original backing owner.",
+      "JSON, invalid JSON, trailing content, endpoint envelopes, and MCP envelopes reach dispatcher routing unchanged.",
+      "BudgetExhausted, Cancelled, and AuthFailed dispatcher errors preserve source, offset, schema, field, and detail without polling or retrying."
+    ],
+    "integration": [
+      "A quoted four-byte Unicode scalar split across Text and Continuation frames, with an interleaved Ping, produces exactly one six-byte protected request after assembly.",
+      "Exhaustive parity with policy::validate_close_payload for all 65,536 u16 close codes, including exactly 2,012 legal codes.",
+      "A local-only Rc/RefCell transport works through ReactorBinding without Send or Sync bounds; owned request and completion types have positive Send + Sync assertions."
+    ],
+    "forwarding": [
+      "Repeated empty polls return false with exactly one poll per invocation and no transport calls.",
+      "An empty poll and a failing poll each preserve a subsequent queued completion for a later invocation.",
+      "Cancelled, schema TypeMismatch, and InvalidUtf8 completion errors are consumed one per invocation and never sent.",
+      "The private delivery helper used by forward_one preserves Shared and Bytes payload pointers and connection IDs 0, 42, and u64::MAX.",
+      "The same delivery helper verifies no sender invocation for absence or completion failure, exact transport error propagation, consumed failures without retry, and isolation of the next connection.",
+      "Non-Clone drop-counted values verify ownership transfer, retention after successful delivery, and exactly one drop on failed send."
+    ],
+    "close": [
+      "Empty, ASCII, NUL/newline, non-JSON, and multibyte UTF-8 reasons are preserved exactly.",
+      "122 and 123 ASCII bytes, 41 three-byte scalars, and 30 four-byte scalars plus three ASCII bytes are accepted.",
+      "124 ASCII bytes, 42 three-byte scalars, 31 four-byte scalars, and 4096 ASCII bytes are rejected before transport close.",
+      "Reserved code 1005 and oversized reasons take precedence over a configured transport failure; a valid close propagates that failure unchanged.",
+      "Closing a connection preserves its ID and reason without polling, draining, or submitting dispatcher work."
+    ],
+    "coverage_limitations": [
+      "The crate forbids unsafe code. ValidationProof has no safe constructor, and the available schema VM requires an unsafe EventInput implementation to produce proof-bearing output. Successful forwarding and send-failure ownership vectors therefore exercise the exact generic private delivery helper with owned payloads, rather than fabricate a ValidatedOutput. Public forward_one polling and completion error paths are exercised directly."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "verification": "source_review_only_unexecuted",
+    "scope": "Only crates/jmax-wss/src/bridge.rs and reports/wave4/W4-31.json were written.",
+    "runtime": "No executor, reactor acquisition, waiting, allocation, proof issuance, or unsafe code in production bridge functions. Routing, full request accounting, atomic transport enqueue, closed-ID rejection, and retry storage remain explicit host responsibilities."
+  }
+}

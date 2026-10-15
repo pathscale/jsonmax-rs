@@ -1,0 +1,75 @@
+{
+  "worker_id": "W4-04",
+  "wave": 4,
+  "crate": "jmax-scan-scalar",
+  "file": "crates/jmax-scan-scalar/src/tails.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn load_block(input: &[u8]) -> Result<[u8; BLOCK_BYTES]>",
+    "pub fn classify_scalar_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [
+    "No unsafe code is used. The loader rejects lengths above 64 before slicing or copying and copies only the supplied slice into a zero-initialized owned array.",
+    "Raw classification uses safe iteration over exactly 64 bytes, bounding every mask shift to positions 0 through 63. It is allocation-free, supports no_std, reports BackendId::Scalar, and does not call classify, quotes, or structural. Cross-module calls occur only in the inline test suite."
+  ],
+  "test_vectors": [
+    {
+      "test": "exact_size_inputs_load_without_caller_padding",
+      "coverage": "Exact-size input objects of lengths 0, 1, 63, and 64; byte preservation and zero padding without caller-provided spare storage."
+    },
+    {
+      "test": "every_length_and_slice_offset_copy_only_live_bytes",
+      "coverage": "All 65 valid lengths at each of 65 backing-slice offsets; exact live-byte copies, all-zero padding, and unchanged source storage."
+    },
+    {
+      "test": "returned_storage_is_independent_and_zero_bytes_are_preserved",
+      "coverage": "Embedded NUL, non-ASCII, quote, and backslash bytes; independent input and output mutation and repeat empty loads."
+    },
+    {
+      "test": "oversized_inputs_are_rejected_without_narrowing_or_mutation",
+      "coverage": "Lengths 65, 66, 127, 128, 255, 256, 257, and 4096; InvalidToken, Scanner source, zero offset and context identifiers, nonempty detail, and unchanged input."
+    },
+    {
+      "test": "explicit_vector_sets_exact_raw_masks",
+      "coverage": "Literal expected masks for quotes, backslashes, all six punctuation classes, JSON whitespace, overlapping controls, digits, DEL, and high bytes. Includes vertical tab and form feed as controls only."
+    },
+    {
+      "test": "every_byte_value_at_every_position_has_exact_membership",
+      "coverage": "All 256 byte values in uniform full blocks and at all 64 individual positions; independent membership oracle for all 12 raw masks and scalar backend assertions."
+    },
+    {
+      "test": "byte_ramps_match_prior_wave_raw_classifiers",
+      "coverage": "256 wrapping byte ramps compared with Wave 1 classify_raw, Wave 3 classify_structural, and an independent per-byte membership oracle."
+    },
+    {
+      "test": "padding_control_bits_are_removed_at_every_tail_length",
+      "coverage": "Every length 0 through 64 and all four canonical incoming quote states; padding appears only in raw control bits, every finished mask is bounded, and UTF-8 carry remains opaque and unchanged."
+    },
+    {
+      "test": "mixed_prefixes_match_independent_oracle_for_all_incoming_states",
+      "coverage": "Every prefix length 0 through 64 of a mixed lexical vector under all four incoming quote states; all 15 ABI masks, valid length, backend, and outgoing carry compared with a direct byte oracle, the canonical ClassifyFn, and the full-block API where applicable."
+    },
+    {
+      "test": "explicit_string_vector_preserves_raw_classes_and_filters_punctuation",
+      "coverage": "Escaped quote and comma inside a string, outside comma and brackets, digit, and newline. Exact expected quote, backslash, in-string, comma, structural, digit, whitespace, control, and valid masks."
+    },
+    {
+      "test": "splitting_at_every_boundary_preserves_masks_and_carry",
+      "coverage": "All 65 split boundaries in a full block under all four incoming states; recombined masks and final carry equal continuous byte-oracle results. Empty intermediate blocks preserve carry exactly."
+    },
+    {
+      "test": "trailing_backslashes_and_high_bit_quotes_survive_block_edges",
+      "coverage": "Backslash runs of lengths 1 through 64 under all incoming states, followed by a quote and colon; outgoing parity, escaped-quote content, string state, and UTF-8 metadata. Explicit backslash at bit 62 and escaped quote at bit 63."
+    },
+    {
+      "test": "invalid_carry_and_oversized_input_leave_state_unchanged",
+      "coverage": "Fallback and canonical integration errors preserve every carry field. Oversized lengths 65, 256, and 257 take precedence over invalid carry. Noncanonical values 2 and u64::MAX are rejected at lengths 0, 1, 63, and 64 with InternalError."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_written": 13,
+    "validation": "Source reviewed against the frozen contract, root definitions, ABI, and prior wave modules. Tests were not executed. No cargo, rustc, rustfmt, git commit, build, or check command was run, as instructed.",
+    "scope": "Only crates/jmax-scan-scalar/src/tails.rs and reports/wave4/W4-04.json were written."
+  }
+}

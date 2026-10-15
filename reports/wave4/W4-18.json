@@ -1,0 +1,72 @@
+{
+  "worker_id": "W4-18",
+  "wave": 4,
+  "crate": "jmax-schema-vm",
+  "file": "crates/jmax-schema-vm/src/extract.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn selected(selection: &Selection, field: FieldId) -> bool",
+    "pub fn store(slots: &mut [SlotValue], slot: u32, value: SlotValue, offset: u32) -> Result<()>",
+    "pub fn publish(run: ValidatedRun) -> Result<ValidatedSlots>"
+  ],
+  "unsafe_justifications": [
+    {
+      "location": "publish",
+      "operation": "ValidationProof::issue_unchecked",
+      "justification": "The sole production unsafe block consumes the private completed-run capability created by execute::run from a ValidatedProgram after strict EOF, schema validation and immutable owner verification. Publication checks both owner lengths fit u32 and revalidates all raw spans and string references, including UTF-8 and exact scalar counts. The witnessed fingerprint, exact owners and unchanged slots move into ValidatedSlots with no intervening fallible operation. No public capability constructor is added. Public ABI mutation caveats are documented."
+    },
+    {
+      "location": "tests::FixtureInput",
+      "operation": "unsafe impl EventInput",
+      "justification": "The test-only source has one fixed, inspected 50-byte strict JSON document, a fixed two-byte decoded arena and fourteen fixed events. There is no caller-provided event or payload constructor. Spans and Unicode scalar counts describe these immutable buffers exactly. EOF follows every event and transfer returns the exact owners; injected failures only deny success. Runtime and schema policies remain enforced by the VM."
+    }
+  ],
+  "test_vectors": {
+    "execution": "Not run. Build, check, formatting and test commands were prohibited by the task.",
+    "suite": "Inline #[cfg(test)] mod tests in crates/jmax-schema-vm/src/extract.rs",
+    "selection": [
+      "Empty selection captures all; exact membership includes FieldId(0), 65536 and u32::MAX without narrowing.",
+      "Predicate behavior remains distinct from execution-boundary duplicate, unknown-ID and strict-validation rejection.",
+      "Integration covers all fields, subsets, reversed field order, absent optional-only selection and zero compiled slots."
+    ],
+    "store": [
+      "Every present SlotValue variant, signed and unsigned extrema, decimal extrema, floating-point bit patterns and both string owners.",
+      "First and last valid indices; index equal to length; u32::MAX; empty slot slices.",
+      "Repeated writes and incoming Empty fail without changing any slot; invalid indices take InternalError precedence."
+    ],
+    "publication": [
+      "Owner length conversion accepts zero and u32::MAX; 64-bit-only vectors reject u32::MAX + 1 and usize::MAX without allocating large buffers.",
+      "Raw spans reject empty ranges, out-of-bounds ends and overflowing offset-plus-length arithmetic.",
+      "String references validate the designated owner, empty ranges at owner ends, multi-byte UTF-8, supplementary scalars, combining marks and decoded NUL.",
+      "Invalid leading bytes, overlong encodings, surrogate encodings, truncated UTF-8 and incorrect scalar counts fail with precise error codes and raw-safe offsets.",
+      "Publication preserves exact payload, decoded arena and slot allocation pointers and the witnessed program fingerprint.",
+      "Late invalid slots and test-only corruption of genuine completed runs fail before proof issuance, including shortened payload and decoded owners."
+    ],
+    "integration": {
+      "document": "{\"a\":7,\"s\":\"Aé\",\"d\":\"\\u00e9\",\"n\":null,\"v\":[true]}",
+      "payload_bytes": 50,
+      "decoded_bytes": 2,
+      "event_count": 14,
+      "expected_slots": [
+        "U64(7)",
+        "Str(RawPayload, offset=12, len=3, scalar_len=2)",
+        "Str(DecodedArena, offset=0, len=2, scalar_len=1)",
+        "RawSpan(offset=34, len=4)",
+        "RawSpan(offset=43, len=6)",
+        "Empty for absent optional field z"
+      ],
+      "failure_paths": [
+        "Unselected integer bounds still fail at raw offset 5 with schema 418 and field 11.",
+        "Unselected required field z still fails at closing offset 49 with schema 418 and field 66.",
+        "Strict EOF and owner-transfer failures propagate without publication.",
+        "Payload, decoded-arena, work and scratch limits prevent publication."
+      ]
+    }
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source and deterministic vectors reviewed by inspection against frozen contracts and prior wave modules.",
+    "validation": "Not compiled, formatted or executed, as explicitly required. No build/check commands or git commit were run.",
+    "scope": "Only crates/jmax-schema-vm/src/extract.rs and reports/wave4/W4-18.json were written."
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "worker_id": "W4-29",
+  "wave": 4,
+  "crate": "jmax-nagoya",
+  "file": "crates/jmax-nagoya/src/ordered.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "OrderedCompletions<T>::new(OrderedOptions) -> Result<Self>",
+    "OrderedCompletions<T>::insert(&mut self, Completion<T>) -> core::result::Result<Option<Completion<T>>, InsertError<T>>",
+    "OrderedCompletions<T>::pop_ready(&mut self) -> Option<Completion<T>>",
+    "OrderedCompletions<T>::next_sequence(&self) -> Option<u64>",
+    "OrderedCompletions<T>::pending_len(&self) -> usize",
+    "OrderedCompletions<T>::pending_bytes(&self) -> usize",
+    "OrderedCompletions<T>::is_cancelled(&self) -> bool",
+    "OrderedCompletions<T>::cancel(&mut self)"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "construction_vectors_and_empty_pop_preserve_initial_sequence",
+      "vectors": "First sequences 0, 1, 43, u64::MAX - 1, u64::MAX; count limits 0, 1, 7, usize::MAX; byte limits 0, 1, usize::MAX.",
+      "assertions": "Zero count is ConstraintViolation with canonical runtime metadata; valid options and empty-pop state remain unchanged. Default options are covered."
+    },
+    {
+      "test": "direct_delivery_bypasses_zero_byte_budget_and_never_charges_storage",
+      "vectors": "Sequences 40, 41, 42 with weights 0, 1, usize::MAX and zero buffered-byte capacity.",
+      "assertions": "Every head is delivered directly and pending accounting stays zero."
+    },
+    {
+      "test": "full_queue_accepts_missing_head_then_drains_only_contiguous_results",
+      "vectors": "Arrival order 12, 11, 10; count capacity 2; byte capacity 7; head weight usize::MAX.",
+      "assertions": "A full queue rejects another future sequence but accepts its head; output order is 10, 11, 12 and weights decrement exactly."
+    },
+    {
+      "test": "gaps_never_skip_even_when_later_completions_are_buffered",
+      "vectors": "Arrival order 8, 6, 4, 5, 7 with first sequence 4.",
+      "assertions": "Repeated pops preserve missing sequences 5 and 7; output becomes 4 through 8 only when each gap arrives."
+    },
+    {
+      "test": "old_and_pending_sequences_are_duplicates_before_capacity_checks",
+      "vectors": "First sequence 7, buffered sequence 8, duplicate candidates 0, 6, 8 and previously emitted 7, 8.",
+      "assertions": "DuplicateObjectKey precedes budget checks, including when the pending duplicate has become the exact next sequence. Original buffered completion survives."
+    },
+    {
+      "test": "zero_weight_entries_still_consume_count_capacity",
+      "vectors": "Zero byte capacity, count capacity 2, zero-weight sequences 1, 2, 3.",
+      "assertions": "Positive buffered weights fail, zero-weight entries still fill count capacity, and draining restores capacity."
+    },
+    {
+      "test": "inclusive_byte_limit_and_rejected_owner_can_be_retried_after_drain",
+      "vectors": "Byte capacity 5; buffered weights 2, 3, 0; rejected candidate weight 2.",
+      "assertions": "Exact capacity is accepted, over-budget insertion preserves state and completion, and the returned completion can be retried after draining."
+    },
+    {
+      "test": "maximum_declared_weights_use_checked_sum_without_allocating_weight",
+      "vectors": "Weights usize::MAX - 1, 2, 1, 0 with maximum count and byte limits.",
+      "assertions": "Addition overflow returns BudgetExhausted without mutation, exact usize::MAX totals are supported, and direct delivery bypasses the full byte budget."
+    },
+    {
+      "test": "direct_maximum_sequence_exhausts_without_wrapping_or_cancelling",
+      "vectors": "First and delivered sequence u64::MAX; subsequent attempts 0, u64::MAX - 1, u64::MAX.",
+      "assertions": "Next becomes None without cancellation, further insertions are ConstraintViolation, and explicit cancellation subsequently takes precedence."
+    },
+    {
+      "test": "buffered_maximum_sequence_exhausts_after_exact_predecessor",
+      "vectors": "First sequence u64::MAX - 1 with u64::MAX buffered before its predecessor.",
+      "assertions": "The maximum sequence is popped exactly once, duplicate pending-head insertion fails, and no wrap to zero occurs."
+    },
+    {
+      "test": "parser_errors_and_individual_cancellation_preserve_order_and_metadata",
+      "vectors": "Sequences 20 through 23; a cancelled job at 21; SchemaVm TypeMismatch at byte 37, schema 11, field 19 at 22.",
+      "assertions": "Successful, individually cancelled, and parser-failed results preserve sequence and diagnostics without cancelling the queue. Uses the canonical CancellationToken."
+    },
+    {
+      "test": "failed_completions_deliver_directly_and_survive_every_rejection_kind",
+      "vectors": "Error-valued completions subjected to old-sequence, pending-duplicate, budget, cancellation, and exhaustion rejection.",
+      "assertions": "Original error metadata and declared weights survive rejected and direct delivery paths, including a failed u64::MAX completion."
+    },
+    {
+      "test": "non_clone_non_send_owners_are_returned_intact_on_rejection",
+      "vectors": "Drop-tracked Rc-backed values across duplicate, budget, direct-delivery, and cancellation paths.",
+      "assertions": "Owner identity is preserved, rejection does not drop the value, and every explicitly discarded owner drops exactly once."
+    },
+    {
+      "test": "cancellation_drops_only_buffered_values_and_is_permanent_and_idempotent",
+      "vectors": "Three buffered values, one directly delivered value, one popped value, repeated cancellation, and four subsequent rejected sequences.",
+      "assertions": "Only still-buffered values are dropped by cancellation; delivered owners remain live, repeated cancellation is harmless, and an independent token is unchanged."
+    },
+    {
+      "test": "cancelling_empty_queues_and_dropping_pending_queues_release_owners",
+      "vectors": "Empty queues starting at 0 and u64::MAX; a separate queue dropped with two buffered values.",
+      "assertions": "Empty cancellation is permanent and idempotent; ordinary queue destruction releases buffered owners exactly once."
+    },
+    {
+      "test": "admission_integration_holds_leases_through_rejection_delivery_and_cancel",
+      "vectors": "Admission capacities 3 jobs, 12 retained bytes, 6 scratch bytes; each admitted output reserves 1 job, 4 retained bytes, 2 scratch bytes.",
+      "assertions": "Queue rejection, direct return, popping, and into_parts preserve leases; dropping owners or cancelling buffered results releases exact reservations. Full admission remains exhausted while delivered results are held."
+    },
+    {
+      "test": "small_capacity_boundary_matrix_preserves_queue_on_every_rejection",
+      "vectors": "Count limits 1 through 3, byte limits 0 through 3, every admissible held weight, candidate weights 0 through 4.",
+      "assertions": "All 150 deterministic combinations match inclusive count and byte limits; rejected queues remain unchanged and direct head delivery always allows progress."
+    },
+    {
+      "test": "all_five_element_permutations_preserve_values_errors_weights_and_order",
+      "vectors": "All 120 permutations of offsets 0 through 4 at first sequences 0, 41, u64::MAX - 4, for 360 ordered delivery scenarios.",
+      "assertions": "Every scenario emits five results in exact order, preserves one parser error and all weights, maintains queue invariants, and exhausts correctly at the sequence boundary."
+    },
+    {
+      "test": "owned_payload_identity_and_queue_send_boundary_are_preserved",
+      "vectors": "Owned byte vector [0, 1, 127, 128, 255] buffered behind an error completion.",
+      "assertions": "Pointer identity and byte contents survive buffering and delivery. Compile-time Send assertions cover queues, completions, and insertion errors containing Admitted<Payload>."
+    },
+    {
+      "test": "cancellation_establishes_empty_state_before_dropping_user_values",
+      "vectors": "An admitted buffered result whose destructor deliberately panics, under panic=unwind.",
+      "assertions": "Caught unwinding leaves the queue empty and cancelled, releases its admission lease, and permits harmless repeated cancellation."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 20,
+    "validation": "Source reviewed against frozen contract and root layouts. Compilation, formatting, builds, checks, and test execution were not run, as instructed.",
+    "execution_status": "not_run",
+    "allocation_behavior": "BTreeMap has no stable fallible reservation or insertion; buffered insertion uses standard allocation-failure behavior. Declared weights are accounting, not allocation measurements.",
+    "scope": "Only crates/jmax-nagoya/src/ordered.rs and reports/wave4/W4-29.json were written. No new dependencies or unsafe code were added."
+  }
+}

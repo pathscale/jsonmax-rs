@@ -1,0 +1,93 @@
+{
+  "worker_id": "W4-05",
+  "wave": 4,
+  "crate": "jmax-scan-neon",
+  "file": "crates/jmax-scan-neon/src/tails.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn load_block(input: &[u8]) -> Result<[u8; BLOCK_BYTES]>",
+      "behavior": "Rejects lengths above 64 with InvalidToken, Scanner, offset zero before copying; otherwise copies exactly the input into a zero-initialized 64-byte array."
+    },
+    {
+      "signature": "pub fn classify_scalar_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks",
+      "behavior": "Locally classifies quotes, backslashes, six punctuation classes, JSON whitespace, controls, ASCII digits, and non-ASCII bytes in address order. Always reports Scalar and never calls classify, quotes, or structural."
+    }
+  ],
+  "unsafe_justifications": [
+    "No unsafe code is introduced in production or tests. Slice copying is bounded by an explicit length check, and mask shifts use positions from a fixed 64-byte array.",
+    "Production code uses no allocation, architecture intrinsics, or additional dependencies; both exports remain available on no_std, arm32, and other non-AArch64 targets."
+  ],
+  "test_vectors": [
+    {
+      "name": "load_every_length_at_every_lane_alignment",
+      "coverage": "All lengths 0 through 64 at all 16 lane-relative offsets; copied prefixes, zero suffixes, and unchanged source storage."
+    },
+    {
+      "name": "exact_sized_objects_need_no_readable_suffix",
+      "coverage": "Exact arrays of lengths 0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, and 64."
+    },
+    {
+      "name": "loaded_block_owns_its_bytes_and_zero_padding",
+      "coverage": "Source mutation after loading leaves the returned block and padding unchanged."
+    },
+    {
+      "name": "oversized_inputs_are_rejected_without_length_truncation",
+      "coverage": "Every input length 65 through 1024; complete error metadata and unchanged input."
+    },
+    {
+      "name": "exact_mixed_vector_includes_every_raw_class",
+      "coverage": "Literal masks for every class, including whitespace/control overlap, DEL exclusion, and high-byte membership."
+    },
+    {
+      "name": "every_byte_at_every_position_matches_membership_oracle",
+      "coverage": "All 256 byte values at each of 64 positions, plus all 256 uniform blocks, compared with an independent membership oracle."
+    },
+    {
+      "name": "lane_edges_and_bit_63_keep_byte_order",
+      "coverage": "Positions 0, 15, 16, 31, 32, 47, 48, and 63 produce 0x8001800180018001; alternating digits and high bytes produce complementary full-width masks."
+    },
+    {
+      "name": "selected_raw_and_structural_paths_match_scalar_on_all_hosts",
+      "coverage": "256 deterministic byte permutations at each of 16 offsets compare scalar, selected raw, and structural results, including actual-path backend tags."
+    },
+    {
+      "name": "non_aarch64_always_selects_scalar",
+      "coverage": "Cfg-gated non-AArch64 assertions for unsupported NEON detection and scalar raw and ABI backend tags."
+    },
+    {
+      "name": "every_tail_length_and_initial_quote_state_matches_oracle",
+      "coverage": "Rotating mixed-byte vectors at every valid length and all four canonical quote carry states compare the canonical ClassifyFn, forced scalar pipeline, and full-block entry point against an independent byte-state oracle."
+    },
+    {
+      "name": "exact_partial_vectors_preserve_raw_classes_and_filter_string_punctuation",
+      "coverage": "Literal ABI masks for an object containing a colon inside a string and for a string containing an escaped quote; verifies raw punctuation survives while structural punctuation excludes string content."
+    },
+    {
+      "name": "padding_neither_emits_controls_nor_consumes_trailing_escape",
+      "coverage": "Every tail length and incoming state verifies zero padding appears only in raw control masks, never observable control masks or carry transitions."
+    },
+    {
+      "name": "every_split_preserves_masks_and_carry_across_empty_and_partial_blocks",
+      "coverage": "All split positions 0 through 64 with backslash runs at lane boundaries and all canonical incoming states reconstruct all 15 ABI masks and final carry."
+    },
+    {
+      "name": "long_backslash_runs_cross_multiple_full_blocks",
+      "coverage": "Three consecutive 64-byte backslash blocks followed by an escape-sensitive partial tail."
+    },
+    {
+      "name": "empty_input_and_all_utf8_tail_lengths_preserve_opaque_state",
+      "coverage": "Every u8 UTF-8 tail length and every canonical quote state; empty Scalar results and preservation of opaque UTF-8 bytes across nonempty classification."
+    },
+    {
+      "name": "integration_errors_are_transactional_and_length_takes_precedence",
+      "coverage": "Noncanonical quote fields, high-bit carry values, empty and full blocks, oversized lengths including 256 and 257, exact error metadata, unchanged carry, and length-error precedence."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_test_functions": 16,
+    "validation": "Source reviewed manually. Tests were authored but not executed. No cargo, rustc, rustfmt, build, check, or git commit command was run, as instructed.",
+    "scope": "Only crates/jmax-scan-neon/src/tails.rs and reports/wave4/W4-05.json were written."
+  }
+}

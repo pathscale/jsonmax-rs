@@ -1,0 +1,92 @@
+{
+  "worker_id": "W4-06",
+  "wave": 4,
+  "crate": "jmax-scan-avx2",
+  "file": "crates/jmax-scan-avx2/src/tails.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn load_block(input: &[u8]) -> Result<[u8; BLOCK_BYTES]>",
+    "pub fn classify_scalar_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks"
+  ],
+  "unsafe_justifications": [
+    "No unsafe code, architecture intrinsics, pointer dereferences, or target-feature functions are introduced, including in tests.",
+    "load_block validates the original usize length with the frozen root valid_mask helper before slicing or copying. copy_from_slice reads exactly the supplied bytes into a zero-initialized 64-byte array without alignment or padding requirements.",
+    "classify_scalar_raw iterates a fixed 64-byte array, so each bit shift is bounded to positions 0 through 63. Unsigned byte predicates implement the complete raw classification rules with an explicit Scalar backend.",
+    "Production functions use only core operations and root-owned types or helpers. They allocate nothing, require no std or CPU features, and never call classify, quotes, or structural, preserving the acyclic fallback graph.",
+    "Integration tests invoke only safe scanner entry points, allowing existing dispatchers to establish AVX2 support before any vector instructions execute. Direct scalar assertions run regardless of host support."
+  ],
+  "test_vectors": [
+    {
+      "test": "frozen_signatures_and_literal_raw_masks",
+      "coverage": "Exact public signatures and literal expectations for all twelve raw masks, including whitespace/control overlap, ASCII digits, and high bytes."
+    },
+    {
+      "test": "every_length_and_alignment_copies_only_the_slice_and_zeros_the_tail",
+      "coverage": "All 65 accepted lengths at all 32 vector-relative address alignments, surrounding sentinels, exact prefix preservation, zero tails, and unchanged source storage."
+    },
+    {
+      "test": "exact_small_objects_and_end_slices_need_no_readable_padding",
+      "coverage": "Empty and exact one-, two-, and three-byte objects, plus every suffix of a 64-byte object. These are safe bounded-storage assertions, not guard-page execution claims."
+    },
+    {
+      "test": "oversized_inputs_report_exact_errors_without_mutating_input_or_carry",
+      "coverage": "Lengths 65, 66, 127, 128, 255, 256, and 1024; InvalidToken, Scanner source, offset zero, zero schema and field identifiers, nonempty detail, and length-error precedence over invalid carry."
+    },
+    {
+      "test": "every_byte_value_at_every_position_matches_all_safe_raw_paths",
+      "coverage": "All 256 uniform blocks and every byte value isolated at every one of 64 positions. Independent per-class predicates compare scalar, structural, and dispatched raw paths."
+    },
+    {
+      "test": "vector_sign_bits_and_lane_boundaries_have_literal_expectations",
+      "coverage": "Explicit masks at positions 0, 31, 32, and 63, with quote/backslash roles exchanged across the lane boundary and full-block quote integration."
+    },
+    {
+      "test": "every_tail_length_clips_padding_and_preserves_all_carry_fields",
+      "coverage": "All lengths 0 through 64 for mixed, zero, ordinary ASCII, quote, backslash, and high-byte blocks under all four canonical quote states. Independently modeled ABI fields and final carry are compared with both the scalar composition and dispatched pipeline."
+    },
+    {
+      "test": "zero_padding_does_not_contribute_control_bits_or_reset_escape_carry",
+      "coverage": "Every backslash-tail length, exact raw padding control bits, zero observable padding bits, and preserved trailing parity for both incoming escape states."
+    },
+    {
+      "test": "deterministic_mixed_vectors_match_scalar_and_dispatched_pipelines",
+      "coverage": "128 xorshift vectors using seed 0x64702ac9ef813b5d, alternating arbitrary bytes and a JSON-focused alphabet. Ten boundary lengths and all canonical incoming quote states."
+    },
+    {
+      "test": "every_split_reassembles_masks_and_preserves_final_state",
+      "coverage": "Every split from 0 through 64 for mixed, all-backslash, and all-quote blocks, with an intervening empty block. All fifteen ABI mask fields reassemble to the continuous bytewise reference, and final carry agrees."
+    },
+    {
+      "test": "long_backslash_runs_cross_full_blocks_and_every_partial_tail",
+      "coverage": "Three full backslash blocks followed by every tail length and a quote/colon suffix, under both incoming escape parities. Exact string and structural masks verify carry propagation."
+    },
+    {
+      "test": "lexical_errors_are_reported_as_raw_classes_without_grammar_rejection",
+      "coverage": "Malformed punctuation, unfinished strings, invalid escapes, embedded controls, invalid UTF-8, and Unicode whitespace/digits remain classifiable. Literal escaped-quote and punctuation-in-string assertions verify raw-mask preservation."
+    },
+    {
+      "test": "invalid_quote_carry_is_rejected_atomically_at_every_length",
+      "coverage": "Noncanonical carry values 2, 3, 255, 2^32, 2^63, and u64::MAX in either quote field at all accepted slice lengths and the fixed-array entry point. Exact scanner error metadata and unchanged carry are asserted."
+    },
+    {
+      "test": "quote_integration_rejects_live_overlap_but_ignores_padding_overlap",
+      "coverage": "Every live quote/backslash overlap position at every valid length, overlapping padding bits, and every invalid quote length 65 through 255. Error paths preserve carry."
+    },
+    {
+      "test": "all_utf8_tail_lengths_are_preserved_on_success_and_failure",
+      "coverage": "Every possible utf8_tail_len value, opaque tail bytes, empty and nonempty successful inputs, and oversized-input failure."
+    },
+    {
+      "test": "cfg_without_avx2_support_uses_the_scalar_backend",
+      "coverage": "Conditionally compiled on non-x86 targets or no-std configurations without static AVX2. Requires false support detection and Scalar backend tags for every accepted length."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "16 tests written, including one cfg-specific fallback test; not executed",
+    "review": "Source and literal vector expectations reviewed by inspection against the frozen contract, root and ABI definitions, and all three prior-wave module implementations.",
+    "execution": "No cargo, rustc, rustfmt, build, check, test execution, or git commit command was run, as instructed. Compilation, execution, and cross-target validation remain unperformed.",
+    "integration": "Both Wave 4 exports satisfy the frozen signatures and complete the existing classifier's bounded-load and scalar-fallback dependencies without modifying shared definitions.",
+    "scope": "Only crates/jmax-scan-avx2/src/tails.rs and reports/wave4/W4-06.json were written."
+  }
+}

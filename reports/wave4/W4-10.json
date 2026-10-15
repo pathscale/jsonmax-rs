@@ -1,0 +1,82 @@
+{
+  "worker_id": "W4-10",
+  "wave": 4,
+  "crate": "jmax-number",
+  "file": "crates/jmax-number/src/write.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn write_u64(value: u64, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_i64(value: i64, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn write_f64(value: f64, policy: &NumericPolicy, sink: &mut dyn ByteSink) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "category": "integer exact spellings and cross-wave integration",
+      "coverage": [
+        "Zero, one, decimal digit transitions, eight-digit groups, and sixteen-digit groups",
+        "u64::MAX -> 18446744073709551615",
+        "i64::MIN -> -9223372036854775808",
+        "i64::MAX -> 9223372036854775807",
+        "Every power of ten from 10^0 through 10^19 and adjacent values",
+        "Lexing emitted bytes and exact parse_u64, parse_i64, and convert_integer assertions"
+      ]
+    },
+    {
+      "category": "finite binary64 exact output and bitwise round trips",
+      "coverage": [
+        "0.0 -> 0, -0.0 -> -0, 0.1 -> 0.1, and 1.25 -> 1.25",
+        "Adjacent binary64 values around one and the exact-integer boundary at 2^53",
+        "Smallest positive subnormal -> ordinary spelling of 5e-324, length 326",
+        "Smallest positive normal -> ordinary spelling of 2.2250738585072014e-308, length 326",
+        "Largest finite positive binary64 -> ordinary spelling of 1.7976931348623157e308, length 309",
+        "Negative counterparts retain their minus sign",
+        "Subnormal endpoints, normal transition, and largest finite neighbors",
+        "Every finite binary exponent field from 0 through 2046, with significands 0, 1, and the maximum fraction, under both signs",
+        "2048 deterministic xorshift states, seed 0x4d595df4d0f33173, used for unsigned, signed, and finite binary64 round trips",
+        "Integration with lex_number, parse_f64, and convert_float verifies identical binary64 bits"
+      ]
+    },
+    {
+      "category": "policy and error precedence",
+      "coverage": [
+        "Finite output under exponent limits 0, 1, 307, 308, 309, 323, 324, and 32767",
+        "Ordinary notation has no explicit exponent and satisfies every valid exponent limit",
+        "Quoted-integer and non-finite parsing permissions do not alter finite output",
+        "Positive and negative infinities, signaling NaNs, quiet NaNs, and varied NaN payloads always produce NumberOverflow before sink calls",
+        "Exponent limits -1 and i16::MIN produce ConstraintViolation before other value checks",
+        "Forbidden negative zero produces ConstraintViolation; positive zero and negative nonzero values remain valid",
+        "Synthesized errors have source Encode, byte offset zero, default schema and field identifiers, and nonempty detail"
+      ]
+    },
+    {
+      "category": "sink boundaries and error propagation",
+      "coverage": [
+        "Exactly one reservation for the complete spelling followed by exactly one write",
+        "Existing sink prefixes and unused sentinel bytes remain unchanged",
+        "Exact capacity succeeds; one byte short fails before writing",
+        "Reservation errors preserve every canonical error field and prevent writes",
+        "Write errors preserve every canonical error field and permit each possible accepted prefix",
+        "Consecutive calls append without clearing existing data",
+        "All seven JSON number delimiters terminate emitted tokens at the exact span"
+      ]
+    },
+    {
+      "category": "scratch and formatter error paths",
+      "coverage": [
+        "Exact 768-byte scratch capacity succeeds and 769-byte output produces InternalError",
+        "Formatter failure after a partial local write produces InternalError",
+        "Malformed formatter output, invalid suffixes, exponents, whitespace, quotes, and non-ASCII bytes fail complete ordinary-spelling validation",
+        "NumberText append overflow leaves existing bytes and length unchanged; clear permits reuse"
+      ]
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "validation": "Source reviewed manually against the frozen contract and ABI. Inline tests are written but not executed.",
+    "execution": "No cargo, rustc, rustfmt, build, check, test, or git commit command was run.",
+    "scope": "Only crates/jmax-number/src/write.rs and reports/wave4/W4-10.json were written.",
+    "implementation_notes": "Safe no_std code with no allocation or added dependencies. Integers use bounded reverse decimal emission and unsigned magnitude for i64::MIN. Finite floats use core precision-free Display with bounded NumberText scratch and complete ordinary JSON grammar validation before sink publication. Sink failures propagate unchanged."
+  }
+}

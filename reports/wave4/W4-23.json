@@ -1,0 +1,49 @@
+{
+  "worker_id": "W4-23",
+  "wave": 4,
+  "crate": "jmax-endpoint-model",
+  "file": "crates/jmax-endpoint-model/src/utilities.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn pg_type(registry: &Registry<'_>, ty: &EndpointType) -> Result<PgType>",
+    "pub fn normalize_header_name(name: &str) -> Result<String>",
+    "pub fn validate_header(header: &ProtocolHeader) -> Result<()>",
+    "pub fn fields_for(endpoint: &EndpointSchemaSpec, shape: MessageShape) -> &[EndpointField]",
+    "pub fn schema_for_fields(name: &str, schema_id: SchemaId, fields: &[EndpointField], reject_unknown: bool) -> Result<SchemaIr>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "inline_test_count": 27,
+    "execution": "Not executed. Build, check, formatting, and test commands were prohibited by the task.",
+    "postgresql": [
+      "Exact scalar storage categories and SQL names, including UInt32 as bigint and epoch milliseconds as bigint.",
+      "Optional depths 0, 1, 2, and 128; depth 129 rejection; combined optional and nominal alias depth budget.",
+      "All NanoId lengths 0 through 255 map to text without interpolating validation metadata.",
+      "JSONB compound categories, recursive inline structs, struct tables, inline enum lookup, and enum aliases.",
+      "Unit rejection and exact registry error propagation for unknown references, invalid names, wrong target kinds, alias cycles, and exhausted reference depth."
+    ],
+    "headers": [
+      "Every ASCII byte is tested in header names against an independent token-character vector.",
+      "Every ASCII byte is tested in values; only HTAB and 0x20 through 0x7e are accepted.",
+      "Empty names, Unicode, colons, whitespace, NUL, CR, LF, DEL, and injection text are rejected.",
+      "Lowercase normalization, punctuation preservation, idempotence, long names, input immutability, registry collision behavior, and legacy V2 preservation."
+    ],
+    "flat_schema": [
+      "Exact UInt32, Int32, Int64, and timestamp intrinsic bounds, unconstrained Float64, Boolean category, and String category.",
+      "Required and optional scalar/format mappings retain non-null scalar constraints through the authoritative schema IR adapter.",
+      "Exact registry spellings for uuid, ip, base64, nanoid, blockchain-address, and blockchain-transaction-hash.",
+      "Valid and invalid UUID, IPv4, IPv6, NanoId, address, transaction hash, and canonical padded standard base64 wire vectors.",
+      "All NanoId lengths 0 through 255 are checked for flat IR representability; only length 21 succeeds.",
+      "Nested optionals, units, enums, compounds, references, and BlockchainDecimal fail with schema and field context.",
+      "Required count 65535 succeeds; required count 65536 fails; 65536 fields succeed with optional fields, including an entirely optional vector.",
+      "Checked u32 field index boundaries without large allocations; exact UTF-8 field names, declaration order, duplicate and empty names, deterministic failure ordering, and owned output strings.",
+      "Format registry error provenance is preserved while schema and field identifiers are attached.",
+      "Empty schema metadata and SchemaId boundaries; borrowed params/response identity independently of stream metadata."
+    ],
+    "integration": [
+      "Legacy V1 export/import, registry construction, canonical method lookup, unary field selection, flat schema mapping, graph normalization, graph resolution, required field order, slots, and schema policy validation.",
+      "Legacy V2 header preservation and case-insensitive registry duplicate detection agree with header normalization."
+    ]
+  },
+  "status": "Implementation complete and source reviewed against frozen contracts. Only the assigned Rust source and this report were written. No build, check, formatting, test, or commit commands were run."
+}

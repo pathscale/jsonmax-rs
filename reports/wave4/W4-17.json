@@ -1,0 +1,80 @@
+{
+  "worker_id": "W4-17",
+  "wave": 4,
+  "crate": "jmax-schema-compile",
+  "file": "crates/jmax-schema-compile/src/image.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn validate(program: CompiledProgram, options: &CompilerOptions) -> Result<ValidatedProgram>",
+      "behavior": "The sole validation witness constructor. Checks structural ownership, counts, limits, dense state and instruction coverage, keys, slots, policy, format options, fingerprint, and bounded NFAs. Parses canonical schema grammar, resolves the reconstructed graph, requires exact recanonicalization, re-lowers without calling compile, and compares every serialized byte against deterministic lowering."
+    },
+    {
+      "signature": "pub fn encoded_len(program: &CompiledProgram) -> Result<usize>",
+      "behavior": "Allocation-free checked size computation using the same field serializer as encoding and comparison. Requires no witness and never validates or lowers. Enforces u32 representability."
+    },
+    {
+      "signature": "pub fn encode(program: &ValidatedProgram, max_bytes: u32) -> Result<Vec<u8>>",
+      "behavior": "Fallibly allocates and emits every field explicitly in frozen declaration order, with fixed little-endian integers, canonical tags, no padding, and an inclusive byte limit. A private raw serializer supports validation without issuing a witness."
+    },
+    {
+      "signature": "pub fn decode(bytes: &[u8], options: &CompilerOptions) -> Result<ValidatedProgram>",
+      "behavior": "Bounds input size and vector footprints before allocation; rejects unknown tags, invalid UTF-8, noncanonical booleans and options, impossible or noncanonical derived counts, truncated records, inconsistent headers, and trailing bytes. Calls full validation before returning a witness. Preserves exact wire positions for decoding errors and caller count-limit failures."
+    },
+    {
+      "signature": "pub fn cache_key(program: &ValidatedProgram, max_bytes: u32) -> Result<CacheKey>",
+      "behavior": "Returns the canonical fingerprint, image version, and complete deterministic encoding. Equality includes all encoded bytes and distinguishes compiler-option-dependent executables with the same schema fingerprint."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-schema-compile/src/image.rs::tests",
+    "inline_test_count": 41,
+    "execution": "Not executed. Compilation, formatting, builds, checks, and test commands are prohibited by the task.",
+    "golden_vectors": {
+      "any_schema_id": "0x01020304",
+      "any_canonical_bytes": 39,
+      "any_canonical_fingerprint": "0xd42f04ce417a2321",
+      "any_complete_wire_bytes": 164,
+      "abi_header_bytes": 36,
+      "abi_instruction_bytes": 16,
+      "abi_key_entry_bytes": 24,
+      "decimal_with_both_bounds_bytes": 56,
+      "first_phf_table": "Names a and b, seed 0, global slots [0, 1, EMPTY_KEY_SLOT, EMPTY_KEY_SLOT].",
+      "rebased_phf_table": "Names aa and d, seed 1, global slots [3, EMPTY_KEY_SLOT, 2, EMPTY_KEY_SLOT]."
+    },
+    "coverage": [
+      "Exact independent canonical, FNV-1a, complete wire, ABI key entry, signed integer, decimal, option, hex-case, and padding vectors.",
+      "Round trips compare all image fields, states, key tables, NFA programs, slots, policies, format options, canonical bytes, re-encoded bytes, encoded lengths, and cache keys.",
+      "Integration of all four state kinds, all six scalar kinds, signed integer extremes, i128 decimal extremes, one-sided and explicit count bounds, all ten format identifiers, and unknown retained format annotations.",
+      "All eight pattern operation variants, Unicode scalar patterns, empty patterns and classes, merged ranges, shared source deduplication, and execution of decoded programs.",
+      "Deterministic SWAR and perfect-hash strategies, first successful seeds, bounded-search fallback, rebased global indices and spans, empty names, NUL, Unicode, and equal eight-byte prefixes.",
+      "All 65536 unique u16 FieldIds, 65535 required bits, required sentinel handling, and the optional final key.",
+      "Aliases, unreachable source nodes, shared targets, object and array recursion, property and definition permutations, a 2049-state chain, and names exceeding resolver default name limits.",
+      "Inclusive image-byte, state, instruction, key, and aggregate pattern-state limits, plus zero-resource allowances and exact wire offsets for count-limit failures.",
+      "Every instruction opcode, flags field, FieldId, arg0, and arg1 mutated independently; instruction order, dense ranges, complete coverage, header fields, and root checks.",
+      "Cross-table and byte-storage ownership, duplicate FieldIds, required counts, UTF-8 keys, key heads and spans, graph targets, and slot occurrence mappings.",
+      "Locally valid alternate PHF seeds, strategies, and capacities rejected by full canonical reproduction; malformed hash slots and derived counts rejected as image errors.",
+      "Incompatible and changed constraints, version-one format-option restrictions, policy mismatches, malformed NFAs, valid but wrong pattern languages, changed budgets, and unowned patterns.",
+      "Matching or recomputed fingerprints cannot authenticate changed executables, changed pattern sources, malformed canonical bytes, unreachable canonical nodes, non-BFS records, or unsupported capture paths.",
+      "Canonical compiler failures for repeated captures, sparse slots, out-of-u16 FieldIds, malformed regex syntax, and unsupported regex escapes become SchemaImageInvalid while preserving known field context.",
+      "Every truncated prefix of both golden and mixed images, trailing bytes, unknown wire enum tags and format IDs, noncanonical booleans and options, impossible counts, and invalid UTF-8 positions.",
+      "Cache equality compares complete encodings, including distinct SWAR and PHF programs with equal schema fingerprints; 32 deterministic graph corpus members remain byte-identical across property permutations.",
+      "Allocation-capacity failure, usize and u32 size overflow, comparator bounds and mismatches, and checked reader position arithmetic return ABI errors without unsafe code."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Manual source and frozen-contract review only. Inline tests are written; compilation and runtime results remain unverified as instructed.",
+    "commands_not_run": ["cargo", "rustc", "rustfmt", "git commit", "build commands", "check commands", "test commands"],
+    "files_written": ["crates/jmax-schema-compile/src/image.rs", "reports/wave4/W4-17.json"],
+    "integration_notes": [
+      "Reviewed the compiler contract and frozen root, ABI root and records, IR canonical grammar and types, format types, and prior lower, keys, and patterns implementations.",
+      "Uses only core, alloc, and the allowed existing crate interfaces; introduces no dependency, manifest, shared-root, contract, ownership, or other worker-file edits.",
+      "Canonical reconstruction is flat and iterative. It uses image-derived resolver limits and contains no references or definitions.",
+      "A shared private serializer drives counting, output, and full-byte comparison so no field is omitted from identity or canonical executable validation.",
+      "Decoder derived PHF count mismatches are malformed images rather than caller budget failures; caller count-limit errors retain their exact wire position."
+    ]
+  }
+}

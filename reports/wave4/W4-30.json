@@ -1,0 +1,77 @@
+{
+  "worker_id": "W4-30",
+  "wave": 4,
+  "crate": "jmax-http",
+  "file": "crates/jmax-http/src/hosted.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "name": "accept_request",
+      "signature": "pub fn accept_request(request: IncomingRequest, verifier: Option<&dyn WebhookVerifier>, validator: &dyn BodyValidator, schema_fingerprint: u64, limits: HttpLimits) -> Result<HostedRequest>",
+      "behavior": "Checks complete incoming metadata and effective limits, verifies the original headers and exact body when configured, then binds schema validation to the original immutable payload. Moves method, URI, headers, and validated ownership into HostedRequest. Callback errors propagate unchanged."
+    },
+    {
+      "name": "dispatch",
+      "signature": "pub fn dispatch(request: IncomingRequest, verifier: Option<&dyn WebhookVerifier>, validator: &dyn BodyValidator, schema_fingerprint: u64, handler: &dyn HostedHandler, limits: HttpLimits) -> Result<OutgoingResponse>",
+      "behavior": "Accepts the request and invokes its handler exactly once. Releases only statuses 200 through 599 excluding 204, 205, and 304, with unique JSON representation headers, canonical explicit Content-Length, bounded storage and payload, consistent proof lengths, and a bounded decoded arena. Preserves handler-selected response schemas and typed 400 through 599 response data without rewriting or revalidation."
+    }
+  ],
+  "unsafe_justifications": [
+    {
+      "scope": "production",
+      "justification": "No unsafe operations or proof issuance. Uses the frozen root validation and ownership checks plus incoming metadata helpers."
+    },
+    {
+      "scope": "cfg(test)::tests::literal_slots",
+      "operation": "ValidationProof::issue_unchecked",
+      "justification": "Exact matching validates complete JSON literals against registered request, reply, error, or alternate request schemas. Raw and decoded string spans have checked bounds, valid UTF-8, and accurate scalar counts. Both immutable buffer lengths use checked u32 conversion. Fault vectors mutate safe storage only after valid proof issuance and are consumed solely by defensive rejection paths."
+    }
+  ],
+  "test_vectors": {
+    "execution": "Not executed. The task prohibits builds, tests, formatting, compiler invocation, and other check commands. Source was reviewed directly against the frozen contract and ABI.",
+    "inline_test_count": 24,
+    "literal_vectors": [
+      { "name": "RAW", "json": "{\"text\":\"a\"}", "payload_bytes": 12, "decoded_bytes": 0 },
+      { "name": "PADDED", "json": " \n{\"text\":\"a\"}\t ", "payload_bytes": 16, "decoded_bytes": 0 },
+      { "name": "ESCAPED", "json": "{\"text\":\"a\\n\"}", "payload_bytes": 14, "decoded_bytes": 2 },
+      { "name": "UNICODE", "json": "{\"text\":\"é😀\"}", "payload_bytes": 17, "decoded_bytes": 0 },
+      { "name": "ACK", "json": "{\"ok\":true}", "payload_bytes": 11, "decoded_bytes": 0 },
+      { "name": "ERROR_JSON", "json": "{\"error\":\"denied\"}", "payload_bytes": 18, "decoded_bytes": 0 }
+    ],
+    "suites": [
+      {
+        "tests": ["signed_vectors_preserve_original_metadata_bytes_and_owners", "supported_methods_and_targets_are_retained_with_or_without_verification"],
+        "assertions": "Both Payload storage constructors, all six supported methods, origin and absolute targets, optional incoming length, original header order and values, URI and header allocation retention, unchanged whitespace and escapes, UTF-8 scalar references, exact body pointer identity, verifier-before-validator ordering, and owner survival."
+      },
+      {
+        "tests": ["invalid_configuration_is_rejected_before_all_callbacks", "completion_precedes_method_uri_and_headers", "malformed_targets_are_rejected_before_verification", "malformed_request_headers_never_reach_verification", "request_payload_and_header_limits_are_inclusive"],
+        "assertions": "Both public entry points reject six invalid configurations, incomplete bodies, HEAD, invalid targets, missing or duplicated representation fields, bad lengths, unsupported media or content codings, and excess body/header/count limits before any callback. Exact inclusive limits and UTF-8 byte accounting are covered."
+      },
+      {
+        "tests": ["verifier_errors_preserve_all_metadata_and_prevent_later_work", "verification_success_does_not_bypass_json_validation", "validator_errors_and_binding_failures_prevent_handler_execution"],
+        "assertions": "AuthFailed, SignatureInvalid, and Cancelled propagate with source, offset, schema, field, and detail intact. Verification failures block JSON validation and handling. Empty, malformed, trailing, incompatible, and invalid UTF-8 vectors cannot reach the handler. Wrong fingerprints, changed bytes, payload lengths, and decoded lengths are rejected."
+      },
+      {
+        "tests": ["effective_syntax_preserves_all_other_limits", "request_decoded_arena_limit_is_exact_after_verification"],
+        "assertions": "Effective payload limit is the smaller HTTP/syntax cap and all remaining syntax settings are unchanged. Decoded caps 0, 1, and 2 distinguish unescaped request success, escaped rejection, and exact escaped success after verification."
+      },
+      {
+        "tests": ["dispatch_orders_callbacks_and_transfers_both_message_owners", "handler_errors_propagate_without_retry_or_response_conversion", "every_status_boundary_is_checked_after_one_handler_call", "typed_error_responses_keep_the_handler_schema_and_error_status"],
+        "assertions": "Handler executes once after acceptance, response bytes and headers retain their owners, handler errors preserve metadata, and status vectors 0 through 600 plus u16::MAX enforce hosted policy. Typed error schemas at 400, 401, 403, 404, 409, 422, 429, 500, 503, and 599 remain successful dispatch data with independent fingerprints."
+      },
+      {
+        "tests": ["outgoing_response_length_must_be_present_unique_and_canonical", "response_json_media_types_are_checked_without_rewriting", "handler_output_must_have_decoded_transport_metadata"],
+        "assertions": "Missing, duplicate, padded, signed, comma-listed, overflowing, Unicode, and mismatched outgoing lengths are rejected with canonical errors. JSON suffix media types and UTF-8 parameters are preserved, malformed or duplicate media are rejected, transfer framing and unsupported codings fail, and unknown repeated headers plus identity coding remain valid."
+      },
+      {
+        "tests": ["response_limits_count_exact_body_and_final_header_bytes", "handler_response_proof_lengths_must_match_actual_owners", "handler_response_decoded_cap_is_inclusive_and_independent_of_request"],
+        "assertions": "Handler response body and final header limits are inclusive and use byte lengths. Proof payload and arena length mismatches fail locally. Response decoded caps 0, 1, and 2 are enforced independently of a request without an arena."
+      },
+      {
+        "tests": ["outgoing_hosted_and_incoming_modules_share_exact_validated_buffers", "rejected_request_and_response_owners_are_released"],
+        "assertions": "Cross-module integration covers outgoing::request, signed hosted dispatch, a handler calling outgoing::response, and incoming::decode_response with a typed reply. Encoding occurs once per message, validation counts and schema transitions are exact, and payload allocation identity is retained. Weak-owner assertions cover release after request and handler-response rejection."
+      }
+    ]
+  },
+  "status": "complete_source_and_report_written; 24_inline_tests_added_but_not_executed_per_instruction; only_assigned_files_edited; no_build_check_format_or_commit_commands_run"
+}

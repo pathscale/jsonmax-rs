@@ -1,0 +1,72 @@
+{
+  "worker_id": "W4-27",
+  "wave": 4,
+  "crate": "jmax-wire",
+  "file": "crates/jmax-wire/src/responses.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn encode_response(response: &Response<'_>, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn response_payload(response: &Response<'_>, max_bytes: u32) -> Result<Payload>",
+    "impl JsonEncode for Response<'_>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "immediate_and_stream_vectors_cover_zero_and_maximum_identifiers",
+      "assertions": "Exact field order and bytes through direct, bounded payload, and trait APIs; zero and maximum u64 sequence/index and u32 endpoint code; decoder metadata and complete raw result spans."
+    },
+    {
+      "test": "error_vectors_cover_every_optional_field_combination",
+      "assertions": "All four optional sequence/code presence combinations; present zero stays distinct from absence; exact nested code/message/retryable order and error span."
+    },
+    {
+      "test": "signed_error_code_vectors_include_both_extremes_and_zero",
+      "assertions": "Error codes -2147483648, -1, 0, 1, and 2147483647 with both retryable states, empty messages, and maximum identifiers."
+    },
+    {
+      "test": "log_vectors_cover_all_levels_and_optional_sequence",
+      "assertions": "trace, debug, info, warn, and error with absent, zero, and maximum sequence; empty messages and no endpoint code."
+    },
+    {
+      "test": "forwarded_and_close_vectors_preserve_metadata",
+      "assertions": "Forwarding identifier bounds, a whitespace-only nonempty target, and close sequence absence/zero/maximum with empty reasons."
+    },
+    {
+      "test": "all_string_positions_escape_controls_and_preserve_unicode",
+      "assertions": "Every U+0000 through U+001F control, quote, backslash, slash, DEL, accented Latin, CJK, emoji, U+2028, and U+2029 in every response string position and typed string results."
+    },
+    {
+      "test": "nested_results_accept_every_json_value_category_without_reformatting",
+      "assertions": "Null, both booleans, negative zero, exponent notation, empty and surrogate-escaped strings, arrays, objects, and nested values with surrounding whitespace."
+    },
+    {
+      "test": "decimal_writer_vectors_cross_digit_and_machine_integer_boundaries",
+      "assertions": "Sixteen exact decimal vectors covering zero, digit transitions, u16/u32/signed-u64 boundaries, the 19-to-20 digit transition, and u64::MAX."
+    },
+    {
+      "test": "invalid_metadata_is_rejected_before_any_sink_operation",
+      "assertions": "Nine invalid log levels and an empty forwarded target produce Wire ConstraintViolation without writes or reservations, including trait encoding, zero payload limit, and an existing full sink."
+    },
+    {
+      "test": "every_response_obeys_all_output_limits_including_exact_fit",
+      "assertions": "All six variants reject every byte limit below complete length with Wire PayloadTooLarge; retained prefixes stay bounded; exact fit, one extra byte, and maximum configured limits succeed."
+    },
+    {
+      "test": "sink_errors_at_every_write_preserve_metadata_and_stop_encoding",
+      "assertions": "Inject failure at every write for all variants, including sinks accepting a partial write; preserve complete error metadata and stop immediately with only an output prefix."
+    },
+    {
+      "test": "nested_encoder_is_called_once_and_its_failure_is_not_wrapped",
+      "assertions": "Immediate and stream encoders invoke the result exactly once, preserve reservation semantics and nested error metadata, omit closing punctuation on failure, discard failed owned output, and avoid invoking results after an earlier sink failure."
+    },
+    {
+      "test": "direct_and_trait_encoders_append_without_rewriting_existing_bytes",
+      "assertions": "Direct and trait encoding append exact consecutive responses to an existing prefix without separators or implicit newlines."
+    },
+    {
+      "test": "owned_response_payloads_survive_borrowed_inputs_and_frame_incrementally",
+      "assertions": "Owned UTF-8 output survives borrowed input destruction, decodes with exact result spans, encodes a five-byte little-endian frame header, and survives one-byte incremental framing and response decoding."
+    }
+  ],
+  "status": "Implementation complete with 14 inline tests. Source reviewed manually against the frozen contract and prior wave APIs. Tests were not executed. No cargo, rustc, rustfmt, commit, build, or check command was run. Only the assigned source file and this report were written. The module forbids unsafe code, uses only root helpers in production, and documents the nested JsonEncode requirement to emit one complete JSON value."
+}

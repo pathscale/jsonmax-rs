@@ -1,0 +1,97 @@
+{
+  "worker_id": "W4-21",
+  "wave": 4,
+  "crate": "jmax-derive",
+  "file": "crates/jmax-derive/src/attributes.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "visibility": "pub(crate)",
+      "signature": "fn parse_input(input: proc_macro::TokenStream, kind: DeriveKind) -> DeriveResult<DeriveInput>",
+      "behavior": "Parses and validates all container, field, and variant attributes; preserves original tokens and source spans; strips generic defaults only from impl generics; assigns dense non-skipped slots."
+    },
+    {
+      "visibility": "pub(crate)",
+      "signature": "fn expand_definition_variant(input: &DeriveInput) -> DeriveResult<proc_macro::TokenStream>",
+      "behavior": "Emits an inherent JMAX_DEFINITION_VARIANTS constant with ordered static string, i32, and description tuples, retaining the where clause and escaping all string values."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "suite": "frozen API and shared integration",
+      "vectors": [
+        "Frozen function signatures and FieldAttrs/RenameRule defaults",
+        "Empty named structs versus unit structs for Decode, Encode, and Schema",
+        "Identical generic, attribute, name, and slot interpretation across all three struct derives",
+        "Dense slot vector: [null, 0, 1, 2, null, 3] around skipped fields"
+      ]
+    },
+    {
+      "suite": "field types and generics",
+      "vectors": [
+        "All eight frozen scalar kinds and all supported String spellings",
+        "Five qualified/unqualified Option path spellings with one scalar and optional trailing comma",
+        "Configured ABI number::Decimal128 path and rejection of arbitrary suffix aliases",
+        "Borrowed fields, nested collections, unsupported primitive widths, malformed Option arguments, and unsupported aliases",
+        "Skipped arbitrary references, higher-ranked function pointers, qualified associated types, and arrays",
+        "Nested generic defaults, associated-type equality, lifetime bounds, const defaults, arrows, parameter attributes, raw generic names, and where clauses",
+        "Empty, duplicate, unclosed, and malformed generic declarations"
+      ]
+    },
+    {
+      "suite": "attributes and diagnostics",
+      "vectors": [
+        "Legal crate/self/super path prefixes, raw path identifiers, Unicode module names, and path spacing",
+        "Invalid path keywords, underscore segments, split colons, expressions, and lexer failures",
+        "Duplicate attributes across lists, raw helper/key spellings, unknown keys, misplaced keys, malformed lists, empty values, and invalid boolean flags",
+        "Skip conflicts with every wire/constraint field key, including validation of unknown keys on skipped fields",
+        "String-only and integer-only constraint compatibility across all struct derives",
+        "Inverted and equal-endpoint bounds",
+        "Exact diagnostic locations at offending attributes and declarations"
+      ]
+    },
+    {
+      "suite": "numeric and literal boundaries",
+      "vectors": [
+        "Decimal, hexadecimal, octal, binary, underscore, signed/unsigned suffix, and optional-minus integer literals",
+        "u32::MAX accepted; u32::MAX + 1 and negative unsigned attribute values rejected",
+        "i32::MIN/MAX, i64::MIN/MAX, and i128::MIN/MAX accepted without overflowing before narrowing",
+        "Integer suffix overflow, u128 accumulation overflow, malformed digits, floating literals, and constant expressions rejected",
+        "Slot-count checked increment at u32::MAX - 1 and u32::MAX",
+        "Cooked/raw Rust strings, UTF-8, ASCII/Unicode escapes, LF/CRLF continuations, and newline normalization",
+        "Raw-string delimiter boundary at 255/256 hashes; invalid escapes, surrogate values, out-of-range Unicode, byte/C strings, suffixes, and bare CR rejected"
+      ]
+    },
+    {
+      "suite": "wire names",
+      "vectors": [
+        "HTTPServerID and HTTP2ServerID across all casing rules",
+        "Acronym boundaries ABc/aBCd and digit boundaries x86_64CPU/123ABCdef/foo42Bar7",
+        "Repeated underscore, hyphen, and ASCII-whitespace separators",
+        "Raw Rust field identifiers, explicit UTF-8 renames, preserved Unicode, non-ASCII conversion errors, and transformed-name collisions",
+        "Long repeated acronym names without an artificial length cap"
+      ]
+    },
+    {
+      "suite": "DefinitionVariant bridge",
+      "vectors": [
+        "Ordered enum value vector: [0, 127, -2147483648, -2147483647, 2147483647, 3, 4]",
+        "Implicit increment overflow and explicit reset after i32::MAX",
+        "Value/discriminant conflicts, duplicate numeric values, duplicate Rust/wire names, empty names, generic enums, data-carrying variants, arbitrary expressions, unions, and wrong item shapes",
+        "Exact generated source for empty, raw-named, escaped, and where-constrained enums",
+        "Static tuple type and explicit copy into canonical jmax_abi::endpoint::EnumVariantSpec",
+        "Hostile quoted/control/Unicode strings remain escaped literals",
+        "Defensive bridge renderer rejects empty names and duplicate entries"
+      ]
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "25 deterministic unit tests authored; not executed",
+    "validation": "Source review only. No cargo, rustc, rustfmt, build, check, test, or git commit command was run, as explicitly instructed.",
+    "ownership": "Only crates/jmax-derive/src/attributes.rs and reports/wave4/W4-21.json were written.",
+    "dependencies": "No new dependencies or public proc-macro-crate helper exports.",
+    "limitations": "Compilation and execution of the inline tests remain for the authorized integration stage."
+  }
+}

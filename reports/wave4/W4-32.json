@@ -1,0 +1,74 @@
+{
+  "worker_id": "W4-32",
+  "wave": 4,
+  "crate": "jmax-exchange",
+  "file": "crates/jmax-exchange/src/profiles.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn spot_profile() -> ExchangeProfile",
+    "pub fn validate_profile(profile: &ExchangeProfile) -> Result<()>",
+    "pub fn schema_fingerprint(kind: MessageKind, profile: &ExchangeProfile) -> Result<u64>",
+    "pub fn validate_level(level: BookLevel, profile: &ExchangeProfile) -> Result<()>",
+    "pub fn seed_snapshot(state: &mut SequenceState, last_update_id: u64) -> Result<()>",
+    "pub fn classify_depth(state: &SequenceState, first_update_id: u64, final_update_id: u64) -> Result<SequenceDecision>",
+    "pub fn apply_depth(state: &mut SequenceState, first_update_id: u64, final_update_id: u64) -> Result<SequenceDecision>"
+  ],
+  "unsafe_justifications": [
+    {
+      "site": "tests::FixtureValidator::validate: ValidationProof::issue_unchecked",
+      "justification": "Test-only proof issuance accepts only three exact known fixtures and their exact combined-stream forms under default decimal and resource policies with a compatible wrapper. Complete strict cursor traversal validates syntax and budgets. Exact payload equality establishes the full frozen kind schema, required and optional membership, literals, unsigned integer values, sequence/trade ranges, symbol constraints, and every book element. Checked decimal parsing and level validation enforce prices, quantities, scales, precision and ticks before evidence is issued. Every StrRef uses a checked original-payload UTF-8 span and exact scalar count, book spans use complete original coordinates, decoded storage is empty, lengths are checked, and precisely these immutable owners and slots accompany the calculated fingerprint. Production profiles code contains no unsafe operations and never issues proofs."
+    }
+  ],
+  "test_vectors": {
+    "inline_test_count": 27,
+    "execution": "Not executed. Compilation, tests, formatting, build commands and check commands were prohibited by the task.",
+    "fingerprint_reference": "Fifteen fixed FNV-1a-64 expectations were calculated independently using Python byte encoding and integer arithmetic only. The Rust implementation and inline tests were not executed. Each version-one encoding contains 94 bytes.",
+    "default_bare_fingerprints": {
+      "Depth": "0x98c1d75176510682",
+      "AggTrade": "0x5de742f2cf398d9b",
+      "Snapshot": "0xe2b7cbf1f8cace98"
+    },
+    "coverage": [
+      "Every frozen default profile field and strict Limits value",
+      "Versions zero, two and u16::MAX reject with UnsupportedSchemaFeature before other profile or level errors",
+      "Required nonzero level, symbol, payload and depth limits; accepted minimum and maximum endpoints",
+      "Other zero syntax budgets remain accepted resource ceilings rather than unlimited settings",
+      "Both decimal policies independently reject precision zero or above 38, scale above 38, and negative ticks including i128::MIN",
+      "Accepted precision 1 and 38, scales 0 and 38, ticks zero, one and i128::MAX, and both exponent/exactness flag values",
+      "Nine default-profile fingerprint vectors across every MessageKind and WrapperPolicy",
+      "Three wide-value fingerprint vectors using maximum integer fields, large i128 ticks and changed boolean flags",
+      "Three asymmetric fingerprint vectors fixing price-before-quantity order, every Limits field width and order, little-endian encoding and explicit boolean bytes",
+      "Fingerprint sensitivity to every independent configurable field, including high tick bytes and both validation flags",
+      "Positive prices, nonnegative quantities, retained zero deletions and unmodified converted values",
+      "Independent exact price/quantity target scales, including rejection of numerically equal alternate representations and scale 255",
+      "38-digit coefficient acceptance, 39-digit precision rejection, and safe handling of i128::MIN and i128::MAX",
+      "Independent price/quantity ticks, zero disabling divisibility checks and large positive tick divisors",
+      "Checked decimal-parser integration with exact eight-place values, negative-zero normalization, trailing fractional zeros and zero quantities",
+      "Strict decimal grammar rejects leading plus, redundant integer zeros, missing integer/fraction digits, disabled exponents, whitespace, non-ASCII digits and nondecimal spellings while preserving canonical lexer metadata",
+      "Canonical NumberOverflow, DecimalPrecisionOverflow and DecimalScaleMismatch parsing failures retain source and offsets",
+      "Enabled exponents, signed exponent syntax, exponent extremes, exact rescaling, truncation toward zero for both signs, and tick checks after truncation",
+      "Scale-38 fractional boundary retains its target scale and maximum 38-digit coefficient; rescaling one to scale 38 exceeds precision",
+      "Snapshot seed and reseed behavior, zero and u64::MAX-minus-one endpoints, u64::MAX rejection, reset and atomic failure preservation",
+      "Unseeded and unsynchronized state rejection, including inconsistent crate-private state combinations",
+      "Stale, overlapping, contiguous, singleton and gap classification vectors without mutation; reversed ranges reject before stale handling",
+      "Apply commits only final IDs, stale preserves all fields, gap preserves the accepted ID and requires a new snapshot, and errors never partially mutate state",
+      "u64 successor boundaries, applicable final-ID overflow, maximum-ID gaps and terminal stale classification without wrapping",
+      "1089 deterministic small-range combinations compare classification, application decisions and complete state mutation rules",
+      "Depth, aggTrade and snapshot decoder integration under Bare, CombinedStream and both Either forms, preserving original owner pointers, wrapper coordinates, exact decimal books, zero deletions, symbol references, optional trade flags and profile fingerprints",
+      "Decoded snapshot seeds the tracker; overlapping decoded depth applies once and is stale on replay",
+      "All three decoders reject invalid profiles before invoking the validator or inspecting malformed payload bytes",
+      "All three decoders reject authentic fixture proofs reused across changed price policies, quantity policies, level limits, wrapper policies or Limits flags",
+      "Shared depth book reader integrates independent price and quantity scales and ticks, validates every level, retains zero quantities, and preserves schema/field context on errors"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "reasoning": "high",
+    "review": "Source manually reviewed against contracts/jmax-exchange.md, the frozen exchange and ABI roots and numeric/error/span/buffer/limits definitions, prior depth/trade/snapshot modules, decimal lexing/accumulation/rescaling/validation interfaces and cursor traversal interfaces.",
+    "validation": "No cargo, rustc, rustfmt, git commit, build, test or check commands were run. Compilation and Rust test execution remain unverified by instruction.",
+    "scope": "Only crates/jmax-exchange/src/profiles.rs and reports/wave4/W4-32.json were written. No manifests, ownership data, ABI files, shared roots, contracts or other worker files were edited.",
+    "integration": "Implements all seven frozen Wave 4 signatures. Prior decoders continue to perform checked text conversion through jmax_decimal; profile validation narrows its general decimal domain to exchange precision and scale bounds. Converted book validation shares jmax_decimal canonical constraints and errors. Fingerprints encode every frozen profile field explicitly. Sequence transitions are allocation-free and commit only after successful classification.",
+    "dependencies": "Production references only frozen parent/ABI types and the allowed jmax-decimal dependency. Inline integration tests additionally use the allowed jmax-cursor dependency, ABI proof type and alloc. No additional dependencies were introduced.",
+    "allocation": "All production functions are allocation-free and compatible with alloc without std. Test fixtures allocate only test-owned buffers and slots."
+  }
+}

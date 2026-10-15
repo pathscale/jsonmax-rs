@@ -1,0 +1,23 @@
+{
+  "worker_id": "W4-37",
+  "wave": 4,
+  "crate": "jmax-bench",
+  "file": "crates/jmax-bench/src/service.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "validate_service_config(ServiceConfig) -> Result<()> validates positive limits, request cap, in-flight bounds, and tracking allocation arithmetic",
+    "run_service(&Workload, &mut dyn ServiceDriver, ServiceConfig, &mut dyn Clock) -> Result<ServiceReport> validates workloads, bounds admission and retention, measures elapsed time and completion-order latency, folds digests by request ID, and synchronously cleans up"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Valid config plus zero in-flight, zero requests, in-flight above requests, zero timeout, zero retention limit, and request count above 1,000,000 boundaries",
+    "Five request deterministic service run, exact submitted/completed/latency counts, zero final retained bytes, and equal digest under forward and reverse completion order",
+    "A rejected admission retries successfully with unchanged ID and no retained input",
+    "Nonzero initial driver retention and workload byte budget rejection",
+    "Malformed strict JSON workload and timeout failure with cleanup",
+    "Cancellation leak returns ConstraintViolation",
+    "Unknown completion ID returns InternalError and cancellation releases driver state",
+    "Ascending request-ID digest fold vector for digest values 11, 22, and 33"
+  ],
+  "status": "implemented; build and test commands intentionally not run per task instruction"
+}

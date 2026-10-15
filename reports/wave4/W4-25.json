@@ -1,0 +1,35 @@
+{
+  "worker_id": "W4-25",
+  "wave": 4,
+  "crate": "jmax-codegen-rust",
+  "file": "crates/jmax-codegen-rust/src/compat.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "compat::generate_compat(model: &EndpointModel, options: &CodegenOptions) -> Result<GeneratedArtifact>",
+    "Generated compat.rs: LEGACY_VERSION: Option<u16>, MODEL_VERSION: (u32, u32, u32), DEFINITION_VARIANTS: &[(&'static str, &'static [(&'static str, i32, &'static str)])]",
+    "LegacyV1 and LegacyV2 re-export declared and inline nominal model types under their original model spelling; legal keyword aliases use raw identifiers; nominal views use original spelling plus View when emit_views is enabled",
+    "DefinitionVariant tuples agree with the existing models.rs inherent JMAX_DEFINITION_VARIANTS bridge, without adding derives, serialization dependencies, external traits, or implementations for foreign types"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Exact empty artifact vectors for Native, LegacyV1, and LegacyV2 across definition-variant, view, and schema-table flags; generation notice, assigned path/kind, explicit empty table, trailing LF, and Generation insertion",
+    "Model versions (0,0,0), (1,2,3), and all-u32::MAX preserve every component in every mode",
+    "Enum declaration-order tuples preserve i32::MAX, i32::MIN, zero, empty descriptions, and non-ASCII descriptions with exact source assertions",
+    "Enums nested in optional/vector fields, requests, responses, streams, and headers appear once, while reference aliases and records produce no extra enum rows; every emitted nominal alias and view resolves to an item emitted by models.rs",
+    "Original names ZState, _beta_state, and alpha_state sort bytewise for both metadata and legacy re-exports, independently of definition order",
+    "Quotes, backslashes, LF, CR, tabs, NUL, accented UTF-8, emoji, and Unicode separator descriptions remain escaped string data",
+    "Disabled definition variants produce an explicit empty metadata slice and no model bridge constants in all compatibility modes",
+    "Legacy aliases preserve http_state, state_alias, and the keyword type with raw identifier syntax; scalar/reference aliases do not invent owner views",
+    "LegacyV1 propagates the authoritative exporter error for errors, headers, role inheritance, and every nonempty role description including whitespace-only values; Native and LegacyV2 retain support without mutating the input",
+    "LegacyV1 accepts plain roles and preserves representable endpoint and enum descriptions",
+    "Duplicate endpoint codes, mismatched service ownership, unknown roles/references, alias cycles, duplicate fields, and duplicate discriminants propagate exact registry errors in every mode with both metadata settings",
+    "Invalid module names and configured ABI/AOT/derive paths fail before model traversal or interpolation",
+    "PascalCase type and variant collisions, support-type collisions, view-name collisions, and empty enums fail with ConstraintViolation even when definition metadata is disabled",
+    "Legacy metadata names and identifiers forbidden by Rust raw-identifier syntax cannot be re-exported; helper vectors exercise empty, punctuation, injection, Unicode, keyword, and acronym spellings",
+    "Recursive nominal references terminate; StructTable and EnumRef aliases neither expand recursive records nor duplicate enum metadata",
+    "Depths 0, 1, and 127 pass; 128, 129, and usize::MAX fail with structured depth errors; duplicate internal nominal/type/output names and discriminants exercise error branches",
+    "Complete six-artifact root generation across all compatibility modes and view/schema/definition flags preserves payload sources, endpoint code u32::MAX, exact method api.get, schema counts, registry identities, program bytes, and fingerprints; only compat.rs changes with legacy mode",
+    "Prefixed and unprefixed EnumRef aliases have identical compatibility metadata and retain the canonical numeric enum encoder"
+  ],
+  "status": "implemented; 18 inline deterministic vector and integration tests authored but not executed as instructed; only the assigned Rust file and this report were written; no cargo, rustc, rustfmt, build/check, or git commit command was run; source review used the frozen contracts and prior-wave modules; endpoint-model utilities::schema_for_fields is required by the existing prior-wave integration paths and its implementation was absent from the checkout during this task"
+}

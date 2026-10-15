@@ -1,0 +1,124 @@
+{
+  "worker_id": "W4-26",
+  "wave": 4,
+  "crate": "jmax-codegen-spec",
+  "file": "crates/jmax-codegen-spec/src/markdown.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn service_docs(services: &[ServiceSpec], registry: &TypeRegistry, visibility: Visibility<'_>, options: &DocumentOptions) -> Result<GeneratedDocument>",
+    "pub fn error_docs(errors: &[ErrorDoc], max_output_bytes: u32) -> Result<GeneratedDocument>",
+    "pub fn systemd_unit(options: &SystemdOptions, max_output_bytes: u32) -> Result<GeneratedDocument>",
+    "pub fn escape_markdown(text: &str) -> String"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "markdown_escape_has_exact_injection_and_unicode_vectors",
+      "coverage": "Exact empty, Unicode, CR/LF, raw HTML, entity, link, code delimiter, backslash, and preserved non-newline control-character escape vectors."
+    },
+    {
+      "test": "every_ascii_character_obeys_the_same_public_and_bounded_escape_rules",
+      "coverage": "Every ASCII character, full punctuation escaping, public versus bounded writer equivalence, exact expansion limits, and one-byte-short failures."
+    },
+    {
+      "test": "empty_catalog_and_empty_error_list_have_exact_nonempty_documents",
+      "coverage": "Exact empty service and error documents, default option escaping, media types, and one terminating newline."
+    },
+    {
+      "test": "complete_service_document_matches_the_frozen_type_and_optionality_vector",
+      "coverage": "Exact full document bytes with title, version, description, service identity, endpoint code, public roles, ordered field tables, outer optionality, HTML and table escaping, and independent stream type information."
+    },
+    {
+      "test": "visibility_matches_service_selection_and_mcp_tools_without_reordering_or_mutation",
+      "coverage": "Integration with Wave 1 selection and Wave 2 MCP catalogs for Public, All, exact and unmatched roles, case sensitivity, empty grants, service omission, input order, stable bytes, and input immutability."
+    },
+    {
+      "test": "headings_descriptions_roles_and_nested_metadata_cannot_add_markdown_structure",
+      "coverage": "Adversarial document options, endpoint descriptions and roles, top-level field names and descriptions, and nested struct metadata cannot create raw HTML, headings, links, code spans, or new table cells."
+    },
+    {
+      "test": "every_endpoint_type_has_an_exact_finite_display_vector",
+      "coverage": "All ABI EndpointType variants, named references, struct tables, NanoId lengths 1 and 255, empty definitions, prefixed enum displays, signed enum extrema, nested wrappers, and agreement with public Wave 2 type validation."
+    },
+    {
+      "test": "only_outer_optional_fields_are_marked_optional_and_all_orders_are_preserved",
+      "coverage": "Optional arrays, arrays of optional values, required Unit fields, role order, and field order."
+    },
+    {
+      "test": "invalid_hidden_catalogs_fail_before_filtering_or_output_limits",
+      "coverage": "Hidden invalid NanoId lengths, unresolved request and streaming references, duplicate response fields and endpoint codes, service mismatch, duplicate roles, and empty roles retain canonical errors even with a zero output limit."
+    },
+    {
+      "test": "catalog_identity_vectors_use_the_root_validation_errors",
+      "coverage": "Invalid service and endpoint identifiers, duplicate service IDs and names, duplicate endpoint names, and cross-service duplicate endpoint codes agree with frozen root validation."
+    },
+    {
+      "test": "docs_schemas_and_protocols_agree_on_visibility_codes_and_stream_separation",
+      "coverage": "Integration across Markdown, MCP, OpenAPI, and AsyncAPI verifies endpoint identities and codes, exact visibility, absence of hidden metadata, streaming-only channels, and separate immediate response and stream types."
+    },
+    {
+      "test": "registry_kinds_names_references_fields_and_enum_values_are_validated",
+      "coverage": "Wrong registry kinds, invalid or duplicate definition identities, cross-kind collisions, empty and duplicate field names, invalid enum variant identifiers, duplicate enum names and values, unresolved references, invalid reference identifiers, and wrong-kind references agree with Wave 2 canonical errors."
+    },
+    {
+      "test": "inline_definitions_are_indexed_catalog_wide_and_checked_for_conflicts",
+      "coverage": "Accepted exact registered inline copies, rejected conflicting copies, references to inline definitions declared in hidden endpoints, and rejected duplicate inline declarations across endpoints."
+    },
+    {
+      "test": "structural_depth_limits_include_hidden_types_but_do_not_expand_named_cycles",
+      "coverage": "Zero depth rejection, exact primitive and wrapper depth boundaries, hidden streaming depth violations, finite recursive named references, and u16::MAX limits."
+    },
+    {
+      "test": "deep_owned_trees_use_explicit_stacks_for_validation_equality_and_rendering",
+      "coverage": "256 owned wrappers, exact structural depth bounds, stack-based equality of registered inline copies, and deeper use-site bounds for otherwise equal definitions."
+    },
+    {
+      "test": "errors_have_exact_signed_boundaries_escaped_cells_and_stable_input_order",
+      "coverage": "Exact i32 minimum, zero, and maximum code text, identifier punctuation escaping, adversarial descriptions, Unicode, ordering, deterministic bytes, and immutability."
+    },
+    {
+      "test": "invalid_error_names_and_duplicate_error_identities_are_rejected_before_output",
+      "coverage": "Empty, numeric-leading, punctuation, whitespace, HTML, Unicode, newline, and NUL error names; duplicate codes and duplicate names; validation precedence over output limits."
+    },
+    {
+      "test": "systemd_minimal_and_full_units_have_exact_directive_order_and_media_type",
+      "coverage": "Exact required unit directives, separately quoted arguments including an empty argument, optional User and WorkingDirectory, spaces in directory paths, u32::MAX RestartSec, stable bytes, final newline, and immutability."
+    },
+    {
+      "test": "exec_words_protect_expansion_and_preserve_empty_whitespace_and_shell_delimiters",
+      "coverage": "Exact systemd word quoting for empty strings, whitespace, percent specifiers, environment syntax, backslashes, double quotes, semicolons, shell punctuation, and Unicode; full executable and argument vectors; exact and short output bounds."
+    },
+    {
+      "test": "scalar_directives_preserve_literals_without_continuing_into_the_next_directive",
+      "coverage": "Scalar Description and WorkingDirectory use percent escaping without command argument quoting, preserve literal quotes and backslashes, protect trailing backslashes from line continuation, and preserve directory components ending in a space through an equivalent /. suffix."
+    },
+    {
+      "test": "all_control_characters_are_rejected_in_every_systemd_input",
+      "coverage": "Every Unicode control character in U+0000 through U+009F is rejected in description, executable, arguments, user, and working directory; explicit directive and section injection vectors are rejected."
+    },
+    {
+      "test": "relative_paths_and_invalid_users_are_rejected_and_restart_zero_is_valid",
+      "coverage": "Empty and relative executable and directory paths, Windows and home shorthand paths, unsafe and non-ASCII users, permitted ASCII user forms, and zero-second restart delay."
+    },
+    {
+      "test": "every_document_boundary_counts_escaped_utf8_and_the_final_newline",
+      "coverage": "Every byte limit from zero through one byte above the expected length for all three document generators, including multibyte Unicode, escaping expansion, integer bounds, and final newlines."
+    },
+    {
+      "test": "hidden_metadata_and_unused_definitions_do_not_consume_the_document_budget",
+      "coverage": "Large hidden endpoint metadata and unused registry descriptions do not consume the visible Markdown budget or require intermediate schema allocation; including hidden endpoints still enforces the output bound."
+    },
+    {
+      "test": "writer_append_and_integer_boundaries_are_exact_without_partial_numeric_writes",
+      "coverage": "Exact i64 minimum and maximum, u32 maximum, i32 minimum, negative and decimal transition vectors, atomic rejected numeric and UTF-8 appends, empty appends at capacity, zero capacity, and canonical allocation failure classification."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": "25 test functions written; not executed",
+    "validation": "Source reviewed against the frozen contract, canonical ABI, and prior-wave implementations. No build, check, compiler, formatter, test, or commit command was run, as instructed.",
+    "scope": "Only crates/jmax-codegen-spec/src/markdown.rs and reports/wave4/W4-26.json were written.",
+    "runtime": "no_std plus alloc; no added dependencies, unsafe code, global state, runtime I/O, or process creation",
+    "allocation": "Fallible projections reserve String and traversal Vec storage with try_reserve and map allocation failures to BudgetExhausted. The mandated infallible escape_markdown convenience function retains ordinary String allocation behavior."
+  }
+}

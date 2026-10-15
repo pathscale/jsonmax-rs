@@ -1,0 +1,78 @@
+{
+  "worker_id": "W4-20",
+  "wave": 4,
+  "crate": "jmax-encode",
+  "file": "crates/jmax-encode/src/typed.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn encode<T: JsonEncode + ?Sized>(value: &T, sink: &mut dyn ByteSink, limits: EncodeLimits) -> Result<()>",
+    "pub fn encode_to_vec<T: JsonEncode + ?Sized>(value: &T, limits: EncodeLimits) -> Result<Vec<u8>>",
+    "pub fn encode_slots(slots: &ValidatedSlots, schema: &SchemaIr, sink: &mut dyn ByteSink, limits: EncodeLimits) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "area": "ABI trait integration and complete-message validation",
+      "coverage": [
+        "Every JSON root category, exact whitespace preservation, duplicate raw object keys, escaped Unicode, large numeric lexemes, and dyn JsonEncode dispatch",
+        "Malformed or multiple roots, truncated containers, BOM, invalid UTF-8, invalid escapes, lone surrogates, and unescaped controls",
+        "Trait errors after producing valid JSON retain their original metadata and never touch the external sink",
+        "Inclusive output, depth, container, string-byte, and number-byte limits, including scalar-only zero resource allowances"
+      ]
+    },
+    {
+      "area": "Schema-aware object emission",
+      "coverage": [
+        "Schema-position slot mapping, sparse and maximum FieldIds, deterministic field order, empty field names, optional omission, required-field rejection, and explicit raw null",
+        "Empty schema, exact slot-vector length, reject_unknown policy, global duplicate names and identifiers, and exact required_count",
+        "Required-count overflow beyond u16::MAX, reversed bounds, incompatible scalar constraint families, and unconstrained fields",
+        "Every named format is rejected, including empty or unknown names on absent fields and formats alongside other malformed metadata"
+      ]
+    },
+    {
+      "area": "Exact scalar output and bounds",
+      "coverage": [
+        "Both Boolean schema tags, u64::MAX, i64::MIN, negative floating zero, finite fractions, NaN payloads, and both infinities",
+        "Fixed-scale quoted decimals, leading fractional zeros, i128::MIN at scales zero and 38, and invalid scales 39 and 255",
+        "Signed and unsigned integer bound endpoints, adjacent out-of-range values, exact comparisons around 2^53, and negative zero",
+        "Integer grammar excludes fractions and exponents even when mathematically integral; arbitrarily long integer tokens are compared exactly to one-sided bounds",
+        "Decimal length constraints measure the actual fixed-scale string representation"
+      ]
+    },
+    {
+      "area": "Owner resolution, Unicode, and raw-span revalidation",
+      "coverage": [
+        "Payload and decoded-arena string owners, checked empty/end spans, escaped output controls, and exact scalar_len metadata",
+        "Out-of-owner and overflowing spans, split UTF-8 sequences, and incorrect scalar counts",
+        "Raw fragments preserve spelling and revalidate syntax, exact parser diagnostics, scalar categories, nested limits, and actual string or integer constraints",
+        "Supplementary Unicode surrogate pairs, literal multibyte scalars, combining characters, escaped NUL, and zero-length bounds"
+      ]
+    },
+    {
+      "area": "Publication guarantees and sink integration",
+      "coverage": [
+        "Validation and schema errors perform no external reservations or writes, even after earlier buffered fields",
+        "External prefix bytes do not consume the new-message allowance",
+        "Reserve failures, partial write failures, error source and schema metadata preservation, and invalid short successful writes",
+        "Object delimiters, escaped keys, rebased raw nesting, number limits, and decimal string limits count toward the correct inclusive budgets"
+      ]
+    },
+    {
+      "area": "Proof-safe test integration",
+      "coverage": [
+        "Public encode_slots signature assertion",
+        "All slot vectors exercise the complete private encode_values implementation called directly by encode_slots",
+        "No test fabricates ValidationProof or uses unsafe code; the frozen ABI exposes no safe proof constructor through the allowed dependencies"
+      ]
+    }
+  ],
+  "status": {
+    "state": "implemented",
+    "reasoning": "high",
+    "validation": "Manual source review against the frozen contract, ABI, and prior encoding modules only.",
+    "tests": "Comprehensive inline deterministic suite written but not executed, as instructed.",
+    "commands": "No cargo, rustc, rustfmt, build/check command, or git commit was run.",
+    "scope": "Only crates/jmax-encode/src/typed.rs and reports/wave4/W4-20.json were written.",
+    "integration_notes": "No dependency, ABI, root module, contract, or other worker file changes. Schema/value errors remain buffered; external sink failures can leave a prefix. Named formats intentionally return UnsupportedSchemaFeature under version 1."
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "worker_id": "W4-33",
+  "wave": 4,
+  "crate": "jmax-compat",
+  "file": "crates/jmax-compat/src/utilities.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub use jmax_abi::endpoint::{EndpointField, EndpointSchemaSpec, EndpointType, EnumVariantSpec, ServiceSpec}",
+    "pub use jmax_abi::span::{Span32, StrRef}",
+    "pub use jmax_abi::traits::{ByteSink, JsonDecode, JsonEncode, SchemaProvider}",
+    "pub fn resolve_str<'a>(payload: &'a Payload, decoded: &'a [u8], reference: StrRef) -> Result<&'a str>",
+    "pub fn checked_raw_span(payload: &Payload, span: Span32) -> Result<&[u8]>",
+    "pub fn find_endpoint<'a>(services: &'a [ServiceSpec], service: &str, endpoint: &str) -> Result<&'a EndpointSchemaSpec>",
+    "pub fn encode_header_value(value: &str) -> Result<String>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "crates/jmax-compat/src/utilities.rs::tests",
+    "inline_test_count": 25,
+    "execution": "Not executed, as instructed. No compiler, formatter, build, test, check, or commit command was run.",
+    "coverage": [
+      "Retained endpoint, span, ByteSink, and JsonEncode exports have canonical ABI type identity; no wrapper or shadow types are introduced.",
+      "Shared and Bytes payload storage variants support full, partial, interior-empty, start-empty, and end-empty raw spans with exact borrowed owner pointers.",
+      "Empty payloads accept only the zero range. One-past-end offsets, excessive lengths, u32::MAX offsets, the largest representable exclusive end, and overflowing 32-bit end arithmetic return ConstraintViolation from Decode.",
+      "Raw spans preserve NUL, malformed UTF-8, CRLF, and a partial multibyte character without imposing string or JSON validation.",
+      "Raw JSON escape bytes a\\u00e9 remain seven scalars, while the independently selected decoded arena contains the three-byte, two-scalar string a followed by e-acute. Both results borrow the selected storage directly.",
+      "String vectors include empty text, ASCII, two-byte e-acute, a three-byte ideograph, a four-byte emoji, decomposed combining characters, mixed Unicode, NUL and whitespace controls, and the UTF-8 BOM. Invalid surrounding bytes are outside the selected span and are ignored.",
+      "Source selection controls bounds and UTF-8 independently: a range valid only in the decoded arena cannot resolve against the raw payload, and an invalid unselected owner cannot prevent a valid lookup.",
+      "Both string sources allow empty references at their exact owner boundary with scalar_len zero, reject nonzero scalar counts for empty references, and reject empty references beyond the boundary.",
+      "The five-byte string containing e-acute and a cat ideograph accepts scalar_len two and rejects zero, one, three, five, and u32::MAX without truncating or normalizing text.",
+      "Malformed UTF-8 vectors cover 0xff, a lone continuation byte, an overlong encoding, a surrogate encoding, a scalar above U+10FFFF, and truncated two-byte and three-byte sequences. Owner-relative error offsets include the valid prefix and InvalidUtf8 precedes incorrect scalar metadata.",
+      "Partial slices through valid multibyte owners return InvalidUtf8 at the first invalid owner byte. Invalid ranges take precedence over malformed UTF-8 and incorrect scalar metadata.",
+      "Cloned payload owners retain shared storage after the original owner is dropped, and string/raw views preserve the retained storage pointer.",
+      "Header vectors preserve empty strings, tabs, leading and trailing spaces, punctuation, quoted parameter text, authentication-like text, and literal percent-encoded characters. Returned Strings own their bytes independently.",
+      "An exhaustive 128-byte ASCII matrix accepts only horizontal tab and bytes 32 through 126. Every other ASCII byte returns InvalidToken from Encode at the exact inserted byte offset.",
+      "Non-ASCII header vectors include e-acute, an ideograph, emoji, U+0080, U+0085, nonbreaking space, a combining mark, line separator, BOM, and U+10FFFF. Rejections point to the first UTF-8 byte.",
+      "Header injection vectors cover CRLF, isolated CR and LF, NUL, DEL, mixed Unicode/control failures, and multiple invalid bytes, verifying the first invalid-byte diagnostic.",
+      "Endpoint lookup returns the original complete ABI object with u16::MAX service ID, u32::MAX endpoint code, roles, fields, signed enum metadata, stream response, and descriptions, without changing any input ordering or content.",
+      "Empty queries, empty models, absent services/endpoints, case differences, and additional spaces produce MissingRequiredField from Decode. Unicode names and nonempty whitespace names compare exactly without normalization or trimming.",
+      "Nonadjacent duplicate matching services produce DuplicateObjectKey even when the second service has no matching endpoint, and before attempting an absent endpoint lookup. Identical and differing duplicate endpoint objects both remain ambiguous.",
+      "Duplicate unrelated services/endpoints do not affect a unique requested match; same endpoint names in other services and different-case endpoint names are distinguished.",
+      "Native buffer integration uses jmax_buffer::OwnerBytes to assert identical successful text, byte views, and borrowed pointers, plus matching UTF-8 and scalar-metadata error codes, sources, and offsets.",
+      "Native encoding integration passes the retained ByteSink trait and validated header value to jmax_encode::JsonWriter through the root BoundedSink, checks the exact tab-escaped JSON vector and unchanged reservation length, accepts the exact output ceiling, and rejects a ceiling one byte smaller. The resulting Payload is readable through checked_raw_span."
+    ],
+    "limitations": [
+      "All 25 inline tests are authored but intentionally unexecuted under the task restrictions.",
+      "Allocator exhaustion is not induced nondeterministically. Header copies use try_reserve_exact and map allocation failure to BudgetExhausted from Encode.",
+      "Extreme span arithmetic is tested using metadata and small owners without allocating multi-gigabyte buffers."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source manually reviewed against contracts/jmax-compat.md, the frozen compat and ABI roots, ABI span/buffer/error/endpoint/trait definitions, prior-wave serde/endpoint/schema adapters, and native buffer-view and encoder APIs.",
+    "verification": "Execution intentionally omitted. No cargo, rustc, rustfmt, build/check command, or git commit was run.",
+    "scope": "Only crates/jmax-compat/src/utilities.rs and reports/wave4/W4-33.json were written.",
+    "notes": [
+      "All public signatures and retained re-exports match the frozen contract. No manifest, root, ABI, ownership, contract, or other worker file was edited.",
+      "Production implementation uses only core, alloc, and jmax-abi. Tests additionally use the allowed jmax-buffer and jmax-encode dependencies.",
+      "No unsafe code, prohibited dependency, placeholder implementation, worker thread, global state, conversion-module call, or validation-proof issuance was introduced.",
+      "Span resolution delegates checked 32-bit end arithmetic and host-index conversion to canonical Span32::slice, then validates UTF-8 and exact Unicode scalar metadata.",
+      "Lookup uses allocation-free linear scans over matching service and endpoint names and rejects ambiguity before returning any object.",
+      "Header validation rejects invalid bytes before allocating and preserves all accepted bytes exactly. Span/model errors use Decode source; header errors use Encode source."
+    ]
+  }
+}

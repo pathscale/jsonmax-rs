@@ -1,0 +1,77 @@
+{
+  "worker_id": "W4-16",
+  "wave": 4,
+  "crate": "jmax-schema-ir",
+  "file": "crates/jmax-schema-ir/src/canonical.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn canonicalize(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<CanonicalSchema>",
+    "pub fn fingerprint(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<u64>",
+    "pub fn fingerprint_bytes(bytes: &[u8]) -> u64"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not executed. The task explicitly prohibits build and check commands.",
+    "inline_test_count": 20,
+    "fnv1a_known_answers": [
+      { "input": "", "u64_hex": "cbf29ce484222325" },
+      { "input": "a", "u64_hex": "af63dc4c8601ec8c" },
+      { "input": "b", "u64_hex": "af63df4c8601f1a5" },
+      { "input": "foobar", "u64_hex": "85944171f73967e8" },
+      { "input": "hello", "u64_hex": "a430d84680aabd0b" }
+    ],
+    "canonical_byte_vectors": [
+      "Literal 12-byte prefix, version 1, default policy, empty schema name, schema ID, and reachable count",
+      "Any, empty Object, every scalar kind tag, and absent option tags",
+      "Integer minimum i64::MIN and maximum i64::MAX in signed little-endian form",
+      "Decimal policy field order, i128::MIN/i128::MAX coefficients, scale 38, and i128::MAX tick step",
+      "String length bounds 0/u32::MAX, UTF-8 and embedded NUL patterns, empty patterns, and format strings",
+      "Object and Array bounds, u32::MAX FieldId and slot, empty property names, and requiredness",
+      "Breadth-first numbering that differs from both storage order and depth-first discovery",
+      "Exact UTF-8 property order across empty, NUL, ASCII case, decomposed/composed Unicode, and emoji names",
+      "Self-recursive arrays and objects and a mutual cycle through a local alias",
+      "Every schema policy field, explicit enum tags, i16::MAX exponent, and u32::MAX pattern budget",
+      "Schema metadata with UTF-8, embedded NUL, and u32::MAX schema ID",
+      "Unknown-format annotation with an explicitly present empty string"
+    ],
+    "integration_and_invariance": [
+      "Normalize, resolve, normalized constraint access, required fields, policy validation, and canonicalization",
+      "Property declaration reorder preserves identity when explicit slots remain unchanged",
+      "ABI field reorder changes identity when normalization assigns different explicit slots",
+      "Storage reorder, alias insertion and renaming, definition reorder, and unreachable nodes preserve identity",
+      "Graph sharing remains distinct from separate structurally identical nodes",
+      "Equivalent decimal values with different coefficient/scale representations remain distinct",
+      "Absent bounds and explicit zero bounds remain distinct",
+      "Absent, empty, custom, and differently cased format annotations remain distinct",
+      "Repeated canonicalization and fingerprint entry-point agreement without input mutation",
+      "8192-edge array chain and 1024-property shared-target object"
+    ],
+    "boundaries_and_errors": [
+      "Invalid numeric policy and zero pattern budget propagate ConstraintViolation unchanged",
+      "UTF-8 pattern byte limit is inclusive and overflow propagates BudgetExhausted with field context",
+      "Unknown formats and disabled recursion propagate UnsupportedSchemaFeature unchanged",
+      "Unreachable patterns, unknown formats, and recursive components do not affect canonical identity",
+      "Invalid discovery IDs and missing index entries return ConstraintViolation without changing traversal state",
+      "u32 count boundary and overflow on platforms that can represent it",
+      "Deterministic usize::MAX reservation failure returns BudgetExhausted without allocating",
+      "Error source, byte offset, schema ID, field ID, and nonempty detail assertions"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Source-only review against the frozen contract, shared root, ABI types, and prior wave modules.",
+    "validation": "Uncompiled and unexecuted as explicitly required. No build, check, formatting, or commit commands were run.",
+    "scope": [
+      "crates/jmax-schema-ir/src/canonical.rs",
+      "reports/wave4/W4-16.json"
+    ],
+    "notes": [
+      "Uses no_std plus alloc and existing jmax-abi types only.",
+      "Policy validation runs first; its errors propagate unchanged.",
+      "Iterative breadth-first discovery collapses aliases and preserves finite recursive graph identity.",
+      "All production allocation paths use fallible reservations; counts are checked before encoding.",
+      "Explicit tags and little-endian fields implement canonical grammar version 1 without native layout or enum casts.",
+      "FNV-1a delegates to the frozen root Fingerprint implementation; canonical bytes remain authoritative for identity."
+    ]
+  }
+}

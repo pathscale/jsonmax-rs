@@ -1,0 +1,22 @@
+{
+  "worker_id": "W4-38",
+  "wave": 4,
+  "crate": "jmax-fuzz",
+  "file": "crates/jmax-fuzz/src/numbers.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "adversarial_corpus(NumberConfig, FuzzConfig) -> Result<Vec<NumberCase>> validates numeric policy and fuzz budgets, then emits a bounded deterministic corpus with exact independent known answers and policy-dependent differential-only decimal and float cases",
+    "run_numbers(&[NumberCase], &mut dyn NumberOracle, &mut dyn NumberOracle, NumberConfig, FuzzConfig) -> Result<FuzzReport> validates inputs, compares exact numeric variants and outcomes, checks expected values and policy-invalid outputs, and records bounded replayable numeric failures"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Corpus coverage for u64/i64 limits and overflow neighbors, invalid sign/fraction/exponent grammar, negative zero, and configured exponent boundaries",
+    "Known IEEE-754 bit vectors for zero, one, ties-to-even at adjacent significands, 2^53 and 2^53+1 rounding; differential vectors for subnormal, normal boundary, max finite, and overflow",
+    "Quoted decimal vectors for zero, negative coefficients, i128 accumulation and overflow, precision, scale extension/reduction, inexact rescale, exponent forms, configured exact tick multiples and nonmultiples, malformed quotes, and overlong digits",
+    "Byte and case budgets including one-byte accepted and rejected known answers, intact omission of oversized cases, and failure when the case budget cannot preserve both known-answer classes",
+    "Invalid numeric policy checks for negative exponent bound, precision below/above range, scale above range/precision, and nonpositive tick step",
+    "Differential checks for equal wrong known answers, wrong NumberMode variants, acceptance-only versus exact known-answer rejection codes, nonfinite F64Bits, bounded failure truncation, and outer oracle errors",
+    "Empty run, oversized lexeme, and invalid fuzz configuration error paths"
+  ],
+  "status": "implemented; Cargo, compiler, formatter, and build/check commands intentionally not run per task instruction"
+}

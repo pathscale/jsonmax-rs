@@ -1,0 +1,81 @@
+{
+  "worker_id": "W4-08",
+  "wave": 4,
+  "crate": "jmax-utf8",
+  "file": "crates/jmax-utf8/src/fused.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "name": "fused::validate_classified",
+      "signature": "pub fn validate_classified(bytes: &[u8], masks: &BlockMasks, state: &mut Utf8Stream) -> Result<()>",
+      "behavior": "Reject blocks above 64 bytes, mismatched valid_len, noncanonical valid_mask, high non_ascii_mask lanes, and incorrect actual byte high bits before mutating state. Accepted metadata delegates directly to stream::validate_chunk. Other classifications and backend tags are ignored."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "every_block_length_and_alignment_reads_only_selected_bytes",
+      "coverage": "Lengths 0 through 64 at offsets 0 through 63, ASCII controls and DEL, invalid surrounding bytes, and exact summaries."
+    },
+    {
+      "test": "every_metadata_length_and_every_mask_bit_are_checked",
+      "coverage": "Every u8 valid_len for each actual length, every single-bit mutation in valid_mask and non_ascii_mask, full state preservation with pending UTF-8 and scanner carry, and successful retry."
+    },
+    {
+      "test": "blocks_larger_than_64_are_rejected_without_consumption",
+      "coverage": "Actual lengths 65, 127, 128, 255, 256, and 257 with multiple forged declared lengths and recovery after rejection."
+    },
+    {
+      "test": "forged_ascii_and_truthful_non_ascii_masks_have_distinct_errors",
+      "coverage": "An invalid byte at each of 64 lanes, including bit 63; forged ASCII returns nonpoisoning InvalidToken, while truthful classification returns transactional InvalidUtf8 with an absolute offset."
+    },
+    {
+      "test": "unrelated_classifications_and_all_backend_tags_are_ignored",
+      "coverage": "All 256 backend tags, all unrelated mask fields set to u64::MAX, and empty, ASCII, valid multibyte, incomplete, and invalid inputs."
+    },
+    {
+      "test": "metadata_errors_precede_terminal_states_without_replacing_saved_errors",
+      "coverage": "Pending, chunk-failed, finish-failed, and successfully finished streams; rejected metadata preserves every state field, accepted metadata matches stream behavior, and reset permits reuse."
+    },
+    {
+      "test": "ascii_never_bypasses_a_pending_non_ascii_prefix",
+      "coverage": "Every incomplete prefix of two-, three-, and four-byte scalars; empty chunks preserve state, ASCII fails at the original leading byte, and failures remain sticky."
+    },
+    {
+      "test": "pending_completion_is_rolled_back_when_later_bytes_fail",
+      "coverage": "Completion of a carried four-byte scalar followed by malformed UTF-8 in the same block rolls back counters, ASCII status, and pending storage while saving the first error."
+    },
+    {
+      "test": "fused_and_ordinary_chunks_share_one_carry_and_clear_unused_tail",
+      "coverage": "Alternating stream and fused calls complete four-, two-, and three-byte scalars with exact intermediate tail contents and final byte/scalar counts."
+    },
+    {
+      "test": "valid_scalar_limits_and_malformed_vectors_match_every_partition",
+      "coverage": "Every three-part split, including empty chunks, of scalar-range boundaries, noncharacters, BOM and combining text, overlong forms, surrogates, out-of-range scalars, bad continuations, illegal leaders, and truncations. Compares state and errors with stream, results with core UTF-8 validation, and successful summaries with validate and proof."
+    },
+    {
+      "test": "every_one_and_two_byte_input_matches_core_and_stream",
+      "coverage": "All 256 one-byte and 65536 two-byte inputs with split delivery and empty chunks."
+    },
+    {
+      "test": "multibyte_sequences_cross_full_blocks_and_unaligned_tails",
+      "coverage": "Two-, three-, and four-byte scalars near 64- and 128-byte boundaries, eight alignments, splits inside scalars, terminal truncations, and mutated final continuation bytes."
+    },
+    {
+      "test": "exact_abi_limit_overflow_and_metadata_precedence",
+      "coverage": "Private-state fixtures model u32::MAX without oversized allocation. Exact-limit acceptance, metadata rejection before overflow, overflow before UTF-8 validation, sticky failure, and finished-state precedence are asserted."
+    },
+    {
+      "test": "pending_prefix_offsets_remain_exact_near_the_abi_limit",
+      "coverage": "Pending four-byte scalar near u32::MAX, truncation and malformed continuation offsets, cumulative overflow precedence, and exact-limit completion."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "source_review": "Reviewed against the frozen UTF-8 contract, root definitions, ABI mask/error types, and prior-wave modules.",
+    "test_execution": "Not run as instructed. Fourteen inline test functions were written; no compilation or passing-test claim is made.",
+    "commands": "No cargo, rustc, rustfmt, git commit, build, or check command was run.",
+    "scope": "Only crates/jmax-utf8/src/fused.rs and reports/wave4/W4-08.json were written.",
+    "safety": "Safe Rust only, no allocation, no new dependencies, no proof issuance, and no reads outside the provided slice."
+  }
+}

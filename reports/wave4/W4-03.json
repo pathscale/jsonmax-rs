@@ -1,0 +1,82 @@
+{
+  "worker_id": "W4-03",
+  "wave": 4,
+  "crate": "jmax-dispatch",
+  "file": "crates/jmax-dispatch/src/override.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    "pub fn parse(value: &str) -> Result<BackendOverride>",
+    "pub fn select(requested: BackendOverride, input_len: usize, policy: DispatchPolicy) -> Result<(Dispatch, DispatchReport)>"
+  ],
+  "unsafe_justifications": [
+    "No unsafe code; the module forbids unsafe_code.",
+    "Production selection obtains fresh effective capabilities from detect::detect and resolves all selected classifiers through portable::resolve, preserving the existing independent scanner safety checks.",
+    "The private callback-based selection helper permits deterministic availability-change tests without exposing caller-supplied capabilities through the public API.",
+    "Synthetic-capability tests reject every native resolution and return only genuine scalar dispatches. Native integration vectors execute only through actual checked public selection."
+  ],
+  "test_vectors": [
+    {
+      "name": "exact_spellings_parse_independently_of_hardware",
+      "coverage": "All nine accepted spellings map to their exact Auto, Require, or Prefer values, including backend names unavailable on the current target. Auto matches the root default."
+    },
+    {
+      "name": "malformed_aliases_whitespace_unicode_and_payloads_are_rejected",
+      "coverage": "Empty strings, whitespace, case changes, unsupported prefixes and aliases, embedded NULs, Unicode lookalikes, payload-like strings, and a 4096-byte invalid value all produce the exact static InvalidToken/Scanner error at offset zero with zero schema and field identifiers."
+    },
+    {
+      "name": "every_ascii_single_byte_mutation_and_truncation_is_exact",
+      "coverage": "Every proper prefix of each valid spelling, every differing ASCII replacement at each byte position, and every ASCII suffix byte are tested against the exact accepted vocabulary."
+    },
+    {
+      "name": "exhaustive_capabilities_requests_and_policy_boundaries",
+      "coverage": "29952 deterministic cases combine all 64 capability-bit patterns, all nine requests, four policies, and 13 lengths. Policies include conservative, zero, maximum thresholds with AVX-512 disabled, and nonmonotonic thresholds. Lengths cover zero, exact thresholds and neighbors, usize::MAX - 1, and usize::MAX. An independent raw-field oracle verifies candidate selection, required rejection, explicit policy bypass, resolution attempts, capability refresh count, exact resolver-error preservation, every report field, and Prefer-only fallback accounting."
+    },
+    {
+      "name": "resolution_failure_refreshes_report_without_retrying_native_backends",
+      "coverage": "Auto and Prefer recover from failed AVX-512 resolution to scalar. Refreshed snapshots both retaining and losing AVX-512 support are preserved exactly; eligible native alternatives are not retried."
+    },
+    {
+      "name": "scalar_resolution_errors_are_not_retried_or_rewritten",
+      "coverage": "Injected initial scalar resolution errors propagate unchanged for Auto, Require(Scalar), Prefer(Scalar), and unavailable Prefer(Neon), with exactly one detection and resolution. The production scalar resolver remains infallible."
+    },
+    {
+      "name": "public_selection_reports_match_actual_capabilities_and_policy",
+      "coverage": "All parsed requests, three policies, and 11 size boundaries are exercised through actual detection and resolution. Successful reports are checked field by field; unavailable Require requests return the exact root constraint error; root dispatch agrees with Auto."
+    },
+    {
+      "name": "parsed_selections_preserve_every_explicit_mask_field",
+      "coverage": "A fixed 17-byte vector checks every BlockMasks field, escaped quotes, punctuation inside strings, control bytes, non-ASCII bytes, and preservation of opaque UTF-8 carry through every successful parsed selection."
+    },
+    {
+      "name": "selected_classifiers_match_scalar_at_every_block_length_and_carry",
+      "coverage": "Lengths zero through 64 and all four canonical quote-carry combinations compare every mask and outgoing carry to scalar through Dispatch::classify and the canonical safe ClassifyFn pointer."
+    },
+    {
+      "name": "empty_and_full_width_blocks_keep_report_identity_and_high_bits",
+      "coverage": "Empty blocks retain selected-dispatch identity despite Scalar-tagged empty masks. Lengths 1, 15, 16, 17, 31, 32, 33, 63, and 64 verify padding, exact valid masks, bit 63, and separation of the usize::MAX selection hint from block size."
+    },
+    {
+      "name": "quote_carry_survives_empty_blocks_and_copied_dispatches",
+      "coverage": "A full block opens a string and ends with an odd backslash run; an empty block and a copied dispatch preserve carry before an escaped quote, closing quote, and outside-string comma."
+    },
+    {
+      "name": "classification_errors_pass_through_without_changing_carry_or_selection",
+      "coverage": "Lengths 0, 1, 63, 64, 65, 255, 256, and 257 with canonical and invalid carry values verify exact direct-resolver error equality, length-error precedence, unchanged carry and dispatch identity, both call paths, and successful reuse after errors."
+    },
+    {
+      "name": "repeated_explicit_requests_do_not_change_automatic_selection",
+      "coverage": "Three interleaved rounds of all parsed requests with a restrictive policy preserve the complete automatic report obtained using the original policy and size hint."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests_authored": 13,
+    "validation": "Source manually reviewed against the frozen dispatch contract, root declarations, ABI scan and error types, and all three prior-wave dispatch modules. Tests were authored but not executed. No compiler, formatter, build, check, test, or commit commands were run, as instructed.",
+    "integration": "Uses the existing detect, choose, and portable modules with the frozen root signatures. No root, manifest, ABI, contract, ownership, or other worker file was edited.",
+    "properties": "Compatible with std and no_std; no allocation, unsafe code, mutable global state, environment reads, logging, new dependencies, or size-hint arithmetic or narrowing.",
+    "changed_files": [
+      "crates/jmax-dispatch/src/override.rs",
+      "reports/wave4/W4-03.json"
+    ]
+  }
+}

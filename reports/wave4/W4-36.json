@@ -1,0 +1,57 @@
+{
+  "worker_id": "W4-36",
+  "wave": 4,
+  "crate": "jmax-runner",
+  "file": "crates/jmax-runner/src/process.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn validate_boot(spec: &BootSpec) -> Result<()>",
+    "pub fn redact(input: &str, policy: &RedactionPolicy) -> String",
+    "#[cfg(feature = \"std\")] pub trait ReadinessProbe { fn is_ready(&mut self) -> Result<bool>; }",
+    "#[cfg(feature = \"std\")] pub struct ManagedProcess",
+    "#[cfg(feature = \"std\")] ManagedProcess::spawn(spec: &BootSpec, policy: RedactionPolicy) -> Result<Self>",
+    "#[cfg(feature = \"std\")] ManagedProcess::id(&self) -> u32",
+    "#[cfg(feature = \"std\")] ManagedProcess::poll(&mut self, probe: &mut dyn ReadinessProbe) -> Result<ProcessState>",
+    "#[cfg(feature = \"std\")] ManagedProcess::terminate(&mut self) -> Result<ProcessState>",
+    "#[cfg(feature = \"std\")] impl Drop for ManagedProcess"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not run. The task prohibits compiler, formatter, build, check, and test commands.",
+    "inline_module": "crates/jmax-runner/src/process.rs::tests",
+    "test_count": 22,
+    "ignored_subprocess_fixtures": 1,
+    "fixture_strategy": "Lifecycle tests invoke the existing test executable directly and select one ignored internal fixture. The held fixture blocks on a condition variable. Tests require no shell, sleep loop, network service, external executable, global environment mutation, or source files outside the assigned module.",
+    "coverage": [
+      "Boot accepts empty arguments and environment values, Unicode, whitespace, shell metacharacters as literal data, absent cwd, both environment modes, and startup timeout values 1, DEFAULT_TIMEOUT_MS, and u32::MAX without mutating inputs",
+      "Boot rejects empty program, zero timeout, NUL at multiple positions in program, arguments, cwd, environment keys and values, empty explicit cwd, empty environment keys, and equals signs at every key boundary with exact fixed private diagnostics",
+      "Fifteen explicit redaction vectors cover empty input and secrets, repeated matches, case sensitivity, longest matching, overlaps, original input boundaries, literal regex and replacement metacharacters, composed versus decomposed Unicode, multibyte characters, combining characters, NUL, and replacements that must not be rescanned",
+      "Rotations and reversals of secret lists, duplicate secrets, empty entries, unchanged unmatched input, exact root-policy delegation, and byte-for-byte expected Unicode output",
+      "Deterministic diagnostic capacity overflow returns canonical BudgetExhausted metadata without changing existing text; zero reservation, empty string copies, Unicode string copies, and fixed process diagnostics",
+      "Real process transitions Starting to Starting to Ready, exactly one readiness attempt per starting poll, no probes or startup clock reads after Ready, null child stream handles, stable nonzero PID, and cached idempotent exit behavior",
+      "Observed natural exit with code 7 takes precedence over an expired startup deadline and an available readiness success; a Ready process detects later exit without probing",
+      "Termination reaps Starting and Ready children, retains an already observed natural exit code, and preserves the original PID across repeated termination and cached polls",
+      "Checked monotonic deadline arithmetic for zero duration, one millisecond, maximum boot timeout, and Duration::MAX, including platform-representable success versus overflow failure",
+      "Injected clock vectors at and after the deadline reject startup without probing; false and true probes completing at or after the deadline time out and reap; completion one nanosecond before the deadline preserves Starting or establishes Ready as appropriate",
+      "Every RunnerError variant returned by a probe is preserved exactly while the real child is reaped; a probe error prevents an additional clock check",
+      "Real subprocess inspection verifies explicit cwd, literal Unicode and shell metacharacter arguments, exact environment values, environment inheritance, clearing, explicit overrides in both modes, stdin EOF, and stdout/stderr writes exceeding ordinary pipe capacities",
+      "Invalid boot fails before process creation; invalid executable and cwd produce policy-redacted Process diagnostics that exclude program paths, argument values, and environment values",
+      "Nine OS error classifications produce exact fixed diagnostics, custom OS error bodies are excluded, and the policy redacts the complete diagnostic",
+      "Scripted cleanup traces assert natural-exit handling, kill then wait, kill failure followed by an observed exit race, initial status errors, persistent kill errors, secondary status failures, reap errors, preserved primary diagnostics, and successful cleanup retries",
+      "Scripted Drop cleanup traces verify early exit, kill/reap despite an initial status error, exit races after failed kills, failed rechecks, failed reaping, and no blocking wait after an unconfirmed failed kill",
+      "A real managed child integrates with Wave 2 strict JSON reply validation and structural readiness assertions for successful readiness, assertion mismatch, duplicate keys, and trailing content; assertion and canonical JSON errors propagate with cleanup",
+      "Actual Drop runs for a live child and during a readiness probe panic; scripted vectors verify the associated best-effort OS operation sequence"
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "validation": "manual_source_review_only; tests_not_executed_per_instruction",
+    "reasoning": "high",
+    "compatibility": "Matches the frozen runner module API and canonical root/ABI types. Boot validation and exact policy redaction support alloc without std; process management and native lifecycle tests are std-gated. No dependencies were added.",
+    "lifecycle": "Direct executable invocation, null standard streams, checked startup deadline before spawning, unique child ownership, one initial nonblocking status check per poll, at most one readiness attempt, cached exits, idempotent kill/reap termination, exit-race rechecks, and allocation-free best-effort Drop cleanup",
+    "diagnostics": "Boot constraints are fixed. OS errors contribute only fixed ErrorKind classifications before whole-message policy redaction, never custom Display bodies, arguments, environment values, or readiness payloads. Probe errors are preserved under the documented sanitized-probe contract.",
+    "allocation": "Diagnostic copies reserve fallibly and map failures to canonical BudgetExhausted errors. The mandated RedactionPolicy::redact implementation and standard process APIs retain their existing allocation behavior.",
+    "ownership": "Only crates/jmax-runner/src/process.rs and reports/wave4/W4-36.json were written",
+    "commands": "No compiler, formatter, build, check, test, or commit commands were run"
+  }
+}

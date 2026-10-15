@@ -1,0 +1,65 @@
+{
+  "worker_id": "W4-13",
+  "wave": 4,
+  "crate": "jmax-cursor",
+  "file": "crates/jmax-cursor/src/resume.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn suspend(cursor: Cursor) -> SuspendedCursor",
+      "behavior": "Infallible ownership move preserving all parser state, input and arena allocations, current event, pending skip, limits, EOF, failure, and mode."
+    },
+    {
+      "signature": "pub fn resume(suspended: SuspendedCursor) -> Cursor",
+      "behavior": "Infallible ownership move restoring the exact cursor without parsing, allocation, copying, IO, or scheduling."
+    },
+    {
+      "signature": "pub fn finish(cursor: Cursor) -> Result<CursorOutput>",
+      "behavior": "Declares EOF, completes any active skip using its stored mode, and delegates full traversal and owner transfer to jmax_syntax::finish::into_output. Successful output is fully validated in either cursor mode; syntax failures propagate unchanged."
+    },
+    {
+      "signature": "pub fn into_partial(cursor: Cursor) -> Result<CursorOutput>",
+      "behavior": "Propagates existing parser failure first, rejects strict mode with ConstraintViolation and active skip progress with TransportIncomplete, and fallibly copies all fed input and decoded bytes without advancing. The validation flag is exactly syntax.is_finished()."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "location": "Inline #[cfg(test)] mod tests in crates/jmax-cursor/src/resume.rs",
+    "test_count": 21,
+    "execution": "Not run, as explicitly required by the task.",
+    "coverage": [
+      "Frozen public signatures and Send + Sync ownership bounds.",
+      "Suspension preserves observable cursor state, modes, limits, failures, EOF, current event, skip progress, raw bytes, decoded arena, and allocation addresses.",
+      "Every two-chunk split of a fixed nested document matches an explicit 12-event vector with exact raw spans, offsets, and cooked references.",
+      "Every split of valid scalar and container vectors, including numbers with large exponents, all literal kinds, empty strings, UTF-8, escaped quotes, backslashes, paired surrogates, nested containers, and trailing whitespace.",
+      "One-byte chunks overwritten and dropped immediately after feeding retain correct payload and cooked strings across repeated suspension.",
+      "Finishing an already finished cursor preserves existing payload and arena allocation addresses.",
+      "All strict/query cursor-mode and skip-mode combinations across every boundary of a nested skipped container.",
+      "Pending nested skip survives recoverable walk misuse and mode mismatch; finish uses the stored skip mode.",
+      "Finishing a pending child skip still diagnoses an invalid parent suffix at the exact byte offset.",
+      "Explicit code, source, and offset assertions for empty input, whitespace-only input, open containers, missing values, truncated literals and exponents, unclosed strings, trailing commas, trailing content, leading-zero numbers, and invalid literal boundaries.",
+      "Incomplete skips at EOF preserve the underlying syntax diagnostics.",
+      "Invalid escapes, lone surrogates, malformed UTF-8, unescaped control bytes, malformed numbers, mismatched delimiters, and decoded duplicate keys propagate unchanged.",
+      "Sticky errors survive EOF operations, suspension, finish, and partial-output attempts, including precedence over an active skip or strict-mode rejection.",
+      "Strict partial output is rejected before and after full traversal.",
+      "Pending partial skips are rejected even after missing bytes arrive or EOF is declared.",
+      "Partial output preserves empty input, incomplete tokens, open containers, and unexamined invalid bytes without consuming them.",
+      "Partial output copies raw and decoded storage, retains an invalid unconsumed suffix, preserves raw and cooked string references, and survives cloning and owner destruction.",
+      "Validation flags distinguish open roots, closed roots, chunk exhaustion, EOF declaration, completed strict subtree skips, and actual Finished traversal.",
+      "Inclusive depth, field, item, string, number, decoded-arena, and payload limits; zero depth accepts scalar roots; duplicate-key history persists across chunks and suspension.",
+      "Deterministic usize::MAX reservation overflow maps to BudgetExhausted from Cursor at offsets 0, 17, and u32::MAX without changing existing bytes.",
+      "Wave 3 selection integration verifies root, prefix-container, and descendant-string spans against resumed output owners in both modes."
+    ]
+  },
+  "status": {
+    "implementation": "complete",
+    "review": "Manually reviewed against frozen cursor and syntax contracts, ABI definitions, and prior cursor wave implementations.",
+    "validation": "No build, compiler, formatter, test, or check commands were run. No commit was created.",
+    "reasoning": "high",
+    "dependency_note": "crates/jmax-syntax/src/finish.rs was absent when dependencies were inspected. Calls use its frozen Wave 4 signatures and documented draining and owner-transfer behavior; that file remains another worker's responsibility.",
+    "files_written": [
+      "crates/jmax-cursor/src/resume.rs",
+      "reports/wave4/W4-13.json"
+    ]
+  }
+}

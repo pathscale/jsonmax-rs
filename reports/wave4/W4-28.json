@@ -1,0 +1,136 @@
+{
+  "worker_id": "W4-28",
+  "wave": 4,
+  "crate": "jmax-mcp",
+  "file": "crates/jmax-mcp/src/results.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn encode_response(response: &McpResponse<'_>, sink: &mut dyn ByteSink) -> Result<()>",
+    "pub fn response_payload(response: &McpResponse<'_>, max_bytes: u32) -> Result<Payload>",
+    "pub fn initialize_result(server: &ServerInfo, protocol_version: &str, max_bytes: u32) -> Result<Payload>",
+    "pub fn tools_list_result(tools: &[ToolDefinition], max_bytes: u32) -> Result<Payload>",
+    "pub fn tool_result_payload(result: &ToolResult<'_>, max_bytes: u32) -> Result<Payload>",
+    "impl JsonEncode for McpResponse<'_>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "suite": "success_envelopes_preserve_exact_integer_and_id_identity",
+      "coverage": "Exact success key order, null and empty/string IDs, numeric zero and negative one, i64 extrema, 9007199254740993, quoted 001, streaming and JsonEncode parity.",
+      "vector": "{\"jsonrpc\":\"2.0\",\"id\":-9223372036854775808,\"result\":{}}"
+    },
+    {
+      "suite": "strings_escape_quotes_backslashes_controls_and_preserve_unicode",
+      "coverage": "Exact quote, backslash, newline, carriage return, tab, backspace, form feed, NUL and Unicode escaping; all 32 ASCII control characters round-trip through envelope helpers."
+    },
+    {
+      "suite": "error_code_extremes_and_optional_data_have_exact_wire_order",
+      "coverage": "i32 extrema, canonical protocol errors, empty messages, omitted data versus explicit null, array data, exact error key order."
+    },
+    {
+      "suite": "every_json_kind_and_surrounding_whitespace_is_valid_nested_data",
+      "coverage": "Null, booleans, negative zero, exponent numbers, strings, arrays, objects and retained surrounding JSON whitespace in result and error data."
+    },
+    {
+      "suite": "malformed_nested_values_are_rejected_for_results_data_and_structured_content",
+      "coverage": "Results, error data, structured content and schemas share canonical syntax codes and byte offsets.",
+      "vectors": [
+        { "input": "", "code": "UnexpectedEof", "offset": 0 },
+        { "input": "{", "code": "UnexpectedEof", "offset": 1 },
+        { "input": "{} false", "code": "TrailingContent", "offset": 3 },
+        { "input": "{\"a\":1,}", "code": "InvalidSyntax", "offset": 7 },
+        { "input": "{\"a\":01}", "code": "InvalidNumber", "offset": 6 },
+        { "input": "{\"a\":\"\\q\"}", "code": "InvalidEscape", "offset": 7 },
+        { "input": "{\"a\":\"\\uD800\"}", "code": "LoneSurrogate", "offset": 6 },
+        { "description": "Unescaped newline at byte 6", "code": "ControlCharInString", "offset": 6 },
+        { "description": "Invalid UTF-8 byte 0xff at byte 6", "code": "InvalidUtf8", "offset": 6 }
+      ]
+    },
+    {
+      "suite": "duplicate_decoded_keys_are_rejected_at_every_depth",
+      "coverage": "Literal and Unicode-escaped duplicate keys at root and nested array/object depths fail with DuplicateObjectKey across all raw JSON boundaries."
+    },
+    {
+      "suite": "encoder_errors_keep_all_metadata_and_are_never_successful_payloads",
+      "coverage": "Complete and partial encoder output followed by an error preserves code, source, offset, schema ID and field ID; encoder invoked once per operation."
+    },
+    {
+      "suite": "temporary_sinks_bound_encoder_writes_and_reservations",
+      "coverage": "Oversized nested writes and usize::MAX reservations fail with PayloadTooLarge; an early outer sink failure prevents invoking the result encoder."
+    },
+    {
+      "suite": "streaming_failures_propagate_at_every_output_boundary",
+      "coverage": "Every insufficient byte limit for success and both error variants propagates the exact transport error and leaves only an expected output prefix; exact capacity succeeds."
+    },
+    {
+      "suite": "streaming_appends_to_existing_prefix_and_nested_failure_leaves_only_prefix",
+      "coverage": "Caller prefixes remain intact; malformed nested output is excluded from the streaming destination."
+    },
+    {
+      "suite": "initialization_vectors_cover_capabilities_versions_and_instructions",
+      "coverage": "Tools disabled, listChanged false/true, configured alternate version, omitted instructions and explicit empty instructions."
+    },
+    {
+      "suite": "initialization_escapes_all_configured_strings",
+      "coverage": "Protocol version, implementation name/version and instructions escape controls and preserve Unicode."
+    },
+    {
+      "suite": "invalid_server_configuration_is_rejected_before_output_budget",
+      "coverage": "Empty implementation fields, empty/duplicate protocol versions, listChanged without tools, unknown and case-mismatched selected versions."
+    },
+    {
+      "suite": "tool_list_vectors_preserve_order_schemas_and_metadata",
+      "coverage": "Empty list, stable input order, exact raw schema whitespace, escaped and empty descriptions; endpoint codes are absent from wire output."
+    },
+    {
+      "suite": "tool_names_match_frozen_root_convention_without_normalization",
+      "coverage": "Invalid separators, empty components, leading digits, whitespace, NUL and Unicode identifiers; valid ASCII boundary names; duplicate versus case-distinct names."
+    },
+    {
+      "suite": "schemas_and_structured_content_require_an_object",
+      "coverage": "Valid non-object JSON is TypeMismatch with precise leading-whitespace offsets."
+    },
+    {
+      "suite": "later_invalid_tool_definition_discards_all_owned_output",
+      "coverage": "A later duplicate schema key or invalid name returns an error instead of a partial list."
+    },
+    {
+      "suite": "text_only_and_empty_execution_results_have_exact_wire_shapes",
+      "coverage": "Empty content, empty text, multiple text entries, Unicode/control escaping and both execution outcomes; text-only output omits structuredContent.",
+      "vector": "{\"content\":[],\"isError\":false}"
+    },
+    {
+      "suite": "structured_execution_output_is_encoded_once_before_inclusion",
+      "coverage": "Structured object output is validated once, retained verbatim, ordered before isError, and bounded including outer overhead; empty structured objects are allowed."
+    },
+    {
+      "suite": "response_encoders_are_invoked_once_and_owned_results_outlive_inputs",
+      "coverage": "Response, listing and text payloads survive destruction of their source values."
+    },
+    {
+      "suite": "output_validation_uses_explicit_byte_budget_instead_of_request_defaults",
+      "coverage": "Generated content beyond default request nesting and field counts remains valid within the explicit output byte budget."
+    },
+    {
+      "suite": "full_abi_depth_boundary_is_enforced_for_raw_values",
+      "coverage": "65535 nested containers are accepted and 65536 yield DepthLimitExceeded."
+    },
+    {
+      "suite": "initialization_and_execution_results_integrate_with_response_envelopes",
+      "coverage": "Decoded request ID flows into initialization, discovery and execution response envelopes; isError true remains inside a successful result; malformed-request failure uses null ID.",
+      "vector": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Invalid JSON\"}}"
+    },
+    {
+      "suite": "shared_exact_byte_budget_assertions",
+      "coverage": "Owned output vectors exercise exact capacity, one extra byte, zero and one-byte limits, and one byte below required capacity, including UTF-8 and escaping overhead."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 23,
+    "validation": "Manual source review against frozen contract and prior wave APIs. Tests were written but not executed, as instructed.",
+    "commands": "No cargo, rustc, rustfmt, build/check command or git commit was run.",
+    "scope": "Only crates/jmax-mcp/src/results.rs and reports/wave4/W4-28.json were written.",
+    "dependencies": "Uses core, alloc, shared root exports and the existing envelope parser. No new dependency or public module-local type. No unsafe code."
+  }
+}

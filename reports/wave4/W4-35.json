@@ -1,0 +1,26 @@
+{
+  "worker_id": "W4-35",
+  "wave": 4,
+  "crate": "jmax-validator",
+  "file": "crates/jmax-validator/src/ui.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "rows(&ValidatorModel) -> Vec<EndpointRow>",
+    "render_list(&ValidatorModel, &mut dyn Write) -> ValidatorResult<()> ",
+    "run(&ValidatorModel, &Options, &mut dyn BufRead, &mut dyn Write, Option<&mut dyn SessionReactor>) -> ValidatorResult<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Stable ordering by UTF-8 service and endpoint names, then endpoint code, including u32::MAX formatting",
+    "Exact list header and escaping for backslash, tab, CR/LF, and other control characters",
+    "Empty model list output and writer BrokenPipe propagation with retained io::Error",
+    "Selection resolution and validation-before-output; unknown, duplicate, ambiguous, and missing parameter errors",
+    "Required parameter reporting; UInt32 maximum accepted and overflow rejected",
+    "Preset defaults and explicit parameter override behavior, including invalid override rejection",
+    "Bounded input overflow drains the full line and resumes on the following command",
+    "Native command handling, split-once set values, validation diagnostics, unknown command recovery, and TUI path",
+    "No-reactor send reports State and keeps the editor usable",
+    "Injected reactor connect, explicit Connected polling, ready-only send, response display, and single close on quit"
+  ],
+  "status": "complete; source authored and reviewed without running cargo, rustc, rustfmt, or build/check commands"
+}

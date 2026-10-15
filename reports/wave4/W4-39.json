@@ -1,0 +1,32 @@
+{
+  "worker_id": "W4-39",
+  "wave": 4,
+  "crate": "jsonmax",
+  "file": "crates/jsonmax/src/endpoint.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "compile_schema",
+    "load_schema",
+    "validate_payload",
+    "extract_payload",
+    "catalog",
+    "endpoint_schema",
+    "validate_endpoint"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "schema identity and image fingerprint corruption",
+    "invalid required count and compilation state budget",
+    "valid payload, missing required field, wrong scalar kind, numeric bound, unknown key, and trailing content",
+    "selection strictness, duplicate and unknown field identifiers, selected slot ordering",
+    "endpoint code boundary, globally duplicated service identifiers, authorization before malformed input parsing",
+    "missing stream response"
+  ],
+  "status": "partial_unverified",
+  "limitations": [
+    "The current jmax-schema-compile image module exposes serialization but no loader or ABI-image validator. load_schema references the expected native jmax_schema_compile::image::load API, which is not currently present.",
+    "The current jmax-schema-vm exposes the unsafe EventInput boundary but no safe cursor input adapter. run_program references jmax_schema_vm::input::CursorInput, which is not currently present. The facade does not implement the unsafe trait.",
+    "A declared stream_response is reported as UnsupportedSchemaFeature because the available endpoint model utility only projects flat unary scalar fields. Missing stream_response returns TypeMismatch.",
+    "No cargo, rustc, rustfmt, build, or check command was run, as instructed."
+  ]
+}

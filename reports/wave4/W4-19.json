@@ -1,0 +1,33 @@
+{
+  "worker_id": "W4-19",
+  "wave": 4,
+  "crate": "jmax-format",
+  "file": "crates/jmax-format/src/registry.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn lookup(name: &str) -> Result<FormatId>",
+    "pub fn validate(id: FormatId, input: &[u8], options: &FormatOptions) -> FormatResult<()>",
+    "pub fn validate_named(name: &str, input: &[u8], options: &FormatOptions) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": {
+    "execution": "Not executed: task explicitly prohibits cargo, rustc, rustfmt, and all build/check commands.",
+    "inline_test_count": 17,
+    "coverage": [
+      "All ten frozen names, serialized discriminants, registry version, successful typed and named dispatch",
+      "Unknown and empty names, aliases, every lowercase name position changed to uppercase, wrappers, suffix grammar, NUL, and Unicode",
+      "Name budget at 63, 64, and 65 ASCII bytes and at 64 and 66 UTF-8 bytes",
+      "Frozen default options and inclusive input budgets for every dispatch arm, including zero, exact length, one byte below, and u32::MAX",
+      "Input limit precedes invalid contents; lookup errors precede input-limit and content failures",
+      "UUID/IP ignore unrelated options; IPv4/IPv6 family selection and prohibited port, zone, prefix, and host spellings",
+      "Seven RFC 4648 base64 vectors through both formats under Required, Forbidden, and Optional padding",
+      "Exclusive standard and URL-safe alphabets, mixed alphabets, discarded bits, impossible lengths, and misplaced padding",
+      "Hex case, prefix, exact-length option matrix, exact zero bytes, and u32::MAX exact length",
+      "Every NanoId length 1 through 255, adjacent length failures, zero length, and all 256 byte values at length one",
+      "Fixed address/hash policies across all hex cases, both prefix options, and six exact-length configurations",
+      "Explicit failure vectors covering every format, failure kinds, relative indices, ABI codes, source, zero locations, and diagnostic details",
+      "Caller-attached raw token/schema/field locations, bounded subslices, no trimming or JSON decoding, controls, and invalid UTF-8 bytes"
+    ]
+  },
+  "status": "implemented; inline tests authored; execution intentionally omitted per task instruction"
+}

@@ -1,0 +1,85 @@
+{
+  "worker_id": "W4-11",
+  "wave": 4,
+  "crate": "jmax-decimal",
+  "file": "crates/jmax-decimal/src/write.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    {
+      "signature": "pub fn encoded_len(value: Decimal128) -> usize",
+      "behavior": "Returns the exact quoted ASCII fixed-point length, including quotes, optional minus, mandatory integer digit and optional decimal point. Preserves all fractional places. Supports both i128 endpoints and all u8 scales with a maximum length of 260 bytes."
+    },
+    {
+      "signature": "pub fn write_quoted(value: Decimal128, sink: &mut dyn ByteSink) -> Result<()>",
+      "behavior": "Formats the complete representation backward into one bounded local array using unsigned magnitude arithmetic. Calls reserve once with the exact encoded length, then write_bytes once. Propagates all sink error metadata unchanged, skips writing after reservation failure, and does not retry or roll back partial sink writes."
+    },
+    {
+      "signature": "pub fn write_to_slice<'a>(value: Decimal128, output: &'a mut [u8]) -> Result<&'a [u8]>",
+      "behavior": "Preflights exact capacity before mutation, formats locally and copies only the encoded prefix. Returns a borrowed written prefix and preserves all subsequent destination bytes. A short destination remains unchanged and returns BudgetExhausted from Encode at offset zero."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "exact_vectors_match_length_and_destinations",
+      "coverage": "Twenty literal vectors cover zero, both signs, integer output, leading fractional zeros, retained trailing zeros, decimal-point positions and nine-digit chunk boundaries. Asserts exact lengths, slice tails, prefixed sink contents, one reservation and one bulk write, then cross-wave round trips."
+    },
+    {
+      "test": "signed_endpoints_have_exact_fixed_point_spellings",
+      "coverage": "Twelve literal vectors spell both i128 endpoints at scales zero, one, 19, 38, 39 and 40. Verifies exact output from both destinations and complete cross-wave round trips."
+    },
+    {
+      "test": "maximum_scale_has_exact_padding_and_fits_bound",
+      "coverage": "Scale 255 for zero, signed units, signed tens and both endpoints. Independently constructs expected padding from literal unsigned coefficient digits. Confirms positive lengths of 259 bytes and negative lengths of 260 bytes, including sink calls and round trips."
+    },
+    {
+      "test": "all_scales_round_trip_through_every_prior_wave",
+      "coverage": "All 256 scales and fourteen representative coefficients, including both endpoints and adjacent values. For all 3584 combinations, exercises writer, lexer, chunk accumulation, exact rescaling, inclusive singleton bounds, comparison and parse_quoted. Asserts coefficient and scale equality and spans ending at u32::MAX."
+    },
+    {
+      "test": "powers_of_ten_and_neighbors_round_trip_at_digit_boundaries",
+      "coverage": "Powers 10^0 through 10^38 and immediate neighbors with both signs. Covers integer scale, scale one, the digit boundary and two surrounding fractional scales, and scale 255 through the full cross-wave pipeline."
+    },
+    {
+      "test": "zero_keeps_every_scale_without_a_minus",
+      "coverage": "All 256 scales independently assert zero spelling, exact fractional zero count, quote placement, absence of a minus and representation-preserving parsing."
+    },
+    {
+      "test": "equal_values_keep_distinct_coefficient_and_scale",
+      "coverage": "Positive and negative one represented at every scale zero through 38 with increasing powers-of-ten coefficients. Numeric comparison remains equal while output retains every trailing zero and parsing preserves each distinct representation."
+    },
+    {
+      "test": "exact_capacity_returns_borrowed_prefix_and_preserves_guards",
+      "coverage": "Zero, signed units and both endpoints at every scale, using exactly sized interior destination slices. Confirms returned length and pointer, guard preservation and exact parsing for 1280 combinations."
+    },
+    {
+      "test": "every_short_capacity_fails_without_mutation",
+      "coverage": "Every insufficient capacity, including empty and one-byte-short destinations, for five coefficients at scales zero, one, two, 38, 39, 40, 254 and 255. Asserts BudgetExhausted, Encode source, offset zero, zero schema and field identifiers, static diagnostic presence and complete destination preservation."
+    },
+    {
+      "test": "reserve_failure_propagates_without_writing",
+      "coverage": "Injected Cancelled/Transport reservation failures with offset u32::MAX and nonzero schema and field identifiers. Verifies unchanged errors and sink storage, exact reservation size and no write attempt for minimum and maximum output lengths."
+    },
+    {
+      "test": "write_failure_before_progress_propagates_unchanged",
+      "coverage": "Injected AuthFailed/Auth bulk-write failures preserve all error metadata and existing sink bytes after exactly one successful reservation and one attempted write, including a 260-byte representation."
+    },
+    {
+      "test": "partial_sink_failures_propagate_without_retry_or_rollback",
+      "coverage": "All 261 progress positions from zero through all 260 accepted bytes for i128::MIN at scale 255. Asserts exact partial contents, unchanged remaining sink bytes and unchanged TransportIncomplete/Wire errors with no retry or rollback."
+    },
+    {
+      "test": "repeated_writes_append_one_complete_token_each",
+      "coverage": "Successive zero, fractional, negative fractional and i128::MIN tokens append to a prefixed sink. Confirms exact concatenated bytes, per-token lengths and one reservation and bulk write per call."
+    },
+    {
+      "test": "parsing_exponents_and_negative_zero_produces_exact_fixed_point_output",
+      "coverage": "Nine parse-to-write literal vectors cover lexical negative zero, extreme negative exponent on zero, positive and negative exponent rescaling, retained target zeros and removal of exponent notation. Both writer destinations match expected text and reparse without exponent permission."
+    },
+    {
+      "test": "written_values_retain_parser_precision_scale_and_tick_checks",
+      "coverage": "Signed coefficients 123 at scale two round trip with a compatible policy. Incompatible policies produce distinct scale, precision and tick errors with Decode source and unchanged offset 97, proving output preserves the represented constraints."
+    }
+  ],
+  "status": "Implementation and 15 deterministic inline tests complete. Source reviewed manually against the frozen contract, canonical ABI and all prior-wave decimal modules. No cargo, rustc, rustfmt, build, check, test or git commit command was run, as instructed. Tests have not been executed. No unsafe code, allocation or dependencies were introduced. Only the assigned source and report paths were written."
+}

@@ -1,0 +1,28 @@
+{
+  "worker_id": "W4-02",
+  "wave": 4,
+  "crate": "jmax-error",
+  "file": "crates/jmax-error/src/redaction.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "display",
+    "error",
+    "redact",
+    "Display for SafeDisplay",
+    "Debug for SafeDisplay",
+    "Display for SafeError",
+    "Debug for SafeError",
+    "core::error::Error for SafeError"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "Safe default output omits detail, paths, context, and zero schema/field identifiers",
+    "Display, Debug, SafeError, and redact produce identical policy-controlled text",
+    "Full policy field order includes location, schema/field IDs, detail, JSON Pointer path, and context",
+    "Control bytes, quotes, backslashes, invalid UTF-8 bytes, and UTF-8 path keys are escaped byte-wise",
+    "Truncation budgets from zero through the output prefix boundary stay within the byte limit and preserve complete escape tokens",
+    "Maximum u32 offsets and context starts render as decimal",
+    "SafeError source chain is empty and formatter flags do not expand output"
+  ],
+  "status": "implemented; tests included but not run per task instruction"
+}

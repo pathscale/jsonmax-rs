@@ -1,0 +1,66 @@
+{
+  "worker_id": "W4-12",
+  "wave": 4,
+  "crate": "jmax-syntax",
+  "file": "crates/jmax-syntax/src/finish.rs",
+  "model": "gpt-6-astra",
+  "exports": [
+    {
+      "signature": "pub fn end_input(state: &mut SyntaxState) -> Result<()>",
+      "behavior": "Idempotently marks EOF without parsing, consuming events, or changing an existing failure."
+    },
+    {
+      "signature": "pub fn finish(state: &mut SyntaxState) -> Result<()>",
+      "behavior": "Marks EOF and drains feed::next through Finished. Preserves feed diagnostics and records sticky InternalError if the final feed requests NeedMore."
+    },
+    {
+      "signature": "pub fn into_output(state: SyntaxState) -> Result<SyntaxOutput>",
+      "behavior": "Finishes validation, moves retained input through Payload::from_vec, and moves the decoded arena without changing reference offsets or issuing a schema proof."
+    }
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "group": "EOF marking and event delivery",
+      "coverage": "Empty and malformed buffered input; repeated EOF marking; preservation of pending surrogate carry, decoded bytes, and container state; exact event sequence, raw spans, cooked references, and delimiter offsets for a nested object/array."
+    },
+    {
+      "group": "Successful finalization",
+      "coverage": "Final numbers and all three keywords wait for EOF and emit once. Unread and partially consumed streams drain to completion. Repeated finalization preserves storage and does not replay events. Completed roots still return NeedMore before EOF."
+    },
+    {
+      "group": "Incremental integration vectors",
+      "coverage": "Twelve valid documents tested at every two-chunk split and in single-byte chunks, including UTF-8, surrogate pairs, all simple escapes, empty containers, nested values, and all JSON whitespace. Event streams and decoded arenas are compared with whole-input parsing."
+    },
+    {
+      "group": "EOF diagnostics",
+      "coverage": "Empty input, whitespace-only input, every unfinished container phase, every proper nonempty keyword prefix, truncated numbers and escapes, and unclosed root/nested strings. Assertions include exact ErrorCode, ErrorSource, byte offset, and sticky error propagation."
+    },
+    {
+      "group": "Error precedence and trailing content",
+      "coverage": "Known escape, surrogate, control-byte, UTF-8, number, and literal errors take precedence over EOF. Seven root kinds crossed with seventeen trailing suffixes assert the first offending byte, including comments, invalid UTF-8, BOM, non-JSON whitespace, and punctuation. Adjacent number/literal prefixes retain lexical error classification."
+    },
+    {
+      "group": "Structural rejection and split consistency",
+      "coverage": "Trailing commas, mismatched delimiters, missing separators, and missing values. Sixteen invalid documents compare complete Error values at every chunk split and across all finalization entry points."
+    },
+    {
+      "group": "Limits and key policy",
+      "coverage": "Inclusive and zero limits for payload size, depth, object fields, array items, number digits, raw string bytes, and decoded arena bytes. Cumulative arena exhaustion, decoded duplicate keys, permissive duplicates, and unknown-key policy delegation are covered."
+    },
+    {
+      "group": "Sticky failures and ownership",
+      "coverage": "Preserves prior error source, detail, maximum offset, schema ID, and field ID across EOF/finished flag combinations. Pushes after EOF or success remain failures, including empty chunks. Raw and cooked references survive finalization of unread strings; finalized payload and arena allocations move without redecoding. Internal cursor errors propagate unchanged."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 22,
+    "validation": "Source reviewed against the frozen contract, ABI, and prior wave modules. Tests were written but not executed. No compiler, formatter, build, check, or commit command was run, as instructed.",
+    "limitations": "The defensive NeedMore-after-EOF branch is implemented. The existing feed cannot produce that result after EOF through its public API, so no artificial feed replacement was introduced to exercise the branch.",
+    "files_written": [
+      "crates/jmax-syntax/src/finish.rs",
+      "reports/wave4/W4-12.json"
+    ]
+  }
+}

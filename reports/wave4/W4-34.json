@@ -1,0 +1,23 @@
+{
+  "worker_id": "W4-34",
+  "wave": 4,
+  "crate": "jmax-gen-cli",
+  "file": "crates/jmax-gen-cli/src/manifest.rs",
+  "model": "gpt-6-luna",
+  "exports": [
+    "build_manifest(&GenerationPlan) -> CliResult<ArtifactManifest>",
+    "render_manifest(&ArtifactManifest) -> CliResult<Vec<u8>>",
+    "content_hash(&[u8]) -> u64"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "FNV-1a-64 empty input, a, hello, and binary [0, 1, 255]",
+    "sorted canonical entries, content lengths and hashes, and input immutability",
+    "empty manifest header and exact TSV output for all six format tokens",
+    "duplicate and ASCII case-colliding paths",
+    "empty, traversal, absolute, control, Windows-reserved, trailing-dot, and trailing-space paths",
+    "manifest version, mutated paths, rendering sort order, and caller-entry immutability",
+    "Unix non-UTF-8 path rejection"
+  ],
+  "status": "implemented; build and tests not run per instruction"
+}

@@ -1,0 +1,36 @@
+{
+  "worker_id": "W4-15",
+  "wave": 4,
+  "crate": "jmax-dom",
+  "file": "crates/jmax-dom/src/rebuild.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "apply(document: &Document, edits: &[Edit], limits: Limits) -> Result<Document>",
+    "compact(document: &Document, limits: Limits) -> Result<Document>",
+    "write_document(document: &Document, sink: &mut dyn ByteSink) -> Result<()>"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    "27 inline deterministic tests; tests were authored but not executed",
+    "Compact scalar and nested-container vectors preserve number, string, boolean, null, and existing key spellings; compaction is idempotent",
+    "Root replacement with every JSON value kind; replacements and appends compact nested inserted containers",
+    "Original preorder IDs remain edit targets despite earlier removals; reversing disjoint caller edits preserves output",
+    "First, middle, last, sole, nested, and complete array-element or object-member removal",
+    "Empty and populated array append; existing and absent object member updates; empty member names",
+    "First decoded duplicate-key replacement preserves original key spelling and position while retaining later duplicates",
+    "All 32 control characters, quotes, backslashes, slash, non-ASCII UTF-8, supplementary Unicode, and distinct normalization forms",
+    "Duplicate, ancestor/descendant, root-overlap, adjacent-subtree, out-of-range, and NO_NODE target cases with original byte offsets",
+    "Root removal and wrong container kinds return local DOM errors without modifying the input",
+    "Malformed, incomplete, trailing, invalid escape, lone surrogate, invalid UTF-8, invalid number, and comment insertion inputs preserve input-relative diagnostics",
+    "Replacement payload, depth, item count, field count, raw string, number digit, decoded arena, and duplicate-key limits",
+    "Final combined depth, item count, field count, decoded strings and keys, retained scalar limits, zero ceilings, and inclusive boundaries",
+    "Escaped new-key byte limits, empty keys, raw Unicode keys without arena charges, and escaped-key arena limits",
+    "Exact output payload boundaries, pre-growth rejection, empty writes, sink usize overflow, and explicit traversal bounds",
+    "Fresh compact owners, reclaimed removed decoded text, rebased spans and IDs, surviving original handles, and unchanged original storage on failure",
+    "Exact huge integers and exponent spellings survive numeric conversion overflow",
+    "512-level nesting and 256 immediate empty-array siblings exercise iterative traversal",
+    "Caller sink prefixes, reservation failures, write failures, partial output, and unchanged full sink error metadata",
+    "Cross-wave layout assertions cover node tags, scalar access, spans, cooked scalar counts, parents, sibling links, container subtree ends, and writer parity"
+  ],
+  "status": "implemented and manually source-reviewed; compilation, formatting, builds, checks, and test execution were not run per instruction; only the assigned source and report were written"
+}

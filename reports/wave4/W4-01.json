@@ -1,0 +1,96 @@
+{
+  "worker_id": "W4-01",
+  "wave": 4,
+  "crate": "jmax-buffer",
+  "file": "crates/jmax-buffer/src/retention.rs",
+  "model": "gpt-6.1-sol",
+  "exports": [
+    "pub fn account(payload: &Payload, decoded: &DecodedArena) -> RetentionStats",
+    "pub fn retain_span(payload: &Payload, span: Span32, policy: RetentionPolicy) -> Result<RetainedRange>",
+    "impl RetainedRange: pub fn payload(&self) -> &Payload",
+    "impl RetainedRange: pub fn original_span(&self) -> Span32",
+    "impl RetainedRange: pub fn span(&self) -> Span32",
+    "impl RetainedRange: pub fn is_compacted(&self) -> bool",
+    "impl RetainedRange: pub fn as_slice(&self) -> &[u8]",
+    "impl RetainedRange: pub fn into_payload(self) -> Payload"
+  ],
+  "unsafe_justifications": [],
+  "test_vectors": [
+    {
+      "test": "accounting_distinguishes_exact_and_unknown_backing_including_empty",
+      "assertions": "Shared backing is Exact; full, sliced, and empty Bytes backing is AtLeast. Visible counts and minimum/exact totals match."
+    },
+    {
+      "test": "accounting_uses_decoded_capacity_after_append_truncate_and_clear",
+      "assertions": "A reserved arena reports logical lengths 0, 6, 3, and 0 while retaining capacity. Totals use capacity, and unknown payload backing prevents an exact total."
+    },
+    {
+      "test": "accounting_does_not_depend_on_other_shared_owners_or_clone_them",
+      "assertions": "Accounting leaves Arc strong counts unchanged and is independent of other owners."
+    },
+    {
+      "test": "statistic_totals_handle_unknown_backing_and_overflow",
+      "assertions": "Exact and AtLeast u64::MAX backing exercise saturating minimum totals and checked exact totals with decoded capacities 0 and 1."
+    },
+    {
+      "test": "deterministic_policy_vectors_cover_each_copy_trigger_and_threshold",
+      "assertions": "Twelve explicit vectors run against both ownership variants. Covers zero and positive savings, below/equal/above thresholds, forced visible-budget copying, unknown-backing policy, rebasing, variant preservation, and exact compacted accounting."
+    },
+    {
+      "test": "default_policy_threshold_has_an_inclusive_boundary",
+      "assertions": "A 4097-byte Shared owner retains two selected bytes without copying at 4095 bytes saved, and copies one selected byte at exactly 4096 bytes saved."
+    },
+    {
+      "test": "no_copy_preserves_whole_owner_span_variant_and_shared_identity",
+      "assertions": "The body span (7,4) in prefix:body:suffix preserves Arc identity and adds exactly one owner; into_payload returns all 17 bytes and the saved span still resolves."
+    },
+    {
+      "test": "sliced_bytes_use_visible_coordinates_and_can_preserve_unknown_backing",
+      "assertions": "A Bytes slice exposing body resolves span (1,2) as od, preserves its visible range and pointer, remains AtLeast(4), and survives dropping the input."
+    },
+    {
+      "test": "unknown_backing_copy_is_exact_even_without_visible_savings",
+      "assertions": "Full, partial, and empty selections from sliced Bytes become independent Shared owners with Exact selected lengths when copy_unknown_backing is enabled."
+    },
+    {
+      "test": "empty_payloads_respect_positive_savings_rule_at_zero_threshold",
+      "assertions": "Zero budgets and zero thresholds do not copy empty known backing; empty unknown backing copies only when requested."
+    },
+    {
+      "test": "empty_selections_detach_when_the_visible_owner_exceeds_budget",
+      "assertions": "Empty spans at offsets 0, 5, and 13 in a 13-byte owner compact under a zero budget without retaining the original Arc."
+    },
+    {
+      "test": "invalid_spans_precede_budget_errors_and_never_mutate_input",
+      "assertions": "Out-of-bounds and overflowing spans produce canonical InvalidToken/Decode errors before budget validation. Valid over-budget selections produce BudgetExhausted/Decode at their original offsets. All error metadata and input identity are asserted."
+    },
+    {
+      "test": "abi_boundary_vectors_validate_without_large_allocations",
+      "assertions": "Length-only production validation covers zero, u32::MAX, full and end-empty ABI spans, overflowing ends, selected-budget failure, and oversized usize lengths where representable. PayloadTooLarge precedes span and budget failures."
+    },
+    {
+      "test": "every_small_selection_matches_an_independent_policy_oracle",
+      "assertions": "3528 deterministic cases span every subrange of five binary bytes, both storage variants, budgets 0 through 6, six savings thresholds, and both unknown-backing flags. Each success is also resolved through OwnerBytes."
+    },
+    {
+      "test": "admission_arena_views_and_retention_integrate_with_rebased_strings",
+      "assertions": "A 24-byte admitted Bytes payload and a decoded arena hold a 10-byte, four-scalar Unicode value. Compaction rebases (7,10) to (0,10), checked string views accept the rebased reference and reject old coordinates, original owners remain unchanged, and a retained clone survives their destruction."
+    },
+    {
+      "test": "retention_preserves_binary_and_partial_utf8_without_interpreting_them",
+      "assertions": "Compaction preserves partial UTF-8, NUL, invalid UTF-8 bytes, and a literal JSON surrogate escape without content validation."
+    },
+    {
+      "test": "repeated_retention_uses_each_immediate_owners_coordinates",
+      "assertions": "Successive copies from body to od record coordinates relative to each immediate owner. A subsequent zero-savings Shared retention preserves storage and outlives all earlier owners."
+    }
+  ],
+  "status": {
+    "implementation": "complete",
+    "inline_tests": 17,
+    "validation": "Source manually reviewed against frozen contract and prior wave modules. Tests were not executed, and no compiler, formatter, build, or check command was run, as instructed.",
+    "dependencies": "Only canonical jmax-abi types, alloc, core, and existing jmax-buffer modules are used.",
+    "allocation_behavior": "Compaction and cloning follow normal infallible ABI allocation behavior; only selected-length policy failures return BudgetExhausted here.",
+    "ownership": "Only the assigned retention source file and this report were written. No validation proofs are issued, reused, or fabricated."
+  }
+}
