@@ -345,7 +345,12 @@ pub(crate) fn apply_parts(
     Ok(())
 }
 
-fn increment_count(count: u32, limit: u32, offset: u32, detail: &'static str) -> Result<u32> {
+pub(crate) fn increment_count(
+    count: u32,
+    limit: u32,
+    offset: u32,
+    detail: &'static str,
+) -> Result<u32> {
     count
         .checked_add(1)
         .filter(|&next| next <= limit)
