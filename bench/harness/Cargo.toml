@@ -21,3 +21,13 @@ codegen-units = 1
 debug = "line-tables-only"
 
 [workspace]
+
+[dev-dependencies]
+jiter = "0.17.0"
+json = "0.12.4"
+simd-json = "0.18.1"
+sonic-rs = "0.5.10"
+
+[[bench]]
+name = "compare"
+harness = false
