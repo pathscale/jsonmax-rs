@@ -1,0 +1,18 @@
+[package]
+name = "jmax-schema-aot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-schema-compile = { workspace = true }
+jmax-schema-ir = { workspace = true }
+jmax-schema-vm = { workspace = true }
+jmax-utf8 = { workspace = true }

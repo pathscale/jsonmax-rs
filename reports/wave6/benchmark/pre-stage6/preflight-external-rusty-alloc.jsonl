@@ -1,0 +1,23 @@
+{"category":"ps-pikkr-capability","corpus":"twitter","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"twitter","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"twitter","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"citm_catalog","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"citm_catalog","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"citm_catalog","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"canada","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"canada","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"canada","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"harness-capability","corpus":"github_events","operation":"Strict schema Extract","parser":"jsonmax","status":"N/A (harness schema describes one row; corpus root is an array)"}
+{"category":"harness-capability","corpus":"github_events","operation":"Query schema Extract","parser":"jsonmax","status":"N/A (harness schema describes one row; corpus root is an array)"}
+{"category":"harness-capability","corpus":"github_events","operation":"Warm schema Extract","parser":"jsonmax","status":"N/A (harness schema describes one row; corpus root is an array)"}
+{"category":"ps-pikkr-capability","corpus":"github_events","operation":"Array-index Query","parser":"ps-pikkr","status":"N/A (object-field selector only)"}
+{"category":"ps-pikkr-capability","corpus":"github_events","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"github_events","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"github_events","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"apache_builds","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"apache_builds","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"apache_builds","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"endpoint_batch","operation":"DOM Parse","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"endpoint_batch","operation":"Full Validate","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"category":"ps-pikkr-capability","corpus":"endpoint_batch","operation":"Serialize","parser":"ps-pikkr","status":"N/A (Query-only selector)"}
+{"alloc_calls":2607139,"alloc_zeroed_calls":25,"allocator":"RustyAlloc","category":"harness","dealloc_calls":2607149,"realloc_calls":58153}

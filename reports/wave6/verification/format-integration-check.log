@@ -1,0 +1,3 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --check --edition 2024 --config skip_children=true crates/jmax-dispatch/src/detect.rs crates/jmax-dispatch/tests/wave6.rs crates/jmax-schema-compile/src/patterns.rs crates/jmax-bench/src/serialize.rs crates/jmax-bench/src/service.rs crates/jmax-bench/src/bin/jmax_bench.rs crates/jmax-nagoya/src/lib.rs crates/jmax-nagoya/src/submit.rs crates/jmax-nagoya/src/worker.rs crates/jsonmax/tests/wave6.rs reports/wave6/verification/allocator-consumer/src/main.rs /tmp/jmax-vs-parsers/src/main.rs
+exit=0

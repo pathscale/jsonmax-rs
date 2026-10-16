@@ -1,0 +1,99 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/jmax-abi",
+  "crates/jmax-buffer",
+  "crates/jmax-error",
+  "crates/jmax-dispatch",
+  "crates/jmax-scan-scalar",
+  "crates/jmax-scan-neon",
+  "crates/jmax-scan-avx2",
+  "crates/jmax-scan-avx512",
+  "crates/jmax-utf8",
+  "crates/jmax-string",
+  "crates/jmax-number",
+  "crates/jmax-decimal",
+  "crates/jmax-syntax",
+  "crates/jmax-cursor",
+  "crates/jmax-path",
+  "crates/jmax-dom",
+  "crates/jmax-schema-ir",
+  "crates/jmax-schema-compile",
+  "crates/jmax-schema-vm",
+  "crates/jmax-format",
+  "crates/jmax-encode",
+  "crates/jmax-derive",
+  "crates/jmax-schema-aot",
+  "crates/jmax-endpoint-model",
+  "crates/jmax-endpoint-ron",
+  "crates/jmax-codegen-rust",
+  "crates/jmax-codegen-spec",
+  "crates/jmax-wire",
+  "crates/jmax-mcp",
+  "crates/jmax-nagoya",
+  "crates/jmax-http",
+  "crates/jmax-wss",
+  "crates/jmax-exchange",
+  "crates/jmax-compat",
+  "crates/jmax-gen-cli",
+  "crates/jmax-validator",
+  "crates/jmax-runner",
+  "crates/jmax-bench",
+  "crates/jmax-fuzz",
+  "crates/jsonmax",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+bytes = { version = "1", default-features = false }
+ps-simdutf8 = { path = "../ps-simdutf8", default-features = false }
+rusty_alloc = { package = "ps-rusty_alloc", path = "../ps-rusty_alloc" }
+nagoya = { path = "../nagoya", default-features = false, features = ["std"] }
+nago-http = { path = "../nago-http", default-features = false }
+nago-wss = { path = "../nago-wss", default-features = false }
+all_crates_marker = "0.1.0"
+jmax-abi = { path = "crates/jmax-abi", version = "0.1.0", default-features = false }
+jmax-buffer = { path = "crates/jmax-buffer", version = "0.1.0", default-features = false }
+jmax-error = { path = "crates/jmax-error", version = "0.1.0", default-features = false }
+jmax-dispatch = { path = "crates/jmax-dispatch", version = "0.1.0", default-features = false }
+jmax-scan-scalar = { path = "crates/jmax-scan-scalar", version = "0.1.0", default-features = false }
+jmax-scan-neon = { path = "crates/jmax-scan-neon", version = "0.1.0", default-features = false }
+jmax-scan-avx2 = { path = "crates/jmax-scan-avx2", version = "0.1.0", default-features = false }
+jmax-scan-avx512 = { path = "crates/jmax-scan-avx512", version = "0.1.0", default-features = false }
+jmax-utf8 = { path = "crates/jmax-utf8", version = "0.1.0", default-features = false }
+jmax-string = { path = "crates/jmax-string", version = "0.1.0", default-features = false }
+jmax-number = { path = "crates/jmax-number", version = "0.1.0", default-features = false }
+jmax-decimal = { path = "crates/jmax-decimal", version = "0.1.0", default-features = false }
+jmax-syntax = { path = "crates/jmax-syntax", version = "0.1.0", default-features = false }
+jmax-cursor = { path = "crates/jmax-cursor", version = "0.1.0", default-features = false }
+jmax-path = { path = "crates/jmax-path", version = "0.1.0", default-features = false }
+jmax-dom = { path = "crates/jmax-dom", version = "0.1.0", default-features = false }
+jmax-schema-ir = { path = "crates/jmax-schema-ir", version = "0.1.0", default-features = false }
+jmax-schema-compile = { path = "crates/jmax-schema-compile", version = "0.1.0", default-features = false }
+jmax-schema-vm = { path = "crates/jmax-schema-vm", version = "0.1.0", default-features = false }
+jmax-format = { path = "crates/jmax-format", version = "0.1.0", default-features = false }
+jmax-encode = { path = "crates/jmax-encode", version = "0.1.0", default-features = false }
+jmax-derive = { path = "crates/jmax-derive", version = "0.1.0", default-features = false }
+jmax-schema-aot = { path = "crates/jmax-schema-aot", version = "0.1.0", default-features = false }
+jmax-endpoint-model = { path = "crates/jmax-endpoint-model", version = "0.1.0", default-features = false }
+jmax-endpoint-ron = { path = "crates/jmax-endpoint-ron", version = "0.1.0", default-features = false }
+jmax-codegen-rust = { path = "crates/jmax-codegen-rust", version = "0.1.0", default-features = false }
+jmax-codegen-spec = { path = "crates/jmax-codegen-spec", version = "0.1.0", default-features = false }
+jmax-wire = { path = "crates/jmax-wire", version = "0.1.0", default-features = false }
+jmax-mcp = { path = "crates/jmax-mcp", version = "0.1.0", default-features = false }
+jmax-nagoya = { path = "crates/jmax-nagoya", version = "0.1.0", default-features = false }
+jmax-http = { path = "crates/jmax-http", version = "0.1.0", default-features = false }
+jmax-wss = { path = "crates/jmax-wss", version = "0.1.0", default-features = false }
+jmax-exchange = { path = "crates/jmax-exchange", version = "0.1.0", default-features = false }
+jmax-compat = { path = "crates/jmax-compat", version = "0.1.0", default-features = false }
+jmax-gen-cli = { path = "crates/jmax-gen-cli", version = "0.1.0", default-features = false }
+jmax-validator = { path = "crates/jmax-validator", version = "0.1.0", default-features = false }
+jmax-runner = { path = "crates/jmax-runner", version = "0.1.0", default-features = false }
+jmax-bench = { path = "crates/jmax-bench", version = "0.1.0", default-features = false }
+jmax-fuzz = { path = "crates/jmax-fuzz", version = "0.1.0", default-features = false }
+jsonmax = { path = "crates/jsonmax", version = "0.1.0", default-features = false }

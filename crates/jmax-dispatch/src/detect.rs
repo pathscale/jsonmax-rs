@@ -94,3 +94,22 @@ const fn x86_capabilities(
         os_avx512: avx512f,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn x86_cpu_os_and_scanner_build_gates_are_independent() {
+        for bits in 0..64u8 {
+            let bit = |n: u32| bits & (1u8 << n) != 0u8;
+            let caps = x86_capabilities(bit(0), bit(1), bit(2), bit(3), bit(4), bit(5));
+            assert!(!caps.neon);
+            assert_eq!(caps.supports(BackendId::Avx2), bit(0) && bit(1) && bit(4));
+            assert_eq!(
+                caps.supports(BackendId::Avx512),
+                bit(0) && bit(2) && bit(3) && bit(5)
+            );
+        }
+    }
+}

@@ -20,3 +20,4 @@ jmax-endpoint-ron = { workspace = true }
 jmax-codegen-rust = { workspace = true }
 jmax-codegen-spec = { workspace = true }
 jmax-schema-aot = { workspace = true }
+rusty_alloc = { workspace = true }

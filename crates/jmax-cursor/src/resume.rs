@@ -62,18 +62,20 @@ pub fn into_partial(cursor: Cursor) -> Result<CursorOutput> {
     let at = cursor.state().byte_offset;
     if cursor.mode != SkipMode::Query {
         return Err(cursor_error(
-            ErrorCode::ConstraintViolation, at,
+            ErrorCode::ConstraintViolation,
+            at,
             "partial output requires query cursor mode",
         ));
     }
     if cursor.skipping.is_some() {
         return Err(cursor_error(
-            ErrorCode::TransportIncomplete, at,
+            ErrorCode::TransportIncomplete,
+            at,
             "partial output requires completion of the pending subtree skip",
         ));
     }
 
-    let fully_validated = cursor.syntax.is_finished();
+    let fully_validated = cursor.syntax.fully_validated();
     let output = cursor.syntax.into_storage()?;
     Ok(CursorOutput {
         payload: output.payload,

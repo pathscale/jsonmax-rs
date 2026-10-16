@@ -4,8 +4,8 @@
 //! [`finish`] to distinguish a complete stream from a truncated final scalar.
 
 use super::{
-    checked_len, Error, ErrorCode, ErrorSource, Result, Utf8Stream, Utf8Summary,
-    MAX_PENDING_BYTES, MAX_SEQUENCE_BYTES,
+    checked_len, Error, ErrorCode, ErrorSource, Result, Utf8Stream, Utf8Summary, MAX_PENDING_BYTES,
+    MAX_SEQUENCE_BYTES,
 };
 
 /// Validate a chunk, completing any scalar split across previous chunks.
@@ -91,7 +91,8 @@ fn length_overflow() -> Error {
 }
 
 fn add_scalars(state: &mut Utf8Stream, count: usize) -> Result<()> {
-    state.total_scalars = state.total_scalars
+    state.total_scalars = state
+        .total_scalars
         .checked_add(checked_len(count)?)
         .ok_or_else(length_overflow)?;
     Ok(())
@@ -153,7 +154,10 @@ fn accept_chunk(state: &mut Utf8Stream, bytes: &[u8]) -> Result<()> {
     let remainder = &bytes[consumed..];
     match core::str::from_utf8(remainder) {
         Ok(text) => {
-            add_scalars(state, text.chars().count())?;
+            add_scalars(
+                state,
+                super::count_scalars_trusted_utf8(text.as_bytes()) as usize,
+            )?;
             retain_prefix(state, &[]);
         }
         Err(error) => {
@@ -168,10 +172,7 @@ fn accept_chunk(state: &mut Utf8Stream, bytes: &[u8]) -> Result<()> {
             // `valid_up_to` certifies this prefix. Every non-continuation byte
             // in valid UTF-8 begins one scalar, without needing a second decode
             // or any unchecked conversion to str.
-            let scalar_count = remainder[..valid_len]
-                .iter()
-                .filter(|&&byte| byte & 0xc0 != 0x80)
-                .count();
+            let scalar_count = super::count_scalars_trusted_utf8(&remainder[..valid_len]) as usize;
             add_scalars(state, scalar_count)?;
             retain_prefix(state, &remainder[valid_len..]);
         }

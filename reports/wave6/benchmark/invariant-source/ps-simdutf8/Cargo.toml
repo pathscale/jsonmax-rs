@@ -1,0 +1,77 @@
+[package]
+# Renamed so it cannot collide with upstream `simdutf8` in a dependency graph,
+# and so taking this one is a decision rather than an accident. The library is
+# still `simdutf8`, so `use simdutf8::...` in a consumer keeps working:
+#
+#     simdutf8 = { package = "ps-simdutf8", version = "0.1" }
+name = "ps-simdutf8"
+version = "0.1.6"
+authors = ["Hans Kratz <hans@appfour.com>"]
+edition = "2018"
+description = "SIMD-accelerated UTF-8 validation, with runtime CPU detection that does not need std."
+documentation = "https://docs.rs/ps-simdutf8/"
+homepage = "https://github.com/pathscale/ps-simdutf8"
+repository = "https://github.com/pathscale/ps-simdutf8"
+readme = "README.md"
+keywords = ["utf-8", "unicode", "string", "validation", "simd"]
+categories = ["encoding", "algorithms", "no-std"]
+license = "MIT OR Apache-2.0"
+exclude = [
+    "/.gitignore",
+    "/.github",
+    "/.vscode",
+    "/bench",
+    "/fuzzing",
+    "/img",
+    "/inlining",
+    "TODO.md",
+]
+
+[lib]
+# Upstream's name, so a consumer renaming the package keeps its imports.
+name = "simdutf8"
+
+[features]
+# Empty on purpose. Upstream defaults to `std` because its CPU detection went
+# through `std::is_x86_feature_detected!`, so turning `std` off there cost the
+# vector paths. Detection is `cpuid` through `cpufeatures` now and needs no
+# operating system, so the fastest implementation is chosen at run time either
+# way and there is nothing left for a default to protect.
+#
+# Leaving it empty is what lets a consumer take this dependency plainly,
+# without `default-features = false`, and still be `no_std`.
+default = []
+
+# `impl std::error::Error for Utf8Error`, and nothing else. It does not affect
+# which implementation is selected or how fast validation is.
+std = []
+
+# expose SIMD implementations in basic::imp::* and compat::imp::*
+public_imp = []
+
+# deprecated - does not do anything
+aarch64_neon = []
+
+# enable aarch64 prefetching for minor speedup - requires nightly
+aarch64_neon_prefetch = []
+
+armv7_neon = []
+
+# make the portable SIMD public implementation available (experimental, nightly only)
+portable_public_imp = ["public_imp"]
+
+# deprecated - does not do anything
+hints = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+default-target = "x86_64-unknown-linux-gnu"
+targets = ["aarch64-unknown-linux-gnu", "wasm32-unknown-unknown", "wasm32-wasip1"]
+
+[dependencies]
+cpufeatures = "0.3.1"
+flexpect = "0.1.1"
+
+[build-dependencies]
+rustversion = "1.0.22"

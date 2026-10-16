@@ -1,0 +1,26 @@
+[package]
+name = "ps-pikkr"
+version = "0.16.1"
+edition = "2015"
+authors = ["Keiji Yoshida <kjmrknsn@gmail.com>"]
+description = "JSON Parser which picks up values directly without performing tokenization in Rust"
+documentation = "https://pikkr.github.io/doc/pikkr/"
+homepage = "https://github.com/pikkr/pikkr"
+repository = "https://github.com/pikkr/pikkr"
+readme = "README.md"
+keywords = ["pikkr", "json", "simd"]
+categories = ["algorithms", "data-structures", "parser-implementations", "parsing", "text-processing"]
+license = "MIT/Apache-2.0"
+
+[lib]
+name = "pikkr"
+path = "src/lib.rs"
+
+[features]
+default = []
+portable = []
+# Compatibility flag; native dispatch is automatic unless portable is enabled.
+avx-accel = []
+
+[dependencies]
+fnv = "1.0.5"

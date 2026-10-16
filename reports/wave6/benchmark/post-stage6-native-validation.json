@@ -1,0 +1,8 @@
+{
+  "rusty-alloc": {
+    "canonical_warm_owned_zero_rows": 28
+  },
+  "system-alloc": {
+    "canonical_warm_owned_zero_rows": 28
+  }
+}

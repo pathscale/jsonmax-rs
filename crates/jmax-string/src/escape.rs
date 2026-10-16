@@ -4,8 +4,8 @@
 //! length is checked and reserved before any output, including wrapper quotes.
 
 use super::{
-    ByteSink, Error, ErrorCode, ErrorSource, EscapePolicy, Result, BACKSLASH,
-    MAX_ESCAPE_BYTES, QUOTE,
+    ByteSink, Error, ErrorCode, ErrorSource, EscapePolicy, Result, BACKSLASH, MAX_ESCAPE_BYTES,
+    QUOTE,
 };
 
 /// Find the first byte requiring escaping under `policy`.
@@ -34,11 +34,7 @@ pub fn escaped_length(text: &str, policy: EscapePolicy) -> Result<u32> {
 ///
 /// Checks the entire length, then reserves exactly that append size before
 /// writing. Sink errors propagate unchanged and may leave an emitted prefix.
-pub fn write_escaped(
-    text: &str,
-    policy: EscapePolicy,
-    sink: &mut dyn ByteSink,
-) -> Result<()> {
+pub fn write_escaped(text: &str, policy: EscapePolicy, sink: &mut dyn ByteSink) -> Result<()> {
     write(text, policy, sink, false)
 }
 
@@ -47,11 +43,7 @@ pub fn write_escaped(
 /// The content and both quotes must fit the 32-bit ABI length. All size checks
 /// and the full reservation precede even the opening quote. A sink write error
 /// can leave a prefix, including an unmatched opening quote.
-pub fn write_string(
-    text: &str,
-    policy: EscapePolicy,
-    sink: &mut dyn ByteSink,
-) -> Result<()> {
+pub fn write_string(text: &str, policy: EscapePolicy, sink: &mut dyn ByteSink) -> Result<()> {
     write(text, policy, sink, true)
 }
 
@@ -85,7 +77,9 @@ fn checked_size(len: usize) -> Result<u32> {
 }
 
 fn checked_add_length(length: u32, additional: usize) -> Result<u32> {
-    length.checked_add(checked_size(additional)?).ok_or_else(size_error)
+    length
+        .checked_add(checked_size(additional)?)
+        .ok_or_else(size_error)
 }
 
 fn reserve_append(content_len: u32, quoted: bool, sink: &mut dyn ByteSink) -> Result<()> {
@@ -175,30 +169,39 @@ type EscapeSearch = unsafe fn(&[u8], EscapePolicy) -> Option<usize>;
 
 /// A private function pointer whose target-feature requirements were checked.
 /// No public API accepts a caller-provided capability record or search pointer.
-struct EscapeFinder {
+pub(crate) struct EscapeFinder {
     policy: EscapePolicy,
     search: EscapeSearch,
 }
 
 impl EscapeFinder {
-    fn new(_input_len: usize, policy: EscapePolicy) -> Self {
+    pub(crate) fn new(_input_len: usize, policy: EscapePolicy) -> Self {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         if _input_len >= 32
             && jmax_dispatch::detect::detect().supports(jmax_dispatch::BackendId::Avx2)
         {
-            return Self { policy, search: x86::find_avx2 };
+            return Self {
+                policy,
+                search: x86::find_avx2,
+            };
         }
         #[cfg(target_arch = "aarch64")]
         if _input_len >= 16
             && jmax_dispatch::detect::detect().supports(jmax_dispatch::BackendId::Neon)
         {
-            return Self { policy, search: neon::find_neon };
+            return Self {
+                policy,
+                search: neon::find_neon,
+            };
         }
-        Self { policy, search: find_scalar }
+        Self {
+            policy,
+            search: find_scalar,
+        }
     }
 
     #[inline]
-    fn find(&self, bytes: &[u8]) -> Option<usize> {
+    pub(crate) fn find(&self, bytes: &[u8]) -> Option<usize> {
         // SAFETY: new is the only constructor. Its fresh dispatch detection
         // checks usable CPU/OS state before installing a native function.
         // Scalar has no feature requirements; each native function bounds its
@@ -210,7 +213,9 @@ impl EscapeFinder {
 #[inline]
 fn find_scalar(bytes: &[u8], policy: EscapePolicy) -> Option<usize> {
     bytes.iter().position(|&byte| {
-        byte == QUOTE || byte == BACKSLASH || byte < 0x20
+        byte == QUOTE
+            || byte == BACKSLASH
+            || byte < 0x20
             || (policy.escape_solidus && byte == b'/')
             || (policy.ascii_only && byte >= 0x80)
     })
@@ -296,12 +301,13 @@ mod neon {
                     matches = vorrq_u8(matches, vcgeq_u8(chunk, non_ascii_start));
                 }
                 if vmaxvq_u8(matches) != 0 {
-                    // Store in memory order instead of relying on endian-
-                    // specific lane packing or a synthesized bitmask.
-                    let mut lanes = [0; 16];
-                    vst1q_u8(lanes.as_mut_ptr(), matches);
-                    return lanes.iter().position(|&lane| lane != 0)
-                        .map(|index| cursor + index);
+                    let weights = vcombine_u8(
+                        vcreate_u8(u64::from_ne_bytes([1, 2, 4, 8, 16, 32, 64, 128])),
+                        vcreate_u8(u64::from_ne_bytes([1, 2, 4, 8, 16, 32, 64, 128])),
+                    );
+                    let halves = vpaddlq_u32(vpaddlq_u16(vpaddlq_u8(vandq_u8(matches, weights))));
+                    let mask = vgetq_lane_u64(halves, 0) | (vgetq_lane_u64(halves, 1) << 8);
+                    return Some(cursor + mask.trailing_zeros() as usize);
                 }
                 cursor += 16;
             }

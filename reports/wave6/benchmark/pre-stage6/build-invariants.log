@@ -1,0 +1,98 @@
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['cargo', '+1.98.1', 'build', '--release', '--manifest-path', '/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-probe/Cargo.toml', '--offline']
+   Compiling libc v0.2.190
+   Compiling rustversion v1.0.23
+   Compiling bytes v1.12.1
+   Compiling futures-io v0.3.34
+   Compiling futures-core v0.3.34
+   Compiling pin-project-lite v0.2.17
+   Compiling futures-task v0.3.34
+   Compiling nagoya v0.1.19 (/Users/revenge/code/nagoya)
+   Compiling memchr v2.8.3
+   Compiling atomic-wait v1.1.0
+   Compiling slab v0.4.12
+   Compiling async-task v4.7.1
+   Compiling spin v0.9.9
+   Compiling ps-st3 v0.6.3
+   Compiling futures-util v0.3.34
+   Compiling jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-abi)
+   Compiling ps-simdutf8 v0.1.6 (/Users/revenge/code/ps-simdutf8)
+   Compiling flexpect v0.1.1
+   Compiling jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-scan-avx512)
+   Compiling jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-scan-scalar)
+   Compiling jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-scan-avx2)
+   Compiling jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-scan-neon)
+   Compiling jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-buffer)
+   Compiling jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-error)
+   Compiling jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-decimal)
+   Compiling jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-schema-ir)
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-dispatch)
+   Compiling jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-number)
+   Compiling cpufeatures v0.3.1
+   Compiling ps-rusty_alloc v2.3.3 (/Users/revenge/code/ps-rusty_alloc)
+   Compiling jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-utf8)
+warning: unused macro definition: `ra_assert`
+   --> /Users/revenge/code/ps-rusty_alloc/src/lib.rs:149:14
+    |
+149 | macro_rules! ra_assert {
+    |              ^^^^^^^^^
+    |
+    = note: `#[warn(unused_macros)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-string)
+   Compiling jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-format)
+   Compiling jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-syntax)
+   Compiling jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-schema-compile)
+   Compiling jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-endpoint-model)
+   Compiling jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-cursor)
+   Compiling jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-dom)
+   Compiling jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-path)
+   Compiling jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-schema-vm)
+   Compiling jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-encode)
+   Compiling jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-schema-aot)
+   Compiling jmax-derive v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-derive)
+   Compiling jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-wire)
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `ps-rusty_alloc` (lib) generated 1 warning
+   Compiling jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-exchange)
+   Compiling jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-mcp)
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-derive` (lib) generated 2 warnings
+   Compiling jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-nagoya)
+warning: `jmax-exchange` (lib) generated 1 warning
+   Compiling jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-http)
+   Compiling jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-wss)
+   Compiling jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jsonmax)
+   Compiling jmax-bench v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-bench)
+   Compiling wave6-invariant-probe v0.1.0 (/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-probe)
+    Finished `release` profile [optimized] target(s) in 7.61s
+
+exit: 0

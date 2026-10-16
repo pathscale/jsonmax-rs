@@ -1,1 +1,30 @@
+# Cargo build products, including benchmark helper workspaces.
+/target/
+**/target/
+
+# OS and interpreter caches.
 .DS_Store
+**/__pycache__/
+*.pyc
+
+# Local credentials must never be published.
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Preserve benchmark binaries, archives and bulky raw evidence on disk only.
+/reports/**/bin/
+/reports/**/pre-stage6/bin/
+/reports/**/*.tar.gz
+/reports/**/*.tgz
+/reports/**/*.tar
+/reports/**/generated-corpora/
+/reports/wave6/benchmark/**/corpora/
+/reports/**/system-load.jsonl
+/reports/**/native-disassembly.txt
+/reports/wave6/verification/format-check.log
+
+# Rust source entry points named src/bin are harness sources, not binaries.
+!/reports/**/src/bin/
+!/reports/**/src/bin/**

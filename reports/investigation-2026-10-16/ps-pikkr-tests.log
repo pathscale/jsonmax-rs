@@ -1,0 +1,78 @@
+warning: Cargo.toml: `package.edition` is unspecified, defaulting to `2015` while the latest is `2024`
+warning: `ps-pikkr` (manifest) generated 1 warning
+    Updating crates.io index
+     Locking 2 packages to highest compatible versions
+   Compiling fnv v1.0.7
+   Compiling ps-pikkr v0.16.1 (/tmp/jmax-vs-parsers/ps-pikkr)
+warning: trait objects without an explicit `dyn` are deprecated
+  --> src/error.rs:35:32
+   |
+35 |     fn cause(&self) -> Option<&error::Error> {
+   |                                ^^^^^^^^^^^^
+   |
+   = warning: this is accepted in the current edition (Rust 2015) but is a hard error in Rust 2021!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2021/warnings-promoted-to-error.html>
+   = note: `#[warn(bare_trait_objects)]` (part of `#[warn(rust_2021_compatibility)]`) on by default
+help: if this is a dyn-compatible trait, use `dyn`
+   |
+35 |     fn cause(&self) -> Option<&dyn error::Error> {
+   |                                +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> src/query.rs:67:22
+   |
+67 |     pub fn get_child(&self, field: &[u8]) -> Option<&QueryNode> {
+   |                      ^^^^^                          ^^^^^^^^^^
+   |                      |                              ||
+   |                      |                              |the same lifetime is hidden here
+   |                      |                              the same lifetime is elided here
+   |                      the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+   |
+67 |     pub fn get_child(&self, field: &[u8]) -> Option<&QueryNode<'_>> {
+   |                                                               ++++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> src/query.rs:80:17
+   |
+80 |     pub fn iter(&self) -> hash_map::Iter<&'a [u8], QueryNode<'a>> {
+   |                 ^^^^^     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+   |                 |
+   |                 the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+   |
+80 |     pub fn iter(&self) -> hash_map::Iter<'_, &'a [u8], QueryNode<'a>> {
+   |                                          +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> src/query.rs:137:20
+    |
+137 |     pub fn as_node(&self) -> &QueryNode {
+    |                    ^^^^^     ^^^^^^^^^^
+    |                    |         ||
+    |                    |         |the same lifetime is hidden here
+    |                    |         the same lifetime is elided here
+    |                    the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+137 |     pub fn as_node(&self) -> &QueryNode<'_> {
+    |                                        ++++
+
+warning: `ps-pikkr` (lib) generated 4 warnings (run `cargo fix --lib -p ps-pikkr` to apply 4 suggestions)
+error[E0463]: can't find crate for `pikkr`
+ --> tests/issues.rs:1:1
+  |
+1 | extern crate pikkr;
+  | ^^^^^^^^^^^^^^^^^^^ can't find crate
+
+For more information about this error, try `rustc --explain E0463`.
+error: could not compile `ps-pikkr` (test "issues") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+warning: `ps-pikkr` (lib test) generated 4 warnings (4 duplicates)

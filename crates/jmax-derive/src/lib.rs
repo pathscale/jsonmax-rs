@@ -1,15 +1,14 @@
 //! Derives for the frozen jmax ABI. All implementation modules are private.
-#![forbid(unsafe_code)]
 
 extern crate proc_macro;
 
 use proc_macro::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::fmt;
 
+mod attributes;
 mod decode;
 mod encode;
 mod schema;
-mod attributes;
 
 /// Internal, span-bearing diagnostics, never exported from this proc-macro crate.
 #[derive(Clone, Debug)]
@@ -22,18 +21,29 @@ pub(crate) type DeriveResult<T> = core::result::Result<T, DeriveError>;
 
 impl DeriveError {
     pub(crate) fn new(span: Span, message: impl Into<String>) -> Self {
-        Self { span, message: message.into() }
+        Self {
+            span,
+            message: message.into(),
+        }
     }
 
     pub(crate) fn into_compile_error(self) -> TokenStream {
         let mut literal = Literal::string(&self.message);
         literal.set_span(self.span);
-        let mut body = Group::new(Delimiter::Brace, TokenStream::from(TokenTree::Literal(literal)));
+        let mut body = Group::new(
+            Delimiter::Brace,
+            TokenStream::from(TokenTree::Literal(literal)),
+        );
         body.set_span(self.span);
         let mut bang = Punct::new('!', Spacing::Alone);
         bang.set_span(self.span);
-        [TokenTree::Ident(Ident::new("compile_error", self.span)),
-         TokenTree::Punct(bang), TokenTree::Group(body)].into_iter().collect()
+        [
+            TokenTree::Ident(Ident::new("compile_error", self.span)),
+            TokenTree::Punct(bang),
+            TokenTree::Group(body),
+        ]
+        .into_iter()
+        .collect()
     }
 }
 
@@ -44,7 +54,12 @@ impl fmt::Display for DeriveError {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DeriveKind { Decode, Encode, Schema, DefinitionVariant }
+pub(crate) enum DeriveKind {
+    Decode,
+    Encode,
+    Schema,
+    DefinitionVariant,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum RenameRule {
@@ -93,10 +108,23 @@ pub(crate) struct FieldAttrs {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ScalarType { Bool, U32, U64, I32, I64, F64, String, Decimal128 }
+pub(crate) enum ScalarType {
+    Bool,
+    U32,
+    U64,
+    I32,
+    I64,
+    F64,
+    String,
+    Decimal128,
+}
 
 #[derive(Clone, Debug)]
-pub(crate) enum FieldType { Scalar(ScalarType), Optional(ScalarType), Skipped }
+pub(crate) enum FieldType {
+    Scalar(ScalarType),
+    Optional(ScalarType),
+    Skipped,
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct FieldSpec {
@@ -120,7 +148,11 @@ pub(crate) struct VariantSpec {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum ItemShape { NamedStruct(Vec<FieldSpec>), UnitStruct, Enum(Vec<VariantSpec>) }
+pub(crate) enum ItemShape {
+    NamedStruct(Vec<FieldSpec>),
+    UnitStruct,
+    Enum(Vec<VariantSpec>),
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct DeriveInput {
@@ -135,9 +167,13 @@ pub(crate) struct DeriveInput {
 
 /// A path assembled as tokens avoids reparsing or dependence on a quoting crate.
 pub(crate) fn absolute_path(name: &str) -> TokenStream {
-    [TokenTree::Punct(Punct::new(':', Spacing::Joint)),
-     TokenTree::Punct(Punct::new(':', Spacing::Alone)),
-     TokenTree::Ident(Ident::new(name, Span::call_site()))].into_iter().collect()
+    [
+        TokenTree::Punct(Punct::new(':', Spacing::Joint)),
+        TokenTree::Punct(Punct::new(':', Spacing::Alone)),
+        TokenTree::Ident(Ident::new(name, Span::call_site())),
+    ]
+    .into_iter()
+    .collect()
 }
 
 pub(crate) fn rust_string(value: &str) -> String {
@@ -146,7 +182,9 @@ pub(crate) fn rust_string(value: &str) -> String {
 
 /// Generated-source parsing failures are reported at the deriving item.
 pub(crate) fn parse_generated(source: &str, span: Span) -> DeriveResult<TokenStream> {
-    source.parse().map_err(|error| DeriveError::new(span, format!("invalid generated Rust: {error}")))
+    source
+        .parse()
+        .map_err(|error| DeriveError::new(span, format!("invalid generated Rust: {error}")))
 }
 
 fn expand(input: TokenStream, kind: DeriveKind) -> TokenStream {
@@ -156,7 +194,10 @@ fn expand(input: TokenStream, kind: DeriveKind) -> TokenStream {
         DeriveKind::Schema => schema::expand(&input),
         DeriveKind::DefinitionVariant => attributes::expand_definition_variant(&input),
     });
-    match result { Ok(tokens) => tokens, Err(error) => error.into_compile_error() }
+    match result {
+        Ok(tokens) => tokens,
+        Err(error) => error.into_compile_error(),
+    }
 }
 
 #[proc_macro_derive(JsonDecode, attributes(jmax))]

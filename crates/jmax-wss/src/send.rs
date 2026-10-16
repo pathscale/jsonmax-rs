@@ -2,6 +2,50 @@
 
 use super::*;
 
+/// Owns an already encoded transport frame and its validated JSON source across
+/// partial writes. `encoded` includes any wire header/masking required by the
+/// transport; constructing this cursor never re-encodes or copies either owner.
+/// The transport is responsible for encoding the matching WebSocket frame.
+#[derive(Debug)]
+pub struct OutboundFrame {
+    output: ValidatedOutput,
+    encoded: Payload,
+    offset: usize,
+}
+
+impl OutboundFrame {
+    pub fn new(output: ValidatedOutput, encoded: Payload) -> Self {
+        Self { output, encoded, offset: 0 }
+    }
+
+    pub fn output(&self) -> &ValidatedOutput { &self.output }
+    pub fn encoded(&self) -> &Payload { &self.encoded }
+    pub fn offset(&self) -> usize { self.offset }
+    pub fn remaining(&self) -> &[u8] { &self.encoded.as_slice()[self.offset..] }
+    pub fn is_complete(&self) -> bool { self.offset == self.encoded.len() }
+
+    /// Retains a subview owner if the transport needs an owned pending write.
+    pub fn remaining_payload(&self) -> Result<Payload> {
+        self.encoded.slice(self.offset..self.encoded.len())
+    }
+
+    /// Report only the bytes actually accepted by the transport. A zero write
+    /// leaves the cursor intact for a later readiness wake; an invalid count
+    /// fails atomically without advancing. Never retry a consumed prefix.
+    pub fn advance(&mut self, written: usize) -> Result<()> {
+        if written > self.encoded.len() - self.offset {
+            return Err(transport_error(ErrorCode::TransportIncomplete, "write progress exceeds pending frame"));
+        }
+        self.offset += written;
+        Ok(())
+    }
+
+    /// Return all owners and the cursor for transfer to another transport task.
+    pub fn into_parts(self) -> (ValidatedOutput, Payload, usize) {
+        (self.output, self.encoded, self.offset)
+    }
+}
+
 /// Validates one complete JSON document before publishing an owned data frame.
 ///
 /// The validator receives a shared clone of the immutable payload and the exact
@@ -21,7 +65,7 @@ pub fn prepare_output(
 ) -> Result<ValidatedOutput> {
     validate_frame(payload.as_slice(), opcode, policy)?;
     let validated = validator.validate(payload.clone(), policy.limits)?;
-    ensure_validated_slots(&validated, payload.as_slice())?;
+    ensure_validated_slots(&validated, &payload)?;
     ensure_payload_len(validated.decoded.len(), policy.limits.max_decoded_bytes)?;
     ensure_utf8(&validated.decoded)?;
     Ok(ValidatedOutput { payload, opcode, proof: validated.proof })

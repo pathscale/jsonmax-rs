@@ -1,0 +1,29 @@
+{
+  "native_cli_rows": 112,
+  "matched_before_after": 56,
+  "supplement_rows": 654,
+  "competitor_rows": 518,
+  "geomean_C_A": 2.200300906687357,
+  "geomean_D_C": 1.1232467326302449,
+  "load": {
+    "snapshots": 68,
+    "load1_min": 20.1240234375,
+    "load1_median": 30.034423828125,
+    "load1_max": 77.79150390625,
+    "first_at": "2026-10-16T02:18:58.892427+07:00",
+    "last_at": "2026-10-16T02:30:51.519973+07:00",
+    "other_cpu_median": 966.5000000000001,
+    "other_cpu_max": 1398.3000000000002,
+    "compiler_cpu_max": 1140.2,
+    "unrelated_benchmark_snapshots": 28
+  },
+  "audit": {
+    "timed_source_unchanged": true,
+    "source_files": 281,
+    "changed_source": [],
+    "historical_files": 9,
+    "historical_unchanged": true,
+    "historical_changes": [],
+    "snapshot_matches": true
+  }
+}

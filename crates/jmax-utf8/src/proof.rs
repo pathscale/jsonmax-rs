@@ -6,9 +6,9 @@
 
 use core::ops::Range;
 
-use super::{checked_len, Error, ErrorCode, ErrorSource, Result, Span32, Utf8Proof, Utf8Summary};
 #[cfg(feature = "alloc")]
 use super::Payload;
+use super::{checked_len, Error, ErrorCode, ErrorSource, Result, Span32, Utf8Proof, Utf8Summary};
 
 /// Validate the complete input and bind its exact summary to its immutable borrow.
 ///
@@ -35,7 +35,7 @@ use super::Payload;
 pub fn validate(bytes: &[u8]) -> Result<Utf8Proof<'_>> {
     let text = super::validate::validate_str(bytes)?;
     let byte_len = checked_len(text.len())?;
-    let scalar_len = checked_len(text.chars().count())?;
+    let scalar_len = super::count_scalars_trusted_utf8(text.as_bytes());
     // Every scalar takes at least one byte. Equal counts therefore mean that
     // all scalars are ASCII, including the empty string.
     let summary = Utf8Summary {
@@ -85,7 +85,8 @@ pub fn slice<'a>(proof: &Utf8Proof<'a>, span: Span32) -> Result<&'a str> {
     }
     // Bounds and the starting boundary are already checked. Safe str slicing
     // can now fail only because the exclusive end splits a scalar.
-    text.get(range).ok_or_else(|| non_boundary(span.offset + span.len))
+    text.get(range)
+        .ok_or_else(|| non_boundary(span.offset + span.len))
 }
 
 fn checked_range(byte_len: usize, span: Span32) -> Result<Range<usize>> {

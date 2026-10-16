@@ -53,11 +53,7 @@ pub fn validate_snapshot(snapshot: &OwnershipSnapshot, max_retained_bytes: u64) 
         ))?;
     }
 
-    let payload_storage = match &snapshot.payload {
-        Payload::Shared(bytes) => bytes.len(),
-        // Bytes may be a shared slice; only its visible length is observable.
-        Payload::Bytes(bytes) => bytes.len(),
-    };
+    let payload_storage = snapshot.payload.backing_len_lower_bound();
     let mut minimum = u64::try_from(core::cmp::max(payload.len(), payload_storage)).map_err(|_| harness_error(
         ErrorCode::BudgetExhausted,
         "ownership payload length cannot be accounted",

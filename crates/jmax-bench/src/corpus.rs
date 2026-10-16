@@ -9,7 +9,7 @@ use jmax_abi::{
     syntax::ScalarKind,
 };
 
-use crate::{bench_error, CorpusConfig, DeterministicRng, Payload, Result, Workload, WorkloadKind};
+use crate::{CorpusConfig, DeterministicRng, Payload, Result, Workload, WorkloadKind, bench_error};
 
 const MAX_CONFIG_COUNT: u32 = 1_000_000;
 const MAX_NESTING: u32 = 64;
@@ -21,7 +21,9 @@ const UNICODE_SCHEMA_ID: u32 = 0x4a4d_0003;
 /// Build one reproducible corpus of the requested workload kind.
 pub fn make_workload(kind: WorkloadKind, config: CorpusConfig) -> Result<Workload> {
     validate_config(config)?;
-    if crate::followup::is_followup(kind) { return crate::followup::make_workload(kind, config); }
+    if crate::followup::is_followup(kind) {
+        return crate::followup::make_workload(kind, config);
+    }
     validate_kind_config(kind, config)?;
     build_workload(kind, config, config.max_bytes)
 }
@@ -41,24 +43,29 @@ pub fn make_suite(config: CorpusConfig) -> Result<Vec<Workload>> {
     let mut minimum_total = 0u64;
     for kind in kinds {
         validate_kind_config(kind, config)?;
-        minimum_total = minimum_total.checked_add(minimum_workload_bytes(kind, config)?)
+        minimum_total = minimum_total
+            .checked_add(minimum_workload_bytes(kind, config)?)
             .ok_or_else(|| budget_error("minimum suite byte count overflow"))?;
     }
     if minimum_total > config.max_bytes {
         return Err(budget_error("byte budget cannot hold minimum suite"));
     }
     let mut suite = Vec::new();
-    suite.try_reserve_exact(kinds.len())
+    suite
+        .try_reserve_exact(kinds.len())
         .map_err(|_| budget_error("suite allocation failed"))?;
     let mut accumulated = 0u64;
     for kind in kinds {
-        let remaining = config.max_bytes.checked_sub(accumulated)
+        let remaining = config
+            .max_bytes
+            .checked_sub(accumulated)
             .ok_or_else(|| budget_error("suite byte budget underflow"))?;
         if remaining == 0 {
             return Err(budget_error("aggregate suite byte budget exceeded"));
         }
         let workload = build_workload(kind, config, remaining)?;
-        accumulated = accumulated.checked_add(workload.total_bytes()?)
+        accumulated = accumulated
+            .checked_add(workload.total_bytes()?)
             .ok_or_else(|| budget_error("aggregate suite byte count overflow"))?;
         if accumulated > config.max_bytes {
             return Err(budget_error("aggregate suite byte budget exceeded"));
@@ -71,7 +78,9 @@ pub fn make_suite(config: CorpusConfig) -> Result<Vec<Workload>> {
 /// Validate a caller-owned workload, including all bytes and schema metadata.
 pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
     if workload.name.is_empty() || workload.payloads.is_empty() || max_bytes == 0 {
-        return Err(constraint_error("workload name, corpus, and byte budget must be nonempty"));
+        return Err(constraint_error(
+            "workload name, corpus, and byte budget must be nonempty",
+        ));
     }
     let total = workload.total_bytes()?;
     if total > max_bytes {
@@ -81,10 +90,16 @@ pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
         let len = u64::try_from(payload.len())
             .map_err(|_| bench_error(ErrorCode::PayloadTooLarge, "payload length exceeds u64"))?;
         if len == 0 {
-            return Err(bench_error(ErrorCode::UnexpectedEof, "empty workload payload"));
+            return Err(bench_error(
+                ErrorCode::UnexpectedEof,
+                "empty workload payload",
+            ));
         }
         if len > u64::from(u32::MAX) || payload.len() > STRICT_PAYLOAD_LIMIT {
-            return Err(bench_error(ErrorCode::PayloadTooLarge, "payload exceeds strict ABI limits"));
+            return Err(bench_error(
+                ErrorCode::PayloadTooLarge,
+                "payload exceeds strict ABI limits",
+            ));
         }
         jsonmax::parse::validate_syntax(payload.as_slice(), jsonmax::ParseOptions::default())?;
     }
@@ -92,11 +107,15 @@ pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
     let compiled = &workload.compiled_schema;
     if let Some(image) = &workload.schema {
         let retained = compiled.image();
-        if image.header != retained.header || image.insns != retained.insns
-            || image.keys != retained.keys || image.key_bytes != retained.key_bytes
+        if image.header != retained.header
+            || image.insns != retained.insns
+            || image.keys != retained.keys
+            || image.key_bytes != retained.key_bytes
         {
-            return Err(bench_error(ErrorCode::SchemaImageInvalid,
-                "workload image differs from its compiled schema"));
+            return Err(bench_error(
+                ErrorCode::SchemaImageInvalid,
+                "workload image differs from its compiled schema",
+            ));
         }
     }
     jmax_schema_vm::check_selection(compiled.program(), &workload.selection)?;
@@ -105,8 +124,11 @@ pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
 }
 
 fn validate_config(config: CorpusConfig) -> Result<()> {
-    if config.documents == 0 || config.items_per_document == 0 || config.max_bytes == 0
-        || config.documents > MAX_CONFIG_COUNT || config.items_per_document > MAX_CONFIG_COUNT
+    if config.documents == 0
+        || config.items_per_document == 0
+        || config.max_bytes == 0
+        || config.documents > MAX_CONFIG_COUNT
+        || config.items_per_document > MAX_CONFIG_COUNT
     {
         return Err(constraint_error("invalid corpus dimensions or byte budget"));
     }
@@ -114,7 +136,8 @@ fn validate_config(config: CorpusConfig) -> Result<()> {
         Some(value) => value,
         None => return Err(budget_error("minimum corpus size arithmetic overflow")),
     };
-    let minimum = minimum_per_document.checked_mul(u64::from(config.documents))
+    let minimum = minimum_per_document
+        .checked_mul(u64::from(config.documents))
         .ok_or_else(|| budget_error("minimum corpus size arithmetic overflow"))?;
     if minimum > config.max_bytes {
         return Err(budget_error("byte budget cannot hold minimum corpus"));
@@ -123,15 +146,21 @@ fn validate_config(config: CorpusConfig) -> Result<()> {
 }
 
 fn validate_kind_config(kind: WorkloadKind, config: CorpusConfig) -> Result<()> {
-    if matches!(kind, WorkloadKind::SmallObject | WorkloadKind::EscapedStrings | WorkloadKind::Unicode)
-        && config.items_per_document > 65_536
+    if matches!(
+        kind,
+        WorkloadKind::SmallObject | WorkloadKind::EscapedStrings | WorkloadKind::Unicode
+    ) && config.items_per_document > 65_536
     {
-        return Err(constraint_error("object field count exceeds strict parser limits"));
+        return Err(constraint_error(
+            "object field count exceeds strict parser limits",
+        ));
     }
     if matches!(kind, WorkloadKind::DepthBook)
         && config.items_per_document > jmax_exchange::ExchangeProfile::default().max_levels
     {
-        return Err(constraint_error("depth level count exceeds the exchange profile limit"));
+        return Err(constraint_error(
+            "depth level count exceeds the exchange profile limit",
+        ));
     }
     Ok(())
 }
@@ -146,19 +175,32 @@ fn config_kind_minimum(items: u32) -> Option<u64> {
 fn minimum_workload_bytes(kind: WorkloadKind, config: CorpusConfig) -> Result<u64> {
     let items = u64::from(config.items_per_document);
     let per_document = match kind {
-        WorkloadKind::SmallObject | WorkloadKind::EscapedStrings | WorkloadKind::Unicode =>
-            2u64.checked_add(items.checked_mul(11)
-                .ok_or_else(|| budget_error("minimum payload size overflow"))?),
-        WorkloadKind::NumberArray => 1u64.checked_add(items.checked_mul(2)
-            .ok_or_else(|| budget_error("minimum payload size overflow"))?),
-        WorkloadKind::DepthBook => 50u64.checked_add(items.checked_mul(12)
-            .and_then(|value| value.checked_mul(2))
-            .ok_or_else(|| budget_error("minimum payload size overflow"))?),
+        WorkloadKind::SmallObject | WorkloadKind::EscapedStrings | WorkloadKind::Unicode => 2u64
+            .checked_add(
+                items
+                    .checked_mul(11)
+                    .ok_or_else(|| budget_error("minimum payload size overflow"))?,
+            ),
+        WorkloadKind::NumberArray => 1u64.checked_add(
+            items
+                .checked_mul(2)
+                .ok_or_else(|| budget_error("minimum payload size overflow"))?,
+        ),
+        WorkloadKind::DepthBook => 50u64.checked_add(
+            items
+                .checked_mul(12)
+                .and_then(|value| value.checked_mul(2))
+                .ok_or_else(|| budget_error("minimum payload size overflow"))?,
+        ),
         WorkloadKind::AggTrade => Some(120),
-        WorkloadKind::Nested => Some(u64::from((config.items_per_document % MAX_NESTING).max(1)) * 2 + 1),
+        WorkloadKind::Nested => {
+            Some(u64::from((config.items_per_document % MAX_NESTING).max(1)) * 2 + 1)
+        }
         _ => return Err(constraint_error("use followup suite for this workload")),
-    }.ok_or_else(|| budget_error("minimum payload size overflow"))?;
-    per_document.checked_mul(u64::from(config.documents))
+    }
+    .ok_or_else(|| budget_error("minimum payload size overflow"))?;
+    per_document
+        .checked_mul(u64::from(config.documents))
         .ok_or_else(|| budget_error("minimum corpus size overflow"))
 }
 
@@ -171,34 +213,51 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
     }
     let name = workload_name(kind, config)?;
     let mut payloads = Vec::new();
-    payloads.try_reserve_exact(config.documents as usize)
+    payloads
+        .try_reserve_exact(config.documents as usize)
         .map_err(|_| budget_error("payload table allocation failed"))?;
     let mut used = 0u64;
     let mut rng = DeterministicRng::new(config.seed);
     for document_index in 0..config.documents {
-        let remaining = budget.checked_sub(used)
+        let remaining = budget
+            .checked_sub(used)
             .ok_or_else(|| budget_error("corpus byte budget underflow"))?;
         let remaining_docs = u64::from(config.documents - document_index);
-        let minimum_future = remaining_docs.checked_mul(2)
+        let minimum_future = remaining_docs
+            .checked_mul(2)
             .ok_or_else(|| budget_error("minimum corpus size arithmetic overflow"))?;
         if remaining < minimum_future {
             return Err(budget_error("byte budget cannot hold remaining documents"));
         }
-        let per_payload_budget = remaining.saturating_sub(remaining_docs - 1)
+        let per_payload_budget = remaining
+            .saturating_sub(remaining_docs - 1)
             .min(STRICT_PAYLOAD_LIMIT as u64);
         let cap = usize::try_from(per_payload_budget)
             .map_err(|_| budget_error("payload budget exceeds addressable memory"))?;
         let mut writer = JsonWriter::new(cap);
-        write_document(&mut writer, kind, config.items_per_document, document_index, &mut rng)?;
+        write_document(
+            &mut writer,
+            kind,
+            config.items_per_document,
+            document_index,
+            &mut rng,
+        )?;
         if writer.bytes.is_empty() {
-            return Err(bench_error(ErrorCode::InternalError, "generator emitted an empty document"));
+            return Err(bench_error(
+                ErrorCode::InternalError,
+                "generator emitted an empty document",
+            ));
         }
         if writer.bytes.len() > u32::MAX as usize {
-            return Err(bench_error(ErrorCode::PayloadTooLarge, "payload exceeds ABI length"));
+            return Err(bench_error(
+                ErrorCode::PayloadTooLarge,
+                "payload exceeds ABI length",
+            ));
         }
         let length = u64::try_from(writer.bytes.len())
             .map_err(|_| bench_error(ErrorCode::PayloadTooLarge, "payload length exceeds u64"))?;
-        used = used.checked_add(length)
+        used = used
+            .checked_add(length)
             .ok_or_else(|| budget_error("corpus byte count overflow"))?;
         if used > budget {
             return Err(budget_error("corpus byte budget exceeded"));
@@ -208,12 +267,18 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
     let (compiled_schema, selection) = match kind {
         WorkloadKind::SmallObject => small_object_schema(config.items_per_document)?,
         WorkloadKind::EscapedStrings => scalar_object_schema(
-            "s", config.items_per_document, ESCAPED_STRINGS_SCHEMA_ID,
-            "jmax_bench_escaped_strings", |_| ScalarKind::String,
+            "s",
+            config.items_per_document,
+            ESCAPED_STRINGS_SCHEMA_ID,
+            "jmax_bench_escaped_strings",
+            |_| ScalarKind::String,
         )?,
         WorkloadKind::Unicode => scalar_object_schema(
-            "u", config.items_per_document, UNICODE_SCHEMA_ID,
-            "jmax_bench_unicode", |_| ScalarKind::String,
+            "u",
+            config.items_per_document,
+            UNICODE_SCHEMA_ID,
+            "jmax_bench_unicode",
+            |_| ScalarKind::String,
         )?,
         WorkloadKind::AggTrade => agg_trade_schema()?,
         WorkloadKind::NumberArray | WorkloadKind::DepthBook | WorkloadKind::Nested => {
@@ -222,12 +287,24 @@ fn build_workload(kind: WorkloadKind, config: CorpusConfig, budget: u64) -> Resu
         _ => return Err(constraint_error("use followup suite for this workload")),
     };
     let schema = Some(compiled_schema.image().clone());
-    Ok(Workload { name, kind, payloads, schema, compiled_schema, selection })
+    Ok(Workload {
+        name,
+        kind,
+        payloads,
+        schema,
+        compiled_schema,
+        selection,
+    })
 }
 
 fn small_object_schema(items: u32) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
-    scalar_object_schema("f", items, SMALL_OBJECT_SCHEMA_ID,
-        "jmax_bench_small_object", small_field_kind)
+    scalar_object_schema(
+        "f",
+        items,
+        SMALL_OBJECT_SCHEMA_ID,
+        "jmax_bench_small_object",
+        small_field_kind,
+    )
 }
 
 fn scalar_object_schema(
@@ -238,14 +315,21 @@ fn scalar_object_schema(
     kind_for_index: fn(u32) -> ScalarKind,
 ) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     if items > u32::from(u16::MAX) {
-        return Err(constraint_error("schema field count exceeds the ABI required-count limit"));
+        return Err(constraint_error(
+            "schema field count exceeds the ABI required-count limit",
+        ));
     }
     let mut fields = Vec::new();
-    fields.try_reserve_exact(items as usize)
+    fields
+        .try_reserve_exact(items as usize)
         .map_err(|_| budget_error("schema field allocation failed"))?;
     for index in 0..items {
-        let field_id = u16::try_from(index)
-            .map_err(|_| bench_error(ErrorCode::SchemaImageInvalid, "schema field identifier overflow"))?;
+        let field_id = u16::try_from(index).map_err(|_| {
+            bench_error(
+                ErrorCode::SchemaImageInvalid,
+                "schema field identifier overflow",
+            )
+        })?;
         fields.push(SchemaFieldIr {
             field_id: FieldId(u32::from(field_id)),
             name: indexed_name(prefix, index)?,
@@ -259,27 +343,44 @@ fn scalar_object_schema(
         });
     }
     let mut schema_name = String::new();
-    schema_name.try_reserve_exact(schema_label.len()).map_err(|_| budget_error("schema name allocation failed"))?;
+    schema_name
+        .try_reserve_exact(schema_label.len())
+        .map_err(|_| budget_error("schema name allocation failed"))?;
     schema_name.push_str(schema_label);
     compile_object_schema(schema_id, schema_name, fields)
 }
 
 fn agg_trade_schema() -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
     const FIELDS: [(&str, ScalarKind); 11] = [
-        ("e", ScalarKind::String), ("E", ScalarKind::Number), ("s", ScalarKind::String),
-        ("a", ScalarKind::Number), ("p", ScalarKind::String), ("q", ScalarKind::String),
-        ("f", ScalarKind::Number), ("l", ScalarKind::Number), ("T", ScalarKind::Number),
-        ("m", ScalarKind::True), ("M", ScalarKind::True),
+        ("e", ScalarKind::String),
+        ("E", ScalarKind::Number),
+        ("s", ScalarKind::String),
+        ("a", ScalarKind::Number),
+        ("p", ScalarKind::String),
+        ("q", ScalarKind::String),
+        ("f", ScalarKind::Number),
+        ("l", ScalarKind::Number),
+        ("T", ScalarKind::Number),
+        ("m", ScalarKind::True),
+        ("M", ScalarKind::True),
     ];
     let mut fields = Vec::new();
-    fields.try_reserve_exact(FIELDS.len()).map_err(|_| budget_error("schema field allocation failed"))?;
+    fields
+        .try_reserve_exact(FIELDS.len())
+        .map_err(|_| budget_error("schema field allocation failed"))?;
     for (index, (name, scalar_kind)) in FIELDS.iter().enumerate() {
         let mut owned_name = String::new();
-        owned_name.try_reserve_exact(name.len()).map_err(|_| budget_error("schema key allocation failed"))?;
+        owned_name
+            .try_reserve_exact(name.len())
+            .map_err(|_| budget_error("schema key allocation failed"))?;
         owned_name.push_str(name);
         fields.push(SchemaFieldIr {
-            field_id: FieldId(u32::try_from(index)
-                .map_err(|_| bench_error(ErrorCode::SchemaImageInvalid, "trade schema field identifier overflow"))?),
+            field_id: FieldId(u32::try_from(index).map_err(|_| {
+                bench_error(
+                    ErrorCode::SchemaImageInvalid,
+                    "trade schema field identifier overflow",
+                )
+            })?),
             name: owned_name,
             required: true,
             scalar_kind: Some(*scalar_kind),
@@ -291,7 +392,8 @@ fn agg_trade_schema() -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> 
         });
     }
     let mut name = String::new();
-    name.try_reserve_exact("jmax_bench_agg_trade".len()).map_err(|_| budget_error("schema name allocation failed"))?;
+    name.try_reserve_exact("jmax_bench_agg_trade".len())
+        .map_err(|_| budget_error("schema name allocation failed"))?;
     name.push_str("jmax_bench_agg_trade");
     compile_object_schema(jmax_exchange::TRADE_SCHEMA_ID.0, name, fields)
 }
@@ -301,8 +403,12 @@ fn compile_object_schema(
     name: String,
     fields: Vec<SchemaFieldIr>,
 ) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
-    let required_count = u16::try_from(fields.len())
-        .map_err(|_| bench_error(ErrorCode::SchemaImageInvalid, "required field count overflow"))?;
+    let required_count = u16::try_from(fields.len()).map_err(|_| {
+        bench_error(
+            ErrorCode::SchemaImageInvalid,
+            "required field count overflow",
+        )
+    })?;
     let ir = SchemaIr {
         name,
         schema_id: SchemaId(schema_id),
@@ -310,20 +416,22 @@ fn compile_object_schema(
         reject_unknown: true,
         fields,
     };
-    let compiled = jsonmax::endpoint::compile_schema(
-        &ir,
-        jmax_abi::schema::CompileLimits::default_limits(),
-    )?;
+    let compiled =
+        jsonmax::endpoint::compile_schema(&ir, jmax_abi::schema::CompileLimits::default_limits())?;
     let mut selection_ids = Vec::new();
-    selection_ids.try_reserve_exact(ir.fields.len())
+    selection_ids
+        .try_reserve_exact(ir.fields.len())
         .map_err(|_| budget_error("selection allocation failed"))?;
     for field in &ir.fields {
         selection_ids.push(field.field_id);
     }
-    Ok((compiled, Selection {
-        field_ids: selection_ids,
-        strict_validate_unselected: true,
-    }))
+    Ok((
+        compiled,
+        Selection {
+            field_ids: selection_ids,
+            strict_validate_unselected: true,
+        },
+    ))
 }
 
 /// Exact native container shapes for the non-flat standard workloads.
@@ -331,21 +439,36 @@ fn native_workload_schema(
     kind: WorkloadKind,
     items: u32,
 ) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
-    use jmax_schema_ir::{ArrayShape, ObjectShape, Property, ScalarConstraints,
-        Schema, TypeId, TypeNode, ValueKind};
+    use jmax_schema_ir::{
+        ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
+    };
     let mut nodes = Vec::new();
-    nodes.try_reserve_exact(68).map_err(|_| budget_error("native schema allocation failed"))?;
-    let array = |items, count| TypeNode::Array(ArrayShape {
-        items: TypeId(items), min_items: Some(count), max_items: Some(count),
-    });
+    nodes
+        .try_reserve_exact(68)
+        .map_err(|_| budget_error("native schema allocation failed"))?;
+    let array = |items, count| {
+        TypeNode::Array(ArrayShape {
+            items: TypeId(items),
+            min_items: Some(count),
+            max_items: Some(count),
+        })
+    };
     let scalar = |kind| TypeNode::Scalar(ScalarConstraints::new(kind));
     let property = |name: &str, field: u32, ty: u32, slot: u32| Property {
-        name: String::from(name), field_id: FieldId(field), ty: TypeId(ty),
-        required: true, slot: Some(slot),
+        name: String::from(name),
+        field_id: FieldId(field),
+        ty: TypeId(ty),
+        required: true,
+        slot: Some(slot),
     };
-    let object = |properties| TypeNode::Object(ObjectShape {
-        properties, reject_unknown: true, min_properties: None, max_properties: None,
-    });
+    let object = |properties| {
+        TypeNode::Object(ObjectShape {
+            properties,
+            reject_unknown: true,
+            min_properties: None,
+            max_properties: None,
+        })
+    };
     let schema_id = match kind {
         WorkloadKind::NumberArray => {
             nodes.push(array(1, items));
@@ -354,9 +477,20 @@ fn native_workload_schema(
         }
         WorkloadKind::DepthBook => {
             let mut properties = Vec::new();
-            properties.try_reserve_exact(7).map_err(|_| budget_error("native property allocation failed"))?;
-            for (index, (name, ty)) in [("e", 1), ("E", 2), ("s", 1),
-                ("U", 2), ("u", 2), ("b", 3), ("a", 3)].iter().enumerate()
+            properties
+                .try_reserve_exact(7)
+                .map_err(|_| budget_error("native property allocation failed"))?;
+            for (index, (name, ty)) in [
+                ("e", 1),
+                ("E", 2),
+                ("s", 1),
+                ("U", 2),
+                ("u", 2),
+                ("b", 3),
+                ("a", 3),
+            ]
+            .iter()
+            .enumerate()
             {
                 properties.push(property(name, index as u32, *ty, index as u32));
             }
@@ -374,10 +508,15 @@ fn native_workload_schema(
                     nodes.push(array(level + 1, 1));
                 } else {
                     let mut properties = Vec::new();
-                    properties.try_reserve_exact(1).map_err(|_| budget_error("native property allocation failed"))?;
+                    properties
+                        .try_reserve_exact(1)
+                        .map_err(|_| budget_error("native property allocation failed"))?;
                     properties.push(Property {
-                        name: String::from("v"), field_id: FieldId(level),
-                        ty: TypeId(level + 1), required: true, slot: None,
+                        name: String::from("v"),
+                        field_id: FieldId(level),
+                        ty: TypeId(level + 1),
+                        required: true,
+                        slot: None,
                     });
                     nodes.push(object(properties));
                 }
@@ -385,20 +524,42 @@ fn native_workload_schema(
             nodes.push(scalar(ValueKind::Number));
             0x4a4d_0006
         }
-        _ => return Err(constraint_error("workload does not require a native container schema")),
+        _ => {
+            return Err(constraint_error(
+                "workload does not require a native container schema",
+            ));
+        }
     };
     let graph = Schema {
-        name: String::from(kind_name(kind)), schema_id: SchemaId(schema_id),
-        root: TypeId(0), nodes, definitions: Vec::new(),
+        name: String::from(kind_name(kind)),
+        schema_id: SchemaId(schema_id),
+        root: TypeId(0),
+        nodes,
+        definitions: Vec::new(),
     };
     let compiled = jsonmax::endpoint::compile_native_schema(
-        &graph, jmax_abi::schema::CompileLimits::default_limits(),
+        &graph,
+        jmax_abi::schema::CompileLimits::default_limits(),
     )?;
     let mut field_ids = Vec::new();
-    field_ids.try_reserve_exact(compiled.program().program().slots.len())
+    field_ids
+        .try_reserve_exact(compiled.program().program().slots.len())
         .map_err(|_| budget_error("native selection allocation failed"))?;
-    field_ids.extend(compiled.program().program().slots.iter().map(|slot| slot.field_id));
-    Ok((compiled, Selection { field_ids, strict_validate_unselected: true }))
+    field_ids.extend(
+        compiled
+            .program()
+            .program()
+            .slots
+            .iter()
+            .map(|slot| slot.field_id),
+    );
+    Ok((
+        compiled,
+        Selection {
+            field_ids,
+            strict_validate_unselected: true,
+        },
+    ))
 }
 
 fn small_field_kind(index: u32) -> ScalarKind {
@@ -411,7 +572,8 @@ fn small_field_kind(index: u32) -> ScalarKind {
 
 fn workload_name(kind: WorkloadKind, config: CorpusConfig) -> Result<String> {
     let mut name = String::new();
-    name.try_reserve(96).map_err(|_| budget_error("workload name allocation failed"))?;
+    name.try_reserve(96)
+        .map_err(|_| budget_error("workload name allocation failed"))?;
     name.push_str(kind_name(kind));
     name.push_str("-seed-");
     push_decimal(&mut name, config.seed)?;
@@ -446,13 +608,17 @@ fn write_document(
         WorkloadKind::SmallObject => {
             writer.byte(b'{')?;
             for index in 0..items {
-                if index != 0 { writer.byte(b',')?; }
+                if index != 0 {
+                    writer.byte(b',')?;
+                }
                 write_quoted(writer, &indexed_name("f", index)?)?;
                 writer.byte(b':')?;
                 match small_field_kind(index) {
                     ScalarKind::Number => {
                         let variation = (rng.next_u64() % 1_000) as i64;
-                        writer.decimal(i64::from(document_index) * 1_000_003 + i64::from(index) + variation)?;
+                        writer.decimal(
+                            i64::from(document_index) * 1_000_003 + i64::from(index) + variation,
+                        )?;
                     }
                     ScalarKind::True => writer.extend(b"true")?,
                     ScalarKind::String => {
@@ -465,7 +631,12 @@ fn write_document(
                         writer.unsigned(rng.next_u64() % 1_000_000)?;
                         writer.byte(b'"')?;
                     }
-                    _ => return Err(bench_error(ErrorCode::InternalError, "invalid small object scalar kind")),
+                    _ => {
+                        return Err(bench_error(
+                            ErrorCode::InternalError,
+                            "invalid small object scalar kind",
+                        ));
+                    }
                 }
             }
             writer.byte(b'}')
@@ -473,7 +644,9 @@ fn write_document(
         WorkloadKind::EscapedStrings => {
             writer.byte(b'{')?;
             for index in 0..items {
-                if index != 0 { writer.byte(b',')?; }
+                if index != 0 {
+                    writer.byte(b',')?;
+                }
                 write_quoted(writer, &indexed_name("s", index)?)?;
                 writer.extend(b":\"")?;
                 writer.extend(b"quote=\\\" slash=\\\\ controls=")?;
@@ -490,9 +663,13 @@ fn write_document(
         WorkloadKind::Unicode => {
             writer.byte(b'{')?;
             for index in 0..items {
-                if index != 0 { writer.byte(b',')?; }
+                if index != 0 {
+                    writer.byte(b',')?;
+                }
                 write_quoted(writer, &indexed_name("u", index)?)?;
-                writer.extend(b":\"BMP-\xc3\xa9-\xe6\xbc\xa2-\xce\xa9 nonBMP-\xf0\x9f\xa7\xad index=")?;
+                writer.extend(
+                    b":\"BMP-\xc3\xa9-\xe6\xbc\xa2-\xce\xa9 nonBMP-\xf0\x9f\xa7\xad index=",
+                )?;
                 writer.decimal(i64::from(document_index))?;
                 writer.byte(b'-')?;
                 writer.decimal(i64::from(index))?;
@@ -505,7 +682,9 @@ fn write_document(
         WorkloadKind::NumberArray => {
             writer.byte(b'[')?;
             for index in 0..items {
-                if index != 0 { writer.byte(b',')?; }
+                if index != 0 {
+                    writer.byte(b',')?;
+                }
                 write_number_case(writer, index, document_index, rng)?;
             }
             writer.byte(b']')
@@ -517,12 +696,26 @@ fn write_document(
     }
 }
 
-fn write_depth_book(writer: &mut JsonWriter, items: u32, doc: u32, rng: &mut DeterministicRng) -> Result<()> {
-    let update = u64::from(doc).checked_mul(100_000).and_then(|n| n.checked_add(rng.next_u64() % 10_000))
+fn write_depth_book(
+    writer: &mut JsonWriter,
+    items: u32,
+    doc: u32,
+    rng: &mut DeterministicRng,
+) -> Result<()> {
+    let update = u64::from(doc)
+        .checked_mul(100_000)
+        .and_then(|n| n.checked_add(rng.next_u64() % 10_000))
         .ok_or_else(|| budget_error("depth update identifier overflow"))?;
-    writer.extend(b"{\"e\":\"depthUpdate\",\"E\":")?; writer.unsigned(update)?;
-    writer.extend(b",\"s\":\"BTCUSDT\",\"U\":")?; writer.unsigned(update)?;
-    writer.extend(b",\"u\":")?; writer.unsigned(update.checked_add(u64::from(items)).ok_or_else(|| budget_error("depth update identifier overflow"))?)?;
+    writer.extend(b"{\"e\":\"depthUpdate\",\"E\":")?;
+    writer.unsigned(update)?;
+    writer.extend(b",\"s\":\"BTCUSDT\",\"U\":")?;
+    writer.unsigned(update)?;
+    writer.extend(b",\"u\":")?;
+    writer.unsigned(
+        update
+            .checked_add(u64::from(items))
+            .ok_or_else(|| budget_error("depth update identifier overflow"))?,
+    )?;
     writer.extend(b",\"b\":[")?;
     write_book_levels(writer, items, rng)?;
     writer.extend(b"],\"a\":[")?;
@@ -530,44 +723,77 @@ fn write_depth_book(writer: &mut JsonWriter, items: u32, doc: u32, rng: &mut Det
     writer.extend(b"]}")
 }
 
-fn write_book_levels(writer: &mut JsonWriter, items: u32, rng: &mut DeterministicRng) -> Result<()> {
+fn write_book_levels(
+    writer: &mut JsonWriter,
+    items: u32,
+    rng: &mut DeterministicRng,
+) -> Result<()> {
     for index in 0..items {
-        if index != 0 { writer.byte(b',')?; }
-        let price = 100_000_000u64.checked_add(rng.next_u64() % 100_000_000)
+        if index != 0 {
+            writer.byte(b',')?;
+        }
+        let price = 100_000_000u64
+            .checked_add(rng.next_u64() % 100_000_000)
             .ok_or_else(|| budget_error("price generation overflow"))?;
-        let quantity = 1u64.checked_add(rng.next_u64() % 100_000)
+        let quantity = 1u64
+            .checked_add(rng.next_u64() % 100_000)
             .ok_or_else(|| budget_error("quantity generation overflow"))?;
-        writer.extend(b"[\"")?; writer.fixed_decimal(price, 8)?;
-        writer.extend(b"\",\"")?; writer.fixed_decimal(quantity, 4)?;
+        writer.extend(b"[\"")?;
+        writer.fixed_decimal(price, 8)?;
+        writer.extend(b"\",\"")?;
+        writer.fixed_decimal(quantity, 4)?;
         writer.extend(b"\"]")?;
     }
     Ok(())
 }
 
 fn write_agg_trade(writer: &mut JsonWriter, doc: u32, rng: &mut DeterministicRng) -> Result<()> {
-    let trade_id = u64::from(doc).checked_mul(10_000).and_then(|n| n.checked_add(rng.next_u64() % 10_000))
+    let trade_id = u64::from(doc)
+        .checked_mul(10_000)
+        .and_then(|n| n.checked_add(rng.next_u64() % 10_000))
         .ok_or_else(|| budget_error("trade identifier overflow"))?;
-    writer.extend(b"{\"e\":\"aggTrade\",\"E\":")?; writer.unsigned(1_700_000_000_000 + u64::from(doc))?;
-    writer.extend(b",\"s\":\"BTCUSDT\",\"a\":")?; writer.unsigned(trade_id)?;
-    writer.extend(b",\"p\":\"")?; writer.fixed_decimal(3_000_000_000_000 + rng.next_u64() % 100_000_000, 8)?;
-    writer.extend(b"\",\"q\":\"")?; writer.fixed_decimal(1 + rng.next_u64() % 10_000_000, 8)?;
-    writer.extend(b"\",\"f\":")?; writer.unsigned(trade_id)?;
-    writer.extend(b",\"l\":")?; writer.unsigned(trade_id)?;
-    writer.extend(b",\"T\":")?; writer.unsigned(1_700_000_000_000 + u64::from(doc))?;
+    writer.extend(b"{\"e\":\"aggTrade\",\"E\":")?;
+    writer.unsigned(1_700_000_000_000 + u64::from(doc))?;
+    writer.extend(b",\"s\":\"BTCUSDT\",\"a\":")?;
+    writer.unsigned(trade_id)?;
+    writer.extend(b",\"p\":\"")?;
+    writer.fixed_decimal(3_000_000_000_000 + rng.next_u64() % 100_000_000, 8)?;
+    writer.extend(b"\",\"q\":\"")?;
+    writer.fixed_decimal(1 + rng.next_u64() % 10_000_000, 8)?;
+    writer.extend(b"\",\"f\":")?;
+    writer.unsigned(trade_id)?;
+    writer.extend(b",\"l\":")?;
+    writer.unsigned(trade_id)?;
+    writer.extend(b",\"T\":")?;
+    writer.unsigned(1_700_000_000_000 + u64::from(doc))?;
     writer.extend(b",\"m\":true")?;
     writer.extend(b",\"M\":true}")
 }
 
-fn write_number_case(writer: &mut JsonWriter, index: u32, doc: u32, rng: &mut DeterministicRng) -> Result<()> {
+fn write_number_case(
+    writer: &mut JsonWriter,
+    index: u32,
+    doc: u32,
+    rng: &mut DeterministicRng,
+) -> Result<()> {
     const CASES: [&[u8]; 8] = [
-        b"-9223372036854775808", b"9223372036854775807", b"0", b"18446744073709551615",
-        b"-0.125", b"6.022e23", b"1.25E-8", b"9007199254740993",
+        b"-9223372036854775808",
+        b"9223372036854775807",
+        b"0",
+        b"18446744073709551615",
+        b"-0.125",
+        b"6.022e23",
+        b"1.25E-8",
+        b"9007199254740993",
     ];
     let case_index = (index as usize + doc as usize) % CASES.len();
     if index < CASES.len() as u32 {
         if case_index == 2 {
-            if rng.next_u64() & 1 == 0 { writer.extend(b"0") }
-            else { writer.extend(b"0.0") }
+            if rng.next_u64() & 1 == 0 {
+                writer.extend(b"0")
+            } else {
+                writer.extend(b"0.0")
+            }
         } else {
             let _ = rng.next_u64();
             writer.extend(CASES[case_index])
@@ -578,23 +804,35 @@ fn write_number_case(writer: &mut JsonWriter, index: u32, doc: u32, rng: &mut De
     }
 }
 
-fn write_nested(writer: &mut JsonWriter, items: u32, doc: u32, rng: &mut DeterministicRng) -> Result<()> {
+fn write_nested(
+    writer: &mut JsonWriter,
+    items: u32,
+    doc: u32,
+    rng: &mut DeterministicRng,
+) -> Result<()> {
     let depth = (items % MAX_NESTING).max(1);
     for level in 0..depth {
-        if level % 2 == 0 { writer.byte(b'[')?; }
-        else { writer.extend(b"{\"v\":")?; }
+        if level % 2 == 0 {
+            writer.byte(b'[')?;
+        } else {
+            writer.extend(b"{\"v\":")?;
+        }
     }
     writer.unsigned(u64::from(doc).wrapping_add(rng.next_u64()))?;
     for level in (0..depth).rev() {
-        if level % 2 == 0 { writer.byte(b']')?; }
-        else { writer.byte(b'}')?; }
+        if level % 2 == 0 {
+            writer.byte(b']')?;
+        } else {
+            writer.byte(b'}')?;
+        }
     }
     Ok(())
 }
 
 fn indexed_name(prefix: &str, index: u32) -> Result<String> {
     let mut name = String::new();
-    name.try_reserve(prefix.len() + 10).map_err(|_| budget_error("field name allocation failed"))?;
+    name.try_reserve(prefix.len() + 10)
+        .map_err(|_| budget_error("field name allocation failed"))?;
     name.push_str(prefix);
     push_padded_decimal(&mut name, u64::from(index), 6)?;
     Ok(name)
@@ -608,10 +846,16 @@ fn push_decimal(target: &mut String, value: u64) -> Result<()> {
         cursor -= 1;
         digits[cursor] = b'0' + (n % 10) as u8;
         n /= 10;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
     }
-    target.try_reserve(digits.len() - cursor).map_err(|_| budget_error("integer formatting allocation failed"))?;
-    for digit in &digits[cursor..] { target.push(char::from(*digit)); }
+    target
+        .try_reserve(digits.len() - cursor)
+        .map_err(|_| budget_error("integer formatting allocation failed"))?;
+    for digit in &digits[cursor..] {
+        target.push(char::from(*digit));
+    }
     Ok(())
 }
 
@@ -623,13 +867,21 @@ fn push_padded_decimal(target: &mut String, value: u64, width: usize) -> Result<
         cursor -= 1;
         digits[cursor] = b'0' + (n % 10) as u8;
         n /= 10;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
     }
     let count = digits.len() - cursor;
     let padding = width.saturating_sub(count);
-    target.try_reserve(padding + count).map_err(|_| budget_error("integer formatting allocation failed"))?;
-    for _ in 0..padding { target.push('0'); }
-    for digit in &digits[cursor..] { target.push(char::from(*digit)); }
+    target
+        .try_reserve(padding + count)
+        .map_err(|_| budget_error("integer formatting allocation failed"))?;
+    for _ in 0..padding {
+        target.push('0');
+    }
+    for digit in &digits[cursor..] {
+        target.push(char::from(*digit));
+    }
     Ok(())
 }
 
@@ -658,13 +910,27 @@ struct JsonWriter {
 }
 
 impl JsonWriter {
-    fn new(limit: usize) -> Self { Self { bytes: Vec::new(), limit } }
+    fn new(limit: usize) -> Self {
+        Self {
+            bytes: Vec::new(),
+            limit,
+        }
+    }
 
     fn reserve_for(&mut self, additional: usize) -> Result<()> {
-        let end = self.bytes.len().checked_add(additional)
+        let end = self
+            .bytes
+            .len()
+            .checked_add(additional)
             .ok_or_else(|| budget_error("payload size arithmetic overflow"))?;
-        if end > self.limit { return Err(budget_error("corpus byte budget exceeded while generating payload")); }
-        self.bytes.try_reserve(additional).map_err(|_| budget_error("payload allocation failed"))
+        if end > self.limit {
+            return Err(budget_error(
+                "corpus byte budget exceeded while generating payload",
+            ));
+        }
+        self.bytes
+            .try_reserve(additional)
+            .map_err(|_| budget_error("payload allocation failed"))
     }
 
     fn byte(&mut self, byte: u8) -> Result<()> {
@@ -696,13 +962,16 @@ impl JsonWriter {
             cursor -= 1;
             digits[cursor] = b'0' + (n % 10) as u8;
             n /= 10;
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
         }
         self.extend(&digits[cursor..])
     }
 
     fn fixed_decimal(&mut self, value: u64, scale: u32) -> Result<()> {
-        let divisor = 10u64.checked_pow(scale)
+        let divisor = 10u64
+            .checked_pow(scale)
             .ok_or_else(|| budget_error("decimal scale overflow"))?;
         self.unsigned(value / divisor)?;
         self.byte(b'.')?;
@@ -825,7 +1094,11 @@ pub mod followup {
         let mut payloads = Vec::new();
         let mut total = 0u64;
         for doc in 0..config.documents {
-            let limit = config.max_bytes.checked_sub(total).ok_or_else(budget)?.min(16 * 1024 * 1024);
+            let limit = config
+                .max_bytes
+                .checked_sub(total)
+                .ok_or_else(budget)?
+                .min(16 * 1024 * 1024);
             let bytes = document(kind, config.items_per_document, doc, config.seed, limit)?;
             total = total.checked_add(bytes.len() as u64).ok_or_else(budget)?;
             if total > config.max_bytes {
@@ -955,10 +1228,12 @@ pub mod followup {
             WorkloadKind::LargeCatalog => u64::from(items) * 16 * 40,
             WorkloadKind::VectorCoordinates => u64::from(items) * 3 * 2,
             WorkloadKind::EscapedUnicode => u64::from(items) * 50,
-            WorkloadKind::DeepNesting => u64::from(items.clamp(1,64)) * 2,
+            WorkloadKind::DeepNesting => u64::from(items.clamp(1, 64)) * 2,
             _ => 1,
         };
-        if minimum > limit { return Err(budget()); }
+        if minimum > limit {
+            return Err(budget());
+        }
         let mut out = String::new();
         match kind {
             WorkloadKind::NagoyaAuth => write!(out,"{{\"user\":\"user-{doc}\",\"token\":\"tok-{id:016x}\",\"expires\":{},\"admin\":false}}",1_800_000_000+id),
@@ -998,7 +1273,9 @@ pub mod followup {
             }
             _ => return Err(bench_error(ErrorCode::ConstraintViolation,"unsupported followup kind")),
         }.map_err(|_|budget())?;
-        if out.len() as u64 > limit { return Err(budget()); }
+        if out.len() as u64 > limit {
+            return Err(budget());
+        }
         Ok(out)
     }
 }

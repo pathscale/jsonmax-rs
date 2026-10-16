@@ -1,0 +1,360 @@
+//! An async runtime that does not need an operating system.
+//!
+//! # What this is
+//!
+//! A `spawn`, a `JoinHandle` and a `block_on` over
+//! [`st3::fanout`](https://docs.rs/ps-st3), which is a work-stealing pool
+//! whose entire contact with a platform is three methods: park, unpark, and a
+//! clock. Everything here is `no_std` and reaches nothing further.
+//!
+//! # What this is not
+//!
+//! Not Tokio. The scheduler, `sync` and `time` above reach nothing further than
+//! park, unpark and a clock, and that is the part which runs without an
+//! operating system.
+//!
+//! There *is* an I/O driver now, in [`reactor`], and it is off unless asked
+//! for. This used to say there would never be one, on the grounds that an
+//! epoll or kqueue reactor is exactly the part that needs an OS. That reason
+//! was right and the conclusion drawn from it was not: [`runtime`] owns OS
+//! threads for the same reason and resolves it the same way, by living behind
+//! the `std` feature and being honestly absent otherwise.
+//!
+//! Telling every caller to bring its own reactor did not avoid the dependency,
+//! it duplicated it. Generational tokens, edge-triggered registration and
+//! integrating a timer wheel without polling it are the same problem each time,
+//! and getting them subtly wrong is silent: a dropped registration wakes an
+//! unrelated task, or a busy socket takes the timer lock on every event. A
+//! `no_std` build still has no reactor and still compiles, which is the
+//! property that mattered.
+//!
+//! # The surface worth having, measured rather than guessed
+//!
+//! Counted across this codebase's own use of Tokio, the scheduler is the
+//! minority of it. In `a trading backend`:
+//!
+//! ```text
+//! 34  sync::RwLock        13  time::interval    7  sync::Notify
+//! 19  time::sleep         13  sync::Mutex       7  join!
+//! 12  task::spawn_local   12  sync::OnceCell    6  sync::Semaphore
+//! 11  time::Instant       10  select!           4  task::JoinHandle
+//! ```
+//!
+//! Async `sync` primitives and `time` are two thirds of it, and `select!` and
+//! `join!` are pure combinators that touch no runtime at all. All of them are
+//! reachable without an operating system; only `time` needs even a clock, and
+//! `Host::now_ns` already provides one. That is the order this should be built
+//! in, and the executor below is only the part everything else needs first.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+#![deny(missing_docs)]
+
+extern crate alloc;
+
+use alloc::sync::Arc;
+use core::future::Future;
+use core::pin::Pin;
+
+use core::task::{Context, Poll};
+
+use st3::fanout::Pool;
+
+mod block_on;
+pub mod credits;
+pub mod io;
+/// Tutorial and callsite reference, with compiled examples.
+#[cfg(feature = "std")]
+#[doc = include_str!(concat!(env!("OUT_DIR"), "/guide-examples.md"))]
+pub mod guide {}
+// Sockets, unix signals and name resolution sit at the crate root beside
+// `sync`, `io` and `runtime`, which is where tokio puts the same three and so
+// where a caller goes looking. They are driven by the reactor rather than
+// owned by it, and burying them a level down under `reactor` described the
+// implementation rather than the API. `reactor` re-exports all three, because
+// that is the path already-published consumers compiled against.
+#[cfg(feature = "reactor")]
+pub mod net;
+pub mod owner;
+mod par;
+// Child processes, at the path tokio gives them. They register on a reactor of
+// their own that starts on first use, rather than one the caller passes, so a
+// child's futures finish under any executor. Unix only, because the reactor is:
+// see the module comment for how an exit is noticed without polling for it.
+#[cfg(all(feature = "process", unix))]
+pub mod process;
+// Needs an operating system, so it needs `std`. See its module comment for why
+// a crate whose point is running without one carries a driver that cannot.
+#[cfg(feature = "reactor")]
+pub mod reactor;
+#[cfg(feature = "reactor")]
+pub mod resolve;
+#[cfg(feature = "reactor")]
+pub mod signal;
+// Owns threads, so it needs `std`. See its module comment for why a crate built
+// not to own threads carries one that does.
+#[cfg(feature = "std")]
+pub mod runtime;
+// The four async primitives a consumer was otherwise taking from `tokio::sync`.
+// They are runtime-agnostic there too, which is exactly why the dependency was
+// easy to acquire and hard to notice: see the module comment.
+pub mod readiness;
+pub mod sync;
+pub mod task;
+pub mod time;
+mod yield_now;
+
+/// Spawn onto the shared pool, as `tokio::spawn` does.
+///
+/// The same thing as `nagoya::runtime::background().spawn(future)`, under the
+/// name a caller coming from tokio already has in their fingers. A caller that
+/// wants its own threads, its own count, or a pool it can stop builds a
+/// [`runtime::Runtime`] and spawns on that instead.
+#[cfg(feature = "std")]
+pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
+where
+    F: core::future::Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    runtime::background().spawn(future)
+}
+
+pub use block_on::{block_on, block_on_with_host};
+pub use par::{Cancel, ParFor, par_for};
+/// The idle policy a pool runs with, from the queues underneath.
+///
+/// Re-exported because selecting one is a nagoya-level decision and every
+/// caller that makes it would otherwise have to name `ps-st3` as a direct
+/// dependency to spell the type, for one struct, in a graph that already
+/// contains it transitively.
+pub use st3::fanout::Tuning;
+pub use time::{
+    Elapsed, Sleep, Timeout, now_ns, poll as poll_timers, set_clock, sleep, sleep_until, timeout,
+};
+pub use yield_now::{YieldNow, yield_now};
+
+/// A handle to a spawned task's output.
+///
+/// Awaiting yields `Some(output)`, or `None` if its runnable was canceled
+/// because the pool was destroyed before it could run. With `std` and
+/// unwinding enabled, a task panic is rethrown when its handle is awaited,
+/// rather than terminating the worker. Without `std`, panic handling belongs
+/// to the host. Abort-on-panic builds cannot isolate a panic in either mode.
+///
+/// **Dropping this detaches the task; it does not cancel it.** That is Tokio's
+/// behaviour and it was this crate's before, and it is worth stating because
+/// the `async_task::Task` underneath does the opposite: dropping *that* cancels.
+/// Preserving the documented behaviour cost one `Drop` impl and finding out the
+/// hard way, when a benchmark that spawns and drops handles stopped finishing.
+/// [`cancel`](JoinHandle::cancel) is how to ask for the other thing.
+pub struct JoinHandle<T> {
+    /// `None` only between `Drop` taking it and the handle going away.
+    task: Option<async_task::FallibleTask<T>>,
+}
+
+impl<T> JoinHandle<T> {
+    fn task(&mut self) -> &mut async_task::FallibleTask<T> {
+        self.task
+            .as_mut()
+            .expect("the task is taken only by `Drop`")
+    }
+
+    /// Stop the task at its next suspension point and throw away its output.
+    ///
+    /// A task already past its last poll finishes anyway: cancelling is a
+    /// request not to poll again, not a way to undo work already done.
+    pub fn cancel(mut self) {
+        if let Some(task) = self.task.take() {
+            drop(task);
+        }
+    }
+
+    /// Whether the task has finished, without waiting for it.
+    #[must_use]
+    pub fn is_finished(&self) -> bool {
+        self.task
+            .as_ref()
+            .expect("the task is taken only by `Drop`")
+            .is_finished()
+    }
+}
+
+/// Deliberately not derived: a derive would demand `T: Debug` from every
+/// consumer that puts a handle in a `#[derive(Debug)]` struct, and a handle's
+/// output type is exactly the thing they cannot see yet.
+impl<T> core::fmt::Debug for JoinHandle<T> {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("JoinHandle")
+            .field(
+                "finished",
+                &self
+                    .task
+                    .as_ref()
+                    .is_some_and(async_task::FallibleTask::is_finished),
+            )
+            .finish()
+    }
+}
+
+impl<T> Drop for JoinHandle<T> {
+    fn drop(&mut self) {
+        if let Some(task) = self.task.take() {
+            task.detach();
+        }
+    }
+}
+
+impl<T> Future for JoinHandle<T> {
+    type Output = Option<T>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(self.get_mut().task()).poll(context)
+    }
+}
+
+/// Host-supplied identity of the execution lane currently running a pool worker.
+///
+/// Implementations must return an identity for the calling lane, not for the
+/// lane that originally created the executor. Return `None` off a worker or
+/// for a different pool. Invalid worker indices fall back to shared routing.
+/// Keep this lookup bounded and nonblocking: it runs on every task wake.
+/// Context implementations must not strongly own their pool; use a weak
+/// reference or a host-owned identity to avoid a queue ownership cycle.
+///
+/// This interface requires only `core`/`alloc`. A no_std host can use its
+/// scheduler's execution-local storage without acquiring OS-thread ownership.
+pub trait WorkerContext: Send + Sync {
+    /// The calling lane's worker index for `pool`, if it is currently running it.
+    fn current_worker(&self, pool: &Pool) -> Option<usize>;
+
+    /// Visit the current worker's pool through a scope-owned borrow.
+    ///
+    /// Optional fast path for hosts whose worker scope already keeps the pool
+    /// alive. The default uses the existing current_worker fallback instead.
+    /// Call visit synchronously with a valid pool borrow and worker id; never
+    /// retain it. Report only the worker currently executing on this thread.
+    /// Store ownership in the running worker scope, not in this context or a
+    /// queued task, to avoid task/pool ownership cycles. Nagoya verifies the
+    /// target pool and id before consuming the runnable.
+    fn with_current_worker(&self, _visit: &mut dyn FnMut(&Pool, usize)) {}
+}
+
+/// A pool with a place to put the next task.
+///
+/// Work goes to one injector that every worker drains, so there is nothing for
+/// a spawn to choose: the pool decides who runs it.
+pub struct Executor {
+    pool: Arc<Pool>,
+    context: Option<Arc<dyn WorkerContext>>,
+}
+
+impl Executor {
+    /// An executor over an existing pool.
+    ///
+    /// The pool is not started here. Its threads are the caller's to provide,
+    /// which is what keeps this free of an operating system.
+    #[must_use]
+    pub fn new(pool: Arc<Pool>) -> Self {
+        Self {
+            pool,
+            context: None,
+        }
+    }
+
+    /// Use host-provided execution-local identity for locality scheduling.
+    ///
+    /// Unlike `Runtime`, this does not create threads or require `std`.
+    #[must_use]
+    pub fn with_worker_context(pool: Arc<Pool>, context: Arc<dyn WorkerContext>) -> Self {
+        Self {
+            pool,
+            context: Some(context),
+        }
+    }
+
+    /// Run a caller-owned worker thread with nagoya's thread-local identity.
+    ///
+    /// The runner must belong to this executor's pool. Returns `false` if the
+    /// worker is already running, as `Pool::run` does. For a custom/no_std host,
+    /// use `with_worker_context` and drive the pool directly.
+    #[cfg(feature = "std")]
+    pub fn run_worker(&self, runner: st3::fanout::Runner) -> bool {
+        let _current = task::mark_current(&self.pool, runner.id());
+        self.pool.run(runner)
+    }
+
+    /// Another handle to the same pool, for a task that spawns.
+    ///
+    /// Spawning from inside a task needs an executor the task can own, and this
+    /// is one: another handle to the same pool.
+    #[must_use]
+    pub fn clone_handle(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            context: self.context.clone(),
+        }
+    }
+
+    /// The pool this executor spawns onto.
+    #[must_use]
+    pub fn pool(&self) -> &Arc<Pool> {
+        &self.pool
+    }
+
+    /// The executing worker for this pool, when called from a pool task.
+    #[must_use]
+    pub fn current_worker(&self) -> Option<usize> {
+        match self.context.as_deref() {
+            Some(context) => context.current_worker(&self.pool),
+            None => crate::task::current_worker(&self.pool),
+        }
+        .filter(|id| *id < self.pool.workers())
+    }
+
+    /// Run a future to completion somewhere on the pool.
+    pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        JoinHandle {
+            task: Some(task::spawn_on(future, self.pool.clone(), self.context.clone()).fallible()),
+        }
+    }
+
+    /// Hand the pool a closure, with no task and no waker.
+    ///
+    /// [`Self::spawn`] builds a task: it allocates, it carries a waker so the
+    /// future can be re-polled, and it hands back a [`JoinHandle`] you can await
+    /// or cancel. All of that is the price of a thing that suspends.
+    ///
+    /// Plenty of work does not suspend. A tick that reads a book and writes a
+    /// number, a checkpoint of one partition, a fan-out over a range — these run
+    /// start to finish on whichever worker takes them, and paying for a task to
+    /// carry them is paying for nothing.
+    ///
+    /// This is the same submit path `spawn` eventually reaches, minus the task.
+    /// There is no handle, so there is nothing to await and nothing to cancel:
+    /// the closure runs once, somewhere, and that is all you are told.
+    ///
+    /// It exists so that choosing not to allocate does not mean reaching past
+    /// this type to the pool underneath. A caller who writes
+    /// `executor.pool().submit_fn(..)` has gone around the interface, and then
+    /// half the fleet's concurrency is written against one API and half against
+    /// another.
+    ///
+    /// ```no_run
+    /// # use std::sync::Arc;
+    /// # fn example(executor: &nagoya::Executor) {
+    /// executor.submit(|| {
+    ///     // runs on a pool worker, start to finish
+    /// });
+    /// # }
+    /// ```
+    pub fn submit<F>(&self, work: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        self.pool.submit_fn(work);
+    }
+}

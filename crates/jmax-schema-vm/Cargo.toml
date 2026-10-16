@@ -19,3 +19,4 @@ jmax-syntax = { workspace = true }
 jmax-format = { workspace = true }
 jmax-decimal = { workspace = true }
 jmax-buffer = { workspace = true }
+jmax-utf8 = { workspace = true }

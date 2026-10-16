@@ -42,8 +42,12 @@ pub struct StructuralMasks {
 impl StructuralMasks {
     /// All six punctuation classes, before string exclusion.
     pub const fn punctuation_mask(&self) -> u64 {
-        self.colon_mask | self.comma_mask | self.lbrace_mask | self.rbrace_mask
-            | self.lbracket_mask | self.rbracket_mask
+        self.colon_mask
+            | self.comma_mask
+            | self.lbrace_mask
+            | self.rbrace_mask
+            | self.lbracket_mask
+            | self.rbracket_mask
     }
 }
 
@@ -77,7 +81,9 @@ pub struct QuoteMasks {
 }
 
 /// Scalar classification is available on every target.
-pub const fn is_supported() -> bool { true }
+pub const fn is_supported() -> bool {
+    true
+}
 
 /// Low `len` bits, including the zero-length and full-width cases.
 /// Rejects lengths above 64 without shifting by 64.
@@ -124,6 +130,7 @@ impl RawMasks {
         Ok(BlockMasks {
             quote_mask: self.quote_mask & valid,
             backslash_mask: self.backslash_mask & valid,
+            delimiter_quote_mask: quotes.delimiter_quote_mask & valid,
             in_string_mask: in_string,
             colon_mask: c.colon_mask & valid,
             comma_mask: c.comma_mask & valid,

@@ -1,8 +1,9 @@
 //! Resumable subtree consumption over the canonical syntax event stream.
 //!
-//! Both modes validate consumed tokens using the syntax parser. Query results
-//! deliberately retain a conservative validation flag. Completing a subtree
-//! does not consume its suffix or establish whole-document validity.
+//! Strict mode validates every interior token. Complete-input query mode uses
+//! structural masks and bracket tags without interior lexical validation.
+//! Incremental mode retains resumable token validation. No subtree operation
+//! establishes whole-document validity or issues a validation proof.
 
 use super::*;
 
@@ -36,7 +37,11 @@ pub fn subtree(cursor: &mut Cursor, mode: SkipMode) -> Result<SkipStep> {
         }
         None => {
             let (start, kind) = match cursor.current {
-                Some(Event::Scalar { kind, span, decoded }) => {
+                Some(Event::Scalar {
+                    kind,
+                    span,
+                    decoded,
+                }) => {
                     if span.is_empty() || span.slice(cursor.raw_bytes()).is_none() {
                         return Err(cursor_error(
                             ErrorCode::InternalError,
@@ -51,7 +56,11 @@ pub fn subtree(cursor: &mut Cursor, mode: SkipMode) -> Result<SkipStep> {
                         ScalarKind::Null => ValueKind::Null,
                     };
                     return Ok(SkipStep::Complete {
-                        value: SelectedValue { kind, span, decoded },
+                        value: SelectedValue {
+                            kind,
+                            span,
+                            decoded,
+                        },
                         validated: mode == SkipMode::Strict,
                     });
                 }
@@ -65,13 +74,39 @@ pub fn subtree(cursor: &mut Cursor, mode: SkipMode) -> Result<SkipStep> {
                     ));
                 }
             };
-            SkipProgress { start, kind, depth: 1, mode }
+            SkipProgress {
+                start,
+                kind,
+                depth: 1,
+                mode,
+            }
         }
     };
 
-    if progress.depth == 0
-        || !matches!(progress.kind, ValueKind::Object | ValueKind::Array)
-    {
+    // Complete owners can skip without forwarding interior events. Incremental
+    // streams retain the exact resumable NeedMore/event behavior below.
+    if cursor.skipping.is_none() && cursor.payload.is_some() {
+        let skip_mode = match mode {
+            SkipMode::Query => ValueSkipMode::QueryOnly,
+            SkipMode::Strict => ValueSkipMode::StrictValidate,
+        };
+        let span = cursor.syntax.skip_open_container(skip_mode)?;
+        let offset = span.offset + span.len - 1;
+        cursor.current = Some(match progress.kind {
+            ValueKind::Object => Event::ObjectEnd { offset },
+            _ => Event::ArrayEnd { offset },
+        });
+        return Ok(SkipStep::Complete {
+            value: SelectedValue {
+                kind: progress.kind,
+                span,
+                decoded: None,
+            },
+            validated: mode == SkipMode::Strict,
+        });
+    }
+
+    if progress.depth == 0 || !matches!(progress.kind, ValueKind::Object | ValueKind::Array) {
         return Err(cursor_error(
             ErrorCode::InternalError,
             cursor.state().byte_offset,
@@ -147,7 +182,11 @@ pub fn subtree(cursor: &mut Cursor, mode: SkipMode) -> Result<SkipStep> {
                     }
                     cursor.skipping = None;
                     return Ok(SkipStep::Complete {
-                        value: SelectedValue { kind: progress.kind, span, decoded: None },
+                        value: SelectedValue {
+                            kind: progress.kind,
+                            span,
+                            decoded: None,
+                        },
                         validated: progress.mode == SkipMode::Strict,
                     });
                 }
@@ -168,12 +207,55 @@ fn container_span(start: u32, close: u32, error_offset: u32) -> Result<Span32> {
             "skipped subtree end exceeds the span representation",
         )
     })?;
-    let len = end.checked_sub(start).filter(|&len| len >= 2).ok_or_else(|| {
-        cursor_error(
-            ErrorCode::InternalError,
-            error_offset,
-            "skipped subtree delimiters are out of order",
-        )
-    })?;
+    let len = end
+        .checked_sub(start)
+        .filter(|&len| len >= 2)
+        .ok_or_else(|| {
+            cursor_error(
+                ErrorCode::InternalError,
+                error_offset,
+                "skipped subtree delimiters are out of order",
+            )
+        })?;
     Ok(Span32::new(start, len))
+}
+
+/// Query-only boundary discovery. This result never carries a proof.
+pub fn skip_query(
+    cursor: &mut BlockCursor<'_>,
+    decoded: &mut Vec<u8>,
+    depth: u16,
+) -> Result<UnvalidatedSpan> {
+    let token_kind = match cursor.skip_whitespace()? {
+        Some(b'{') => jmax_abi::syntax::TokenKind::LBrace,
+        Some(b'[') => jmax_abi::syntax::TokenKind::LBracket,
+        Some(b'"') => jmax_abi::syntax::TokenKind::String,
+        Some(b't') => jmax_abi::syntax::TokenKind::True,
+        Some(b'f') => jmax_abi::syntax::TokenKind::False,
+        Some(b'n') => jmax_abi::syntax::TokenKind::Null,
+        _ => jmax_abi::syntax::TokenKind::Number,
+    } as u8;
+    let span = cursor.skip_value(decoded, depth, ValueSkipMode::QueryOnly)?;
+    Ok(UnvalidatedSpan { span, token_kind })
+}
+/// Full syntax/UTF-8/number/duplicate/limit validation without a DOM or captures.
+/// Schema constraints remain the responsibility of the schema consumer.
+/// The cursor reuses its strict-skip frames/tables for every subtree. Construct
+/// it with `BlockCursor::with_scratch` to retain these capacities across inputs.
+#[inline]
+pub fn skip_strict(
+    cursor: &mut BlockCursor<'_>,
+    decoded: &mut Vec<u8>,
+    depth: u16,
+) -> Result<Span32> {
+    cursor.skip_value(decoded, depth, ValueSkipMode::StrictValidate)
+}
+/// Fast skip authorized by a lifetime-bound syntax-validation witness.
+pub fn skip_validated<'a>(
+    cursor: &mut BlockCursor<'a>,
+    decoded: &mut Vec<u8>,
+    depth: u16,
+    validation: &BorrowedValidation<'a>,
+) -> Result<Span32> {
+    validation.skip_value(cursor, decoded, depth)
 }

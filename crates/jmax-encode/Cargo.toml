@@ -7,8 +7,8 @@ publish.workspace = true
 
 [features]
 default = ["std"]
-alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+alloc = ["jmax-abi/alloc", "jmax-dom/alloc", "jmax-string/alloc"]
+std = ["alloc", "jmax-abi/std", "jmax-dom/std", "jmax-string/std"]
 
 [dependencies]
 jmax-abi = { workspace = true }

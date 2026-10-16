@@ -13,15 +13,24 @@ pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
         return Ok(BlockMasks::default());
     }
 
+    if input.len() == BLOCK_BYTES {
+        let block: &[u8; BLOCK_BYTES] = input.try_into().map_err(|_| {
+            Error::new(
+                ErrorCode::InternalError,
+                ErrorSource::Scanner,
+                0,
+                "full scanner block has an invalid length",
+            )
+        })?;
+        return classify_loaded(block, BLOCK_BYTES, carry);
+    }
+
     let block = tails::load_block(input)?;
     classify_loaded(&block, input.len(), carry)
 }
 
 /// Classify a complete block without copying it into padded storage.
-pub fn classify_block(
-    input: &[u8; BLOCK_BYTES],
-    carry: &mut ScanCarry,
-) -> Result<BlockMasks> {
+pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks> {
     validate_carry(carry)?;
     classify_loaded(input, BLOCK_BYTES, carry)
 }
@@ -34,14 +43,22 @@ fn classify_loaded(
     len: usize,
     carry: &mut ScanCarry,
 ) -> Result<BlockMasks> {
-    let raw = classify_raw(input);
+    finish_loaded(classify_raw(input), len, carry)
+}
+
+fn finish_loaded(raw: RawMasks, len: usize, carry: &mut ScanCarry) -> Result<BlockMasks> {
+    finish_with_quotes(raw, len, carry, quotes::quote_masks)
+}
+
+#[inline]
+fn finish_with_quotes(
+    raw: RawMasks,
+    len: usize,
+    carry: &mut ScanCarry,
+    quote_fn: impl FnOnce(u64, u64, u8, &mut ScanCarry) -> Result<QuoteMasks>,
+) -> Result<BlockMasks> {
     let mut pending = *carry;
-    let quotes = quotes::quote_masks(
-        raw.quote_mask,
-        raw.backslash_mask,
-        len as u8,
-        &mut pending,
-    )?;
+    let quotes = quote_fn(raw.quote_mask, raw.backslash_mask, len as u8, &mut pending)?;
     let masks = raw.finish(quotes, len)?;
     *carry = pending;
     Ok(masks)
@@ -56,62 +73,79 @@ pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks {
     if is_supported() {
         // SAFETY: is_supported establishes NEON availability for this build
         // and CPU. The array contains all 64 bytes read by the four loads.
-        let (quote_mask, backslash_mask) = unsafe { classify_quotes_neon(input) };
-        // This safe entry point independently applies the same support check,
-        // so the structural and quote classifiers select the same backend.
-        return RawMasks {
-            quote_mask,
-            backslash_mask,
-            classes: structural::classify_structural(input),
-            backend: BackendId::Neon,
-        };
+        return unsafe { structural::classify_neon(input) };
     }
 
     tails::classify_scalar_raw(input)
 }
 
-/// Reduce 0x00/0xff comparison lanes in byte-address order.
-///
-/// Each half sums distinct powers of two, with a maximum sum of 255. No
-/// vector-to-integer reinterpretation or native-endian integer load is used.
-#[cfg(target_arch = "aarch64")]
-#[target_feature(enable = "neon")]
-unsafe fn comparison_mask(value: core::arch::aarch64::uint8x16_t) -> u16 {
-    use core::arch::aarch64::*;
-
-    let weights = [1u8, 2, 4, 8, 16, 32, 64, 128];
-    // SAFETY: callers establish NEON availability. The weight load reads
-    // exactly eight initialized bytes and has no alignment requirement.
-    unsafe {
-        let weights = vld1_u8(weights.as_ptr());
-        let low = vaddv_u8(vand_u8(vget_low_u8(value), weights));
-        let high = vaddv_u8(vand_u8(vget_high_u8(value), weights));
-        u16::from(low) | (u16::from(high) << 8)
+/// Resolve safe callable bindings once, returning None when native execution
+/// is unavailable. The bindings retain the checked CPU/OS feature invariant;
+/// unlike the general entry points they do not repeat backend detection.
+pub fn cached_classifiers() -> Option<(ClassifyFn, ClassifyBlockFn)> {
+    #[cfg(target_arch = "aarch64")]
+    if is_supported() {
+        return if quotes::accelerated_prefix_available() {
+            Some((classify_cached::<true>, classify_block_cached::<true>))
+        } else {
+            Some((classify_cached::<false>, classify_block_cached::<false>))
+        };
     }
+    None
 }
 
 #[cfg(target_arch = "aarch64")]
-#[target_feature(enable = "neon")]
-unsafe fn classify_quotes_neon(input: &[u8; BLOCK_BYTES]) -> (u64, u64) {
-    use core::arch::aarch64::*;
-
-    let mut quote_mask = 0u64;
-    let mut backslash_mask = 0u64;
-    // SAFETY: the only caller checks NEON support. For lane 0..4, offsets
-    // 0, 16, 32, 48 each leave 16 readable bytes in the fixed-size array.
-    // vld1q_u8 accepts unaligned pointers. All helper calls inherit NEON.
-    unsafe {
-        let quote = vdupq_n_u8(b'"');
-        let backslash = vdupq_n_u8(b'\\');
-        for lane in 0..VECTOR_LANES {
-            let offset = lane * LANE_BYTES;
-            let bytes = vld1q_u8(input.as_ptr().add(offset));
-            let quotes = comparison_mask(vceqq_u8(bytes, quote));
-            let backslashes = comparison_mask(vceqq_u8(bytes, backslash));
-            // Widen before shifting, including the highest lane and bit 63.
-            quote_mask |= u64::from(quotes) << offset;
-            backslash_mask |= u64::from(backslashes) << offset;
-        }
+fn classify_cached<const ACCELERATED: bool>(
+    input: &[u8],
+    carry: &mut ScanCarry,
+) -> Result<BlockMasks> {
+    valid_mask(input.len())?;
+    validate_carry(carry)?;
+    if input.is_empty() {
+        return Ok(BlockMasks::default());
     }
-    (quote_mask, backslash_mask)
+    if input.len() == BLOCK_BYTES {
+        let block: &[u8; BLOCK_BYTES] = input.try_into().map_err(|_| {
+            Error::new(
+                ErrorCode::InternalError,
+                ErrorSource::Scanner,
+                0,
+                "full scanner block has an invalid length",
+            )
+        })?;
+        return finish_with_quotes(
+            classify_raw_cached(block),
+            BLOCK_BYTES,
+            carry,
+            quotes::quote_masks_cached::<ACCELERATED>,
+        );
+    }
+    let block = tails::load_block(input)?;
+    finish_with_quotes(
+        classify_raw_cached(&block),
+        input.len(),
+        carry,
+        quotes::quote_masks_cached::<ACCELERATED>,
+    )
+}
+
+#[cfg(target_arch = "aarch64")]
+fn classify_block_cached<const ACCELERATED: bool>(
+    input: &[u8; BLOCK_BYTES],
+    carry: &mut ScanCarry,
+) -> Result<BlockMasks> {
+    validate_carry(carry)?;
+    finish_with_quotes(
+        classify_raw_cached(input),
+        BLOCK_BYTES,
+        carry,
+        quotes::quote_masks_cached::<ACCELERATED>,
+    )
+}
+
+#[cfg(target_arch = "aarch64")]
+fn classify_raw_cached(input: &[u8; BLOCK_BYTES]) -> RawMasks {
+    // SAFETY: only bindings returned after cached_classifiers checked CPU/OS
+    // support reach this private helper. All native reads are bounded by input.
+    unsafe { structural::classify_neon(input) }
 }

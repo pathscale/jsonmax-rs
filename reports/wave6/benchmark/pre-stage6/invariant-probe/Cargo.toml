@@ -1,0 +1,10 @@
+[package]
+name="wave6-invariant-probe"
+version="0.1.0"
+edition="2024"
+[workspace]
+[dependencies]
+jmax-bench={path="/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-bench"}
+jsonmax={path="/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jsonmax"}
+jmax-syntax={path="/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/invariant-source/jsonmax-rs/crates/jmax-syntax"}
+rusty_alloc={package="ps-rusty_alloc",path="/Users/revenge/code/ps-rusty_alloc"}

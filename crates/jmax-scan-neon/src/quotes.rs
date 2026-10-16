@@ -1,36 +1,49 @@
-//! Quote and escape resolution over the combined four-lane classification.
-//!
-//! Portable integer operations preserve byte order across lane boundaries and
-//! work on every target, without allocation or additional CPU requirements.
+//! Word-level escape followers and inclusive delimiter prefix parity.
 
 use super::*;
 
-/// Resolve quotes in the low `valid_len` positions and advance quote carry.
-///
-/// Odd consecutive backslash runs escape the following byte, even outside a
-/// string. Unescaped quotes toggle string state and are excluded from string
-/// content. Escaped quotes are content only when already inside a string.
-/// Incoming escape parity extends only a run starting at position zero.
-///
-/// Bits beyond the valid length are ignored. Empty blocks preserve carry;
-/// UTF-8 state is always opaque and unchanged. Unclosed strings and trailing
-/// escapes are valid intermediate states.
-///
-/// # Errors
-///
-/// Lengths above 64 return `InvalidToken`. Noncanonical quote carry or live
-/// quote/backslash overlap returns `InternalError`. Errors originate from
-/// `Scanner` at offset zero and leave every carry field unchanged.
+/// Resolve only live bytes, preserving all carry on errors and empty blocks.
+/// Odd backslash runs escape their non-backslash follower, including byte zero
+/// from incoming carry. Delimiters are excluded from the string-content mask.
 pub fn quote_masks(
     quote_mask: u64,
     backslash_mask: u64,
     valid_len: u8,
     carry: &mut ScanCarry,
 ) -> Result<QuoteMasks> {
+    quote_masks_with_prefix(quote_mask, backslash_mask, valid_len, carry, prefix_xor)
+}
+
+// Called only by bindings created after the independent prefix feature gate.
+#[cfg(target_arch = "aarch64")]
+#[inline]
+pub(crate) fn quote_masks_cached<const ACCELERATED: bool>(
+    quote_mask: u64,
+    backslash_mask: u64,
+    valid_len: u8,
+    carry: &mut ScanCarry,
+) -> Result<QuoteMasks> {
+    quote_masks_with_prefix(
+        quote_mask,
+        backslash_mask,
+        valid_len,
+        carry,
+        prefix_xor_cached::<ACCELERATED>,
+    )
+}
+
+#[inline]
+fn quote_masks_with_prefix(
+    quote_mask: u64,
+    backslash_mask: u64,
+    valid_len: u8,
+    carry: &mut ScanCarry,
+    prefix_xor: impl FnOnce(u64) -> u64,
+) -> Result<QuoteMasks> {
     let valid = valid_mask(usize::from(valid_len))?;
     validate_carry(carry)?;
     let quotes = quote_mask & valid;
-    let mut backslashes = backslash_mask & valid;
+    let backslashes = backslash_mask & valid;
     if quotes & backslashes != 0 {
         return Err(Error::new(
             ErrorCode::InternalError,
@@ -43,58 +56,89 @@ pub fn quote_masks(
         return Ok(QuoteMasks::default());
     }
 
-    // Bit zero may follow an odd run from the preceding block. For every
-    // local run, only its first following byte can be an escaped quote.
-    let mut escaped_positions = carry.prev_escaped;
-    let mut trailing_parity = 0u64;
-    while backslashes != 0 {
-        let start = backslashes.trailing_zeros();
-        let run_len = (backslashes >> start).trailing_ones();
-        let end = start + run_len;
-        let mut parity = u64::from(run_len & 1);
-        if start == 0 {
-            parity ^= carry.prev_escaped;
-        }
-        if end == u32::from(valid_len) {
-            trailing_parity = parity;
-        } else if parity != 0 {
-            // end < valid_len <= 64, so this never shifts by the word width.
-            escaped_positions |= 1u64 << end;
-        }
-
-        // Remove this entire run. A run reaching bit 63 needs a separate
-        // branch to avoid a shift by 64, including an all-backslash block.
-        backslashes = if end < 64 {
-            backslashes & (u64::MAX << end)
+    // Adding a bit at each run start propagates a carry to its first follower.
+    // Split starts by position parity: an odd run ends on opposite parity.
+    // Wrapping intentionally discards followers beyond a full 64-byte block.
+    const EVEN: u64 = 0x5555_5555_5555_5555;
+    let starts = backslashes & !(backslashes << 1);
+    let even_carries = backslashes.wrapping_add(starts & EVEN);
+    let odd_carries = backslashes.wrapping_add(starts & !EVEN);
+    let mut escaped_followers = ((even_carries & !EVEN) | (odd_carries & EVEN)) & !backslashes;
+    if carry.prev_escaped != 0 {
+        // Toggle precisely the follower of the initial run (bit zero if the
+        // block starts with a non-backslash). No follower for 64 backslashes.
+        escaped_followers ^= !backslashes & backslashes.wrapping_add(1);
+    }
+    // Align the last live byte to bit 63; padding cannot alter trailing parity.
+    let trailing = (backslashes << (64 - u32::from(valid_len))).leading_ones();
+    let trailing_parity = u64::from(trailing & 1)
+        ^ if trailing == u32::from(valid_len) {
+            carry.prev_escaped
         } else {
             0
         };
-    }
-
-    let escaped_quote_mask = quotes & escaped_positions;
-    let delimiter_quote_mask = quotes & !escaped_positions;
-
-    // Inclusive prefix XOR: bit i is the parity of delimiters at 0..=i.
-    // All four NEON lanes participate in one prefix, with no lane reset.
-    let mut prefix = delimiter_quote_mask;
-    prefix ^= prefix << 1;
-    prefix ^= prefix << 2;
-    prefix ^= prefix << 4;
-    prefix ^= prefix << 8;
-    prefix ^= prefix << 16;
-    prefix ^= prefix << 32;
+    let delimiter_quote_mask = quotes & !escaped_followers;
+    let mut prefix = prefix_xor(delimiter_quote_mask);
     if carry.prev_in_string != 0 {
         prefix = !prefix;
     }
     let result = QuoteMasks {
-        escaped_quote_mask,
+        escaped_quote_mask: quotes & escaped_followers,
         delimiter_quote_mask,
         in_string_mask: prefix & !delimiter_quote_mask & valid,
     };
-
-    // Commit only after validation and calculation. Inspect the last actual
-    // byte, never padding, and modify only the two fields owned by quoting.
     carry.prev_in_string = (prefix >> (valid_len - 1)) & 1;
     carry.prev_escaped = trailing_parity;
     Ok(result)
+}
+
+#[inline]
+fn portable_prefix_xor(mut bits: u64) -> u64 {
+    bits ^= bits << 1;
+    bits ^= bits << 2;
+    bits ^= bits << 4;
+    bits ^= bits << 8;
+    bits ^= bits << 16;
+    bits ^= bits << 32;
+    bits
+}
+
+pub(crate) fn accelerated_prefix_available() -> bool {
+    #[cfg(target_arch = "aarch64")]
+    {
+        let available = cfg!(target_feature = "aes");
+        #[cfg(feature = "std")]
+        let available = available || std::arch::is_aarch64_feature_detected!("aes");
+        available
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        false
+    }
+}
+
+#[inline]
+fn prefix_xor(bits: u64) -> u64 {
+    if accelerated_prefix_available() {
+        prefix_xor_cached::<true>(bits)
+    } else {
+        portable_prefix_xor(bits)
+    }
+}
+
+#[inline]
+fn prefix_xor_cached<const ACCELERATED: bool>(bits: u64) -> u64 {
+    #[cfg(target_arch = "aarch64")]
+    if ACCELERATED {
+        // SAFETY: direct calls checked the independent feature, and cached
+        // callers selected this monomorphization only after the same gate.
+        return unsafe { prefix_xor_pmull(bits) };
+    }
+    portable_prefix_xor(bits)
+}
+
+#[cfg(target_arch = "aarch64")]
+#[target_feature(enable = "neon,aes")]
+unsafe fn prefix_xor_pmull(delimiter_quote_mask: u64) -> u64 {
+    core::arch::aarch64::vmull_p64(delimiter_quote_mask, !0u64) as u64
 }

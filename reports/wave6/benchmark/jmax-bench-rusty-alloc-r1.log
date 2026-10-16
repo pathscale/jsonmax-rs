@@ -1,0 +1,77 @@
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax_bench-rusty-alloc']
+jsonmax deterministic benchmark
+Allocator: ps-rusty_alloc 2.3.3 (RustyAlloc)
+Allocator calls: 740587 alloc/realloc/zeroed, 347061 dealloc
+Seed: 5354007379338153539 | Documents/workload: 128 | Items/document: 32 | Warmup: 3 | Measured: 20
+Times and Payload Bytes describe complete corpus passes; MB/s uses decimal MB.
+SIMD dispatch for each workload's first payload:
+  NagoyaAuth: neon
+  ExchangeOrder: neon
+  RpcEnvelope: neon
+  LargeCatalog: neon
+  VectorCoordinates: neon
+  DeepNesting: neon
+  EscapedUnicode: neon
+Extract validates complete schemas and captures fields on every workload. Warm scratch is prewarmed on the entire corpus.
+
+| Workload       | Mode      | Allocation regime | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | ns/op | Msg/sec |
+|----------------|-----------|-------------------|--------------:|---------:|------------:|---------:|------------------:|------:|--------:|
+| NagoyaAuth     | Parse     | Cold-Alloc |         10770 |    67959 |       70875 |   119500 |             64.18 | 1311.10 |  762718 |
+| NagoyaAuth     | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    64459 |       65167 |    65875 |            165.01 | 509.91 | 1961122 |
+| NagoyaAuth     | Validate  | Cold-Alloc |         10770 |    76542 |       76959 |   195042 |             90.54 | 929.33 | 1076044 |
+| NagoyaAuth     | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    73750 |       73959 |    74334 |            145.55 | 578.08 | 1729872 |
+| NagoyaAuth     | Extract   | Cold-Alloc |         10770 |    85833 |       86167 |    86417 |            124.72 | 674.63 | 1482304 |
+| NagoyaAuth     | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    79291 |       79625 |    80042 |            135.17 | 622.46 | 1606529 |
+| NagoyaAuth     | Serialize | Cold-Alloc |         10770 |    37541 |       37625 |    37833 |            285.87 | 294.34 | 3397478 |
+| NagoyaAuth     | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    35167 |       35375 |    35459 |            304.36 | 276.45 | 3617306 |
+| ExchangeOrder  | Parse     | Cold-Alloc |         10880 |    72708 |       73584 |    74000 |            147.86 | 574.89 | 1739475 |
+| ExchangeOrder  | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    67209 |       67625 |    68208 |            160.64 | 529.12 | 1889932 |
+| ExchangeOrder  | Validate  | Cold-Alloc |         10880 |    86417 |       86917 |    88625 |            124.47 | 682.88 | 1464392 |
+| ExchangeOrder  | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    84792 |       85125 |    85333 |            127.82 | 665.02 | 1503708 |
+| ExchangeOrder  | Extract   | Cold-Alloc |         10880 |    97125 |       97583 |    98208 |            111.34 | 763.40 | 1309937 |
+| ExchangeOrder  | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    90791 |       91167 |    91708 |            119.24 | 712.86 | 1402806 |
+| ExchangeOrder  | Serialize | Cold-Alloc |         10880 |    43333 |       43500 |    43750 |            249.84 | 340.22 | 2939302 |
+| ExchangeOrder  | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    41583 |       41667 |    41875 |            260.81 | 325.91 | 3068323 |
+| RpcEnvelope    | Parse     | Cold-Alloc |         13330 |    94291 |       95708 |    96166 |            139.51 | 746.50 | 1339586 |
+| RpcEnvelope    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    86875 |       87959 |    88792 |            151.40 | 687.84 | 1453825 |
+| RpcEnvelope    | Validate  | Cold-Alloc |         13330 |   113250 |      113625 |   113917 |            117.35 | 887.45 | 1126823 |
+| RpcEnvelope    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   109583 |      110000 |   110334 |            121.18 | 859.39 | 1163615 |
+| RpcEnvelope    | Extract   | Cold-Alloc |         13330 |   122000 |      122417 |   122792 |            108.88 | 956.48 | 1045502 |
+| RpcEnvelope    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   112250 |      112792 |   113292 |            118.15 | 881.45 | 1134500 |
+| RpcEnvelope    | Serialize | Cold-Alloc |         13330 |    57917 |       58000 |    58291 |            229.02 | 454.72 | 2199158 |
+| RpcEnvelope    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    55958 |       56125 |    56625 |            237.29 | 438.88 | 2278506 |
+| LargeCatalog   | Parse     | Cold-Alloc |       4441600 | 24653916 |    29358417 | 52842083 |            127.86 | 271394.01 |    3685 |
+| LargeCatalog   | Parse     | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 24655750 |    36563208 | 81436708 |            101.48 | 341929.25 |    2925 |
+| LargeCatalog   | Validate  | Cold-Alloc |       4441600 | 29747458 |    38313458 | 80605292 |            101.77 | 340963.02 |    2933 |
+| LargeCatalog   | Validate  | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 29808250 |    58852833 | 72314459 |             82.51 | 420557.11 |    2378 |
+| LargeCatalog   | Extract   | Cold-Alloc |       4441600 | 30586584 |    43149709 | 70593167 |             96.99 | 357764.47 |    2795 |
+| LargeCatalog   | Extract   | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 29702083 |    42109667 | 82846500 |             90.78 | 382262.71 |    2616 |
+| LargeCatalog   | Serialize | Cold-Alloc |       4441600 | 16846375 |    18235917 | 21133875 |            241.68 | 143578.43 |    6965 |
+| LargeCatalog   | Serialize | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 17461500 |    23637000 | 65933583 |            138.85 | 249907.49 |    4001 |
+| VectorCoordinates | Parse     | Cold-Alloc |        112768 |   813583 |      815166 |   819250 |            138.23 | 6373.23 |  156906 |
+| VectorCoordinates | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   780250 |      784916 |   787000 |            143.67 | 6132.00 |  163079 |
+| VectorCoordinates | Validate  | Cold-Alloc |        112768 |   975750 |      979583 |   983791 |            115.10 | 7654.36 |  130644 |
+| VectorCoordinates | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   951709 |      955291 |  1031125 |            115.39 | 7635.16 |  130973 |
+| VectorCoordinates | Extract   | Cold-Alloc |        112768 |   955459 |      957750 |   960541 |            117.72 | 7483.79 |  133622 |
+| VectorCoordinates | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1050875 |     1053083 |  1058875 |            107.02 | 8231.80 |  121480 |
+| VectorCoordinates | Serialize | Cold-Alloc |        112768 |   430542 |      457041 |  9632000 |             48.74 | 18075.99 |   55322 |
+| VectorCoordinates | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   431792 |      438292 |  4396833 |             88.35 | 9971.61 |  100285 |
+| DeepNesting    | Parse     | Cold-Alloc |         18304 |   251500 |      459709 |  1882458 |             27.30 | 5237.96 |  190914 |
+| DeepNesting    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   172291 |      174792 |   175708 |            104.71 | 1365.74 |  732204 |
+| DeepNesting    | Validate  | Cold-Alloc |         18304 |   417250 |      419791 |   421667 |             43.60 | 3279.48 |  304927 |
+| DeepNesting    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   296458 |      297958 |   300208 |             61.37 | 2329.96 |  429191 |
+| DeepNesting    | Extract   | Cold-Alloc |         18304 |   425916 |      427083 |   428291 |             42.84 | 3338.25 |  299558 |
+| DeepNesting    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   297125 |      298417 |   299583 |             61.30 | 2332.73 |  428682 |
+| DeepNesting    | Serialize | Cold-Alloc |         18304 |   209417 |      209667 |   210000 |             87.28 | 1638.35 |  610371 |
+| DeepNesting    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   200625 |      202250 |   509167 |             72.76 | 1965.28 |  508832 |
+| EscapedUnicode | Parse     | Cold-Alloc |        257682 |  1321250 |     1325167 |  1366000 |            193.03 | 10428.99 |   95887 |
+| EscapedUnicode | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1300833 |     1302333 | 12729250 |             70.64 | 28497.85 |   35090 |
+| EscapedUnicode | Validate  | Cold-Alloc |        257682 |   733458 |     1331334 |  2252250 |            188.06 | 10704.77 |   93416 |
+| EscapedUnicode | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   695792 |      711625 |  1679667 |            279.25 | 7209.18 |  138712 |
+| EscapedUnicode | Extract   | Cold-Alloc |        257682 |   743250 |      745292 |  1049250 |            324.18 | 6209.93 |  161032 |
+| EscapedUnicode | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   714666 |      860958 |  1488750 |            251.96 | 7989.81 |  125159 |
+| EscapedUnicode | Serialize | Cold-Alloc |        257682 |   320292 |      427750 |   528666 |            599.43 | 3358.43 |  297758 |
+| EscapedUnicode | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   326250 |      334000 |   535875 |            663.18 | 3035.60 |  329425 |
+
+exit: 0

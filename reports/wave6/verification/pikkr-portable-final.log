@@ -1,0 +1,56 @@
+cwd=/Users/revenge/code/ps-pikkr
+command=cargo +1.98.1 test --offline --features portable
+   Compiling ps-pikkr v0.16.1 (/Users/revenge/code/ps-pikkr)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running unittests src/lib.rs (target/debug/deps/pikkr-774161333a525254)
+
+running 14 tests
+test bit::tests::test_e ... ok
+test bit::tests::test_s ... ok
+test bit::tests::test_r ... ok
+test parser::tests::test_basic_parse ... ok
+test index_builder::tests::test_build_leveled_colon_bitmap ... ok
+test parser::tests::test_generate_colon_positions ... ok
+test pikkr::tests::test_pikkr_new ... ok
+test index_builder::prefix_tests::dispatched_prefix_matches_portable_fallback ... ok
+test pikkr::tests::test_pikkr_basic_parse ... ok
+test index_builder::tests::test_build_structural_character_bitmap ... ok
+test query::tests::test_is_valid_query_str ... ok
+test index_builder::tests::test_build_string_mask_bitmap ... ok
+test index_builder::tests::test_build_structural_quote_bitmap ... ok
+test pikkr::tests::test_pikkr_speculative_parse ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/issues.rs (target/debug/deps/issues-015795af789f274b)
+
+running 5 tests
+test issues::issue10_panic_on_empty_input ... ok
+test issues::issue11_panic_on_None_unwrapped_in_parser ... ok
+test issues::issue13_integer_overflow_in_parser ... ok
+test issues::issue12_panic_in_build_leveled_colon_bitmap ... ok
+test issues::issue_15_panic_in_query_parser ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-1a68239f534c129a)
+
+running 8 tests
+test partial_speculation_falls_back_for_each_field_order ... ok
+test query_results_are_raw_borrowed_selection_not_validation ... ok
+test non_ascii_keys_and_values_at_every_block_alignment ... ok
+test records_at_every_tail_trained_untrained_and_reordered ... ok
+test tails_at_an_unreadable_page_boundary ... ok
+test escaped_quotes_in_selected_values_across_blocks ... ok
+test backslash_quote_runs_across_lanes_and_multiple_blocks ... ok
+test every_tail_and_structural_position_matches_scalar ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s
+
+   Doc-tests pikkr
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0

@@ -1,0 +1,147 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=zsh reports/wave6/verification/architecture-audit.sh
+crates/jmax-scan-avx2/src/structural.rs:8:#[cfg(target_arch = "x86")]
+crates/jmax-scan-avx2/src/structural.rs:10:#[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx2/src/structural.rs:24:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/structural.rs:64:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/structural.rs:65:#[target_feature(enable = "avx2")]
+crates/jmax-scan-avx2/src/structural.rs:71:        let low = arch::_mm256_loadu_si256(input.as_ptr().cast::<arch::__m256i>());
+crates/jmax-scan-avx2/src/structural.rs:72:        let high = arch::_mm256_loadu_si256(input.as_ptr().add(LANE_BYTES).cast::<arch::__m256i>());
+crates/jmax-scan-avx2/src/structural.rs:100:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/structural.rs:101:#[target_feature(enable = "avx2")]
+crates/jmax-scan-avx512/src/classify.rs:21:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-avx512/src/classify.rs:33:    let block = tails::load_block(input)?;
+crates/jmax-scan-avx512/src/classify.rs:84:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/classify.rs:101:#[cfg(target_arch = "x86")]
+crates/jmax-scan-avx512/src/classify.rs:103:#[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx512/src/classify.rs:107:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/classify.rs:108:#[target_feature(enable = "avx512f,avx512bw")]
+crates/jmax-scan-avx512/src/classify.rs:122:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/classify.rs:133:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/classify.rs:143:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-avx512/src/classify.rs:159:    let block = tails::load_block(input)?;
+crates/jmax-scan-avx512/src/classify.rs:168:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/classify.rs:182:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/quotes.rs:18:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/quotes.rs:107:    #[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx512/src/quotes.rs:109:        let available = cfg!(target_feature = "pclmulqdq");
+crates/jmax-scan-avx512/src/quotes.rs:111:        let available = available || std::arch::is_x86_feature_detected!("pclmulqdq");
+crates/jmax-scan-avx512/src/quotes.rs:114:    #[cfg(not(target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/quotes.rs:131:    #[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx512/src/quotes.rs:140:#[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx512/src/quotes.rs:141:#[target_feature(enable = "pclmulqdq")]
+crates/jmax-scan-avx512/src/quotes.rs:144:    let product = _mm_clmulepi64_si128(
+crates/jmax-scan-avx512/src/structural.rs:22:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/structural.rs:63:#[cfg(target_arch = "x86")]
+crates/jmax-scan-avx512/src/structural.rs:67:#[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx512/src/structural.rs:73:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx512/src/structural.rs:74:#[target_feature(enable = "avx512f,avx512bw")]
+crates/jmax-scan-avx2/src/quotes.rs:18:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/quotes.rs:107:    #[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx2/src/quotes.rs:109:        let available = cfg!(target_feature = "pclmulqdq");
+crates/jmax-scan-avx2/src/quotes.rs:111:        let available = available || std::arch::is_x86_feature_detected!("pclmulqdq");
+crates/jmax-scan-avx2/src/quotes.rs:114:    #[cfg(not(target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/quotes.rs:131:    #[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx2/src/quotes.rs:140:#[cfg(target_arch = "x86_64")]
+crates/jmax-scan-avx2/src/quotes.rs:141:#[target_feature(enable = "pclmulqdq")]
+crates/jmax-scan-avx2/src/quotes.rs:144:    let product = _mm_clmulepi64_si128(
+crates/jmax-scan-neon/src/quotes.rs:18:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/quotes.rs:107:    #[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/quotes.rs:109:        let available = cfg!(target_feature = "aes");
+crates/jmax-scan-neon/src/quotes.rs:111:        let available = available || std::arch::is_aarch64_feature_detected!("aes");
+crates/jmax-scan-neon/src/quotes.rs:114:    #[cfg(not(target_arch = "aarch64"))]
+crates/jmax-scan-neon/src/quotes.rs:131:    #[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/quotes.rs:140:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/quotes.rs:141:#[target_feature(enable = "neon,aes")]
+crates/jmax-scan-neon/src/quotes.rs:143:    core::arch::aarch64::vmull_p64(delimiter_quote_mask, !0u64) as u64
+crates/jmax-scan-neon/src/classify.rs:16:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-neon/src/classify.rs:28:    let block = tails::load_block(input)?;
+crates/jmax-scan-neon/src/classify.rs:72:    #[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/classify.rs:86:    #[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/classify.rs:97:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/classify.rs:107:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-neon/src/classify.rs:123:    let block = tails::load_block(input)?;
+crates/jmax-scan-neon/src/classify.rs:132:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/classify.rs:146:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-avx2/src/classify.rs:25:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-avx2/src/classify.rs:37:    let block = tails::load_block(input)?;
+crates/jmax-scan-avx2/src/classify.rs:90:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/classify.rs:105:    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/classify.rs:116:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/classify.rs:126:    if input.len() == BLOCK_BYTES {
+crates/jmax-scan-avx2/src/classify.rs:142:    let block = tails::load_block(input)?;
+crates/jmax-scan-avx2/src/classify.rs:151:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-avx2/src/classify.rs:165:#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+crates/jmax-scan-neon/src/structural.rs:10:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/structural.rs:11:#[target_feature(enable = "neon")]
+crates/jmax-scan-neon/src/structural.rs:24:#[cfg(target_arch = "aarch64")]
+crates/jmax-scan-neon/src/structural.rs:25:#[target_feature(enable = "neon")]
+crates/jmax-scan-neon/src/structural.rs:33:    // 0, 16, 32, and 48 each leave 16 initialized bytes in input. vld1q_u8
+crates/jmax-scan-neon/src/structural.rs:59:            let bytes = vld1q_u8(input.as_ptr().add(offset));
+16:    dispatch: jmax_dispatch::Dispatch,
+72:        let dispatch = jmax_dispatch::Dispatch::new(input.len(), Default::default())?;
+84:                dispatch,
+196:    fn refill(&mut self) -> Result<()> {
+205:                "invalid block cursor refill",
+221:                    .dispatch
+222:                    .classify_block(block, &mut self.cache.carry)?
+224:                self.cache.dispatch.classify(bytes, &mut self.cache.carry)?
+236:                self.refill()?;
+268:            self.refill()?;
+347:                self.cache.dispatch,
+400:            self.refill()?;
+792:                    self.refill()?;
+820:            self.refill()?;
+925:    dispatch: jmax_dispatch::Dispatch,
+969:                let run_len = first_special(tail, dispatch)?;
+1081:fn first_special(bytes: &[u8], dispatch: jmax_dispatch::Dispatch) -> Result<usize> {
+1095:            dispatch.classify_block(full, &mut carry)?
+1097:            dispatch.classify(block, &mut carry)?
+crates/jmax-syntax/src/block_cursor.rs:34:    dup_owner: DuplicatePolicyOwner,
+crates/jmax-syntax/src/block_cursor.rs:45:pub(crate) fn check_duplicate_owner(limits: Limits, owner: DuplicatePolicyOwner) -> Result<()> {
+crates/jmax-syntax/src/block_cursor.rs:46:    if limits.reject_duplicate_keys && owner == DuplicatePolicyOwner::Disabled {
+crates/jmax-syntax/src/block_cursor.rs:61:        dup_owner: DuplicatePolicyOwner,
+crates/jmax-syntax/src/block_cursor.rs:94:        dup_owner: DuplicatePolicyOwner,
+crates/jmax-syntax/src/block_cursor.rs:127:    pub const fn duplicate_owner(&self) -> DuplicatePolicyOwner {
+crates/jmax-syntax/src/block_cursor.rs:137:            && !matches!(self.dup_owner, DuplicatePolicyOwner::SchemaVm)
+crates/jmax-syntax/src/block_cursor.rs:506:                    && self.dup_owner == DuplicatePolicyOwner::Syntax;
+crates/jmax-syntax/src/block_cursor.rs:656:                SkipMode::StrictValidate => self.skip_strict_inner(decoded, current_depth)?,
+crates/jmax-syntax/src/block_cursor.rs:657:                SkipMode::QueryOnly => {
+crates/jmax-syntax/src/block_cursor.rs:661:                SkipMode::ValidatedOwner(capability) => {
+crates/jmax-syntax/src/block_cursor.rs:750:        self.dup_owner = DuplicatePolicyOwner::Syntax;
+crates/jmax-schema-vm/src/direct.rs:5:use jmax_abi::syntax::{DuplicatePolicyOwner, FramePhase, SkipMode, TokenKind};
+crates/jmax-schema-vm/src/direct.rs:186:                SkipMode::QueryOnly
+crates/jmax-schema-vm/src/direct.rs:188:                SkipMode::ValidatedOwner(capability)
+crates/jmax-schema-vm/src/direct.rs:190:                SkipMode::StrictValidate
+crates/jmax-schema-vm/src/direct.rs:440:        DuplicatePolicyOwner::SchemaVm
+crates/jmax-schema-vm/src/direct.rs:442:        DuplicatePolicyOwner::Disabled
+crates/jmax-nagoya/src/worker.rs:54:        self.validate_output(
+crates/jmax-nagoya/src/worker.rs:62:        .map(ValidationOutput::into_slots)
+crates/jmax-nagoya/src/worker.rs:65:    fn validate_output(
+crates/jmax-nagoya/src/worker.rs:73:    ) -> Result<ValidationOutput> {
+crates/jmax-nagoya/src/worker.rs:97:            ValidationCapability::issue_for_payload(
+crates/jmax-nagoya/src/worker.rs:104:        let output = ValidationOutput {
+crates/jmax-nagoya/src/lib.rs:11:pub use jmax_abi::buffer::{ParsedMessage, Payload, ValidationCapability};
+crates/jmax-nagoya/src/lib.rs:96:    fn validate_output(
+crates/jmax-nagoya/src/lib.rs:104:    ) -> Result<ValidationOutput> {
+crates/jmax-nagoya/src/lib.rs:113:        .map(ValidationOutput::external)
+crates/jmax-nagoya/src/lib.rs:120:pub struct ValidationOutput {
+crates/jmax-nagoya/src/lib.rs:122:    capability: Option<ValidationCapability>,
+crates/jmax-nagoya/src/lib.rs:125:impl ValidationOutput {
+crates/jmax-nagoya/src/lib.rs:135:    pub fn capability(&self) -> Option<ValidationCapability> {
+crates/jmax-nagoya/src/submit.rs:127:        let output = self.validator.validate_output(
+crates/jmax-nagoya/src/submit.rs:171:fn capability_matches(original: &Payload, result: &ValidationOutput) -> bool {
+crates/jmax-nagoya/src/submit.rs:191:    result: &ValidationOutput,
+crates/jmax-nagoya/src/submit.rs:196:    let trusted_owner = capability_matches(original, result);
+crates/jmax-nagoya/src/submit.rs:197:    if (!trusted_owner && output.as_slice() != original.as_slice())
+crates/jmax-nagoya/src/submit.rs:251:    fn canonical(payload: Payload) -> ValidationOutput {
+crates/jmax-nagoya/src/submit.rs:255:        let capability = unsafe { ValidationCapability::issue_for_payload(&payload, 0, 7, 11) };
+crates/jmax-nagoya/src/submit.rs:256:        ValidationOutput {
+crates/jmax-nagoya/src/submit.rs:272:        assert!(capability_matches(&original, &result));
+crates/jmax-nagoya/src/submit.rs:274:        assert!(!capability_matches(&backing, &result));
+crates/jmax-nagoya/src/submit.rs:276:        assert!(!capability_matches(&copied, &result));
+crates/jmax-nagoya/src/submit.rs:280:        assert!(!capability_matches(&original, &changed));
+crates/jmax-nagoya/src/submit.rs:283:        assert!(!capability_matches(&original, &changed));
+crates/jmax-nagoya/src/submit.rs:285:        let external = ValidationOutput::external(result.into_slots());
+crates/jmax-nagoya/src/submit.rs:286:        assert!(!capability_matches(&original, &external));
+exit=0

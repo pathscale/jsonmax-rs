@@ -1,0 +1,1906 @@
+[
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 699.875,
+    "p95_ns": 1309.2421875,
+    "mb_s": 115.56227969934493,
+    "run_medians_ns": [
+      717.7734375,
+      555.6640625,
+      699.875
+    ],
+    "process_spread_pct": 29.173989455184525
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 575.1953125,
+    "p95_ns": 848.6328125,
+    "mb_s": 144.11355666548616,
+    "run_medians_ns": [
+      624.671875,
+      444.6640625,
+      576.8203125
+    ],
+    "process_spread_pct": 40.48175413321151
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 750.0,
+    "p95_ns": 936.8515625,
+    "mb_s": 93.93121769569949,
+    "run_medians_ns": [
+      747.7265625,
+      599.28125,
+      764.96875
+    ],
+    "process_spread_pct": 27.647702977525167
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 627.28125,
+    "p95_ns": 697.5859375,
+    "mb_s": 136.49956559678637,
+    "run_medians_ns": [
+      631.5078125,
+      500.0,
+      627.9296875
+    ],
+    "process_spread_pct": 26.301562499999996
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 920.5703125,
+    "p95_ns": 1136.0703125,
+    "mb_s": 90.45826307256287,
+    "run_medians_ns": [
+      1089.515625,
+      714.84375,
+      920.5703125
+    ],
+    "process_spread_pct": 52.41311475409836
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 693.6796875,
+    "p95_ns": 1927.734375,
+    "mb_s": 89.9948108841635,
+    "run_medians_ns": [
+      806.96875,
+      543.296875,
+      693.6796875
+    ],
+    "process_spread_pct": 48.53182249575796
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 648.7578125,
+    "p95_ns": 730.46875,
+    "mb_s": 132.44414165251428,
+    "run_medians_ns": [
+      724.28125,
+      522.1328125,
+      648.7578125
+    ],
+    "process_spread_pct": 38.715903819969164
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 413.4140625,
+    "p95_ns": 442.7109375,
+    "mb_s": 214.18336708052692,
+    "run_medians_ns": [
+      441.734375,
+      317.7109375,
+      413.40625
+    ],
+    "process_spread_pct": 39.03656527405512
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 874.0234375,
+    "p95_ns": 1626.953125,
+    "mb_s": 93.48696051665294,
+    "run_medians_ns": [
+      899.7421875,
+      666.671875,
+      874.0234375
+    ],
+    "process_spread_pct": 34.96027374786135
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 644.8515625,
+    "p95_ns": 715.4921875,
+    "mb_s": 135.21944574941153,
+    "run_medians_ns": [
+      711.5859375,
+      514.6484375,
+      644.8515625
+    ],
+    "process_spread_pct": 38.26641366223909
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 861.65625,
+    "p95_ns": 939.7734375,
+    "mb_s": 102.53470245224118,
+    "run_medians_ns": [
+      928.0625,
+      660.15625,
+      861.65625
+    ],
+    "process_spread_pct": 40.58224852071006
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 736.9765625,
+    "p95_ns": 1147.1328125,
+    "mb_s": 100.66115939512635,
+    "run_medians_ns": [
+      791.34375,
+      575.1953125,
+      736.9765625
+    ],
+    "process_spread_pct": 37.57826825127335
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 1019.203125,
+    "p95_ns": 1122.7265625,
+    "mb_s": 86.9193096412528,
+    "run_medians_ns": [
+      1114.578125,
+      794.265625,
+      1019.203125
+    ],
+    "process_spread_pct": 40.32813329923475
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 807.6171875,
+    "p95_ns": 868.8125,
+    "mb_s": 107.12770088002912,
+    "run_medians_ns": [
+      865.5625,
+      611.65625,
+      807.6171875
+    ],
+    "process_spread_pct": 41.51126551882696
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 712.234375,
+    "p95_ns": 765.625,
+    "mb_s": 126.09534221808428,
+    "run_medians_ns": [
+      758.7890625,
+      543.296875,
+      712.234375
+    ],
+    "process_spread_pct": 39.663800293347904
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 534.5,
+    "p95_ns": 1083.0078125,
+    "mb_s": 143.28751337558646,
+    "run_medians_ns": [
+      535.15625,
+      388.671875,
+      857.421875
+    ],
+    "process_spread_pct": 120.60301507537687
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 990.234375,
+    "p95_ns": 1592.125,
+    "mb_s": 104.08927158202809,
+    "run_medians_ns": [
+      1038.0859375,
+      784.828125,
+      990.234375
+    ],
+    "process_spread_pct": 32.26920703179439
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 795.578125,
+    "p95_ns": 877.28125,
+    "mb_s": 134.76650666443797,
+    "run_medians_ns": [
+      874.671875,
+      647.4609375,
+      795.578125
+    ],
+    "process_spread_pct": 35.09260935143288
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 1270.8359375,
+    "p95_ns": 1351.5625,
+    "mb_s": 84.7481782797349,
+    "run_medians_ns": [
+      1337.5625,
+      997.390625,
+      1270.8359375
+    ],
+    "process_spread_pct": 34.10618332210613
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 950.8515625,
+    "p95_ns": 1020.5078125,
+    "mb_s": 114.37897280303135,
+    "run_medians_ns": [
+      1015.9453125,
+      755.5390625,
+      950.8515625
+    ],
+    "process_spread_pct": 34.46628545430104
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 1423.5078125,
+    "p95_ns": 1509.4375,
+    "mb_s": 75.65568019687504,
+    "run_medians_ns": [
+      1494.46875,
+      1103.8359375,
+      1423.5078125
+    ],
+    "process_spread_pct": 35.38866594475232
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 1010.4140625,
+    "p95_ns": 2876.296875,
+    "mb_s": 70.54800664834254,
+    "run_medians_ns": [
+      1071.609375,
+      796.875,
+      1010.4140625
+    ],
+    "process_spread_pct": 34.47647058823529
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 880.2109375,
+    "p95_ns": 1353.1875,
+    "mb_s": 117.35952513853354,
+    "run_medians_ns": [
+      896.1640625,
+      655.9296875,
+      906.25
+    ],
+    "process_spread_pct": 38.1626746388118
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 649.4140625,
+    "p95_ns": 708.3359375,
+    "mb_s": 163.40506907122872,
+    "run_medians_ns": [
+      702.796875,
+      509.4375,
+      649.4140625
+    ],
+    "process_spread_pct": 37.95546558704452
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 279314.78125,
+    "p95_ns": 381564.453125,
+    "mb_s": 119.04894771891055,
+    "run_medians_ns": [
+      279314.78125,
+      215315.1015625,
+      345207.6875
+    ],
+    "process_spread_pct": 60.326742060772645
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 217727.2109375,
+    "p95_ns": 274431.9609375,
+    "mb_s": 153.24485429939386,
+    "run_medians_ns": [
+      217727.2109375,
+      195467.4453125,
+      256093.4296875
+    ],
+    "process_spread_pct": 31.015898467427828
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 265372.3984375,
+    "p95_ns": 322856.1171875,
+    "mb_s": 129.1735981641819,
+    "run_medians_ns": [
+      227887.375,
+      265372.3984375,
+      274289.390625
+    ],
+    "process_spread_pct": 20.36181935265171
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 261319.984375,
+    "p95_ns": 349160.8125,
+    "mb_s": 129.8201816430034,
+    "run_medians_ns": [
+      228390.953125,
+      261319.984375,
+      292442.0546875
+    ],
+    "process_spread_pct": 28.044500312341334
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 248980.140625,
+    "p95_ns": 287258.4609375,
+    "mb_s": 137.66986129682437,
+    "run_medians_ns": [
+      227909.1796875,
+      251750.65625,
+      252358.3984375
+    ],
+    "process_spread_pct": 10.727614738258362
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 271252.6015625,
+    "p95_ns": 384090.5,
+    "mb_s": 120.49885456885059,
+    "run_medians_ns": [
+      227277.671875,
+      271252.6015625,
+      317784.5078125
+    ],
+    "process_spread_pct": 39.822141432035465
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 209147.78125,
+    "p95_ns": 284057.9453125,
+    "mb_s": 168.43406967531493,
+    "run_medians_ns": [
+      156385.0859375,
+      211381.1875,
+      227470.703125
+    ],
+    "process_spread_pct": 45.45549645054368
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 203436.1953125,
+    "p95_ns": 356502.6015625,
+    "mb_s": 162.7733371214749,
+    "run_medians_ns": [
+      156485.6796875,
+      204117.1875,
+      242455.40625
+    ],
+    "process_spread_pct": 54.93775963026168
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8007.484375,
+    "p95_ns": 11290.359375,
+    "mb_s": 101.26361761418345,
+    "run_medians_ns": [
+      6721.3515625,
+      8007.484375,
+      9328.78125
+    ],
+    "process_spread_pct": 38.793234712605475
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8111.328125,
+    "p95_ns": 14533.5234375,
+    "mb_s": 96.87487163264831,
+    "run_medians_ns": [
+      6571.6171875,
+      10944.65625,
+      8113.28125
+    ],
+    "process_spread_pct": 66.54433661805564
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 9431.640625,
+    "p95_ns": 15369.7890625,
+    "mb_s": 89.9652478435488,
+    "run_medians_ns": [
+      7608.3984375,
+      10218.75,
+      9436.84375
+    ],
+    "process_spread_pct": 34.30881786676936
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 9324.8671875,
+    "p95_ns": 15931.3203125,
+    "mb_s": 89.91791784565702,
+    "run_medians_ns": [
+      7530.921875,
+      9774.7421875,
+      9659.828125
+    ],
+    "process_spread_pct": 29.79476284236451
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 10113.9296875,
+    "p95_ns": 23259.1171875,
+    "mb_s": 72.83206213321684,
+    "run_medians_ns": [
+      7499.3515625,
+      10113.9296875,
+      13833.3359375
+    ],
+    "process_spread_pct": 84.46042730777765
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 9209.6328125,
+    "p95_ns": 14026.046875,
+    "mb_s": 85.9934996495228,
+    "run_medians_ns": [
+      7638.34375,
+      9209.6328125,
+      9676.7578125
+    ],
+    "process_spread_pct": 26.686597634467546
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 4159.1796875,
+    "p95_ns": 5341.796875,
+    "mb_s": 213.99598137630744,
+    "run_medians_ns": [
+      3537.109375,
+      4188.4765625,
+      4167.640625
+    ],
+    "process_spread_pct": 18.4152401987852
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 3432.296875,
+    "p95_ns": 5084.9609375,
+    "mb_s": 249.1915824918429,
+    "run_medians_ns": [
+      3105.7890625,
+      3632.8125,
+      3519.203125
+    ],
+    "process_spread_pct": 16.969067341481757
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2671.546875,
+    "p95_ns": 3227.5390625,
+    "mb_s": 54.92756647233826,
+    "run_medians_ns": [
+      2117.8359375,
+      2694.3359375,
+      2675.125
+    ],
+    "process_spread_pct": 27.22118318005924
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 1804.3671875,
+    "p95_ns": 2163.0859375,
+    "mb_s": 79.39369198090023,
+    "run_medians_ns": [
+      1524.7421875,
+      1951.5,
+      1804.3671875
+    ],
+    "process_spread_pct": 27.988850574123703
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 6583.3359375,
+    "p95_ns": 10336.9140625,
+    "mb_s": 21.00281961476395,
+    "run_medians_ns": [
+      5261.390625,
+      6675.1328125,
+      6720.375
+    ],
+    "process_spread_pct": 27.730014343878896
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2675.125,
+    "p95_ns": 3274.7421875,
+    "mb_s": 53.609621263431514,
+    "run_medians_ns": [
+      2233.3984375,
+      2677.734375,
+      2709.3046875
+    ],
+    "process_spread_pct": 21.30861390467862
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 6822.265625,
+    "p95_ns": 10134.4453125,
+    "mb_s": 20.524205214991536,
+    "run_medians_ns": [
+      5444.3359375,
+      6891.6015625,
+      7282.875
+    ],
+    "process_spread_pct": 33.76975784753362
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2718.09375,
+    "p95_ns": 3268.5546875,
+    "mb_s": 54.16385097562893,
+    "run_medians_ns": [
+      2255.859375,
+      2724.609375,
+      2726.890625
+    ],
+    "process_spread_pct": 20.88034632034632
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2388.0234375,
+    "p95_ns": 2573.890625,
+    "mb_s": 62.36500472802875,
+    "run_medians_ns": [
+      1980.796875,
+      2388.0234375,
+      2435.8671875
+    ],
+    "process_spread_pct": 22.974102909971528
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "DeepNesting",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 1898.109375,
+    "p95_ns": 2031.5703125,
+    "mb_s": 78.038104543234,
+    "run_medians_ns": [
+      1594.7265625,
+      1910.484375,
+      1993.8125
+    ],
+    "process_spread_pct": 25.025352112676046
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 15117.1875,
+    "p95_ns": 17344.078125,
+    "mb_s": 137.72737695200905,
+    "run_medians_ns": [
+      12362.6328125,
+      15149.4140625,
+      15162.109375
+    ],
+    "process_spread_pct": 22.644663195605208
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 14322.921875,
+    "p95_ns": 17269.8515625,
+    "mb_s": 141.11319473428657,
+    "run_medians_ns": [
+      12333.65625,
+      14617.1875,
+      14352.8671875
+    ],
+    "process_spread_pct": 18.514633485103005
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 10595.0546875,
+    "p95_ns": 12306.3203125,
+    "mb_s": 195.01193197672134,
+    "run_medians_ns": [
+      8793.9453125,
+      10765.625,
+      10625.6484375
+    ],
+    "process_spread_pct": 22.420877290394216
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 9664.0625,
+    "p95_ns": 14892.2578125,
+    "mb_s": 173.07032030924952,
+    "run_medians_ns": [
+      8363.609375,
+      9664.0625,
+      12135.7421875
+    ],
+    "process_spread_pct": 45.10173351442541
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 10606.4453125,
+    "p95_ns": 17922.203125,
+    "mb_s": 170.78204064839056,
+    "run_medians_ns": [
+      8961.2578125,
+      10685.875,
+      12940.4296875
+    ],
+    "process_spread_pct": 44.40416689551638
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 9863.28125,
+    "p95_ns": 18236.328125,
+    "mb_s": 189.2750990626629,
+    "run_medians_ns": [
+      8137.6953125,
+      9863.28125,
+      10619.140625
+    ],
+    "process_spread_pct": 30.493219728789157
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 2810.21875,
+    "p95_ns": 3213.8671875,
+    "mb_s": 725.2404690497419,
+    "run_medians_ns": [
+      2422.8515625,
+      2810.21875,
+      2990.5625
+    ],
+    "process_spread_pct": 23.431519548569124
+  },
+  {
+    "allocator": "system-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 2548.1796875,
+    "p95_ns": 3238.9296875,
+    "mb_s": 776.2479061757892,
+    "run_medians_ns": [
+      2240.5625,
+      2763.3515625,
+      2684.5703125
+    ],
+    "process_spread_pct": 23.332938157270778
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 526.046875,
+    "p95_ns": 1125.0,
+    "mb_s": 139.4449736150775,
+    "run_medians_ns": [
+      526.046875,
+      507.1640625,
+      546.546875
+    ],
+    "process_spread_pct": 7.765300306545275
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 487.3046875,
+    "p95_ns": 515.296875,
+    "mb_s": 169.88498192573118,
+    "run_medians_ns": [
+      487.3046875,
+      473.3125,
+      513.0234375
+    ],
+    "process_spread_pct": 8.39000396144196
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 586.9140625,
+    "p95_ns": 772.1328125,
+    "mb_s": 136.53679964672,
+    "run_medians_ns": [
+      586.265625,
+      569.3359375,
+      632.1640625
+    ],
+    "process_spread_pct": 11.035334476843905
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 534.5078125,
+    "p95_ns": 561.5234375,
+    "mb_s": 155.20737309479466,
+    "run_medians_ns": [
+      534.5078125,
+      528.3203125,
+      558.265625
+    ],
+    "process_spread_pct": 5.668022181146015
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 691.7265625,
+    "p95_ns": 721.6796875,
+    "mb_s": 116.98756477584443,
+    "run_medians_ns": [
+      691.7265625,
+      670.2421875,
+      719.078125
+    ],
+    "process_spread_pct": 7.286312084018132
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 593.421875,
+    "p95_ns": 1345.0546875,
+    "mb_s": 125.66583738622838,
+    "run_medians_ns": [
+      593.421875,
+      576.5,
+      625.9765625
+    ],
+    "process_spread_pct": 8.582231136166518
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 406.90625,
+    "p95_ns": 1150.0703125,
+    "mb_s": 126.82096616302009,
+    "run_medians_ns": [
+      406.8984375,
+      404.9453125,
+      561.8515625
+    ],
+    "process_spread_pct": 38.74751606119653
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "NagoyaAuth",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10770,
+    "documents": 128,
+    "median_ns": 364.2578125,
+    "p95_ns": 663.0859375,
+    "mb_s": 194.21928625764804,
+    "run_medians_ns": [
+      364.2578125,
+      350.2578125,
+      656.8984375
+    ],
+    "process_spread_pct": 87.54711930943724
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 596.6796875,
+    "p95_ns": 1367.1875,
+    "mb_s": 122.97724751375158,
+    "run_medians_ns": [
+      596.6796875,
+      579.4296875,
+      624.6796875
+    ],
+    "process_spread_pct": 7.809403103806267
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 546.875,
+    "p95_ns": 575.5234375,
+    "mb_s": 153.62862914689043,
+    "run_medians_ns": [
+      546.546875,
+      531.5703125,
+      573.5625
+    ],
+    "process_spread_pct": 7.899648741200149
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 681.3125,
+    "p95_ns": 840.8203125,
+    "mb_s": 114.20252158747803,
+    "run_medians_ns": [
+      675.453125,
+      661.1328125,
+      706.3828125
+    ],
+    "process_spread_pct": 6.844313146233372
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 618.8203125,
+    "p95_ns": 2425.1328125,
+    "mb_s": 79.98197465056589,
+    "run_medians_ns": [
+      618.1640625,
+      598.9609375,
+      1479.171875
+    ],
+    "process_spread_pct": 146.9563175812279
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 783.5234375,
+    "p95_ns": 1120.765625,
+    "mb_s": 100.0984424019946,
+    "run_medians_ns": [
+      783.5234375,
+      756.1796875,
+      820.3125
+    ],
+    "process_spread_pct": 8.481160438470514
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 690.1015625,
+    "p95_ns": 736.0078125,
+    "mb_s": 121.93887290973274,
+    "run_medians_ns": [
+      688.8046875,
+      670.578125,
+      714.1953125
+    ],
+    "process_spread_pct": 6.504415499685434
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 510.421875,
+    "p95_ns": 1009.765625,
+    "mb_s": 152.93575503477953,
+    "run_medians_ns": [
+      512.3671875,
+      485.0234375,
+      512.046875
+    ],
+    "process_spread_pct": 5.637614161686777
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "ExchangeOrder",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 10880,
+    "documents": 128,
+    "median_ns": 457.03125,
+    "p95_ns": 845.0546875,
+    "mb_s": 143.05211146494304,
+    "run_medians_ns": [
+      457.03125,
+      435.8671875,
+      838.5390625
+    ],
+    "process_spread_pct": 92.38407628470542
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 719.078125,
+    "p95_ns": 787.109375,
+    "mb_s": 142.56788685977918,
+    "run_medians_ns": [
+      719.078125,
+      694.3359375,
+      740.5625
+    ],
+    "process_spread_pct": 6.65766526019691
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 686.5234375,
+    "p95_ns": 712.890625,
+    "mb_s": 151.38655548076872,
+    "run_medians_ns": [
+      686.5234375,
+      663.734375,
+      708.65625
+    ],
+    "process_spread_pct": 6.768050095341227
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 905.2734375,
+    "p95_ns": 1015.625,
+    "mb_s": 112.31108062975089,
+    "run_medians_ns": [
+      905.2734375,
+      878.90625,
+      951.171875
+    ],
+    "process_spread_pct": 8.22222222222222
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 811.1953125,
+    "p95_ns": 836.9140625,
+    "mb_s": 124.95890948587798,
+    "run_medians_ns": [
+      810.875,
+      780.6015625,
+      834.3046875
+    ],
+    "process_spread_pct": 6.8797101594323395
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 1010.09375,
+    "p95_ns": 1057.9375,
+    "mb_s": 102.46073587510602,
+    "run_medians_ns": [
+      1009.765625,
+      971.6796875,
+      1055.3359375
+    ],
+    "process_spread_pct": 8.609447236180912
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 849.2890625,
+    "p95_ns": 893.2265625,
+    "mb_s": 121.59178515075146,
+    "run_medians_ns": [
+      849.28125,
+      817.7109375,
+      891.921875
+    ],
+    "process_spread_pct": 9.075448804303177
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 655.9296875,
+    "p95_ns": 659.1796875,
+    "mb_s": 159.6049428441489,
+    "run_medians_ns": [
+      656.8984375,
+      638.015625,
+      657.875
+    ],
+    "process_spread_pct": 3.1126784708446653
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "RpcEnvelope",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 13330,
+    "documents": 128,
+    "median_ns": 581.0546875,
+    "p95_ns": 593.09375,
+    "mb_s": 177.3376732800596,
+    "run_medians_ns": [
+      580.078125,
+      579.4296875,
+      591.796875
+    ],
+    "process_spread_pct": 2.134372429786824
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 245237.9609375,
+    "p95_ns": 279413.0859375,
+    "mb_s": 138.90937297170865,
+    "run_medians_ns": [
+      270007.1640625,
+      231887.0390625,
+      245237.9609375
+    ],
+    "process_spread_pct": 16.43909256598235
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 228141.6015625,
+    "p95_ns": 361986.328125,
+    "mb_s": 135.78321706811303,
+    "run_medians_ns": [
+      228141.6015625,
+      218143.875,
+      308216.46875
+    ],
+    "process_spread_pct": 41.290452803224476
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 265098.6328125,
+    "p95_ns": 719231.4453125,
+    "mb_s": 104.00940131087064,
+    "run_medians_ns": [
+      225586.5859375,
+      265098.6328125,
+      463358.078125
+    ],
+    "process_spread_pct": 105.40143209285321
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 287466.796875,
+    "p95_ns": 437754.5546875,
+    "mb_s": 114.18344458574703,
+    "run_medians_ns": [
+      249756.1875,
+      268737.953125,
+      324941.40625
+    ],
+    "process_spread_pct": 30.10344588559992
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 293626.296875,
+    "p95_ns": 493691.078125,
+    "mb_s": 104.21632732300502,
+    "run_medians_ns": [
+      377102.8671875,
+      286472.65625,
+      290999.3515625
+    ],
+    "process_spread_pct": 31.63660089722786
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 304719.3984375,
+    "p95_ns": 417417.6484375,
+    "mb_s": 107.65593673558416,
+    "run_medians_ns": [
+      371663.0859375,
+      269279.953125,
+      304719.3984375
+    ],
+    "process_spread_pct": 38.02107495353495
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 212486.0,
+    "p95_ns": 236712.5703125,
+    "mb_s": 164.23614001827826,
+    "run_medians_ns": [
+      187682.9453125,
+      218547.5234375,
+      214671.875
+    ],
+    "process_spread_pct": 16.445062748567363
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "LargeCatalog",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 4441600,
+    "documents": 128,
+    "median_ns": 206863.9375,
+    "p95_ns": 226427.0859375,
+    "mb_s": 171.29511911419175,
+    "run_medians_ns": [
+      182466.140625,
+      213445.9609375,
+      211099.609375
+    ],
+    "process_spread_pct": 16.9783940222471
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 7450.8515625,
+    "p95_ns": 9202.796875,
+    "mb_s": 111.69250173157647,
+    "run_medians_ns": [
+      6653.96875,
+      9177.734375,
+      7421.875
+    ],
+    "process_spread_pct": 37.9287267467254
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 7467.125,
+    "p95_ns": 9107.421875,
+    "mb_s": 114.6131921646158,
+    "run_medians_ns": [
+      6777.015625,
+      8935.2265625,
+      7397.7890625
+    ],
+    "process_spread_pct": 31.846037502680247
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8562.171875,
+    "p95_ns": 9793.625,
+    "mb_s": 101.59151908530876,
+    "run_medians_ns": [
+      7732.1015625,
+      9390.625,
+      8562.171875
+    ],
+    "process_spread_pct": 21.44984030659518
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8378.2578125,
+    "p95_ns": 9646.484375,
+    "mb_s": 104.16225510247769,
+    "run_medians_ns": [
+      7527.34375,
+      9416.34375,
+      8378.2578125
+    ],
+    "process_spread_pct": 25.09517384535547
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8797.8515625,
+    "p95_ns": 9579.1015625,
+    "mb_s": 100.97558634394021,
+    "run_medians_ns": [
+      7930.34375,
+      9229.1640625,
+      8797.8515625
+    ],
+    "process_spread_pct": 16.37785641385343
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 8696.2890625,
+    "p95_ns": 9484.375,
+    "mb_s": 104.09474115616321,
+    "run_medians_ns": [
+      7628.2578125,
+      8900.7109375,
+      8701.4921875
+    ],
+    "process_spread_pct": 16.680782903206314
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 3607.1015625,
+    "p95_ns": 3852.859375,
+    "mb_s": 246.2344067791614,
+    "run_medians_ns": [
+      3343.421875,
+      3674.4765625,
+      3607.1015625
+    ],
+    "process_spread_pct": 9.901672594039601
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "VectorCoordinates",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 112768,
+    "documents": 128,
+    "median_ns": 3316.40625,
+    "p95_ns": 3943.359375,
+    "mb_s": 251.9431246796523,
+    "run_medians_ns": [
+      3314.1328125,
+      3930.015625,
+      3251.3046875
+    ],
+    "process_spread_pct": 20.875033339981307
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 1998.046875,
+    "p95_ns": 2083.0078125,
+    "mb_s": 72.74940471798013,
+    "run_medians_ns": [
+      1782.2265625,
+      1998.046875,
+      2067.3828125
+    ],
+    "process_spread_pct": 15.999999999999993
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 1793.6171875,
+    "p95_ns": 1833.984375,
+    "mb_s": 82.06258153560532,
+    "run_medians_ns": [
+      1595.3828125,
+      1799.8046875,
+      1796.875
+    ],
+    "process_spread_pct": 12.81334319251355
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 4533.53125,
+    "p95_ns": 4835.9375,
+    "mb_s": 32.23338965214977,
+    "run_medians_ns": [
+      4028.3203125,
+      4538.40625,
+      4567.7109375
+    ],
+    "process_spread_pct": 13.389963636363644
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2675.78125,
+    "p95_ns": 2760.7421875,
+    "mb_s": 54.6066586770087,
+    "run_medians_ns": [
+      2416.34375,
+      2675.78125,
+      2725.2578125
+    ],
+    "process_spread_pct": 12.784359116950972
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 4722.65625,
+    "p95_ns": 4767.578125,
+    "mb_s": 31.319899158274858,
+    "run_medians_ns": [
+      4162.4375,
+      4749.0234375,
+      4736.9765625
+    ],
+    "process_spread_pct": 14.092366251745524
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2726.5625,
+    "p95_ns": 2882.484375,
+    "mb_s": 54.003504445071016,
+    "run_medians_ns": [
+      2401.3671875,
+      2744.140625,
+      2732.09375
+    ],
+    "process_spread_pct": 14.274095160634403
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 2123.046875,
+    "p95_ns": 2164.3828125,
+    "mb_s": 69.4303034471693,
+    "run_medians_ns": [
+      1896.1640625,
+      2123.046875,
+      2131.1875
+    ],
+    "process_spread_pct": 12.394678400883352
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "DeepNesting",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 18304,
+    "documents": 128,
+    "median_ns": 1926.7578125,
+    "p95_ns": 2012.3671875,
+    "mb_s": 75.9869975774578,
+    "run_medians_ns": [
+      1694.65625,
+      1937.8203125,
+      1926.7578125
+    ],
+    "process_spread_pct": 14.348872374559729
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Parse",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 14660.8125,
+    "p95_ns": 15034.5078125,
+    "mb_s": 140.92641738017738,
+    "run_medians_ns": [
+      13200.84375,
+      14885.7421875,
+      14768.5546875
+    ],
+    "process_spread_pct": 12.76356624931645
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Parse",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 14220.0546875,
+    "p95_ns": 14745.1171875,
+    "mb_s": 144.71594885649566,
+    "run_medians_ns": [
+      12957.359375,
+      14280.2734375,
+      14355.140625
+    ],
+    "process_spread_pct": 10.787547134772591
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Validate",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 10040.6953125,
+    "p95_ns": 10338.21875,
+    "mb_s": 205.2226562524888,
+    "run_medians_ns": [
+      9173.5078125,
+      10040.6953125,
+      10146.484375
+    ],
+    "process_spread_pct": 10.606374163372955
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Validate",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 9292.96875,
+    "p95_ns": 10244.140625,
+    "mb_s": 210.82928788368,
+    "run_medians_ns": [
+      8899.09375,
+      9184.890625,
+      9905.9296875
+    ],
+    "process_spread_pct": 11.313915391665574
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Extract",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 9538.0859375,
+    "p95_ns": 10529.953125,
+    "mb_s": 207.37916315388253,
+    "run_medians_ns": [
+      9068.359375,
+      9538.0859375,
+      10212.5625
+    ],
+    "process_spread_pct": 12.617531768253286
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Extract",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 9366.859375,
+    "p95_ns": 10123.375,
+    "mb_s": 213.33155981555507,
+    "run_medians_ns": [
+      8921.875,
+      9366.859375,
+      9908.8515625
+    ],
+    "process_spread_pct": 11.06243432574432
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Serialize",
+    "regime": "Cold-Alloc",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 2688.8046875,
+    "p95_ns": 2846.03125,
+    "mb_s": 756.7554391742126,
+    "run_medians_ns": [
+      2460.9375,
+      2688.8046875,
+      2790.359375
+    ],
+    "process_spread_pct": 13.386031746031746
+  },
+  {
+    "allocator": "rusty-alloc",
+    "workload": "EscapedUnicode",
+    "mode": "Serialize",
+    "regime": "Warm-Scratch (Zero-Alloc Reuse)",
+    "payload_bytes": 257682,
+    "documents": 128,
+    "median_ns": 2643.2265625,
+    "p95_ns": 2874.34375,
+    "mb_s": 763.4786203646248,
+    "run_medians_ns": [
+      2452.796875,
+      2643.2265625,
+      2781.578125
+    ],
+    "process_spread_pct": 13.404340707992791
+  }
+]

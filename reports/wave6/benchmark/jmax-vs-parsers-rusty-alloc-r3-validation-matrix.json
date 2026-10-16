@@ -1,0 +1,308 @@
+[
+  {
+    "accepted": {
+      "jmax-cursor": true,
+      "jmax-dom": true,
+      "json-rust": true,
+      "miniserde-value": true,
+      "serde-ignored": true,
+      "serde-value": true,
+      "simd-borrowed": true,
+      "simd-tape": true,
+      "sonic-lazy-document": true,
+      "sonic-value": true
+    },
+    "case": "unicode-and-escapes",
+    "panicked": [],
+    "valid_json": true
+  },
+  {
+    "accepted": {
+      "jmax-cursor": true,
+      "jmax-dom": true,
+      "json-rust": true,
+      "miniserde-value": true,
+      "serde-ignored": true,
+      "serde-value": true,
+      "simd-borrowed": true,
+      "simd-tape": true,
+      "sonic-lazy-document": true,
+      "sonic-value": true
+    },
+    "case": "literal-utf8",
+    "panicked": [],
+    "valid_json": true
+  },
+  {
+    "accepted": {
+      "jmax-cursor": true,
+      "jmax-dom": true,
+      "json-rust": true,
+      "miniserde-value": true,
+      "serde-ignored": true,
+      "serde-value": true,
+      "simd-borrowed": true,
+      "simd-tape": true,
+      "sonic-lazy-document": true,
+      "sonic-value": true
+    },
+    "case": "empty-object",
+    "panicked": [],
+    "valid_json": true
+  },
+  {
+    "accepted": {
+      "jmax-cursor": true,
+      "jmax-dom": true,
+      "json-rust": true,
+      "miniserde-value": true,
+      "serde-ignored": true,
+      "serde-value": true,
+      "simd-borrowed": true,
+      "simd-tape": true,
+      "sonic-lazy-document": true,
+      "sonic-value": true
+    },
+    "case": "empty-array",
+    "panicked": [],
+    "valid_json": true
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "trailing-root",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "array-trailing-comma",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "object-trailing-comma",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "missing-colon",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "invalid-escape",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": true,
+      "serde-value": false,
+      "simd-borrowed": true,
+      "simd-tape": true,
+      "sonic-lazy-document": true,
+      "sonic-value": false
+    },
+    "case": "lone-high-surrogate",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": true,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": true,
+      "sonic-value": false
+    },
+    "case": "lone-low-surrogate",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "raw-control",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": true,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "invalid-utf8",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "invalid-number",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "incomplete-fraction",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "incomplete-exponent",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "unclosed-nested",
+    "panicked": [],
+    "valid_json": false
+  },
+  {
+    "accepted": {
+      "jmax-cursor": false,
+      "jmax-dom": false,
+      "json-rust": false,
+      "miniserde-value": false,
+      "serde-ignored": false,
+      "serde-value": false,
+      "simd-borrowed": false,
+      "simd-tape": false,
+      "sonic-lazy-document": false,
+      "sonic-value": false
+    },
+    "case": "empty",
+    "panicked": [],
+    "valid_json": false
+  }
+]

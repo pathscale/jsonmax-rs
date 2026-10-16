@@ -1,6 +1,8 @@
 //! Complete, owned WebSocket input at the transport and validator boundaries.
 
 use super::*;
+use alloc::sync::Arc;
+use jmax_abi::span::Span32;
 
 /// Adopts a complete message already reassembled by the transport without copying.
 ///
@@ -10,8 +12,39 @@ use super::*;
 /// The frame byte limit is enforced by frame processing, not on a reassembled
 /// message, which may legitimately be larger than any individual frame.
 pub fn receive_bytes(bytes: Bytes, opcode: Opcode, policy: &WssPolicy) -> Result<ProtectedInput> {
-    validate_message(bytes.as_ref(), opcode, policy)?;
-    Ok(ProtectedInput { payload: Payload::Bytes(bytes), opcode })
+    receive_payload(Payload::Bytes(bytes), opcode, policy)
+}
+
+/// Adopts a complete immutable Arc-backed transport message without copying.
+pub fn receive_arc_owner<T: AsRef<[u8]> + Send + Sync + 'static>(
+    owner: Arc<T>, opcode: Opcode, policy: &WssPolicy,
+) -> Result<ProtectedInput> {
+    receive_payload(Payload::from_arc_owner(owner)?, opcode, policy)
+}
+
+/// Accepts any ABI owner, including an Arc slice or a nested shared subview.
+pub fn receive_payload(payload: Payload, opcode: Opcode, policy: &WssPolicy) -> Result<ProtectedInput> {
+    validate_message(payload.as_slice(), opcode, policy)?;
+    Ok(ProtectedInput { payload, opcode })
+}
+
+/// Adopts a complete message subrange within a larger transport allocation.
+/// Framing, unmasking, and decompression must already have completed.
+pub fn receive_subview(
+    payload: &Payload, span: Span32, opcode: Opcode, policy: &WssPolicy,
+) -> Result<ProtectedInput> {
+    receive_payload(payload.try_slice(span)?, opcode, policy)
+}
+
+/// Transfers a protected complete message directly to owned CPU admission.
+/// Current transport policy is checked again before the owner is moved.
+pub fn into_parse_job(
+    input: ProtectedInput,
+    policy: &WssPolicy,
+    cancellation: jmax_nagoya::CancellationToken,
+) -> Result<jmax_nagoya::ParseJob> {
+    validate_message(input.payload.as_slice(), input.opcode, policy)?;
+    Ok(jmax_nagoya::ParseJob { payload: input.payload, limits: policy.limits, cancellation })
 }
 
 /// Processes one frame through the shared assembly and control-message policy.
@@ -41,7 +74,7 @@ pub fn validate_input(
 ) -> Result<ValidatedSlots> {
     validate_message(input.payload.as_slice(), input.opcode, policy)?;
     let slots = validator.validate(input.payload.clone(), policy.limits)?;
-    ensure_validated_slots(&slots, input.payload.as_slice())?;
+    ensure_validated_slots(&slots, &input.payload)?;
     ensure_payload_len(slots.decoded.len(), policy.limits.max_decoded_bytes)?;
     ensure_utf8(&slots.decoded)?;
     Ok(slots)

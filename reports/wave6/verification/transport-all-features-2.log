@@ -1,0 +1,68 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --all-features --offline
+    Checking hybrid-array v0.4.15
+   Compiling num-traits v0.2.19
+    Checking futures-util v0.3.34
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+    Checking spki v0.8.1
+   Compiling curve25519-dalek v5.0.0
+    Checking rustls-webpki v0.103.15
+   Compiling getrandom v0.4.3
+   Compiling nagoya v0.1.19
+    Checking webpki-roots v1.0.9
+    Checking nago-wss v0.1.0 (/Users/revenge/code/nago-wss)
+   Compiling nagoya v0.1.19 (/Users/revenge/code/nagoya)
+    Checking jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+    Checking pkcs8 v0.11.0
+    Checking jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+    Checking jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+    Checking jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+    Checking jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+    Checking jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+    Checking jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+    Checking rustls v0.23.46
+    Checking jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+    Checking crypto-common v0.2.2
+    Checking block-buffer v0.12.1
+    Checking inout v0.2.3
+    Checking sec1 v0.8.1
+    Checking jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+    Checking crypto-bigint v0.7.5
+    Checking jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+    Checking digest v0.11.3
+    Checking universal-hash v0.6.1
+    Checking cipher v0.5.2
+    Checking aead v0.6.1
+    Checking polyval v0.7.3
+    Checking poly1305 v0.9.1
+    Checking jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+    Checking hmac v0.13.0
+    Checking signature v3.0.0
+    Checking sha2 v0.11.1
+    Checking ctr v0.10.1
+    Checking aes v0.9.3
+    Checking chacha20 v0.10.2
+    Checking ghash v0.6.0
+    Checking ed25519 v3.0.0
+    Checking hkdf v0.13.0
+    Checking chacha20poly1305 v0.11.0
+    Checking aes-gcm v0.11.1
+    Checking x25519-dalek v3.0.0
+    Checking ed25519-dalek v3.0.0
+    Checking legacy-bullshit v0.1.0
+    Checking jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+    Checking jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+    Checking primefield v0.14.0
+    Checking elliptic-curve v0.14.1
+    Checking rfc6979 v0.6.0
+    Checking nago-rustls v0.1.3
+    Checking wnaf v0.14.1
+    Checking ecdsa v0.17.0
+    Checking primeorder v0.14.0
+    Checking p384 v0.14.0
+    Checking p256 v0.14.0
+    Checking ps-rustcrypto v0.4.0
+    Checking nago-http v0.1.5 (/Users/revenge/code/nago-http)
+    Checking jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.67s
+exit=0

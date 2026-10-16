@@ -4,7 +4,7 @@
 //! token boundaries and raw UTF-8 validity, but callers must still decode or
 //! measure the content before accepting its JSON escape syntax.
 
-use super::{Error, ErrorCode, ErrorSource, Result, Span32, StringScan, BACKSLASH, QUOTE};
+use super::{BACKSLASH, Error, ErrorCode, ErrorSource, QUOTE, Result, Span32, StringScan};
 
 /// Find the first quote, backslash, or raw control byte below `0x20`.
 ///
@@ -13,7 +13,12 @@ use super::{Error, ErrorCode, ErrorSource, Result, Span32, StringScan, BACKSLASH
 /// All reads are bounded by `bytes`; no padding or scanner carry is required.
 #[inline]
 pub fn first_special(bytes: &[u8]) -> Option<usize> {
-    bytes.iter().position(|&byte| byte == QUOTE || byte == BACKSLASH || byte < 0x20)
+    let index = super::first_escape_or_control(bytes);
+    if index == bytes.len() {
+        None
+    } else {
+        Some(index)
+    }
 }
 
 /// Discover one string in a complete input, starting at `opening_quote`.
@@ -55,9 +60,12 @@ pub fn scan_string(input: &[u8], opening_quote: u32) -> Result<StringScan> {
     let mut cursor = content_start;
     let mut first_escape = None;
 
-    while let Some(relative) = first_special(&input[cursor..]) {
-        // relative is strictly below the remaining slice's length.
-        cursor += relative;
+    let mut finder = super::masks::EscapeMaskCursor::new(&input[content_start..]);
+    loop {
+        cursor = content_start + finder.next_special(cursor - content_start);
+        if cursor == input.len() {
+            break;
+        }
         let offset = checked_scan_len(cursor)?;
         match input[cursor] {
             QUOTE => {

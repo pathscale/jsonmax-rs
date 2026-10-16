@@ -1,0 +1,22 @@
+[package]
+name = "jmax-schema-vm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-schema-ir = { workspace = true }
+jmax-schema-compile = { workspace = true }
+jmax-cursor = { workspace = true }
+jmax-syntax = { workspace = true }
+jmax-format = { workspace = true }
+jmax-decimal = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-utf8 = { workspace = true }

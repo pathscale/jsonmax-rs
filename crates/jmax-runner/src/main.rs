@@ -2,6 +2,9 @@
 use std::{collections::{BTreeMap, VecDeque}, env, fs::File, io::{self, Read, Write}, process::ExitCode};
 use jmax_runner::{drive, scenario, CallRequest, Payload, Reply, Result, RunnerError, Step, Transport, MAX_SCENARIO_BYTES};
 
+#[global_allocator]
+static ALLOCATOR: rusty_alloc::RustyAlloc = rusty_alloc::RustyAlloc;
+
 const USAGE: &str = "Usage:\n  jmax-runner validate SCENARIO\n  jmax-runner run SCENARIO --replies JSON_LINES\n  jmax-runner --help\n  jmax-runner --version\n\nReplay consumes one complete JSON value per nonempty line, in call/receive order.\nScenario files use the version 1 format documented in contracts/jmax-runner.md.\n";
 
 fn read_bounded(path: &str) -> Result<Vec<u8>> {

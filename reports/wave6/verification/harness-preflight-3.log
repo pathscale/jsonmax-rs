@@ -1,0 +1,75 @@
+cwd=/tmp/jmax-vs-parsers
+command=env JMAX_CHECK_ONLY=1 RUSTFLAGS=-C target-cpu=native cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+   Compiling jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+   Compiling jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+   Compiling jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+   Compiling jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+   Compiling jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+   Compiling jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+   Compiling jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+   Compiling jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-path)
+   Compiling jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+   Compiling jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-aot)
+   Compiling jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+   Compiling jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+   Compiling jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+   Compiling jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+   Compiling jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-exchange)
+   Compiling jmax-derive v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-derive)
+   Compiling jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib) generated 1 warning
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib) generated 2 warnings
+   Compiling jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+   Compiling jmax-vs-parsers v0.1.0 (/private/tmp/jmax-vs-parsers)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.94s
+     Running `target/debug/jmax-vs-parsers /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl`
+
+thread 'main' (35944802) panicked at /Users/revenge/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sonic-rs-0.5.10/src/parser.rs:104:5:
+invalid utf-8 in as_str
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PASS conformance: 18 syntax/UTF-8/escape cases
+preflight twitter
+PASS twitter: DOM semantic checks, typed equality, 42 operation preflights
+preflight citm_catalog
+PASS citm_catalog: DOM semantic checks, typed equality, 42 operation preflights
+preflight canada
+PASS canada: DOM semantic checks, typed equality, 42 operation preflights
+preflight github_events
+PASS github_events: DOM semantic checks, typed equality, 37 operation preflights
+preflight apache_builds
+PASS apache_builds: DOM semantic checks, typed equality, 42 operation preflights
+preflight endpoint_batch
+PASS endpoint_batch: DOM semantic checks, typed equality, 42 operation preflights
+exit=0

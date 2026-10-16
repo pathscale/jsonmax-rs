@@ -1,0 +1,111 @@
+cwd=/tmp/jmax-vs-parsers
+command=env JMAX_CHECK_ONLY=1 RUSTFLAGS=-C target-cpu=native cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl
+   Compiling bytes v1.12.1
+   Compiling itoa v1.0.18
+   Compiling cfg-if v1.0.5
+   Compiling allocator-api2 v0.2.21
+   Compiling libc v0.2.190
+   Compiling foldhash v0.2.0
+   Compiling equivalent v1.0.3
+   Compiling jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-error)
+   Compiling serde_core v1.0.229
+   Compiling jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-decimal)
+   Compiling zmij v1.0.23
+   Compiling num-traits v0.2.19
+   Compiling simdutf8 v0.1.5
+   Compiling zerocopy v0.8.63
+   Compiling memchr v2.8.3
+   Compiling once_cell v1.21.4
+   Compiling ryu v1.0.23
+   Compiling sonic-number v0.1.3
+   Compiling sonic-simd v0.1.4
+   Compiling jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-number)
+   Compiling ref-cast v1.0.27
+   Compiling thiserror v2.0.21
+   Compiling fnv v1.0.7
+   Compiling bumpalo v3.20.3
+   Compiling json v0.12.4
+   Compiling ps-pikkr v0.16.1 (/Users/revenge/code/ps-pikkr)
+   Compiling miniserde v0.1.46
+   Compiling hashbrown v0.16.1
+   Compiling jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-abi)
+   Compiling float-cmp v0.10.0
+   Compiling jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+   Compiling jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+   Compiling jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+   Compiling jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+   Compiling jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+   Compiling jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir)
+   Compiling cpufeatures v0.3.1
+   Compiling getrandom v0.3.4
+   Compiling ps-rusty_alloc v2.3.3 (/Users/revenge/code/ps-rusty_alloc)
+   Compiling ps-simdutf8 v0.1.6 (/Users/revenge/code/ps-simdutf8)
+   Compiling jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-utf8)
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+   Compiling jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+   Compiling jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+   Compiling jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+   Compiling jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+   Compiling jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+   Compiling jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+   Compiling jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-path)
+   Compiling jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+   Compiling jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+   Compiling jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-aot)
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+   Compiling jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+   Compiling jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+   Compiling jmax-derive v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-derive)
+   Compiling halfbrown v0.4.0
+   Compiling faststr v0.2.34
+   Compiling jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-exchange)
+   Compiling jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling value-trait v0.12.2
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-exchange` (lib) generated 1 warning
+   Compiling simd-json v0.18.1
+   Compiling jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+warning: `jmax-derive` (lib) generated 2 warnings
+   Compiling jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+   Compiling ahash v0.8.12
+   Compiling sonic-rs v0.5.10
+   Compiling jmax-vs-parsers v0.1.0 (/private/tmp/jmax-vs-parsers)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 13.39s
+     Running `target/debug/jmax-vs-parsers /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl`
+
+thread 'main' (35918164) panicked at /Users/revenge/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sonic-rs-0.5.10/src/parser.rs:104:5:
+invalid utf-8 in as_str
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+exit=101

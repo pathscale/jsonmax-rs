@@ -9,8 +9,8 @@ publish.workspace = true
 default = ["std"]
 alloc = ["jmax-abi/alloc"]
 std = ["alloc", "jmax-abi/std"]
-simd-utf8 = ["dep:ps-simdutf8"]
+simd-utf8 = [] # Compatibility flag; complete-slice validation always uses SIMD.
 
 [dependencies]
 jmax-abi = { workspace = true }
-ps-simdutf8 = { workspace = true, optional = true }
+ps-simdutf8 = { workspace = true }

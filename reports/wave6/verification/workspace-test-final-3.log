@@ -1,0 +1,856 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=env RUSTFLAGS=-C target-cpu=native cargo +1.98.1 test --workspace --offline
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+   Compiling jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+   Compiling jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+   Compiling jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+   Compiling jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+   Compiling jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+   Compiling jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+   Compiling jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-path)
+   Compiling jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+   Compiling jmax-codegen-spec v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-codegen-spec)
+   Compiling jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+   Compiling jmax-endpoint-ron v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-ron)
+   Compiling jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-aot)
+   Compiling jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+   Compiling jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+   Compiling jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+   Compiling jmax-derive v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-derive)
+   Compiling jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-exchange)
+   Compiling jmax-codegen-rust v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-codegen-rust)
+   Compiling jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+   Compiling jmax-compat v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-compat)
+warning: function `required_slot` is never used
+   --> crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `rename_all` is never read
+  --> crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib test) generated 2 warnings
+warning: `jmax-exchange` (lib) generated 1 warning
+   Compiling jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+   Compiling jmax-validator v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-validator)
+warning: unused import: `std::io::ErrorKind`
+ --> crates/jmax-validator/src/ui.rs:4:5
+  |
+4 | use std::io::ErrorKind;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling jmax-gen-cli v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-gen-cli)
+warning: unused import: `Artifact`
+ --> crates/jmax-gen-cli/src/check.rs:4:29
+  |
+4 |     validate_artifact_path, Artifact, CheckReport, CliError, CliResult, Drift, DriftKind,
+  |                             ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib test) generated 1 warning (1 duplicate)
+warning: `jmax-derive` (lib) generated 2 warnings (2 duplicates)
+   Compiling jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+   Compiling jmax-bench v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-bench)
+   Compiling jmax-fuzz v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-fuzz)
+warning: unused imports: `FailureKind`, `Outcome`, and `RejectionComparison`
+ --> crates/jmax-fuzz/src/syntax.rs:6:76
+  |
+6 |     compare_outcomes, harness_error, DeterministicRng, ErrorCode, Failure, FailureKind,
+  |                                                                            ^^^^^^^^^^^
+7 |     FuzzConfig, FuzzReport, Limits, Outcome, Payload, RejectionComparison, Result, SyntaxOracle,
+  |                                     ^^^^^^^           ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FailureKind`, `Outcome`, and `RejectionComparison`
+ --> crates/jmax-fuzz/src/schema.rs:6:78
+  |
+6 |     compare_outcomes, harness_error, Error, ErrorCode, ErrorSource, Failure, FailureKind,
+  |                                                                              ^^^^^^^^^^^
+7 |     FieldId, FuzzConfig, FuzzReport, Limits, Outcome, Payload, Result, RejectionComparison,
+  |                                              ^^^^^^^                   ^^^^^^^^^^^^^^^^^^^
+
+warning: value assigned to `parity` is never read
+   --> crates/jmax-fuzz/src/ownership.rs:112:44
+    |
+112 |     let mut parity: Option<Vec<Vec<u8>>> = None;
+    |                                            ^^^^ this value is reassigned later and never used
+...
+188 |                 parity = Some(resolved);
+    |                 ------ `parity` is overwritten here before the previous value is read
+    |
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling jmax-runner v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-runner)
+warning: `jmax-fuzz` (lib) generated 3 warnings (run `cargo fix --lib -p jmax-fuzz` to apply 2 suggestions)
+warning: `jmax-gen-cli` (lib) generated 1 warning (run `cargo fix --lib -p jmax-gen-cli` to apply 1 suggestion)
+warning: `jmax-validator` (lib test) generated 1 warning (1 duplicate)
+warning: `jmax-gen-cli` (lib test) generated 1 warning (1 duplicate)
+warning: `jmax-fuzz` (lib test) generated 3 warnings (3 duplicates)
+warning: `jmax-validator` (lib) generated 1 warning (run `cargo fix --lib -p jmax-validator` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.75s
+     Running unittests src/lib.rs (target/debug/deps/jmax_abi-060847df8f976154)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_bench-bf2bd9e84ab5cd55)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/jmax_bench.rs (target/debug/deps/jmax_bench-c1ff86a59913d6af)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_buffer-78975493e2db5652)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_codegen_rust-304d7f723532d725)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_codegen_spec-a1edaf86013bfc19)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_compat-ee7eceb99aeaccf1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_cursor-654297092f699a22)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-d08c9775e8016e6d)
+
+running 7 tests
+test incremental_skip_still_suspends_and_resumes ... ok
+test finishing_after_query_skip_revalidates_the_skipped_input ... ok
+test query_missing_paths_still_never_claim_skipped_validation ... ok
+test strict_skip_rejects_duplicates_and_checks_discarded_decoded_budget ... ok
+test query_skips_lexically_invalid_unselected_interiors_honestly ... ok
+test borrowed_selection_retains_original_raw_slice ... ok
+test borrowed_walk_and_validated_skip ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_decimal-b7fa4c6c6aeb5eb0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_derive-744f9a7fc620adde)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_dispatch-e28a40c2e547907a)
+
+running 1 test
+test detect::tests::x86_cpu_os_and_scanner_build_gates_are_independent ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-3bb76354dcf5c779)
+
+running 2 tests
+test cached_bindings_match_checked_entry_points_and_full_blocks ... ok
+test native_and_scalar_masks_agree_at_guard_page_for_every_tail ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_dom-0b881360edc38332)
+
+running 1 test
+test build::tests::full_u32_number_length_and_compact_boundary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/tape.rs (target/debug/deps/tape-20afb77664fa2b0f)
+
+running 13 tests
+test arbitrary_strrefs_remain_checked_and_scalar_counts_are_not_recomputed ... ok
+test compact_record_offsets_and_sibling_jumps ... ok
+test duplicate_owner_scope_limits_and_permissive_order ... ok
+test extended_keys_strings_and_nested_container_boundaries ... ok
+test numeric_views_preserve_spelling_and_apply_explicit_policy ... ok
+test owned_subview_and_clone_capability_keep_the_exact_owner ... ok
+test malformed_grammar_and_decoded_duplicates_are_rejected ... ok
+test rebuild_uses_tape_ids_and_retains_existing_key_spelling ... ok
+test explicit_legacy_conversion_reindexes_nodes_and_preserves_spelling ... ok
+test scratch_owned_and_borrowed_reuse_after_success_and_failure ... ok
+test duplicate_table_resize_and_nested_scope ... ok
+test key_compact_boundary_and_unicode_key_reference ... ok
+test string_compact_boundary ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_encode-5ba9e949bae7294b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-2eaeb2892c359bc1)
+
+running 14 tests
+test external_reserve_and_partial_write_errors_are_preserved_and_poison ... ok
+test limited_sink_reuses_reservations_but_checks_every_write_and_overflow ... ok
+test malformed_external_sink_lengths_poison_and_prefix_overflow_is_rejected ... ok
+test ordinary_runs_span_many_mask_blocks ... ok
+test unescaped_unicode_is_one_maximal_run_and_one_reservation ... ok
+test staged_legacy_output_stays_unchanged_and_mutable_strings_remain_checked ... ok
+test escapes_extend_the_pending_reservation_by_exact_growth ... ok
+test scalar_and_empty_container_roots_encode_without_extra_stack ... ok
+test native_limits_and_scratch_recovery_after_errors ... ok
+test owned_borrowed_and_legacy_encoders_agree_on_nested_variable_width_tape ... ok
+test escaped_keys_include_commas_colons_and_pending_suffix_in_budget ... ok
+test every_output_limit_is_inclusive_and_failure_poisoning_is_sticky ... ok
+test native_decoded_string_limits_count_utf8_bytes_and_duplicates_keep_order ... ok
+test all_escape_spellings_and_block_edges_match_reference ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_endpoint_model-2c07ac3f4fa9ed02)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_endpoint_ron-e1b9c047544fe0fb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_error-273e020c08fb344e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_exchange-1e7451f3b903016e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_format-7bf6d047b2b08627)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_fuzz-93920ee868c57fed)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_gen_cli-791128ede1972a0c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/jsonmax_gen-71c5b91c16dd5bda)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_http-d99f91dd8cc7cd7a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ownership.rs (target/debug/deps/ownership-e3ad110f43174bea)
+
+running 3 tests
+test nested_arc_slice_subviews_keep_owner_and_reject_invalid_ranges ... ok
+test bytes_body_subview_moves_into_response_job_and_checks_completion ... ok
+test arc_body_subview_moves_into_request_job_without_copying ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_mcp-4a73fe6d3221387d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_nagoya-fa529ca63e2af892)
+
+running 1 test
+test submit::tests::canonical_capability_requires_exact_live_owner_range_and_proof ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ownership.rs (target/debug/deps/ownership-46f027be426bd1c2)
+
+running 4 tests
+test copied_external_output_uses_fallback_and_counts_coexisting_backings ... ok
+test owner_and_lease_survive_result_handoff ... ok
+test every_failure_path_releases_once ... ok
+test tiny_subview_reserves_full_known_backing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reactive.rs (target/debug/deps/reactive-b0f3b66e4e41129d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_number-419c851069c439a2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_path-a7a8e49075b2bcb7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_runner-682a904596746141)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/jmax_runner-7af8076fffc45451)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_scan_avx2-5526a979642d7e2a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-31b83d4da8aef32a)
+
+running 5 tests
+test full_slice_and_array_paths_agree_and_errors_preserve_carry ... ok
+test exhaustive_short_escape_runs_and_carries ... ok
+test every_tail_lane_boundary_and_multiblock_backslash_run ... ok
+test randomized_word_masks_match_independent_byte_oracle ... ok
+test fused_raw_classes_at_every_byte_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_scan_avx512-9e4ac883c4c88a34)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-2287685286872811)
+
+running 5 tests
+test full_slice_and_array_paths_agree_and_errors_preserve_carry ... ok
+test exhaustive_short_escape_runs_and_carries ... ok
+test every_tail_lane_boundary_and_multiblock_backslash_run ... ok
+test randomized_word_masks_match_independent_byte_oracle ... ok
+test fused_raw_classes_at_every_byte_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_scan_neon-e33a0d107a0679ec)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-97353e44669adc4d)
+
+running 5 tests
+test full_slice_and_array_paths_agree_and_errors_preserve_carry ... ok
+test exhaustive_short_escape_runs_and_carries ... ok
+test every_tail_lane_boundary_and_multiblock_backslash_run ... ok
+test randomized_word_masks_match_independent_byte_oracle ... ok
+test fused_raw_classes_at_every_byte_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_scan_scalar-c1a6fa92848a5548)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-43d63b183b23b07c)
+
+running 5 tests
+test full_slice_and_array_paths_agree_and_errors_preserve_carry ... ok
+test exhaustive_short_escape_runs_and_carries ... ok
+test every_tail_lane_boundary_and_multiblock_backslash_run ... ok
+test randomized_word_masks_match_independent_byte_oracle ... ok
+test fused_raw_classes_at_every_byte_position ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_schema_aot-8cf2ce8ced1814c7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-ba06c9eb8edcf50d)
+
+running 1 test
+test borrowed_and_owned_results_use_the_same_checked_decoder ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_schema_compile-b6948a3bd31a5dea)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-9c5eea3ab9a18390)
+
+running 3 tests
+test recursive_dispatch_reaches_fixed_point_without_recursive_walks ... ok
+test compilation_and_image_load_prepare_identical_dispatch ... ok
+test swar_and_hash_dispatch_reuse_heads_and_preserve_exact_comparisons ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_schema_ir-bcbf776ad1f1f698)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_schema_vm-e86e54132f7596bb)
+
+running 1 test
+test direct::tests::validation_only_never_allocates_slot_values ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-d4c950dd667fd672)
+
+running 11 tests
+test owned_direct_results_preserve_payload_owner ... ok
+test duplicate_disabled_allows_uncaptured_unknown_duplicates ... ok
+test borrowed_extraction_preserves_input_and_scalar_metadata ... ok
+test query_skips_unselected_schema_and_lexical_interiors ... ok
+test live_guard_reextraction_rejects_policy_substitution_and_keeps_original_borrow ... ok
+test limits_apply_inside_skipped_subtrees_and_across_siblings ... ok
+test warm_validation_and_extraction_recover_after_failure ... ok
+test compiled_pattern_and_decimal_constraints_apply_without_capture ... ok
+test unselected_constraints_required_unknown_and_eof_remain_strict ... ok
+test escaped_known_and_unknown_duplicate_keys_are_rejected ... ok
+test strict_skip_rejects_invalid_interior_and_numeric_policy ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_string-680ccae2c3d452ac)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-bcadff181d519a91)
+
+running 4 tests
+test byte_limits_utf8_error_order_and_arena_rollback ... ok
+test every_error_rolls_back_already_appended_runs_and_escapes ... ok
+test transactional_decode_preserves_prefix_and_counts_scalars ... ok
+test escape_masks_match_every_byte_value_in_every_position ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_syntax-b03ce715eb97c027)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-ddf75e787bb5bd55)
+
+running 9 tests
+test borrowed_ascii_and_unicode_never_append ... ok
+test controls_are_reported_at_the_exact_byte ... ok
+test key_hashes_use_cooked_bytes ... ok
+test duplicate_owner_is_explicit ... ok
+test strict_discard_preserves_global_decoded_budget ... ok
+test escaped_strings_cross_blocks_and_rollback_transactionally ... ok
+test query_strict_and_capability_skips_have_distinct_contracts ... ok
+test complete_and_every_incremental_split_produce_identical_events ... ok
+test atoms_and_resource_limits ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_utf8-7705f7687004b34b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-5ccaa7087b7f94b9)
+
+running 2 tests
+test invalid_and_truncated_sequences_have_absolute_leading_offsets ... ok
+test bulk_count_matches_scalar_reference_at_every_word_boundary ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_validator-55153833cb8e3598)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/jmax_validator-ed07a9ce29711c9e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_wire-90658086622609cb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jmax_wss-d7ca1d83ef01b011)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ownership.rs (target/debug/deps/ownership-9926bda3dd6f9b36)
+
+running 3 tests
+test partial_write_cursor_preserves_both_owners_and_never_reencodes ... ok
+test all_close_reason_variants_keep_the_original_allocation ... ok
+test generic_arc_and_nested_subview_adopt_without_copying ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/jsonmax-10b7a1efcfea753c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/wave6.rs (target/debug/deps/wave6-7f8d1f2db73f1c7e)
+
+running 17 tests
+test staged_and_streaming_failure_publication_remain_distinct ... ok
+test query_only_path_skips_are_honest_but_selected_containers_are_strict ... ok
+test legacy_conversion_rejects_mutated_layout_and_rechecks_numeric_policy ... ok
+test native_scratch_recycling_and_error_recovery ... ok
+test native_owned_borrowed_and_explicit_legacy_encoding_agree ... ok
+test native_streaming_limits_exclude_sink_prefix_and_reuse_writer_scratch ... ok
+test payload_limit_is_inclusive_for_owned_borrowed_and_proof_only_paths ... ok
+test borrowed_syntax_proof_checks_discarded_values_and_tail ... ok
+test path_queries_borrow_input_preserve_path_order_and_match_limits ... ok
+test strict_path_selection_checks_tail_duplicate_and_numeric_policies ... ok
+test canonical_hosted_validator_carries_exact_owner_capability ... ok
+test schema_borrowed_extraction_keeps_input_and_scratch_lifetimes_distinct ... ok
+test schema_proof_only_validation_never_publishes_slot_output ... ok
+test schema_query_results_skip_unselected_interiors_without_proofs ... ok
+test strict_schema_extraction_enforces_unselected_constraints ... ok
+test vec_arc_and_payload_subviews_preserve_the_actual_owner ... ok
+test typed_borrowed_compatibility_adapter_owns_its_explicit_input_copy ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_abi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_bench
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_buffer
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_codegen_rust
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_codegen_spec
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_compat
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_cursor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_decimal
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_derive
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_dispatch
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_dom
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_encode
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_endpoint_model
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_endpoint_ron
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_error
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_exchange
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_format
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_fuzz
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_gen_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_http
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_mcp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_nagoya
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_number
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_path
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_runner
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_scan_avx2
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_scan_avx512
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_scan_neon
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_scan_scalar
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_schema_aot
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_schema_compile
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_schema_ir
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_schema_vm
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_string
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_syntax
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_utf8
+
+running 1 test
+test crates/jmax-utf8/src/proof.rs - proof::validate (line 26) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+   Doc-tests jmax_validator
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_wire
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_wss
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jsonmax
+
+running 2 tests
+test crates/jsonmax/src/endpoint.rs - endpoint::extract_borrowed_with_scratch (line 232) - compile fail ... ok
+test crates/jsonmax/src/parse.rs - parse::parse_borrowed (line 54) - compile fail ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+exit=0

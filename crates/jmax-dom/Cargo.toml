@@ -7,12 +7,9 @@ publish.workspace = true
 
 [features]
 default = ["std"]
-alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+alloc = ["jmax-abi/alloc", "jmax-syntax/alloc"]
+std = ["alloc", "jmax-abi/std", "jmax-syntax/std"]
 
 [dependencies]
 jmax-abi = { workspace = true }
-jmax-cursor = { workspace = true }
-jmax-buffer = { workspace = true }
-jmax-string = { workspace = true }
-jmax-number = { workspace = true }
+jmax-syntax = { workspace = true }

@@ -1,0 +1,31 @@
+[package]
+name = "jmax-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std", "jsonmax/std", "jmax-dispatch/std", "jmax-nagoya/nagoya-rt"]
+system-alloc = []
+
+[dependencies]
+jmax-abi = { workspace = true }
+jsonmax = { workspace = true }
+jmax-nagoya = { workspace = true }
+jmax-exchange = { workspace = true }
+jmax-encode = { workspace = true }
+jmax-schema-vm = { workspace = true }
+
+jmax-dom = { workspace = true }
+jmax-dispatch = { workspace = true }
+jmax-schema-ir = { workspace = true }
+rusty_alloc = { workspace = true }
+bytes = { workspace = true }
+
+[[bin]]
+name = "jmax_bench"
+path = "src/bin/jmax_bench.rs"
+required-features = ["std"]

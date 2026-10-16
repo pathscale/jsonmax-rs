@@ -62,19 +62,17 @@ fn classify_structural_scalar(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
 
 #[cfg(target_arch = "x86")]
 use core::arch::x86::{
-    __m512i, _mm512_cmpeq_epi8_mask, _mm512_cmplt_epu8_mask, _mm512_loadu_si512,
-    _mm512_set1_epi8,
+    __m512i, _mm512_cmpeq_epi8_mask, _mm512_cmplt_epu8_mask, _mm512_loadu_si512, _mm512_set1_epi8,
 };
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{
-    __m512i, _mm512_cmpeq_epi8_mask, _mm512_cmplt_epu8_mask, _mm512_loadu_si512,
-    _mm512_set1_epi8,
+    __m512i, _mm512_cmpeq_epi8_mask, _mm512_cmplt_epu8_mask, _mm512_loadu_si512, _mm512_set1_epi8,
 };
 
 /// Caller must establish AVX-512F and AVX-512BW CPU and OS support.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx512f,avx512bw")]
-unsafe fn classify_structural_avx512(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
+pub(crate) unsafe fn classify_structural_avx512(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
     // SAFETY: the reference guarantees all 64 bytes read belong to a live
     // array. This load is unaligned and requires no bytes beyond that array.
     let bytes = unsafe { _mm512_loadu_si512(input.as_ptr().cast::<__m512i>()) };

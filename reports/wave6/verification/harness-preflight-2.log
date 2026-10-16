@@ -1,0 +1,51 @@
+cwd=/tmp/jmax-vs-parsers
+command=env JMAX_CHECK_ONLY=1 RUSTFLAGS=-C target-cpu=native cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-derive` (lib) generated 2 warnings
+warning: `jmax-exchange` (lib) generated 1 warning
+   Compiling jmax-vs-parsers v0.1.0 (/private/tmp/jmax-vs-parsers)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.16s
+     Running `target/debug/jmax-vs-parsers /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl`
+
+thread 'main' (35927430) panicked at /Users/revenge/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sonic-rs-0.5.10/src/parser.rs:104:5:
+invalid utf-8 in as_str
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+PASS conformance: 18 syntax/UTF-8/escape cases
+preflight twitter
+PASS twitter: DOM semantic checks, typed equality, 42 operation preflights
+preflight citm_catalog
+PASS citm_catalog: DOM semantic checks, typed equality, 42 operation preflights
+preflight canada
+PASS canada: DOM semantic checks, typed equality, 42 operation preflights
+preflight github_events
+Error: "github_events/jmax-strict-extract-borrowed preflight: SchemaVm: TypeMismatch at byte 0 (schema 1, field 0): container kind does not match schema"
+exit=1

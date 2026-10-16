@@ -1,6 +1,5 @@
 //! Owned WebSocket message boundaries and explicit local-reactor integration.
 #![cfg_attr(not(feature = "std"), no_std)]
-#![forbid(unsafe_code)]
 
 extern crate alloc;
 
@@ -176,8 +175,11 @@ pub(crate) fn ensure_payload_len(len: usize, maximum: u32) -> Result<u32> {
     Ok(len)
 }
 
-pub(crate) fn ensure_validated_slots(slots: &ValidatedSlots, expected: &[u8]) -> Result<()> {
-    if slots.payload.as_slice() != expected
+pub(crate) fn ensure_validated_slots(slots: &ValidatedSlots, expected: &Payload) -> Result<()> {
+    let same_owner = slots.payload.shares_backing_with(expected)
+        && slots.payload.as_slice().as_ptr() == expected.as_slice().as_ptr()
+        && slots.payload.len() == expected.len();
+    if (!same_owner && slots.payload.as_slice() != expected.as_slice())
         || usize::try_from(slots.proof.payload_len()).ok() != Some(expected.len())
         || usize::try_from(slots.proof.decoded_len()).ok() != Some(slots.decoded.len())
     {

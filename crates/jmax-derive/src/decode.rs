@@ -6,17 +6,25 @@ use super::*;
 /// `attributes`; this module also checks the slot layout it consumes.
 pub(crate) fn expand(input: &DeriveInput) -> DeriveResult<TokenStream> {
     let fields = match &input.shape {
-        ItemShape::NamedStruct(fields) => Some(fields.iter().map(|field| SourceField {
-            ident: field.ident.to_string(),
-            rust_type: field.rust_type.to_string(),
-            ty: field.ty.clone(),
-            slot: field.slot,
-            default: field.attrs.default,
-        }).collect()),
+        ItemShape::NamedStruct(fields) => Some(
+            fields
+                .iter()
+                .map(|field| SourceField {
+                    ident: field.ident.to_string(),
+                    rust_type: field.rust_type.to_string(),
+                    ty: field.ty.clone(),
+                    slot: field.slot,
+                    default: field.attrs.default,
+                })
+                .collect(),
+        ),
         ItemShape::UnitStruct => None,
-        ItemShape::Enum(_) => return Err(DeriveError::new(
-            input.span, "JsonDecode supports only named structs and unit structs",
-        )),
+        ItemShape::Enum(_) => {
+            return Err(DeriveError::new(
+                input.span,
+                "JsonDecode supports only named structs and unit structs",
+            ));
+        }
     };
     let source = SourceInput {
         ident: input.ident.to_string(),
@@ -29,8 +37,9 @@ pub(crate) fn expand(input: &DeriveInput) -> DeriveResult<TokenStream> {
     };
     let source = render(&source).map_err(|error| {
         let span = match (&input.shape, error.field) {
-            (ItemShape::NamedStruct(fields), Some(index)) =>
-                fields.get(index).map_or(input.span, |field| field.span),
+            (ItemShape::NamedStruct(fields), Some(index)) => {
+                fields.get(index).map_or(input.span, |field| field.span)
+            }
             _ => input.span,
         };
         DeriveError::new(span, error.message)
@@ -83,7 +92,8 @@ fn slot_count(fields: &[SourceField]) -> Result<u32, SourceError> {
             if field.slot != Some(count) {
                 return Err(SourceError {
                     field: Some(index),
-                    message: "JsonDecode slots must be dense and follow field declaration order".into(),
+                    message: "JsonDecode slots must be dense and follow field declaration order"
+                        .into(),
                 });
             }
             count = count.checked_add(1).ok_or_else(|| SourceError {
@@ -130,8 +140,15 @@ fn implementation_where(input: &SourceInput) -> String {
 /// Procedural macro output has call-site hygiene. Avoid names present anywhere
 /// in the input, including const generic parameters and array length expressions.
 fn local_names(input: &SourceInput) -> (String, String, String) {
-    let mut occupied = format!("{} {} {} {} {} {}", input.ident,
-        input.impl_generics, input.type_generics, input.where_clause, input.abi, input.aot);
+    let mut occupied = format!(
+        "{} {} {} {} {} {}",
+        input.ident,
+        input.impl_generics,
+        input.type_generics,
+        input.where_clause,
+        input.abi,
+        input.aot
+    );
     for field in input.fields.as_deref().unwrap_or(&[]) {
         occupied.push_str(&field.ident);
         occupied.push_str(&field.rust_type);
@@ -142,14 +159,20 @@ fn local_names(input: &SourceInput) -> (String, String, String) {
     while occupied.contains(&prefix) {
         prefix.push('_');
     }
-    (format!("{prefix}_slots"), format!("{prefix}_reader"), format!("{prefix}_value"))
+    (
+        format!("{prefix}_slots"),
+        format!("{prefix}_reader"),
+        format!("{prefix}_value"),
+    )
 }
 
 fn missing_required(abi: &str, slot: u32) -> String {
-    format!("return ::core::result::Result::Err({abi}::error::Error::new(\
+    format!(
+        "return ::core::result::Result::Err({abi}::error::Error::new(\
         {abi}::error::ErrorCode::MissingRequiredField, \
         {abi}::error::ErrorSource::Decode, 0u32, \
-        \"required decode slot is empty\").with_schema(0u32, {slot}u32))")
+        \"required decode slot is empty\").with_schema(0u32, {slot}u32))"
+    )
 }
 
 fn render(input: &SourceInput) -> Result<String, SourceError> {
@@ -165,6 +188,18 @@ fn render(input: &SourceInput) -> Result<String, SourceError> {
          -> {abi}::error::Result<Self> {{\n\
          let {reader} = {aot}::SlotReader::new({slots}, \
          <Self as {abi}::traits::SchemaProvider>::schema_fingerprint())?;\n\
+         <Self as {aot}::JsonDecodeBorrowed>::decode_borrowed({reader})\n\
+         }}\n}}\n\
+         impl {} {aot}::JsonDecodeBorrowed for {} {} {clause} {{\n\
+         fn decode_borrowed({reader}: {aot}::BorrowedSlotReader<'_>) \
+         -> {abi}::error::Result<Self> {{\n\
+         if {reader}.values().proof.schema_fingerprint() \
+         != <Self as {abi}::traits::SchemaProvider>::schema_fingerprint() {{\n\
+         return ::core::result::Result::Err({abi}::error::Error::new(\
+         {abi}::error::ErrorCode::SchemaImageInvalid, \
+         {abi}::error::ErrorSource::Decode, 0u32, \
+         \"decode schema fingerprint mismatch\"));\n\
+         }}\n\
          if ::core::convert::TryFrom::try_from({reader}.values().slots.len()).ok() \
          != ::core::option::Option::Some({count}u32) {{\n\
          return ::core::result::Result::Err({abi}::error::Error::new(\
@@ -172,7 +207,12 @@ fn render(input: &SourceInput) -> Result<String, SourceError> {
          {abi}::error::ErrorSource::Decode, 0u32, \
          \"decode slot count differs from struct field count\"));\n\
          }}\n",
-        input.impl_generics, input.ident, input.type_generics,
+        input.impl_generics,
+        input.ident,
+        input.type_generics,
+        input.impl_generics,
+        input.ident,
+        input.type_generics,
     );
     if input.fields.is_none() {
         source.push_str("::core::result::Result::Ok(Self)\n");
@@ -186,7 +226,8 @@ fn render(input: &SourceInput) -> Result<String, SourceError> {
             let (scalar, optional) = match &field.ty {
                 FieldType::Skipped => {
                     source.push_str(&format!(
-                        "<{} as ::core::default::Default>::default(),\n", field.rust_type,
+                        "<{} as ::core::default::Default>::default(),\n",
+                        field.rust_type,
                     ));
                     continue;
                 }
@@ -218,7 +259,10 @@ fn render(input: &SourceInput) -> Result<String, SourceError> {
                     value.clone()
                 };
                 let absent = if field.default {
-                    format!("<{} as ::core::default::Default>::default()", field.rust_type)
+                    format!(
+                        "<{} as ::core::default::Default>::default()",
+                        field.rust_type
+                    )
                 } else {
                     missing_required(abi, slot)
                 };

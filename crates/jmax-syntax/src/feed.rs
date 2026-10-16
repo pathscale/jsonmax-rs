@@ -15,7 +15,9 @@ pub fn push(state: &mut SyntaxState, bytes: &[u8]) -> Result<()> {
         let end = offset(state.input.len())?;
         if state.final_input || state.finished {
             return Err(syntax_error(
-                ErrorCode::InvalidSyntax, end, "input was already ended",
+                ErrorCode::InvalidSyntax,
+                end,
+                "input was already ended",
             ));
         }
         frames::check_payload_growth(state.input.len(), bytes.len(), state.limits)?;
@@ -53,7 +55,12 @@ pub fn next(state: &mut SyntaxState) -> Result<ScanStep> {
     if state.finished {
         return Ok(ScanStep::Finished);
     }
-    next_inner(state).map_err(|error| state.fail(error))
+    let result = if matches!(state.input, InputStorage::Complete(_)) {
+        next_complete(state)
+    } else {
+        next_inner(state)
+    };
+    result.map_err(|error| state.fail(error))
 }
 
 fn next_inner(state: &mut SyntaxState) -> Result<ScanStep> {
@@ -86,13 +93,16 @@ fn next_inner(state: &mut SyntaxState) -> Result<ScanStep> {
                     return Ok(ScanStep::Finished);
                 }
                 return Err(syntax_error(
-                    ErrorCode::UnexpectedEof, end, "incomplete JSON document",
+                    ErrorCode::UnexpectedEof,
+                    end,
+                    "incomplete JSON document",
                 ));
             }
             // Trailing content is diagnosed before inspecting its lexical form.
             if state.frames.is_empty() && state.root_phase == FramePhase::RootDone {
                 return Err(syntax_error(
-                    ErrorCode::TrailingContent, state.byte_offset,
+                    ErrorCode::TrailingContent,
+                    state.byte_offset,
                     "content follows the root value",
                 ));
             }
@@ -103,11 +113,7 @@ fn next_inner(state: &mut SyntaxState) -> Result<ScanStep> {
             Some(token) => token,
             None => return Ok(ScanStep::NeedMore),
         };
-        let result = machine::transition(frames::current_phase(state), token)
-            .and_then(|transition| {
-                frames::apply(state, token, transition)?;
-                Ok(transition)
-            });
+        let result = frames::apply_transition(state, token, None);
         let transition = match result {
             Ok(transition) => transition,
             Err(error) => {
@@ -116,7 +122,10 @@ fn next_inner(state: &mut SyntaxState) -> Result<ScanStep> {
                 return Err(error);
             }
         };
-        state.byte_offset = token.span.end().ok_or_else(|| internal(token.span.offset))?;
+        state.byte_offset = token
+            .span
+            .end()
+            .ok_or_else(|| internal(token.span.offset))?;
         state.pending = None;
         if let Some(event) = transition.event {
             return Ok(ScanStep::Emit(event));
@@ -129,7 +138,10 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
         carry
     } else {
         let start = state.byte_offset;
-        let byte = *state.input.get(start as usize).ok_or_else(|| internal(start))?;
+        let byte = *state
+            .input
+            .get(start as usize)
+            .ok_or_else(|| internal(start))?;
         let punctuation = match byte {
             b'{' => Some(TokenKind::LBrace),
             b'}' => Some(TokenKind::RBrace),
@@ -140,7 +152,11 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
             _ => None,
         };
         if let Some(kind) = punctuation {
-            return Ok(Some(Token { kind, span: Span32::new(start, 1), decoded: None }));
+            return Ok(Some(Token {
+                kind,
+                span: Span32::new(start, 1),
+                decoded: None,
+            }));
         }
         let kind = match byte {
             b'"' => PendingKind::String,
@@ -148,10 +164,17 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
             b't' => PendingKind::Literal(TokenKind::True),
             b'f' => PendingKind::Literal(TokenKind::False),
             b'n' => PendingKind::Literal(TokenKind::Null),
-            _ => return Err(lexical(ErrorCode::InvalidToken, start, "invalid token start")),
+            _ => {
+                return Err(lexical(
+                    ErrorCode::InvalidToken,
+                    start,
+                    "invalid token start",
+                ))
+            }
         };
         PendingToken {
-            kind, start,
+            kind,
+            start,
             scan_offset: start + u32::from(kind == PendingKind::String),
             first_escape: None,
             non_ascii: false,
@@ -161,7 +184,8 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
         }
     };
     let end = offset(state.input.len())?;
-    if carry.start != state.byte_offset || carry.scan_offset < carry.start
+    if carry.start != state.byte_offset
+        || carry.scan_offset < carry.start
         || carry.scan_offset > end
         || (carry.kind == PendingKind::String && carry.scan_offset == carry.start)
     {
@@ -174,7 +198,7 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
         if carry.kind == PendingKind::String {
             // Delimiter quotes are outside the content mask. Escape parity,
             // including a backslash at lane 63, is carried by the classifier.
-            let quotes = masks.quote_mask & !masks.in_string_mask & remaining;
+            let quotes = masks.delimiter_quotes() & remaining;
             let content_end = if quotes == 0 {
                 block.end
             } else {
@@ -191,23 +215,35 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
                 let excess = carry.start + 1 + state.limits.max_string_bytes;
                 // Preserve lexical failures before the first excess raw byte.
                 measure_string(
-                    state, carry.start, excess + 1, false,
-                    carry.first_escape.is_some_and(|position| position <= excess),
+                    state,
+                    carry.start,
+                    excess + 1,
+                    false,
+                    carry
+                        .first_escape
+                        .is_some_and(|position| position <= excess),
                 )?;
                 return Err(internal(excess));
             }
             carry.scan_offset = content_end;
             if quotes != 0 {
-                let reference = if carry.first_escape.is_none() && !carry.non_ascii && !carry.control {
-                    let len = content_end - carry.start - 1;
-                    StrRef {
-                        span: Span32::new(carry.start + 1, len),
-                        source: SpanSource::RawPayload,
-                        scalar_len: len,
-                    }
-                } else {
-                    decode_string(state, carry.start, content_end, true, carry.first_escape.is_some())?
-                };
+                let reference =
+                    if carry.first_escape.is_none() && !carry.non_ascii && !carry.control {
+                        let len = content_end - carry.start - 1;
+                        StrRef {
+                            span: Span32::new(carry.start + 1, len),
+                            source: SpanSource::RawPayload,
+                            scalar_len: len,
+                        }
+                    } else {
+                        decode_string(
+                            state,
+                            carry.start,
+                            content_end,
+                            true,
+                            carry.first_escape.is_some(),
+                        )?
+                    };
                 return Ok(Some(Token {
                     kind: TokenKind::String,
                     span: Span32::new(carry.start, content_end + 1 - carry.start),
@@ -217,9 +253,15 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
         } else {
             // Include raw punctuation too: a malformed atom can contain a
             // quote, which must not hide its later delimiter from the lexer.
-            let delimiters = (masks.whitespace_mask | masks.structural_mask
-                | masks.colon_mask | masks.comma_mask | masks.lbrace_mask
-                | masks.rbrace_mask | masks.lbracket_mask | masks.rbracket_mask) & remaining;
+            let delimiters = (masks.whitespace_mask
+                | masks.structural_mask
+                | masks.colon_mask
+                | masks.comma_mask
+                | masks.lbrace_mask
+                | masks.rbrace_mask
+                | masks.lbracket_mask
+                | masks.rbracket_mask)
+                & remaining;
             let atom_end = if delimiters == 0 {
                 block.end
             } else {
@@ -228,7 +270,8 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
             if carry.kind == PendingKind::Number && carry.excess_digit.is_none() {
                 let mut digits = masks.digit_mask & remaining & low_bits(atom_end - block.start);
                 let count = digits.count_ones();
-                let allowed = u32::from(state.limits.max_number_digits).saturating_sub(carry.digits);
+                let allowed =
+                    u32::from(state.limits.max_number_digits).saturating_sub(carry.digits);
                 if count > allowed {
                     // Only locate a particular digit when reporting a limit.
                     for _ in 0..allowed {
@@ -253,7 +296,9 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
         // surrogate, or UTF-8 sequence takes precedence over missing quotes.
         measure_string(state, carry.start, end, false, carry.first_escape.is_some())?;
         return Err(lexical(
-            ErrorCode::UnclosedString, carry.start, "string has no closing quote",
+            ErrorCode::UnclosedString,
+            carry.start,
+            "string has no closing quote",
         ));
     }
     complete_atom(state, carry, end).map(Some)
@@ -261,7 +306,11 @@ fn token(state: &mut SyntaxState) -> Result<Option<Token>> {
 
 /// Low occupied lanes, avoiding a shift by the mask width.
 fn low_bits(len: u32) -> u64 {
-    if len >= 64 { u64::MAX } else { (1u64 << len) - 1 }
+    if len >= 64 {
+        u64::MAX
+    } else {
+        (1u64 << len) - 1
+    }
 }
 
 /// Classifies consecutive input slices directly and caches the current block
@@ -279,7 +328,8 @@ fn block_at(state: &mut SyntaxState, position: u32) -> Result<ClassifiedBlock> {
         Some(dispatch) => dispatch,
         None => {
             let dispatch = jmax_dispatch::dispatch(
-                state.input.len(), jmax_dispatch::DispatchPolicy::default(),
+                state.input.len(),
+                jmax_dispatch::DispatchPolicy::default(),
             )?;
             state.dispatch = Some(dispatch);
             dispatch
@@ -292,9 +342,13 @@ fn block_at(state: &mut SyntaxState, position: u32) -> Result<ClassifiedBlock> {
             return Err(internal(position));
         }
         let before = state.scan_carry;
-        let masks = dispatch.classify(&state.input[block_start..block_end], &mut state.scan_carry)?;
+        let masks =
+            dispatch.classify(&state.input[block_start..block_end], &mut state.scan_carry)?;
         let block = ClassifiedBlock {
-            start: block_start as u32, end: block_end as u32, before, masks,
+            start: block_start as u32,
+            end: block_end as u32,
+            before,
+            masks,
         };
         state.scan_offset = block.end;
         state.block = Some(block);
@@ -305,7 +359,9 @@ fn block_at(state: &mut SyntaxState, position: u32) -> Result<ClassifiedBlock> {
 }
 
 fn complete_atom(state: &SyntaxState, carry: PendingToken, end: u32) -> Result<Token> {
-    let bytes = state.input.get(carry.start as usize..end as usize)
+    let bytes = state
+        .input
+        .get(carry.start as usize..end as usize)
         .ok_or_else(|| internal(carry.start))?;
     let at_eof = state.final_input && end as usize == state.input.len();
     let kind = match carry.kind {
@@ -323,48 +379,98 @@ fn complete_atom(state: &SyntaxState, carry: PendingToken, end: u32) -> Result<T
             for (index, &byte) in bytes.iter().enumerate() {
                 if expected.get(index) != Some(&byte) {
                     return Err(lexical(
-                        ErrorCode::InvalidToken, carry.start + index as u32,
+                        ErrorCode::InvalidToken,
+                        carry.start + index as u32,
                         "invalid literal or literal boundary",
                     ));
                 }
             }
             if bytes.len() != expected.len() {
                 return Err(lexical(
-                    if at_eof { ErrorCode::UnexpectedEof } else { ErrorCode::InvalidToken },
-                    end, "incomplete literal",
+                    if at_eof {
+                        ErrorCode::UnexpectedEof
+                    } else {
+                        ErrorCode::InvalidToken
+                    },
+                    end,
+                    "incomplete literal",
                 ));
             }
             kind
         }
         PendingKind::String => return Err(internal(carry.start)),
     };
-    Ok(Token { kind, span: Span32::new(carry.start, end - carry.start), decoded: None })
+    Ok(Token {
+        kind,
+        span: Span32::new(carry.start, end - carry.start),
+        decoded: None,
+    })
 }
 
 fn validate_number(state: &SyntaxState, carry: PendingToken, end: u32, at_eof: bool) -> Result<()> {
+    // Keep incremental token publication and error timing unchanged: the old
+    // chunked lexer is bounded by its discovered atom, even at punctuation.
+    validate_number_inner(
+        &state.input[..end as usize],
+        Span32::new(carry.start, end - carry.start),
+        state.numeric,
+        carry.excess_digit,
+        at_eof,
+    )
+}
+
+pub(crate) fn validate_number_slice(
+    input: &[u8],
+    span: Span32,
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+    excess_digit: Option<u32>,
+) -> Result<()> {
+    let end = span.end().ok_or_else(|| internal(span.offset))?;
+    validate_number_inner(
+        input,
+        span,
+        numeric,
+        excess_digit,
+        end as usize == input.len(),
+    )
+}
+
+fn validate_number_inner(
+    input: &[u8],
+    span: Span32,
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+    excess_digit: Option<u32>,
+    at_eof: bool,
+) -> Result<()> {
+    let end = span.end().ok_or_else(|| internal(span.offset))?;
     // Ordinary syntax accepts all grammatical numbers. Facade parsing supplies
     // a policy and applies it here, before publishing the numeric event.
-    let policy = state.numeric.unwrap_or(jmax_number::NumericPolicy {
+    let policy = numeric.unwrap_or(jmax_number::NumericPolicy {
         allow_Quoted_int: false,
         reject_non_finite_float: false,
         reject_negative_zero: false,
         max_exponent_abs: i16::MAX,
     });
-    // Bound the lexer's view to the discovered token so punctuation cannot be
-    // consumed as part of it. Offsets remain absolute in the original owner.
-    let result = jmax_number::lex::lex_number(&state.input[..end as usize], carry.start, &policy);
+    // The original suffix lets the lexer reject illegal number boundaries.
+    // A successful lexed span must equal the bitmask-discovered atom span.
+    let result = jmax_number::lex::lex_number(input, span.offset, &policy);
     let error = match result {
-        Ok(number) if number.span() == Span32::new(carry.start, end - carry.start) => {
-            if state.numeric.is_some()
-                && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal
-            {
+        Ok(number) if number.span() == span => {
+            if numeric.is_some() && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal {
                 jmax_number::float::parse_f64(&number, &policy).err()
-            } else { None }
+            } else {
+                None
+            }
         }
-        Ok(_) => Some(internal(carry.start)),
-        Err(error) if state.numeric.is_none() && error.code == ErrorCode::ConstraintViolation
-            && error.source == ErrorSource::Lexer
-            && error.detail == "explicit exponent exceeds the policy limit" => None,
+        Ok(_) => Some(internal(span.offset)),
+        Err(error)
+            if numeric.is_none()
+                && error.code == ErrorCode::ConstraintViolation
+                && error.source == ErrorSource::Lexer
+                && error.detail == "explicit exponent exceeds the policy limit" =>
+        {
+            None
+        }
         Err(mut error) => {
             if at_eof && error.code == ErrorCode::InvalidNumber && error.byte_offset == end {
                 error.code = ErrorCode::UnexpectedEof;
@@ -372,32 +478,45 @@ fn validate_number(state: &SyntaxState, carry: PendingToken, end: u32, at_eof: b
             Some(error)
         }
     };
-    if let Some(position) = carry.excess_digit {
-        if error.as_ref().is_none_or(|error| error.byte_offset > position) {
+    if let Some(position) = excess_digit {
+        if error
+            .as_ref()
+            .is_none_or(|error| error.byte_offset > position)
+        {
             return Err(syntax_error(
-                ErrorCode::ConstraintViolation, position, "number digit limit exceeded",
+                ErrorCode::ConstraintViolation,
+                position,
+                "number digit limit exceeded",
             ));
         }
     }
-    match error { Some(error) => Err(error), None => Ok(()) }
+    match error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// A bounded view excluding both quotes. Missing bytes distinguish truncated
 /// escapes at EOF from malformed escapes stopped by an actual closing quote.
-struct StringInput<'a> {
-    bytes: &'a [u8],
-    start: u32,
-    end: u32,
-    closed: bool,
-    raw_limit: u32,
+pub(crate) struct StringInput<'a> {
+    pub(crate) bytes: &'a [u8],
+    pub(crate) start: u32,
+    pub(crate) end: u32,
+    pub(crate) closed: bool,
+    pub(crate) raw_limit: u32,
 }
 
 impl StringInput<'_> {
     fn byte(&self, position: u32) -> Result<u8> {
         if position >= self.end {
             return Err(lexical(
-                if self.closed { ErrorCode::InvalidEscape } else { ErrorCode::UnexpectedEof },
-                self.end, "truncated string escape",
+                if self.closed {
+                    ErrorCode::InvalidEscape
+                } else {
+                    ErrorCode::UnexpectedEof
+                },
+                self.end,
+                "truncated string escape",
             ));
         }
         if position <= self.start {
@@ -405,10 +524,15 @@ impl StringInput<'_> {
         }
         if position - self.start - 1 >= self.raw_limit {
             return Err(syntax_error(
-                ErrorCode::ConstraintViolation, position, "raw string byte limit exceeded",
+                ErrorCode::ConstraintViolation,
+                position,
+                "raw string byte limit exceeded",
             ));
         }
-        self.bytes.get(position as usize).copied().ok_or_else(|| internal(position))
+        self.bytes
+            .get(position as usize)
+            .copied()
+            .ok_or_else(|| internal(position))
     }
 
     fn hex_quad(&self, position: &mut u32) -> Result<u16> {
@@ -418,9 +542,13 @@ impl StringInput<'_> {
                 byte @ b'0'..=b'9' => byte - b'0',
                 byte @ b'a'..=b'f' => byte - b'a' + 10,
                 byte @ b'A'..=b'F' => byte - b'A' + 10,
-                _ => return Err(lexical(
-                    ErrorCode::InvalidEscape, *position, "invalid Unicode escape digit",
-                )),
+                _ => {
+                    return Err(lexical(
+                        ErrorCode::InvalidEscape,
+                        *position,
+                        "invalid Unicode escape digit",
+                    ))
+                }
             };
             value = (value << 4) | u16::from(digit);
             *position += 1;
@@ -428,21 +556,30 @@ impl StringInput<'_> {
         Ok(value)
     }
 
-    fn unit(&self, position: &mut u32) -> Result<char> {
+    pub(crate) fn unit(&self, position: &mut u32) -> Result<char> {
         let start = *position;
         let byte = self.byte(start)?;
         *position += 1;
         let value = match byte {
-            0..=0x1f => return Err(lexical(
-                ErrorCode::ControlCharInString, start, "unescaped control byte in string",
-            )),
+            0..=0x1f => {
+                return Err(lexical(
+                    ErrorCode::ControlCharInString,
+                    start,
+                    "unescaped control byte in string",
+                ))
+            }
             b'\\' => {
                 let escape = self.byte(*position)?;
                 *position += 1;
                 match escape {
-                    b'"' => '"', b'\\' => '\\', b'/' => '/',
-                    b'b' => '\u{0008}', b'f' => '\u{000c}',
-                    b'n' => '\n', b'r' => '\r', b't' => '\t',
+                    b'"' => '"',
+                    b'\\' => '\\',
+                    b'/' => '/',
+                    b'b' => '\u{0008}',
+                    b'f' => '\u{000c}',
+                    b'n' => '\n',
+                    b'r' => '\r',
+                    b't' => '\t',
                     b'u' => {
                         let high = self.hex_quad(position)?;
                         let scalar = if (0xd800..=0xdbff).contains(&high) {
@@ -461,8 +598,7 @@ impl StringInput<'_> {
                             if !(0xdc00..=0xdfff).contains(&low) {
                                 return Err(lone_surrogate(start));
                             }
-                            0x10000 + ((u32::from(high) - 0xd800) << 10)
-                                + (u32::from(low) - 0xdc00)
+                            0x10000 + ((u32::from(high) - 0xd800) << 10) + (u32::from(low) - 0xdc00)
                         } else if (0xdc00..=0xdfff).contains(&high) {
                             return Err(lone_surrogate(start));
                         } else {
@@ -470,9 +606,13 @@ impl StringInput<'_> {
                         };
                         core::char::from_u32(scalar).ok_or_else(|| lone_surrogate(start))?
                     }
-                    _ => return Err(lexical(
-                        ErrorCode::InvalidEscape, *position - 1, "invalid string escape",
-                    )),
+                    _ => {
+                        return Err(lexical(
+                            ErrorCode::InvalidEscape,
+                            *position - 1,
+                            "invalid string escape",
+                        ))
+                    }
                 }
             }
             0x20..=0x7f => char::from(byte),
@@ -492,7 +632,11 @@ impl StringInput<'_> {
                         return Err(invalid_utf8(start));
                     }
                     let continuation = self.byte(*position)?;
-                    let (min, max) = if index == 1 { (second_min, second_max) } else { (0x80, 0xbf) };
+                    let (min, max) = if index == 1 {
+                        (second_min, second_max)
+                    } else {
+                        (0x80, 0xbf)
+                    };
                     if !(min..=max).contains(&continuation) {
                         return Err(invalid_utf8(*position));
                     }
@@ -513,12 +657,23 @@ struct StringMeasure {
 }
 
 fn measure_string(
-    state: &SyntaxState, start: u32, end: u32, closed: bool, escaped: bool,
+    state: &SyntaxState,
+    start: u32,
+    end: u32,
+    closed: bool,
+    escaped: bool,
 ) -> Result<StringMeasure> {
     let content_start = start.checked_add(1).ok_or_else(|| internal(start))?;
-    state.input.get(content_start as usize..end as usize).ok_or_else(|| internal(start))?;
+    state
+        .input
+        .get(content_start as usize..end as usize)
+        .ok_or_else(|| internal(start))?;
     let input = StringInput {
-        bytes: &state.input, start, end, closed, raw_limit: state.limits.max_string_bytes,
+        bytes: &state.input,
+        start,
+        end,
+        closed,
+        raw_limit: state.limits.max_string_bytes,
     };
     let mut position = content_start;
     let mut bytes = 0u32;
@@ -528,12 +683,18 @@ fn measure_string(
         let unit_start = position;
         let scalar = input.unit(&mut position)?;
         let width = scalar.len_utf8() as u32;
-        bytes = bytes.checked_add(width).ok_or_else(|| syntax_error(
-            ErrorCode::ConstraintViolation, unit_start, "decoded string byte limit exceeded",
-        ))?;
+        bytes = bytes.checked_add(width).ok_or_else(|| {
+            syntax_error(
+                ErrorCode::ConstraintViolation,
+                unit_start,
+                "decoded string byte limit exceeded",
+            )
+        })?;
         if bytes > state.limits.max_string_bytes {
             return Err(syntax_error(
-                ErrorCode::ConstraintViolation, unit_start, "decoded string byte limit exceeded",
+                ErrorCode::ConstraintViolation,
+                unit_start,
+                "decoded string byte limit exceeded",
             ));
         }
         if escaped {
@@ -548,29 +709,52 @@ fn measure_string(
             } else {
                 unit_start + remaining.saturating_sub(before).min(width - 1)
             };
-            arena_growth(arena_start, bytes, state.limits.max_decoded_bytes, excess_position)?;
+            arena_growth(
+                arena_start,
+                bytes,
+                state.limits.max_decoded_bytes,
+                excess_position,
+            )?;
         }
         // Each scalar consumes at least one raw byte in the bounded input.
         scalars += 1;
     }
-    Ok(StringMeasure { bytes, scalars, escaped })
+    Ok(StringMeasure {
+        bytes,
+        scalars,
+        escaped,
+    })
 }
 
 fn decode_string(
-    state: &mut SyntaxState, start: u32, end: u32, closed: bool, escaped: bool,
+    state: &mut SyntaxState,
+    start: u32,
+    end: u32,
+    closed: bool,
+    escaped: bool,
 ) -> Result<StrRef> {
     let measured = measure_string(state, start, end, closed, escaped)?;
     if !measured.escaped {
         return Ok(StrRef {
             span: Span32::new(start + 1, end - start - 1),
-            source: SpanSource::RawPayload, scalar_len: measured.scalars,
+            source: SpanSource::RawPayload,
+            scalar_len: measured.scalars,
         });
     }
     let arena_start = offset(state.decoded.len())?;
-    arena_growth(arena_start, measured.bytes, state.limits.max_decoded_bytes, start)?;
+    arena_growth(
+        arena_start,
+        measured.bytes,
+        state.limits.max_decoded_bytes,
+        start,
+    )?;
     reserve(&mut state.decoded, measured.bytes as usize, start)?;
     let input = StringInput {
-        bytes: &state.input, start, end, closed, raw_limit: state.limits.max_string_bytes,
+        bytes: &state.input,
+        start,
+        end,
+        closed,
+        raw_limit: state.limits.max_string_bytes,
     };
     let mut position = start + 1;
     while position < end {
@@ -582,24 +766,38 @@ fn decode_string(
             }
         };
         let mut encoded = [0u8; 4];
-        state.decoded.extend_from_slice(scalar.encode_utf8(&mut encoded).as_bytes());
+        state
+            .decoded
+            .extend_from_slice(scalar.encode_utf8(&mut encoded).as_bytes());
     }
     Ok(StrRef {
         span: Span32::new(arena_start, measured.bytes),
-        source: SpanSource::DecodedArena, scalar_len: measured.scalars,
+        source: SpanSource::DecodedArena,
+        scalar_len: measured.scalars,
     })
 }
 
 fn arena_growth(current: u32, additional: u32, limit: u32, position: u32) -> Result<u32> {
-    current.checked_add(additional).filter(|&total| total <= limit).ok_or_else(|| {
-        syntax_error(ErrorCode::DecodedArenaOverflow, position, "decoded arena byte limit exceeded")
-    })
+    current
+        .checked_add(additional)
+        .filter(|&total| total <= limit)
+        .ok_or_else(|| {
+            syntax_error(
+                ErrorCode::DecodedArenaOverflow,
+                position,
+                "decoded arena byte limit exceeded",
+            )
+        })
 }
 
 fn reserve(storage: &mut Vec<u8>, additional: usize, position: u32) -> Result<()> {
-    storage.try_reserve(additional).map_err(|_| syntax_error(
-        ErrorCode::BudgetExhausted, position, "unable to reserve feed storage",
-    ))
+    storage.try_reserve(additional).map_err(|_| {
+        syntax_error(
+            ErrorCode::BudgetExhausted,
+            position,
+            "unable to reserve feed storage",
+        )
+    })
 }
 
 fn offset(value: usize) -> Result<u32> {
@@ -607,7 +805,11 @@ fn offset(value: usize) -> Result<u32> {
 }
 
 fn internal(position: u32) -> Error {
-    syntax_error(ErrorCode::InternalError, position, "inconsistent feed bounds or carry")
+    syntax_error(
+        ErrorCode::InternalError,
+        position,
+        "inconsistent feed bounds or carry",
+    )
 }
 
 fn lexical(code: ErrorCode, position: u32, detail: &'static str) -> Error {
@@ -615,9 +817,87 @@ fn lexical(code: ErrorCode, position: u32, detail: &'static str) -> Error {
 }
 
 fn lone_surrogate(position: u32) -> Error {
-    lexical(ErrorCode::LoneSurrogate, position, "unpaired UTF-16 surrogate")
+    lexical(
+        ErrorCode::LoneSurrogate,
+        position,
+        "unpaired UTF-16 surrogate",
+    )
 }
 
 fn invalid_utf8(position: u32) -> Error {
-    Error::new(ErrorCode::InvalidUtf8, ErrorSource::Utf8, position, "invalid UTF-8 in string")
+    Error::new(
+        ErrorCode::InvalidUtf8,
+        ErrorSource::Utf8,
+        position,
+        "invalid UTF-8 in string",
+    )
+}
+
+/// Complete owners use the same fused lexical cursor as borrowed consumers.
+/// Persist its classifier/carry cache across events without a self-reference.
+fn next_complete(state: &mut SyntaxState) -> Result<ScanStep> {
+    loop {
+        let phase = frames::current_phase(state);
+        let key = matches!(phase, FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd);
+        let mut cursor = match state.complete_cache {
+            Some(cache) => BlockCursor::from_cache(
+                &state.input,
+                state.limits,
+                state.numeric,
+                state.duplicate_owner,
+                cache,
+            ),
+            None => BlockCursor::new(
+                &state.input,
+                state.limits,
+                state.numeric,
+                state.duplicate_owner,
+            )?,
+        };
+        if cursor.skip_whitespace()?.is_none() {
+            state.byte_offset = cursor.offset();
+            state.complete_cache = Some(cursor.cache());
+            if state.frames.is_empty() && state.root_phase == FramePhase::RootDone {
+                state.finished = true;
+                return Ok(ScanStep::Finished);
+            }
+            return Err(syntax_error(
+                ErrorCode::UnexpectedEof,
+                state.byte_offset,
+                "incomplete JSON document",
+            ));
+        }
+        if state.frames.is_empty() && state.root_phase == FramePhase::RootDone {
+            return Err(syntax_error(
+                ErrorCode::TrailingContent,
+                cursor.offset(),
+                "content follows the root value",
+            ));
+        }
+        let checkpoint = state.decoded.len();
+        let scanned = cursor.next_token(&mut state.decoded, key, false);
+        let cache = cursor.cache();
+        let position = cursor.offset();
+        // End the immutable input borrow before mutating the grammar state.
+        drop(cursor);
+        let (token, hash) = match scanned {
+            Ok(token) => token,
+            Err(error) => {
+                state.decoded.truncate(checkpoint);
+                return Err(error);
+            }
+        };
+        let transition = match frames::apply_transition(state, token, hash) {
+            Ok(transition) => transition,
+            Err(error) => {
+                state.decoded.truncate(checkpoint);
+                return Err(error);
+            }
+        };
+        state.complete_cache = Some(cache);
+        state.byte_offset = position;
+        if let Some(event) = transition.event {
+            return Ok(ScanStep::Emit(event));
+        }
+    }
 }

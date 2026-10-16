@@ -1,0 +1,17 @@
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax-vs-parsers-rusty-alloc', '/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/preflight-external-rusty-alloc.jsonl']
+PASS conformance: 18 syntax/UTF-8/escape cases
+preflight twitter
+PASS twitter: DOM semantic checks, typed equality, 42 operation preflights
+preflight citm_catalog
+PASS citm_catalog: DOM semantic checks, typed equality, 42 operation preflights
+preflight canada
+PASS canada: DOM semantic checks, typed equality, 42 operation preflights
+preflight github_events
+PASS github_events: DOM semantic checks, typed equality, 37 operation preflights
+preflight apache_builds
+PASS apache_builds: DOM semantic checks, typed equality, 42 operation preflights
+preflight endpoint_batch
+PASS endpoint_batch: DOM semantic checks, typed equality, 42 operation preflights
+
+exit: 0

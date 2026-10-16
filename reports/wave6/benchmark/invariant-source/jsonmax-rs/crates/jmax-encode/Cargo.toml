@@ -1,0 +1,19 @@
+[package]
+name = "jmax-encode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc", "jmax-dom/alloc", "jmax-string/alloc"]
+std = ["alloc", "jmax-abi/std", "jmax-dom/std", "jmax-string/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-string = { workspace = true }
+jmax-number = { workspace = true }
+jmax-decimal = { workspace = true }
+jmax-dom = { workspace = true }

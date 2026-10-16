@@ -1,0 +1,9 @@
+[package]
+name = "consumer-package"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+ps-pikkr = { path = "../../.." }

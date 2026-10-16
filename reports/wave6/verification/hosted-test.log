@@ -1,0 +1,67 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=env RUSTFLAGS=-C target-cpu=native cargo +1.98.1 test -p jmax-nagoya --features nagoya-rt --offline
+   Compiling jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-abi)
+   Compiling futures-core v0.3.34
+   Compiling pin-project-lite v0.2.17
+   Compiling futures-task v0.3.34
+   Compiling futures-io v0.3.34
+   Compiling memchr v2.8.3
+   Compiling nagoya v0.1.19 (/Users/revenge/code/nagoya)
+   Compiling atomic-wait v1.1.0
+   Compiling slab v0.4.12
+   Compiling async-task v4.7.1
+   Compiling spin v0.9.9
+   Compiling ps-st3 v0.6.3
+   Compiling jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+   Compiling jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+   Compiling jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+   Compiling jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+   Compiling jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-utf8)
+   Compiling jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+   Compiling jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-error)
+   Compiling jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-decimal)
+   Compiling jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir)
+   Compiling futures-util v0.3.34
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+   Compiling jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-number)
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+   Compiling jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+   Compiling jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+   Compiling jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+   Compiling jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+   Compiling jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+   Compiling jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.56s
+     Running unittests src/lib.rs (target/debug/deps/jmax_nagoya-3e0cd484a296fb16)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ownership.rs (target/debug/deps/ownership-561519be7eb1d3c5)
+
+running 4 tests
+test copied_external_output_uses_fallback_and_counts_coexisting_backings ... ok
+test tiny_subview_reserves_full_known_backing ... ok
+test owner_and_lease_survive_result_handoff ... ok
+test every_failure_path_releases_once ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reactive.rs (target/debug/deps/reactive-d2ac43c695263c29)
+
+running 4 tests
+test worker_drop_and_rejected_submission_release_pending_owners ... ok
+test full_ring_suspends_then_wakes_producer_and_reader ... ok
+test cancelled_waiting_submission_has_no_sequence_gap_and_releases_once ... ok
+test completion_backpressure_cancellation_and_shutdown_release_all_leases ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests jmax_nagoya
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0

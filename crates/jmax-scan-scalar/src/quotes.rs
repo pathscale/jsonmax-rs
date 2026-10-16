@@ -1,23 +1,10 @@
-//! Bounded quote analysis with consecutive-backslash parity across blocks.
+//! Word-level escape followers and inclusive delimiter prefix parity.
 
 use super::*;
 
-/// Resolve raw quote and backslash masks for zero through 64 live bytes.
-///
-/// Bit `i` describes byte `i`. Bits beyond `valid_len` are ignored, including
-/// overlaps in padding. An odd preceding backslash run escapes a quote even
-/// outside a string. Unescaped quotes toggle string state and are excluded
-/// from string content; escaped quotes are content only when already inside.
-///
-/// The outgoing carry records string state and trailing backslash parity.
-/// Empty input preserves carry, and UTF-8 fields are always left untouched.
-/// Unclosed strings and trailing escapes are valid intermediate states.
-///
-/// # Errors
-///
-/// Returns `InvalidToken` for lengths above 64, or `InternalError` for
-/// noncanonical quote carry or overlapping live quote and backslash bits.
-/// All errors have source `Scanner`, offset zero, and leave carry unchanged.
+/// Resolve only live bytes, preserving all carry on errors and empty blocks.
+/// Odd backslash runs escape their non-backslash follower, including byte zero
+/// from incoming carry. Delimiters are excluded from the string-content mask.
 pub fn quote_masks(
     quote_mask: u64,
     backslash_mask: u64,
@@ -36,35 +23,58 @@ pub fn quote_masks(
             "quote and backslash masks overlap at a live byte",
         ));
     }
-
-    let mut result = QuoteMasks::default();
-    let mut inside = carry.prev_in_string == 1;
-    let mut odd_run = carry.prev_escaped == 1;
-    for index in 0..usize::from(valid_len) {
-        // Length validation bounds every shift to 0..=63.
-        let bit = 1u64 << index;
-        let is_quote = quotes & bit != 0;
-        let is_delimiter = is_quote && !odd_run;
-        if is_delimiter {
-            result.delimiter_quote_mask |= bit;
-            inside = !inside;
-        } else {
-            if is_quote {
-                result.escaped_quote_mask |= bit;
-            }
-            if inside {
-                result.in_string_mask |= bit;
-            }
-        }
-
-        // Consume the preceding run before resetting it at a non-backslash.
-        // This parity is a byte property, independent of the string state.
-        odd_run = backslashes & bit != 0 && !odd_run;
+    if valid_len == 0 {
+        return Ok(QuoteMasks::default());
     }
 
-    // Every fallible operation precedes publication. With zero live bytes the
-    // validated boolean fields retain their original values exactly.
-    carry.prev_in_string = u64::from(inside);
-    carry.prev_escaped = u64::from(odd_run);
+    // Adding a bit at each run start propagates a carry to its first follower.
+    // Split starts by position parity: an odd run ends on opposite parity.
+    // Wrapping intentionally discards followers beyond a full 64-byte block.
+    const EVEN: u64 = 0x5555_5555_5555_5555;
+    let starts = backslashes & !(backslashes << 1);
+    let even_carries = backslashes.wrapping_add(starts & EVEN);
+    let odd_carries = backslashes.wrapping_add(starts & !EVEN);
+    let mut escaped_followers = ((even_carries & !EVEN) | (odd_carries & EVEN)) & !backslashes;
+    if carry.prev_escaped != 0 {
+        // Toggle precisely the follower of the initial run (bit zero if the
+        // block starts with a non-backslash). No follower for 64 backslashes.
+        escaped_followers ^= !backslashes & backslashes.wrapping_add(1);
+    }
+    // Align the last live byte to bit 63; padding cannot alter trailing parity.
+    let trailing = (backslashes << (64 - u32::from(valid_len))).leading_ones();
+    let trailing_parity = u64::from(trailing & 1)
+        ^ if trailing == u32::from(valid_len) {
+            carry.prev_escaped
+        } else {
+            0
+        };
+    let delimiter_quote_mask = quotes & !escaped_followers;
+    let mut prefix = prefix_xor(delimiter_quote_mask);
+    if carry.prev_in_string != 0 {
+        prefix = !prefix;
+    }
+    let result = QuoteMasks {
+        escaped_quote_mask: quotes & escaped_followers,
+        delimiter_quote_mask,
+        in_string_mask: prefix & !delimiter_quote_mask & valid,
+    };
+    carry.prev_in_string = (prefix >> (valid_len - 1)) & 1;
+    carry.prev_escaped = trailing_parity;
     Ok(result)
+}
+
+#[inline]
+fn portable_prefix_xor(mut bits: u64) -> u64 {
+    bits ^= bits << 1;
+    bits ^= bits << 2;
+    bits ^= bits << 4;
+    bits ^= bits << 8;
+    bits ^= bits << 16;
+    bits ^= bits << 32;
+    bits
+}
+
+#[inline]
+fn prefix_xor(bits: u64) -> u64 {
+    portable_prefix_xor(bits)
 }

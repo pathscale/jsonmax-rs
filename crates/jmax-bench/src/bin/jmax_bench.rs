@@ -1,11 +1,16 @@
 //! Deterministic, single-process benchmark CLI. Corpus generation is untimed.
-#![forbid(unsafe_code)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 use std::{
+    alloc::{GlobalAlloc, Layout},
     env,
     io::{self, Write},
     process::ExitCode,
+    sync::atomic::{AtomicUsize, Ordering},
 };
+
+#[cfg(feature = "system-alloc")]
+use std::alloc::System;
 
 use jmax_bench::{
     BenchmarkConfig, BenchmarkMode, CorpusConfig, Summary, SystemClock, followup, parse, serialize,
@@ -32,6 +37,98 @@ Each workload captures its scalar fields or a raw container span;
 Extract still validates the complete document and publishes its validation proof.
 ";
 
+#[path = "support/wave6.rs"]
+mod wave6;
+
+struct CountingAllocator;
+static ALLOC_BYTES: AtomicUsize = AtomicUsize::new(0);
+
+static ALLOC_CALLS: AtomicUsize = AtomicUsize::new(0);
+static DEALLOC_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(feature = "system-alloc")]
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let pointer = unsafe { System.alloc(layout) };
+        if !pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        }
+        pointer
+    }
+
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        DEALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+        unsafe { System.dealloc(pointer, layout) };
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        let pointer = unsafe { System.alloc_zeroed(layout) };
+        if !pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        }
+        pointer
+    }
+
+    unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let new_pointer = unsafe { System.realloc(pointer, layout, new_size) };
+        if !new_pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(new_size, Ordering::Relaxed);
+        }
+        new_pointer
+    }
+}
+
+#[cfg(not(feature = "system-alloc"))]
+unsafe impl GlobalAlloc for CountingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let pointer = unsafe { rusty_alloc::RustyAlloc.alloc(layout) };
+        if !pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        }
+        pointer
+    }
+
+    unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
+        DEALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+        unsafe { rusty_alloc::RustyAlloc.dealloc(pointer, layout) };
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        let pointer = unsafe { rusty_alloc::RustyAlloc.alloc_zeroed(layout) };
+        if !pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        }
+        pointer
+    }
+
+    unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let new_pointer = unsafe { rusty_alloc::RustyAlloc.realloc(pointer, layout, new_size) };
+        if !new_pointer.is_null() {
+            ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
+            ALLOC_BYTES.fetch_add(new_size, Ordering::Relaxed);
+        }
+        new_pointer
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: CountingAllocator = CountingAllocator;
+
+#[cfg(feature = "system-alloc")]
+const fn active_allocator() -> &'static str {
+    "std::alloc::System"
+}
+
+#[cfg(not(feature = "system-alloc"))]
+const fn active_allocator() -> &'static str {
+    "ps-rusty_alloc 2.3.3 (RustyAlloc)"
+}
+
 #[derive(Default)]
 struct Options {
     corpus: CorpusConfig,
@@ -49,6 +146,9 @@ fn main() -> ExitCode {
 }
 
 fn run() -> Result<(), String> {
+    if env::args().nth(1).as_deref() == Some("--wave6") {
+        return wave6::run().map_err(|e| e.to_string());
+    }
     let Some(options) = options()? else {
         return Ok(());
     };
@@ -63,6 +163,12 @@ fn run() -> Result<(), String> {
     reports
         .try_reserve_exact(suite.len() * 8)
         .map_err(|_| String::from("cannot allocate benchmark report table"))?;
+    let mut raw = match env::var_os("JMAX_SAMPLES_PATH") {
+        Some(path) => Some(std::io::BufWriter::new(
+            std::fs::File::create(path).map_err(|e| e.to_string())?,
+        )),
+        None => None,
+    };
     let mut clock = SystemClock::new();
     for workload in &suite {
         let first = workload
@@ -118,6 +224,11 @@ fn run() -> Result<(), String> {
                     .samples
                     .first()
                     .map_or(0, |sample| sample.input_bytes);
+                if let Some(raw) = &mut raw {
+                    for (index, sample) in report.samples.iter().enumerate() {
+                        writeln!(raw,"{{\"workload\":\"{kind}\",\"mode\":\"{}\",\"regime\":\"{regime}\",\"sample\":{index},\"elapsed_ns\":{},\"documents\":{},\"input_bytes\":{},\"digest\":{}}}",mode_name(mode),sample.elapsed_ns,sample.documents,sample.input_bytes,sample.digest).map_err(|e|e.to_string())?;
+                    }
+                }
                 let summary = report.summarize();
                 reports.push((kind, backend, mode, regime, payload_bytes, summary));
             }
@@ -128,6 +239,13 @@ fn run() -> Result<(), String> {
     let mut output = stdout.lock();
     let result = (|| -> io::Result<()> {
         writeln!(output, "jsonmax deterministic benchmark")?;
+        writeln!(output, "Allocator: {}", active_allocator())?;
+        writeln!(
+            output,
+            "Allocator calls: {} alloc/realloc/zeroed, {} dealloc",
+            ALLOC_CALLS.load(Ordering::Relaxed),
+            DEALLOC_CALLS.load(Ordering::Relaxed)
+        )?;
         writeln!(
             output,
             "Seed: {} | Documents/workload: {} | Items/document: {} | Warmup: {} | Measured: {}",

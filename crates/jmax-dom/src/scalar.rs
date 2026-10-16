@@ -11,9 +11,12 @@ use super::*;
 /// delimiters. Whitespace inside a container remains part of its raw value.
 pub fn raw<'a>(node: Node<'a>) -> Result<&'a [u8]> {
     let span = stored_span(node)?;
-    span.slice(node.document.payload.as_slice()).ok_or_else(|| {
-        dom_error(ErrorCode::InternalError, span.offset,
-            "DOM raw value span does not resolve in its payload")
+    span.slice(node.document.raw()).ok_or_else(|| {
+        dom_error(
+            ErrorCode::InternalError,
+            span.offset,
+            "DOM raw value span does not resolve in its payload",
+        )
     })
 }
 
@@ -26,8 +29,11 @@ pub fn value<'a>(node: Node<'a>) -> Result<Scalar<'a>> {
         TAG_TRUE => Ok(Scalar::Bool(true)),
         TAG_NUMBER => raw(node).map(Scalar::Number),
         TAG_STRING => string(node).map(Scalar::String),
-        _ => Err(scalar_error(node, ErrorCode::TypeMismatch,
-            "DOM scalar value requires a scalar node")),
+        _ => Err(scalar_error(
+            node,
+            ErrorCode::TypeMismatch,
+            "DOM scalar value requires a scalar node",
+        )),
     }
 }
 
@@ -35,14 +41,14 @@ pub fn value<'a>(node: Node<'a>) -> Result<Scalar<'a>> {
 /// This operation performs no allocation or unescaping.
 pub fn string<'a>(node: Node<'a>) -> Result<&'a str> {
     require_tag(node, TAG_STRING, "DOM string access requires a string")?;
-    let reference = node.document.parts.node_metadata.get(node.id.0 as usize)
-        .and_then(|metadata| metadata.string)
-        .ok_or_else(|| scalar_error(node, ErrorCode::InternalError,
-            "DOM string has no cooked reference"))?;
-    node.document.resolve_str(reference).ok_or_else(|| {
-        scalar_error(node, ErrorCode::InternalError,
-            "DOM cooked string does not resolve in its owner")
-    })
+    let reference = navigate::string_ref(node).ok_or_else(|| {
+        scalar_error(
+            node,
+            ErrorCode::InternalError,
+            "DOM string has no cooked reference",
+        )
+    })?;
+    Ok(node.document.resolve_record_str(reference))
 }
 
 /// Reads the boolean encoded in a true or false node's tag.
@@ -50,8 +56,11 @@ pub fn boolean(node: Node<'_>) -> Result<bool> {
     match tag(node)? {
         TAG_FALSE => Ok(false),
         TAG_TRUE => Ok(true),
-        _ => Err(scalar_error(node, ErrorCode::TypeMismatch,
-            "DOM boolean access requires a boolean")),
+        _ => Err(scalar_error(
+            node,
+            ErrorCode::TypeMismatch,
+            "DOM boolean access requires a boolean",
+        )),
     }
 }
 
@@ -93,29 +102,15 @@ pub fn converted(node: Node<'_>) -> Result<ConvertedNumber> {
 }
 
 fn stored_span(node: Node<'_>) -> Result<Span32> {
-    node.document.parts.spans.get(node.id.0 as usize).copied()
-        .ok_or_else(|| dom_error(ErrorCode::InternalError, 0,
-            "DOM node has no raw value span"))
+    Ok(navigate::raw_span(node))
 }
 
 fn scalar_error(node: Node<'_>, code: ErrorCode, detail: &'static str) -> Error {
-    // A valid handle always has a parallel raw span. If that internal table
-    // itself is absent, there is no available raw offset to report.
-    let offset = node.document.parts.spans.get(node.id.0 as usize)
-        .map_or(0, |span| span.offset);
-    dom_error(code, offset, detail)
+    dom_error(code, navigate::raw_span(node).offset, detail)
 }
 
 fn tag(node: Node<'_>) -> Result<u8> {
-    let word = node.document.parts.nodes.get(node.id.0 as usize)
-        .ok_or_else(|| scalar_error(node, ErrorCode::InternalError,
-            "DOM scalar handle has no node word"))?;
-    let tag = word.kind();
-    if NodeKind::from_tag(tag).is_none() {
-        return Err(scalar_error(node, ErrorCode::InternalError,
-            "DOM scalar handle has an unknown node tag"));
-    }
-    Ok(tag)
+    Ok(node.document.tape()[node.id.0 as usize].tag())
 }
 
 fn require_tag(node: Node<'_>, expected: u8, detail: &'static str) -> Result<()> {
@@ -129,8 +124,11 @@ fn require_tag(node: Node<'_>, expected: u8, detail: &'static str) -> Result<()>
 fn number_text<'a>(node: Node<'a>) -> Result<&'a str> {
     require_tag(node, TAG_NUMBER, "DOM numeric access requires a number")?;
     core::str::from_utf8(raw(node)?).map_err(|_| {
-        scalar_error(node, ErrorCode::InternalError,
-            "DOM number spelling is not valid UTF-8")
+        scalar_error(
+            node,
+            ErrorCode::InternalError,
+            "DOM number spelling is not valid UTF-8",
+        )
     })
 }
 
@@ -143,8 +141,11 @@ fn integer_text<'a>(node: Node<'a>) -> Result<&'a str> {
     // Spelling classification precedes the unsigned sign restriction, so
     // negative decimal/exponent spellings also report InvalidNumber.
     if has_fraction_or_exponent(text) {
-        return Err(scalar_error(node, ErrorCode::InvalidNumber,
-            "DOM integer conversion requires an integer spelling"));
+        return Err(scalar_error(
+            node,
+            ErrorCode::InvalidNumber,
+            "DOM integer conversion requires an integer spelling",
+        ));
     }
     Ok(text)
 }
@@ -161,25 +162,37 @@ fn integer_error(node: Node<'_>, error: core::num::ParseIntError) -> Error {
 
 fn unsigned(node: Node<'_>, text: &str) -> Result<u64> {
     if text.as_bytes().first() == Some(&b'-') {
-        return Err(scalar_error(node, ErrorCode::ConstraintViolation,
-            "DOM unsigned conversion rejects a minus spelling"));
+        return Err(scalar_error(
+            node,
+            ErrorCode::ConstraintViolation,
+            "DOM unsigned conversion rejects a minus spelling",
+        ));
     }
-    text.parse::<u64>().map_err(|error| integer_error(node, error))
+    text.parse::<u64>()
+        .map_err(|error| integer_error(node, error))
 }
 
 fn signed(node: Node<'_>, text: &str) -> Result<i64> {
-    text.parse::<i64>().map_err(|error| integer_error(node, error))
+    text.parse::<i64>()
+        .map_err(|error| integer_error(node, error))
 }
 
 fn floating(node: Node<'_>, text: &str) -> Result<f64> {
     // Core's parser handles the entire significand and arbitrary exponent
     // lengths, including correctly rounded subnormal and halfway cases.
     let number = text.parse::<f64>().map_err(|_| {
-        scalar_error(node, ErrorCode::InvalidNumber, "DOM float conversion failed")
+        scalar_error(
+            node,
+            ErrorCode::InvalidNumber,
+            "DOM float conversion failed",
+        )
     })?;
     if !number.is_finite() {
-        return Err(scalar_error(node, ErrorCode::NumberOverflow,
-            "DOM float conversion produced a nonfinite value"));
+        return Err(scalar_error(
+            node,
+            ErrorCode::NumberOverflow,
+            "DOM float conversion produced a nonfinite value",
+        ));
     }
     Ok(number)
 }

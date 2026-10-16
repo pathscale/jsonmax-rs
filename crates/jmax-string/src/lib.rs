@@ -5,10 +5,16 @@
 #![no_std]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+pub mod escape;
+pub mod length;
+pub mod masks;
 pub mod scan;
 pub mod unescape;
-pub mod length;
-pub mod escape;
+pub use masks::{
+    EscapeMaskCursor, EscapeMasker, EscapeMasks, escape_mask_64, escape_masks_64,
+    escape_or_control_mask_64, first_escape_or_control,
+};
+pub use unescape::decode_escaped_slice_into;
 
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::span::{Span32, SpanSource, StrRef};
@@ -38,7 +44,10 @@ pub struct StringLengths {
 
 impl StringLengths {
     pub const fn new(byte_len: u32, scalar_len: u32) -> Self {
-        Self { byte_len, scalar_len }
+        Self {
+            byte_len,
+            scalar_len,
+        }
     }
 
     /// Combine measurements without wrapping either ABI counter.
@@ -46,7 +55,10 @@ impl StringLengths {
         let byte_len = self.byte_len.checked_add(other.byte_len);
         let scalar_len = self.scalar_len.checked_add(other.scalar_len);
         match (byte_len, scalar_len) {
-            (Some(byte_len), Some(scalar_len)) => Ok(Self { byte_len, scalar_len }),
+            (Some(byte_len), Some(scalar_len)) => Ok(Self {
+                byte_len,
+                scalar_len,
+            }),
             _ => Err(Error::new(
                 ErrorCode::DecodedArenaOverflow,
                 ErrorSource::Decode,

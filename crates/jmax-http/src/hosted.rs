@@ -94,7 +94,7 @@ fn check_handler_response(response: &OutgoingResponse, limits: HttpLimits) -> Re
     }
 
     let body = &response.body;
-    check_proof(body.slots(), body.proof().schema_fingerprint(), body.payload().as_slice())?;
+    check_proof(body.slots(), body.proof().schema_fingerprint(), body.payload())?;
     // After the ownership check, the proof length equals the arena's actual
     // length. Comparing u32 values avoids narrowing either configured limit.
     if body.proof().decoded_len() > syntax.max_decoded_bytes {

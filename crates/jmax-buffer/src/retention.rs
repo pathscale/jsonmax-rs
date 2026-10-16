@@ -21,6 +21,7 @@ use super::{
 pub fn account(payload: &Payload, decoded: &DecodedArena) -> RetentionStats {
     let payload_backing_bytes = match payload {
         Payload::Shared(bytes) => BackingSize::Exact(bytes.len() as u64),
+        Payload::SharedView(view) => BackingSize::Exact(view.backing_len() as u64),
         Payload::Bytes(bytes) => BackingSize::AtLeast(bytes.len() as u64),
     };
     RetentionStats {

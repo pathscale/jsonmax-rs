@@ -1,0 +1,110 @@
+post-stage6-source-audit exit=0 log=/Users/revenge/code/jsonmax-rs/reports/wave6/verification/post-stage6-source-audit.log
+cwd=/Users/revenge/code/jsonmax-rs
+command=python3 /Users/revenge/code/jsonmax-rs/reports/wave6/verification/audit.py
+UNCHANGED /Users/revenge/code/ps-rusty_alloc: 126 files
+UNCHANGED /Users/revenge/code/nagoya: 606 files
+UNCHANGED /Users/revenge/code/nago-http: 28 files
+UNCHANGED /Users/revenge/code/nago-wss: 32 files
+UNCHANGED /Users/revenge/code/jsonmax-rs/reports/investigation-2026-10-16: 1 files
+PRESERVED target/: build artifacts added; no clean/removal command used
+ZERO expect/todo/unimplemented: /Users/revenge/code/jsonmax-rs/crates
+ZERO expect/todo/unimplemented: /tmp/jmax-vs-parsers/src
+ZERO expect/todo/unimplemented: /Users/revenge/code/ps-pikkr/src
+ONE global allocator with RustyAlloc default: jmax-bench/src/bin/jmax_bench.rs
+ONE global allocator with RustyAlloc default: jmax-validator/src/main.rs
+ONE global allocator with RustyAlloc default: jmax-runner/src/main.rs
+ONE global allocator with RustyAlloc default: jmax-gen-cli/src/main.rs
+NO library-installed global allocator: jsonmax
+MATCH harness snapshot: Cargo.toml, Cargo.lock, src/main.rs
+HASHED 295 source/manifest files and 8 corpus/provenance files
+PASS git diff --check
+exit=0
+{
+  "finished": "2026-10-16T03:33:07.227235+07:00",
+  "test_counts": {
+    "post-stage6-workspace-test": {
+      "passed": 148,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 104
+    },
+    "post-stage6-feature-test": {
+      "passed": 35,
+      "failed": 0,
+      "ignored": 1,
+      "targets": 10
+    }
+  },
+  "artifact_validation": {
+    "pass": true,
+    "runs": [
+      {
+        "allocator": "rusty-alloc",
+        "run": 1,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      },
+      {
+        "allocator": "rusty-alloc",
+        "run": 2,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      },
+      {
+        "allocator": "rusty-alloc",
+        "run": 3,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      },
+      {
+        "allocator": "system-alloc",
+        "run": 1,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      },
+      {
+        "allocator": "system-alloc",
+        "run": 2,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      },
+      {
+        "allocator": "system-alloc",
+        "run": 3,
+        "canonical_pass_samples": 1120,
+        "external_rows": 259,
+        "external_batch_samples": 15799
+      }
+    ],
+    "supplement_operation_rows": 696,
+    "supplement_pass_samples": 13920,
+    "canonical_pass_samples": 6720,
+    "external_batch_samples": 94794,
+    "successful_commands": 25,
+    "failed_superseded_commands": 1
+  },
+  "audit": {
+    "timed_source_unchanged": true,
+    "source_files": 282,
+    "changed_source": [],
+    "historical_files": 9,
+    "historical_unchanged": true,
+    "historical_changes": [],
+    "snapshot_matches": true,
+    "protected_siblings_unchanged": true,
+    "protected_files_per_repository": {
+      "/Users/revenge/code/ps-rusty_alloc": 126,
+      "/Users/revenge/code/nagoya": 606,
+      "/Users/revenge/code/nago-http": 28,
+      "/Users/revenge/code/nago-wss": 32
+    },
+    "generated_corpora_unchanged": 21,
+    "sequential_command_intervals": true
+  },
+  "sha256_files": 181
+}

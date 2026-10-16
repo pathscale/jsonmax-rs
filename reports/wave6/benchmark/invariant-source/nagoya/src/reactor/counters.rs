@@ -1,0 +1,48 @@
+//! Counters for the syscalls the reactor makes, behind a feature.
+//!
+//! Off by default and compiled out entirely: the read path is the hottest code
+//! in the crate and an unconditional atomic increment on it would be measuring
+//! the measurement. On, it answers the question a latency benchmark cannot,
+//! which is whether a gap is syscall count or syscall cost.
+
+use core::sync::atomic::AtomicU64;
+
+/// Every `recv` the reactor issued.
+pub static RECV: AtomicU64 = AtomicU64::new(0);
+/// Those that returned `EWOULDBLOCK`, so the task had to park.
+pub static RECV_WOULD_BLOCK: AtomicU64 = AtomicU64::new(0);
+/// Every `kevent`/`epoll_wait` the reactor waited in.
+pub static WAIT: AtomicU64 = AtomicU64::new(0);
+
+/// Every `sendmsg` the reactor issued.
+pub static SEND: AtomicU64 = AtomicU64::new(0);
+/// Those that returned `EWOULDBLOCK`, so the write had to wait for room.
+pub static SEND_WOULD_BLOCK: AtomicU64 = AtomicU64::new(0);
+
+/// Read and clear the read side and the wait.
+pub fn take() -> (u64, u64, u64) {
+    use core::sync::atomic::Ordering::Relaxed;
+    (
+        RECV.swap(0, Relaxed),
+        RECV_WOULD_BLOCK.swap(0, Relaxed),
+        WAIT.swap(0, Relaxed),
+    )
+}
+
+/// Read and clear the write side.
+///
+/// Separate from [`take`] because the two are read by different benchmarks:
+/// an echo is a read side question and a one way stream is a write side one,
+/// and a caller that asked for one should not have the other silently zeroed
+/// underneath it.
+pub fn take_writes() -> (u64, u64) {
+    use core::sync::atomic::Ordering::Relaxed;
+    (SEND.swap(0, Relaxed), SEND_WOULD_BLOCK.swap(0, Relaxed))
+}
+
+/// Every `kevent`/`epoll_wait` interrupt issued to wake a waiting poller.
+///
+/// Separate from `WAIT` because it is the opposite thing: not a thread going
+/// to sleep, but a syscall spent telling one to stop. Under `block_on` most of
+/// these were being issued by the very thread that had just left the wait.
+pub static WAKE: AtomicU64 = AtomicU64::new(0);

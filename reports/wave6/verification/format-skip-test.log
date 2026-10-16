@@ -1,0 +1,101 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --check --edition 2024 --config skip_children=true crates/jmax-syntax/tests/wave6.rs
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:1:
+ use jmax_abi::syntax::{DuplicatePolicyOwner, SkipMode};
+ use jmax_syntax::{
+-    feed, finish, validate_borrowed, validate_borrowed_with_capability, BlockCursor, ErrorCode,
+-    Event, Limits, Payload, Result, ScanStep, Scratch, Span32, SpanSource, SyntaxState,
++    BlockCursor, ErrorCode, Event, Limits, Payload, Result, ScanStep, Scratch, Span32, SpanSource,
++    SyntaxState, feed, finish, validate_borrowed, validate_borrowed_with_capability,
+ };
+ 
+ fn cursor(input: &[u8]) -> Result<BlockCursor<'_>> {
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:123:
+     )?;
+     while matches!(scanner.next_event(&mut Vec::new())?, ScanStep::Emit(_)) {}
+     assert!(!scanner.fully_validated());
+-    assert!(BlockCursor::new(
+-        input,
+-        Limits::strict_default(),
+-        None,
+-        DuplicatePolicyOwner::Disabled
+-    )
+-    .is_err());
++    assert!(
++        BlockCursor::new(
++            input,
++            Limits::strict_default(),
++            None,
++            DuplicatePolicyOwner::Disabled
++        )
++        .is_err()
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:144:
+     );
+     assert!(!scanner.fully_validated());
+     let mut scanner = cursor(input)?;
+-    assert!(scanner
+-        .skip_value(&mut Vec::new(), 0, SkipMode::StrictValidate)
+-        .is_err());
++    assert!(
++        scanner
++            .skip_value(&mut Vec::new(), 0, SkipMode::StrictValidate)
++            .is_err()
++    );
+     for input in [b"{]".as_slice(), b"[{]}]", b"[{}]]", b"[}{}]"] {
+         let mut scanner = cursor(input)?;
+         let result = scanner.skip_value(&mut Vec::new(), 0, SkipMode::QueryOnly);
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:168:
+     assert_eq!(span, Span32::new(0, valid.len() as u32));
+     let different = valid.to_vec();
+     let mut scanner = cursor(&different)?;
+-    assert!(validation
+-        .skip_value(&mut scanner, &mut Vec::new(), 0)
+-        .is_err());
++    assert!(
++        validation
++            .skip_value(&mut scanner, &mut Vec::new(), 0)
++            .is_err()
++    );
+     let mut changed = Limits::strict_default();
+     changed.max_depth -= 1;
+     let mut scanner = BlockCursor::new(valid, changed, None, DuplicatePolicyOwner::Syntax)?;
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:177:
+-    assert!(validation
+-        .skip_value(&mut scanner, &mut Vec::new(), 0)
+-        .is_err());
++    assert!(
++        validation
++            .skip_value(&mut scanner, &mut Vec::new(), 0)
++            .is_err()
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/revenge/code/jsonmax-rs/crates/jmax-syntax/tests/wave6.rs:227:
+         b"[1,]",
+         b"{}{}",
+     ] {
+-        assert!(validate_borrowed(
+-            input,
+-            Limits::strict_default(),
+-            None,
+-            &mut Scratch::default()
+-        )
+-        .is_err());
++        assert!(
++            validate_borrowed(
++                input,
++                Limits::strict_default(),
++                None,
++                &mut Scratch::default()
++            )
++            .is_err()
++        );
+     }
+     let mut limits = Limits::strict_default();
+     limits.max_number_digits = 2;
+exit=1

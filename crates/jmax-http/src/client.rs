@@ -89,7 +89,7 @@ fn preflight(request: &OutgoingRequest, limits: HttpLimits) -> Result<()> {
     }
 
     let slots = request.body.slots();
-    check_proof(slots, request.body.proof().schema_fingerprint(), request.body.payload().as_slice())?;
+    check_proof(slots, request.body.proof().schema_fingerprint(), request.body.payload())?;
     if slots.decoded.len() > syntax.max_decoded_bytes as usize {
         return Err(http_error(
             ErrorCode::DecodedArenaOverflow,

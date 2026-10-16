@@ -1,0 +1,14 @@
+[package]
+name = "jmax-scan-scalar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }

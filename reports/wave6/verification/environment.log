@@ -1,0 +1,74 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=zsh reports/wave6/verification/environment.sh
+cargo 1.98.1 (797e8a9bc 2026-08-05)
+rustc 1.98.1 (48a229cea 2026-09-01)
+binary: rustc
+commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+commit-date: 2026-09-01
+host: aarch64-apple-darwin
+release: 1.98.1
+LLVM version: 22.1.8
+rustdoc 1.98.1 (48a229cea 2026-09-01)
+Darwin Revenges-MacBook-Pro-2.local 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:15 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6041 arm64
+ProductName:		macOS
+ProductVersion:		26.5
+BuildVersion:		25F71
+Apple M4 Max
+68719476736
+16
+debug_assertions
+panic="unwind"
+target_abi=""
+target_arch="aarch64"
+target_endian="little"
+target_env=""
+target_family="unix"
+target_feature="aes"
+target_feature="bf16"
+target_feature="bti"
+target_feature="crc"
+target_feature="dit"
+target_feature="dotprod"
+target_feature="dpb"
+target_feature="dpb2"
+target_feature="fcma"
+target_feature="fhm"
+target_feature="flagm"
+target_feature="fp16"
+target_feature="frintts"
+target_feature="i8mm"
+target_feature="jsconv"
+target_feature="lor"
+target_feature="lse"
+target_feature="neon"
+target_feature="paca"
+target_feature="pacg"
+target_feature="pan"
+target_feature="pmuv3"
+target_feature="ras"
+target_feature="rcpc"
+target_feature="rcpc2"
+target_feature="rdm"
+target_feature="sb"
+target_feature="sha2"
+target_feature="sha3"
+target_feature="ssbs"
+target_feature="vh"
+target_has_atomic="128"
+target_has_atomic="16"
+target_has_atomic="32"
+target_has_atomic="64"
+target_has_atomic="8"
+target_has_atomic="ptr"
+target_has_atomic_primitive_alignment="128"
+target_has_atomic_primitive_alignment="16"
+target_has_atomic_primitive_alignment="32"
+target_has_atomic_primitive_alignment="64"
+target_has_atomic_primitive_alignment="8"
+target_has_atomic_primitive_alignment="ptr"
+target_os="macos"
+target_pointer_width="64"
+target_vendor="apple"
+unix
+aarch64-apple-darwin
+exit=0

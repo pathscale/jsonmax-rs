@@ -1,0 +1,6 @@
+{
+  "jmax_bench-system-alloc": "e6160699d06bf03639b1d2ed4a9e1c62f067e8fa29aec835b6a26fc639df981f",
+  "jmax-vs-parsers-rusty-alloc": "1d0337ab5e0ae33ac9a10d8ec6badf9bfe3efa7289200d82ceff1e973c440a8a",
+  "jmax-vs-parsers-system-alloc": "dd84a0c5789741482f880087c5dffa3bfb0eb76fa8dedeedd6c968c50a9d2617",
+  "jmax_bench-rusty-alloc": "afd29581b062e94563197c997276d1bfca2fbce1d3ee24326bb1bf7140c2bdd9"
+}

@@ -1,9 +1,10 @@
 //! Complete, allocation-free UTF-8 validation through safe backend facades.
 //!
-//! Backend selection is delegated to `ps-simdutf8` when the `simd-utf8`
-//! feature is enabled. Otherwise validation uses `core` directly. Both paths
-//! preserve the input borrow and report the first malformed sequence's start.
+//! Backend selection is delegated to the no_std-capable `ps-simdutf8`.
+//! Validation preserves the input borrow and reports the first malformed
+//! sequence's start; the `simd-utf8` feature remains a compatibility flag.
 
+pub use super::count::{count_scalars_trusted_utf8, validate_and_count_scalars};
 use super::{checked_len, Error, ErrorCode, ErrorSource, Result, Utf8Summary};
 
 /// Validate an entire slice and count its bytes and Unicode scalar values.
@@ -19,7 +20,7 @@ use super::{checked_len, Error, ErrorCode, ErrorSource, Result, Utf8Summary};
 pub fn validate(bytes: &[u8]) -> Result<Utf8Summary> {
     let text = validate_str(bytes)?;
     let byte_len = checked_len(text.len())?;
-    let scalar_len = checked_len(text.chars().count())?;
+    let scalar_len = super::count_scalars_trusted_utf8(text.as_bytes());
 
     // In valid UTF-8 each scalar occupies one to four bytes. Equality holds
     // exactly when every scalar is ASCII, avoiding another pass over the data.
@@ -44,10 +45,7 @@ pub fn validate_str(bytes: &[u8]) -> Result<&str> {
 
     // The package is ps-simdutf8, but its library target is named simdutf8.
     // The compat entry point preserves precise offsets for malformed input.
-    #[cfg(feature = "simd-utf8")]
     let validated = simdutf8::compat::from_utf8(bytes);
-    #[cfg(not(feature = "simd-utf8"))]
-    let validated = core::str::from_utf8(bytes);
 
     match validated {
         Ok(text) => Ok(text),

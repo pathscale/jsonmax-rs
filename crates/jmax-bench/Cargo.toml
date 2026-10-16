@@ -8,7 +8,8 @@ publish.workspace = true
 [features]
 default = ["std"]
 alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std", "jsonmax/std", "jmax-dispatch/std"]
+std = ["alloc", "jmax-abi/std", "jsonmax/std", "jmax-dispatch/std", "jmax-nagoya/nagoya-rt"]
+system-alloc = []
 
 [dependencies]
 jmax-abi = { workspace = true }
@@ -21,6 +22,8 @@ jmax-schema-vm = { workspace = true }
 jmax-dom = { workspace = true }
 jmax-dispatch = { workspace = true }
 jmax-schema-ir = { workspace = true }
+rusty_alloc = { workspace = true }
+bytes = { workspace = true }
 
 [[bin]]
 name = "jmax_bench"

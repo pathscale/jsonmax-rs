@@ -1,0 +1,35 @@
+--- timed/block_cursor.rs
++++ instrumented/block_cursor.rs
+@@ -209,6 +209,8 @@
+             let start = self.cache.block_end as usize;
+             let end = (start + 64).min(self.input.len());
+             let bytes = &self.input[start..end];
++            crate::wave6_stats::CURSOR_BLOCKS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
++            crate::wave6_stats::CURSOR_BYTES.fetch_add(bytes.len(), core::sync::atomic::Ordering::Relaxed);
+             let masks = if bytes.len() == 64 {
+                 let block: &[u8; 64] = bytes.try_into().map_err(|_| {
+                     syntax_error(
+@@ -678,7 +680,13 @@
+                     self.skip_query_inner(current_depth, true)?;
+                 }
+             }
+-            Ok(Span32::new(start, self.offset() - start))
++            let len=self.offset()-start;
++            match mode {
++                SkipMode::QueryOnly => {crate::wave6_stats::QUERY_SKIP_BYTES.fetch_add(len as usize,core::sync::atomic::Ordering::Relaxed);},
++                SkipMode::StrictValidate => {crate::wave6_stats::STRICT_SKIP_BYTES.fetch_add(len as usize,core::sync::atomic::Ordering::Relaxed);},
++                _=>{}
++            }
++            Ok(Span32::new(start, len))
+         })();
+         if result.is_err() {
+             decoded.truncate(checkpoint);
+@@ -1084,6 +1092,8 @@
+     while offset < bytes.len() {
+         let end = (offset + 64).min(bytes.len());
+         let block = &bytes[offset..end];
++        crate::wave6_stats::DECODE_BLOCKS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
++        crate::wave6_stats::DECODE_BYTES.fetch_add(block.len(), core::sync::atomic::Ordering::Relaxed);
+         let masks = if block.len() == 64 {
+             let full: &[u8; 64] = block.try_into().map_err(|_| {
+                 syntax_error(

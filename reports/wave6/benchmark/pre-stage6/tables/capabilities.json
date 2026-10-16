@@ -1,0 +1,370 @@
+[
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Strict schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Query schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Warm schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Array-index Query",
+    "parser": "ps-pikkr",
+    "status": "N/A (object-field selector only)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "system-alloc"
+  },
+  {
+    "alloc_calls": 185991385,
+    "alloc_zeroed_calls": 7749,
+    "allocator": "system-alloc",
+    "category": "harness",
+    "dealloc_calls": 185999119,
+    "realloc_calls": 6170258
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "twitter",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "citm_catalog",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "canada",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Strict schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Query schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "harness-capability",
+    "corpus": "github_events",
+    "operation": "Warm schema Extract",
+    "parser": "jsonmax",
+    "status": "N/A (harness schema describes one row; corpus root is an array)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Array-index Query",
+    "parser": "ps-pikkr",
+    "status": "N/A (object-field selector only)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "github_events",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "apache_builds",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "DOM Parse",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "Full Validate",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "category": "ps-pikkr-capability",
+    "corpus": "endpoint_batch",
+    "operation": "Serialize",
+    "parser": "ps-pikkr",
+    "status": "N/A (Query-only selector)",
+    "allocator": "rusty-alloc"
+  },
+  {
+    "alloc_calls": 254030020,
+    "alloc_zeroed_calls": 18053,
+    "allocator": "rusty-alloc",
+    "category": "harness",
+    "dealloc_calls": 254048058,
+    "realloc_calls": 11074641
+  }
+]

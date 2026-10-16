@@ -1,0 +1,149 @@
+[
+  {
+    "workload": "NagoyaAuth",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 128,
+    "after_tape_capacity_bytes": 128
+  },
+  {
+    "workload": "ExchangeOrder",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 256,
+    "after_tape_capacity_bytes": 256
+  },
+  {
+    "workload": "RpcEnvelope",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 32,
+    "before_tape_capacity_bytes": 256,
+    "after_tape_capacity_bytes": 256
+  },
+  {
+    "workload": "LargeCatalog",
+    "before_duplicate_slots": 8192,
+    "after_duplicate_slots": 32,
+    "before_tape_capacity_bytes": 65536,
+    "after_tape_capacity_bytes": 68224
+  },
+  {
+    "workload": "VectorCoordinates",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 2048,
+    "after_tape_capacity_bytes": 1760
+  },
+  {
+    "workload": "DeepNesting",
+    "before_duplicate_slots": 64,
+    "after_duplicate_slots": 272,
+    "before_tape_capacity_bytes": 1024,
+    "after_tape_capacity_bytes": 1088
+  },
+  {
+    "workload": "EscapedUnicode",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 128,
+    "after_tape_capacity_bytes": 2008
+  },
+  {
+    "workload": "small_object-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 64,
+    "after_duplicate_slots": 64,
+    "before_tape_capacity_bytes": 1024,
+    "after_tape_capacity_bytes": 1120
+  },
+  {
+    "workload": "escaped_strings-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 64,
+    "after_duplicate_slots": 64,
+    "before_tape_capacity_bytes": 2048,
+    "after_tape_capacity_bytes": 2800
+  },
+  {
+    "workload": "unicode-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 64,
+    "after_duplicate_slots": 64,
+    "before_tape_capacity_bytes": 2048,
+    "after_tape_capacity_bytes": 1776
+  },
+  {
+    "workload": "number_array-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 0,
+    "after_duplicate_slots": 0,
+    "before_tape_capacity_bytes": 1024,
+    "after_tape_capacity_bytes": 672
+  },
+  {
+    "workload": "depth_book-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 4096,
+    "after_tape_capacity_bytes": 6432
+  },
+  {
+    "workload": "agg_trade-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 32,
+    "after_duplicate_slots": 32,
+    "before_tape_capacity_bytes": 512,
+    "after_tape_capacity_bytes": 288
+  },
+  {
+    "workload": "nested-seed-5354007379338153539-docs-128-items-32",
+    "before_duplicate_slots": 32,
+    "after_duplicate_slots": 256,
+    "before_tape_capacity_bytes": 1024,
+    "after_tape_capacity_bytes": 1152
+  },
+  {
+    "workload": "long-unescaped-ascii",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 64,
+    "after_tape_capacity_bytes": 2056
+  },
+  {
+    "workload": "long-unescaped-unicode",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 64,
+    "after_tape_capacity_bytes": 7688
+  },
+  {
+    "workload": "escape-dense",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 64,
+    "after_tape_capacity_bytes": 7176
+  },
+  {
+    "workload": "long-backslash-runs",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 16,
+    "before_tape_capacity_bytes": 64,
+    "after_tape_capacity_bytes": 4104
+  },
+  {
+    "workload": "wide-object",
+    "before_duplicate_slots": 2048,
+    "after_duplicate_slots": 2048,
+    "before_tape_capacity_bytes": 32768,
+    "after_tape_capacity_bytes": 32416
+  },
+  {
+    "workload": "reordered-fields",
+    "before_duplicate_slots": 16,
+    "after_duplicate_slots": 32,
+    "before_tape_capacity_bytes": 256,
+    "after_tape_capacity_bytes": 256
+  },
+  {
+    "workload": "sparse-large-subtree",
+    "before_duplicate_slots": 16384,
+    "after_duplicate_slots": 48,
+    "before_tape_capacity_bytes": 524288,
+    "after_tape_capacity_bytes": 356160
+  }
+]

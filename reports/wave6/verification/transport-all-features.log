@@ -1,0 +1,90 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --all-features --offline
+    Checking zeroize v1.9.1
+    Checking subtle v2.6.1
+    Checking typenum v1.20.1
+    Checking rand_core v0.10.1
+    Checking cmov v0.5.4
+    Checking const-oid v0.10.2
+    Checking cpubits v0.1.1
+   Compiling autocfg v1.5.1
+    Checking base64ct v1.8.3
+    Checking cfg-if v1.0.5
+   Compiling semver v1.0.28
+    Checking base16ct v1.0.0
+    Checking atomic-wait v1.1.0
+    Checking jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+    Checking jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+    Checking jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+    Checking jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+    Checking jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-utf8)
+    Checking jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+    Checking memchr v2.8.3
+    Checking ff v0.14.0
+    Checking futures-core v0.3.34
+    Checking futures-task v0.3.34
+    Checking ctutils v0.4.3
+    Checking pin-project-lite v0.2.17
+    Checking slab v0.4.12
+    Checking futures-io v0.3.34
+    Checking rustls-pki-types v1.15.1
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+    Checking pem-rfc7468 v1.0.0
+    Checking group v0.14.0
+   Compiling rustc_version v0.4.1
+    Checking ps-st3 v0.6.3
+    Checking async-task v4.7.1
+    Checking spin v0.9.9
+    Checking untrusted v0.9.0
+   Compiling rustls v0.23.46
+    Checking log v0.4.34
+    Checking jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+    Checking once_cell v1.21.4
+   Compiling nagoya v0.1.19 (/Users/revenge/code/nagoya)
+   Compiling getrandom v0.4.3
+    Checking der v0.8.2
+   Compiling nagoya v0.1.19
+    Checking nago-wss v0.1.0 (/Users/revenge/code/nago-wss)
+    Checking jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+    Checking jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> /Users/revenge/code/nago-wss/src/proto/handshake.rs:512:47
+    |
+512 |                     .map(|token| token.trim().to_string())
+    |                                               ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+ 17 + use crate::alloc::string::ToString;
+    |
+
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> /Users/revenge/code/nago-wss/src/proto/handshake.rs:530:20
+    |
+530 |         path: path.to_string(),
+    |                    ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+ 17 + use crate::alloc::string::ToString;
+    |
+
+   Compiling curve25519-dalek v5.0.0
+error[E0599]: no method named `to_string` found for reference `&str` in the current scope
+   --> /Users/revenge/code/nago-wss/src/proto/handshake.rs:642:35
+    |
+642 |             protocol = Some(value.to_string());
+    |                                   ^^^^^^^^^ method not found in `&str`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: trait `ToString` which provides `to_string` is implemented but not in scope; perhaps you want to import it
+    |
+ 17 + use crate::alloc::string::ToString;
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `nago-wss` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+exit=101

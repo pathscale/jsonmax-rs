@@ -1,0 +1,21 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=python3 reports/wave6/verification/audit.py
+UNCHANGED /Users/revenge/code/ps-rusty_alloc: 126 files
+UNCHANGED /Users/revenge/code/nagoya: 606 files
+UNCHANGED /Users/revenge/code/nago-http: 28 files
+UNCHANGED /Users/revenge/code/nago-wss: 32 files
+UNCHANGED /Users/revenge/code/jsonmax-rs/reports/investigation-2026-10-16: 1 files
+PRESERVED target/: build artifacts added; no clean/removal command used
+ZERO expect/todo/unimplemented: /Users/revenge/code/jsonmax-rs/crates
+ZERO expect/todo/unimplemented: /tmp/jmax-vs-parsers/src
+ZERO expect/todo/unimplemented: /Users/revenge/code/ps-pikkr/src
+ONE global allocator with RustyAlloc default: jmax-bench/src/bin/jmax_bench.rs
+ONE global allocator with RustyAlloc default: jmax-validator/src/main.rs
+ONE global allocator with RustyAlloc default: jmax-runner/src/main.rs
+ONE global allocator with RustyAlloc default: jmax-gen-cli/src/main.rs
+Traceback (most recent call last):
+  File "/Users/revenge/code/jsonmax-rs/reports/wave6/verification/audit.py", line 42, in <module>
+    assert all('#[global_allocator]' not in p.read_text() for p in (root / 'crates/jsonmax/src').rglob('*.rs'))
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+exit=1

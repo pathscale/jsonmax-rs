@@ -1,0 +1,23 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=env RUSTFLAGS=-C target-cpu=native cargo +1.98.1 test -p jmax-dispatch -p jmax-nagoya -p jsonmax --features jmax-nagoya/nagoya-rt,jsonmax/rusty-alloc --offline
+   Compiling jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+error[E0277]: can't compare `u8` with `i32`
+   --> crates/jmax-dispatch/src/detect.rs:105:45
+    |
+105 |             let bit = |n| bits & (1u8 << n) != 0;
+    |                                             ^^ no implementation for `u8 == i32`
+    |
+help: the trait `PartialEq<i32>` is not implemented for `u8`
+      but trait `PartialEq<u8>` is implemented for it
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/cmp.rs:1876:12
+   ::: /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/cmp.rs:1900:5
+    |
+    = note: in this macro invocation
+    = help: for that trait implementation, expected `u8`, found `i32`
+    = note: this error originates in the macro `partial_eq_impl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+   Compiling jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `jmax-dispatch` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+exit=101

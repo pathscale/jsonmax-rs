@@ -42,8 +42,12 @@ pub struct StructuralMasks {
 impl StructuralMasks {
     /// All six punctuation classes, before string exclusion.
     pub const fn punctuation_mask(&self) -> u64 {
-        self.colon_mask | self.comma_mask | self.lbrace_mask | self.rbrace_mask
-            | self.lbracket_mask | self.rbracket_mask
+        self.colon_mask
+            | self.comma_mask
+            | self.lbrace_mask
+            | self.rbrace_mask
+            | self.lbracket_mask
+            | self.rbracket_mask
     }
 }
 
@@ -81,8 +85,7 @@ pub struct QuoteMasks {
 pub fn is_supported() -> bool {
     #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
     {
-        std::is_x86_feature_detected!("avx512f")
-            && std::is_x86_feature_detected!("avx512bw")
+        std::is_x86_feature_detected!("avx512f") && std::is_x86_feature_detected!("avx512bw")
     }
     #[cfg(all(not(feature = "std"), any(target_arch = "x86", target_arch = "x86_64")))]
     {
@@ -139,6 +142,7 @@ impl RawMasks {
         Ok(BlockMasks {
             quote_mask: self.quote_mask & valid,
             backslash_mask: self.backslash_mask & valid,
+            delimiter_quote_mask: quotes.delimiter_quote_mask & valid,
             in_string_mask: in_string,
             colon_mask: c.colon_mask & valid,
             comma_mask: c.comma_mask & valid,
@@ -157,3 +161,6 @@ impl RawMasks {
         })
     }
 }
+
+/// Safe full-block binding returned only after backend capability resolution.
+pub type ClassifyBlockFn = fn(&[u8; BLOCK_BYTES], &mut ScanCarry) -> Result<BlockMasks>;

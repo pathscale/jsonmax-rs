@@ -20,7 +20,7 @@ pub fn submit_input(
     input: ProtectedInput,
     budget: ResourceBudget,
 ) -> Result<()> {
-    ensure_request_budget(input.payload().len(), budget)?;
+    ensure_request_budget(input.payload().backing_len_lower_bound(), budget)?;
     dispatcher.submit(BridgeRequest { connection, input, budget })
 }
 

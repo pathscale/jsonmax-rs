@@ -1,0 +1,488 @@
+[
+  {
+    "log": "workspace-check.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-2.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-3.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-4.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-test.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --workspace --offline",
+    "exit": 0,
+    "passed": 115,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "hosted-test.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test -p jmax-nagoya --features nagoya-rt --offline",
+    "exit": 0,
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "no-default.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jsonmax --no-default-features --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "rusty-feature.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jsonmax --features rusty-alloc --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-bins.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --bins --workspace --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "system-bins.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jmax-bench --features system-alloc --bins --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "pikkr-native.log",
+    "cwd": "/Users/revenge/code/ps-pikkr",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --offline",
+    "exit": 0,
+    "passed": 29,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "pikkr-portable.log",
+    "cwd": "/Users/revenge/code/ps-pikkr",
+    "command": "cargo +1.98.1 test --offline --features portable",
+    "exit": 0,
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-check.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 check --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-check-2.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 check --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-check-3.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 check --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "targeted-integration.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test -p jmax-dispatch -p jmax-nagoya -p jsonmax --features jmax-nagoya/nagoya-rt,jsonmax/rusty-alloc --offline",
+    "exit": 0,
+    "passed": 30,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "log": "harness-preflight.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "JMAX_CHECK_ONLY=1 RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-preflight-2.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "JMAX_CHECK_ONLY=1 RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl",
+    "exit": 1,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-check.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 fmt --all -- --check",
+    "exit": 1,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-preflight-3.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "JMAX_CHECK_ONLY=1 RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 run --offline -- /Users/revenge/code/jsonmax-rs/reports/wave6/verification/harness-preflight.jsonl",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-integration.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --edition 2024 --config skip_children=true crates/jmax-dispatch/src/detect.rs crates/jmax-dispatch/tests/wave6.rs crates/jmax-schema-compile/src/patterns.rs crates/jmax-bench/src/serialize.rs crates/jmax-bench/src/service.rs crates/jmax-bench/src/bin/jmax_bench.rs crates/jmax-nagoya/src/lib.rs crates/jmax-nagoya/src/submit.rs crates/jmax-nagoya/src/worker.rs crates/jsonmax/tests/wave6.rs reports/wave6/verification/allocator-consumer/src/main.rs /tmp/jmax-vs-parsers/src/main.rs",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "allocator-consumer.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "env CARGO_TARGET_DIR=/Users/revenge/code/jsonmax-rs/target/wave6-allocator-consumer cargo +1.98.1 run --offline --manifest-path reports/wave6/verification/allocator-consumer/Cargo.toml",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --edition 2024 --config skip_children=true crates/jsonmax/tests/wave6.rs",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-test-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --workspace --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "feature-test-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test -p jmax-dispatch -p jmax-nagoya -p jsonmax --features jmax-nagoya/nagoya-rt,jsonmax/rusty-alloc --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "transport-no-default.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --no-default-features --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "transport-all-features.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --all-features --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "pikkr-native-final.log",
+    "cwd": "/Users/revenge/code/ps-pikkr",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --offline",
+    "exit": 0,
+    "passed": 29,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "pikkr-portable-final.log",
+    "cwd": "/Users/revenge/code/ps-pikkr",
+    "command": "cargo +1.98.1 test --offline --features portable",
+    "exit": 0,
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-check-final.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 check --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "harness-system-check.log",
+    "cwd": "/tmp/jmax-vs-parsers",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 check --offline --features system-alloc",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-final-2.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-test-final-2.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --workspace --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "feature-test-final-2.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test -p jmax-dispatch -p jmax-nagoya -p jsonmax --features jmax-nagoya/nagoya-rt,jsonmax/rusty-alloc --offline",
+    "exit": 101,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "transport-all-features-2.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --all-features --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-check-final-3.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --workspace --all-targets --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "environment.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "zsh reports/wave6/verification/environment.sh",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-test-final-3.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --workspace --offline",
+    "exit": 0,
+    "passed": 120,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "feature-test-final-3.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test -p jmax-dispatch -p jmax-nagoya -p jsonmax --features jmax-nagoya/nagoya-rt,jsonmax/rusty-alloc --offline",
+    "exit": 0,
+    "passed": 32,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "log": "architecture-audit.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "zsh reports/wave6/verification/architecture-audit.sh",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "no-default-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jsonmax --no-default-features --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "rusty-feature-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jsonmax --features rusty-alloc --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-bins-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check --bins --workspace --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "system-bins-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "cargo +1.98.1 check -p jmax-bench --features system-alloc --bins --offline",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-integration-check.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --check --edition 2024 --config skip_children=true crates/jmax-dispatch/src/detect.rs crates/jmax-dispatch/tests/wave6.rs crates/jmax-schema-compile/src/patterns.rs crates/jmax-bench/src/serialize.rs crates/jmax-bench/src/service.rs crates/jmax-bench/src/bin/jmax_bench.rs crates/jmax-nagoya/src/lib.rs crates/jmax-nagoya/src/submit.rs crates/jmax-nagoya/src/worker.rs crates/jsonmax/tests/wave6.rs reports/wave6/verification/allocator-consumer/src/main.rs /tmp/jmax-vs-parsers/src/main.rs",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "diff-check.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "git diff --check",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "source-audit.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "python3 reports/wave6/verification/audit.py",
+    "exit": 1,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "source-audit-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "python3 reports/wave6/verification/audit.py",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-skip-test.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --check --edition 2024 --config skip_children=true crates/jmax-syntax/tests/wave6.rs",
+    "exit": 1,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-skip-test-final.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --edition 2024 --config skip_children=true crates/jmax-syntax/tests/wave6.rs",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "workspace-test-final-4.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "RUSTFLAGS=\"-C target-cpu=native\" cargo +1.98.1 test --workspace --offline",
+    "exit": 0,
+    "passed": 121,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "format-skip-test-check.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "/Users/revenge/.rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt --check --edition 2024 --config skip_children=true crates/jmax-syntax/tests/wave6.rs",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "source-audit-complete.log",
+    "cwd": "/Users/revenge/code/jsonmax-rs",
+    "command": "python3 reports/wave6/verification/audit.py",
+    "exit": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  }
+]

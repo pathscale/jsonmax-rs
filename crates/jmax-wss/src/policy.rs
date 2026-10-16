@@ -99,16 +99,7 @@ fn accept_frame_inner(
                 _ => {
                     let (code, reason) = validate_close_payload(frame.payload.as_slice())?;
                     let reason_start = frame.payload.len() - reason.len();
-                    // Bytes can share a reason-only view. Shared payloads need a
-                    // bounded, fallibly reserved copy because Arc has no slice.
-                    let reason = match frame.payload {
-                        Payload::Bytes(bytes) => Payload::Bytes(bytes.slice(reason_start..)),
-                        Payload::Shared(bytes) => {
-                            let mut reason = Vec::new();
-                            append_bytes(&mut reason, &bytes[reason_start..])?;
-                            Payload::from_vec(reason)
-                        }
-                    };
+                    let reason = frame.payload.slice(reason_start..frame.payload.len())?;
                     state.reset_message();
                     state.closed = true;
                     Ok(ReceiveEvent::Close { code, reason })

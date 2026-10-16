@@ -1,0 +1,57 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check --workspace --all-targets --offline
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+     Locking 13 packages to latest Rust 1.98.1 compatible versions
+      Adding portable-atomic v1.15.0
+      Adding ps-rusty_alloc v2.3.3 (/Users/revenge/code/ps-rusty_alloc)
+      Adding windows-link v0.2.1
+      Adding windows-sys v0.60.2
+      Adding windows-targets v0.53.5
+      Adding windows_aarch64_gnullvm v0.53.1
+      Adding windows_aarch64_msvc v0.53.1
+      Adding windows_i686_gnu v0.53.1
+      Adding windows_i686_gnullvm v0.53.1
+      Adding windows_i686_msvc v0.53.1
+      Adding windows_x86_64_gnu v0.53.1
+      Adding windows_x86_64_gnullvm v0.53.1
+      Adding windows_x86_64_msvc v0.53.1
+    Blocking waiting for file lock on package cache
+   Compiling libc v0.2.190
+   Compiling rustversion v1.0.23
+    Checking jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-abi)
+    Checking jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+    Checking jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+    Checking jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+    Checking jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+    Checking jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+    Checking jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-error)
+    Checking jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-decimal)
+    Checking jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir)
+    Checking jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-number)
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+warning: function `x86_capabilities` is never used
+  --> crates/jmax-dispatch/src/detect.rs:80:10
+   |
+80 | const fn x86_capabilities(
+   |          ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-dispatch` (lib test) generated 1 warning
+error[E0423]: expected value, found module `jmax_scan_avx2::classify`
+  --> crates/jmax-dispatch/tests/wave6.rs:31:32
+   |
+31 |             BackendId::Avx2 => jmax_scan_avx2::classify,
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^ not a value
+
+error[E0423]: expected value, found module `jmax_scan_avx512::classify`
+  --> crates/jmax-dispatch/tests/wave6.rs:32:34
+   |
+32 |             BackendId::Avx512 => jmax_scan_avx512::classify,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ not a value
+
+For more information about this error, try `rustc --explain E0423`.
+error: could not compile `jmax-dispatch` (test "wave6") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+exit=101

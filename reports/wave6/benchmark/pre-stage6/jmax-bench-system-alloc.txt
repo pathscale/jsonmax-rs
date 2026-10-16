@@ -1,0 +1,569 @@
+PROCESS 1
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax_bench-system-alloc']
+jsonmax deterministic benchmark
+Allocator: std::alloc::System
+Allocator calls: 1472252 alloc/realloc/zeroed, 601403 dealloc
+Seed: 5354007379338153539 | Documents/workload: 128 | Items/document: 32 | Warmup: 3 | Measured: 20
+Times and Payload Bytes describe complete corpus passes; MB/s uses decimal MB.
+SIMD dispatch for each workload's first payload:
+  NagoyaAuth: neon
+  ExchangeOrder: neon
+  RpcEnvelope: neon
+  LargeCatalog: neon
+  VectorCoordinates: neon
+  DeepNesting: neon
+  EscapedUnicode: neon
+Extract validates complete schemas and captures fields on every workload. Warm scratch is prewarmed on the entire corpus.
+
+| Workload       | Mode      | Allocation regime | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | ns/op | Msg/sec |
+|----------------|-----------|-------------------|--------------:|---------:|------------:|---------:|------------------:|------:|--------:|
+| NagoyaAuth     | Parse     | Cold-Alloc |         10770 |    90292 |       91875 |   178833 |             98.22 | 856.67 | 1167307 |
+| NagoyaAuth     | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    73625 |       79958 |   102542 |            128.34 | 655.62 | 1525284 |
+| NagoyaAuth     | Validate  | Cold-Alloc |         10770 |    94500 |       95709 |   109042 |            109.80 | 766.28 | 1305013 |
+| NagoyaAuth     | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    79917 |       80833 |   165084 |            117.07 | 718.70 | 1391400 |
+| NagoyaAuth     | Extract   | Cold-Alloc |         10770 |   132750 |      139458 |   191167 |             73.30 | 1147.95 |  871119 |
+| NagoyaAuth     | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    95208 |      103292 |   254791 |             63.45 | 1326.17 |  754050 |
+| NagoyaAuth     | Serialize | Cold-Alloc |         10770 |    91333 |       92708 |    99583 |            114.78 | 733.09 | 1364091 |
+| NagoyaAuth     | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    56333 |       56542 |    56750 |            190.51 | 441.65 | 2264240 |
+| ExchangeOrder  | Parse     | Cold-Alloc |         10880 |   114000 |      115167 |   115834 |             94.52 | 899.24 | 1112056 |
+| ExchangeOrder  | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    89834 |       91083 |    91792 |            119.50 | 711.31 | 1405854 |
+| ExchangeOrder  | Validate  | Cold-Alloc |         10880 |   117167 |      118792 |   120292 |             91.27 | 931.33 | 1073732 |
+| ExchangeOrder  | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10880 |   100708 |      101292 |   101792 |            107.36 | 791.75 | 1263029 |
+| ExchangeOrder  | Extract   | Cold-Alloc |         10880 |   140417 |      142666 |   143958 |             76.34 | 1113.43 |  898128 |
+| ExchangeOrder  | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10880 |   109917 |      110792 |   111208 |             98.24 | 865.25 | 1155735 |
+| ExchangeOrder  | Serialize | Cold-Alloc |         10880 |    96291 |       97125 |    98042 |            111.80 | 760.25 | 1315352 |
+| ExchangeOrder  | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    68292 |       68500 |    68625 |            158.85 | 535.11 | 1868785 |
+| RpcEnvelope    | Parse     | Cold-Alloc |         13330 |   131875 |      132875 |   133500 |            100.26 | 1038.65 |  962784 |
+| RpcEnvelope    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   110875 |      111958 |   112500 |            119.01 | 875.03 | 1142814 |
+| RpcEnvelope    | Validate  | Cold-Alloc |         13330 |   168916 |      171208 |   173542 |             77.78 | 1338.90 |  746882 |
+| RpcEnvelope    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   129042 |      130041 |   130709 |            102.45 | 1016.49 |  983780 |
+| RpcEnvelope    | Extract   | Cold-Alloc |         13330 |   190541 |      191292 |   192208 |             69.66 | 1495.07 |  668866 |
+| RpcEnvelope    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   136792 |      137166 |   137375 |             97.20 | 1071.36 |  933397 |
+| RpcEnvelope    | Serialize | Cold-Alloc |         13330 |   105625 |      114709 |   193792 |            100.93 | 1031.82 |  969162 |
+| RpcEnvelope    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    88542 |       89958 |    91291 |            144.48 | 720.78 | 1387377 |
+| LargeCatalog   | Parse     | Cold-Alloc |       4441600 | 35122167 |    35752292 | 38875833 |            121.93 | 284593.42 |    3514 |
+| LargeCatalog   | Parse     | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 26759292 |    27869083 | 29468084 |            159.66 | 217330.13 |    4601 |
+| LargeCatalog   | Validate  | Cold-Alloc |       4441600 | 28004375 |    29169584 | 29482500 |            152.90 | 226942.17 |    4406 |
+| LargeCatalog   | Validate  | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 28932209 |    29234042 | 29551583 |            151.34 | 229282.75 |    4361 |
+| LargeCatalog   | Extract   | Cold-Alloc |       4441600 | 28058125 |    29172375 | 29427792 |            153.30 | 226354.77 |    4418 |
+| LargeCatalog   | Extract   | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 27589250 |    29091542 | 33100625 |            151.77 | 228638.30 |    4374 |
+| LargeCatalog   | Serialize | Cold-Alloc |       4441600 | 19574333 |    20017291 | 20689500 |            220.04 | 157701.84 |    6341 |
+| LargeCatalog   | Serialize | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 18792250 |    20030167 | 20830875 |            221.62 | 156574.04 |    6387 |
+| VectorCoordinates | Parse     | Cold-Alloc |        112768 |   856291 |      860333 |   891958 |            129.86 | 6783.98 |  147406 |
+| VectorCoordinates | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   812625 |      841167 |   941458 |            130.02 | 6775.70 |  147586 |
+| VectorCoordinates | Validate  | Cold-Alloc |        112768 |   966125 |      973875 |  1045083 |            115.03 | 7658.97 |  130566 |
+| VectorCoordinates | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   934166 |      963958 |   971375 |            117.16 | 7519.50 |  132988 |
+| VectorCoordinates | Extract   | Cold-Alloc |        112768 |   954084 |      959917 |  1019083 |            116.17 | 7583.43 |  131866 |
+| VectorCoordinates | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   945708 |      977708 |  1009833 |            115.53 | 7625.60 |  131137 |
+| VectorCoordinates | Serialize | Cold-Alloc |        112768 |   450167 |      452750 |   456916 |            248.81 | 3540.92 |  282413 |
+| VectorCoordinates | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   375667 |      397541 |   414166 |            287.47 | 3064.65 |  326302 |
+| DeepNesting    | Parse     | Cold-Alloc |         18304 |   262625 |      271083 |   274750 |             67.68 | 2112.78 |  473311 |
+| DeepNesting    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   192042 |      195167 |   201208 |             93.66 | 1526.73 |  654996 |
+| DeepNesting    | Validate  | Cold-Alloc |         18304 |   666000 |      673458 |   735042 |             26.69 | 5357.78 |  186644 |
+| DeepNesting    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   284375 |      285875 |   296000 |             63.74 | 2243.54 |  445724 |
+| DeepNesting    | Extract   | Cold-Alloc |         18304 |   691875 |      696875 |   736542 |             25.95 | 5511.36 |  181443 |
+| DeepNesting    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   286334 |      288750 |   307875 |             62.77 | 2278.31 |  438923 |
+| DeepNesting    | Serialize | Cold-Alloc |         18304 |   252125 |      253542 |   255583 |             71.73 | 1993.49 |  501633 |
+| DeepNesting    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   203833 |      204125 |   204500 |             89.66 | 1594.99 |  626964 |
+| EscapedUnicode | Parse     | Cold-Alloc |        257682 |  1568542 |     1582417 |  1639875 |            161.95 | 12430.31 |   80449 |
+| EscapedUnicode | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1564250 |     1578708 |  1658583 |            162.09 | 12419.58 |   80518 |
+| EscapedUnicode | Validate  | Cold-Alloc |        257682 |  1120875 |     1125625 |  1160291 |            227.85 | 8835.19 |  113184 |
+| EscapedUnicode | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1055083 |     1070542 |  1103500 |            239.45 | 8407.36 |  118943 |
+| EscapedUnicode | Extract   | Cold-Alloc |        257682 |  1128875 |     1147041 |  1187292 |            222.76 | 9037.32 |  110652 |
+| EscapedUnicode | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1023833 |     1041625 |  1071750 |            246.34 | 8172.25 |  122365 |
+| EscapedUnicode | Serialize | Cold-Alloc |        257682 |   303042 |      310125 |   315292 |            830.83 | 2423.05 |  412703 |
+| EscapedUnicode | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   284167 |      286792 |   291292 |            895.62 | 2247.77 |  444885 |
+
+exit: 0
+
+PROCESS 2
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax_bench-system-alloc']
+jsonmax deterministic benchmark
+Allocator: std::alloc::System
+Allocator calls: 1472252 alloc/realloc/zeroed, 601403 dealloc
+Seed: 5354007379338153539 | Documents/workload: 128 | Items/document: 32 | Warmup: 3 | Measured: 20
+Times and Payload Bytes describe complete corpus passes; MB/s uses decimal MB.
+SIMD dispatch for each workload's first payload:
+  NagoyaAuth: neon
+  ExchangeOrder: neon
+  RpcEnvelope: neon
+  LargeCatalog: neon
+  VectorCoordinates: neon
+  DeepNesting: neon
+  EscapedUnicode: neon
+Extract validates complete schemas and captures fields on every workload. Warm scratch is prewarmed on the entire corpus.
+
+| Workload       | Mode      | Allocation regime | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | ns/op | Msg/sec |
+|----------------|-----------|-------------------|--------------:|---------:|------------:|---------:|------------------:|------:|--------:|
+| NagoyaAuth     | Parse     | Cold-Alloc |         10770 |    70291 |       71125 |    72833 |            150.98 | 557.29 | 1794393 |
+| NagoyaAuth     | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    56292 |       56917 |    57250 |            189.05 | 445.07 | 2246844 |
+| NagoyaAuth     | Validate  | Cold-Alloc |         10770 |    75166 |       76708 |    88542 |            137.18 | 613.38 | 1630314 |
+| NagoyaAuth     | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    63625 |       64000 |    65500 |            167.49 | 502.36 | 1990602 |
+| NagoyaAuth     | Extract   | Cold-Alloc |         10770 |    89667 |       91500 |    95500 |            116.84 | 720.12 | 1388661 |
+| NagoyaAuth     | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    69167 |       69542 |    70708 |            153.92 | 546.65 | 1829333 |
+| NagoyaAuth     | Serialize | Cold-Alloc |         10770 |    65834 |       66833 |    69375 |            160.50 | 524.25 | 1907483 |
+| NagoyaAuth     | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    40583 |       40667 |    41667 |            260.05 | 323.55 | 3090690 |
+| ExchangeOrder  | Parse     | Cold-Alloc |         10880 |    84167 |       85334 |    87583 |            125.95 | 674.85 | 1481802 |
+| ExchangeOrder  | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    65208 |       65875 |    67583 |            164.86 | 515.58 | 1939575 |
+| ExchangeOrder  | Validate  | Cold-Alloc |         10880 |    83709 |       84500 |    85833 |            128.36 | 662.21 | 1510103 |
+| ExchangeOrder  | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    72417 |       73625 |    73958 |            147.91 | 574.66 | 1740165 |
+| ExchangeOrder  | Extract   | Cold-Alloc |         10880 |    99834 |      101666 |   105750 |            106.19 | 800.42 | 1249340 |
+| ExchangeOrder  | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    77916 |       78292 |    80375 |            138.09 | 615.53 | 1624625 |
+| ExchangeOrder  | Serialize | Cold-Alloc |         10880 |    68958 |       69542 |    72458 |            154.95 | 548.57 | 1822929 |
+| ExchangeOrder  | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    49541 |       49750 |    49916 |            218.15 | 389.63 | 2566522 |
+| RpcEnvelope    | Parse     | Cold-Alloc |         13330 |    98834 |      100458 |   113209 |            130.91 | 795.51 | 1257056 |
+| RpcEnvelope    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    81000 |       82875 |    85625 |            160.59 | 648.50 | 1542015 |
+| RpcEnvelope    | Validate  | Cold-Alloc |         13330 |   124875 |      127666 |   132250 |            104.47 | 996.87 | 1003135 |
+| RpcEnvelope    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    94125 |       96709 |    98000 |            138.16 | 753.78 | 1326653 |
+| RpcEnvelope    | Extract   | Cold-Alloc |         13330 |   140500 |      141291 |   146208 |             93.44 | 1114.52 |  897249 |
+| RpcEnvelope    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   101042 |      102000 |   115084 |            126.40 | 823.93 | 1213700 |
+| RpcEnvelope    | Serialize | Cold-Alloc |         13330 |    83458 |       83959 |    84416 |            158.57 | 656.75 | 1522639 |
+| RpcEnvelope    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    64458 |       65208 |    66000 |            204.45 | 509.36 | 1963253 |
+| LargeCatalog   | Parse     | Cold-Alloc |       4441600 | 27286333 |    27560333 | 27820125 |            161.19 | 215278.70 |    4645 |
+| LargeCatalog   | Parse     | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 24637209 |    25019833 | 26801500 |            173.53 | 199960.64 |    5001 |
+| LargeCatalog   | Validate  | Cold-Alloc |       4441600 | 30406000 |    33967667 | 34849083 |            133.28 | 260355.52 |    3841 |
+| LargeCatalog   | Validate  | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 31903208 |    33448958 | 34168000 |            133.57 | 259787.96 |    3849 |
+| LargeCatalog   | Extract   | Cold-Alloc |       4441600 | 31859541 |    32224084 | 34046166 |            136.30 | 254577.44 |    3928 |
+| LargeCatalog   | Extract   | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 32167083 |    34720333 | 49108042 |            117.78 | 294614.00 |    3394 |
+| LargeCatalog   | Serialize | Cold-Alloc |       4441600 | 24720291 |    27056792 | 37266417 |            156.77 | 221337.21 |    4518 |
+| LargeCatalog   | Serialize | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 24841084 |    26127000 | 32434666 |            161.60 | 214728.29 |    4657 |
+| VectorCoordinates | Parse     | Cold-Alloc |        112768 |   997542 |     1024958 |  1445166 |            102.25 | 8616.06 |  116062 |
+| VectorCoordinates | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1037417 |     1400916 |  2370750 |             73.55 | 11978.43 |   83483 |
+| VectorCoordinates | Validate  | Cold-Alloc |        112768 |  1177583 |     1308000 |  2256750 |             72.95 | 12076.24 |   82807 |
+| VectorCoordinates | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1147833 |     1251167 |  2114417 |             75.46 | 11675.68 |   85648 |
+| VectorCoordinates | Extract   | Cold-Alloc |        112768 |  1131166 |     1294583 |  2193166 |             75.08 | 11734.75 |   85217 |
+| VectorCoordinates | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1112291 |     1178833 |  1782584 |             88.56 | 9947.67 |  100526 |
+| VectorCoordinates | Serialize | Cold-Alloc |        112768 |   530250 |      536125 |   821125 |            193.45 | 4554.20 |  219578 |
+| VectorCoordinates | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   438334 |      465000 |   682250 |            219.32 | 4016.93 |  248947 |
+| DeepNesting    | Parse     | Cold-Alloc |         18304 |   341042 |      344875 |   429250 |             50.35 | 2840.19 |  352090 |
+| DeepNesting    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   246041 |      249792 |   276875 |             71.84 | 1990.66 |  502346 |
+| DeepNesting    | Validate  | Cold-Alloc |         18304 |   834125 |      854417 |  1498666 |             17.89 | 7993.07 |  125108 |
+| DeepNesting    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   339375 |      342750 |   371250 |             52.71 | 2712.84 |  368617 |
+| DeepNesting    | Extract   | Cold-Alloc |         18304 |   855167 |      882125 |  1373875 |             17.53 | 8157.63 |  122585 |
+| DeepNesting    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   345958 |      348750 |   443459 |             49.85 | 2868.75 |  348584 |
+| DeepNesting    | Serialize | Cold-Alloc |         18304 |   297833 |      305667 |   337834 |             58.70 | 2436.10 |  410492 |
+| DeepNesting    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   242375 |      244542 |   268584 |             73.83 | 1936.80 |  516315 |
+| EscapedUnicode | Parse     | Cold-Alloc |        257682 |  1919000 |     1939125 |  2393750 |            125.89 | 15991.33 |   62534 |
+| EscapedUnicode | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1821708 |     1871000 |  2573875 |            127.21 | 15825.81 |   63188 |
+| EscapedUnicode | Validate  | Cold-Alloc |        257682 |  1312875 |     1378000 |  1933167 |            176.02 | 11436.95 |   87436 |
+| EscapedUnicode | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1231584 |     1237000 |  1489875 |            198.90 | 10121.60 |   98799 |
+| EscapedUnicode | Extract   | Cold-Alloc |        257682 |  1336167 |     1367792 |  1904084 |            179.00 | 11246.42 |   88917 |
+| EscapedUnicode | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1244958 |     1262500 |  1376875 |            198.04 | 10165.43 |   98373 |
+| EscapedUnicode | Serialize | Cold-Alloc |        257682 |   357125 |      359708 |   412875 |            696.26 | 2891.37 |  345856 |
+| EscapedUnicode | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   319709 |      353709 |   430333 |            724.81 | 2777.48 |  360039 |
+
+exit: 0
+
+PROCESS 3
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax_bench-system-alloc']
+jsonmax deterministic benchmark
+Allocator: std::alloc::System
+Allocator calls: 1472252 alloc/realloc/zeroed, 601403 dealloc
+Seed: 5354007379338153539 | Documents/workload: 128 | Items/document: 32 | Warmup: 3 | Measured: 20
+Times and Payload Bytes describe complete corpus passes; MB/s uses decimal MB.
+SIMD dispatch for each workload's first payload:
+  NagoyaAuth: neon
+  ExchangeOrder: neon
+  RpcEnvelope: neon
+  LargeCatalog: neon
+  VectorCoordinates: neon
+  DeepNesting: neon
+  EscapedUnicode: neon
+Extract validates complete schemas and captures fields on every workload. Warm scratch is prewarmed on the entire corpus.
+
+| Workload       | Mode      | Allocation regime | Payload Bytes | Min (ns) | Median (ns) | P95 (ns) | Throughput (MB/s) | ns/op | Msg/sec |
+|----------------|-----------|-------------------|--------------:|---------:|------------:|---------:|------------------:|------:|--------:|
+| NagoyaAuth     | Parse     | Cold-Alloc |         10770 |    88834 |       89584 |   139000 |            109.23 | 770.33 | 1298147 |
+| NagoyaAuth     | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    72875 |       73833 |   134208 |            129.28 | 650.86 | 1536419 |
+| NagoyaAuth     | Validate  | Cold-Alloc |         10770 |    96000 |       97916 |   130292 |             64.34 | 1307.65 |  764730 |
+| NagoyaAuth     | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    80041 |       80375 |    80833 |            133.94 | 628.19 | 1591876 |
+| NagoyaAuth     | Extract   | Cold-Alloc |         10770 |   116625 |      117833 |   118875 |             91.22 | 922.41 | 1084114 |
+| NagoyaAuth     | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    88333 |       88791 |   246750 |             90.28 | 932.03 | 1072927 |
+| NagoyaAuth     | Serialize | Cold-Alloc |         10770 |    82166 |       83041 |    83916 |            129.74 | 648.53 | 1541938 |
+| NagoyaAuth     | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10770 |    52791 |       52916 |    53000 |            203.57 | 413.33 | 2419374 |
+| ExchangeOrder  | Parse     | Cold-Alloc |         10880 |   104459 |      111875 |   215833 |             73.68 | 1153.56 |  866879 |
+| ExchangeOrder  | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    81542 |       82541 |    84292 |            129.00 | 658.94 | 1517600 |
+| ExchangeOrder  | Validate  | Cold-Alloc |         10880 |   108709 |      110292 |   114750 |             95.14 | 893.42 | 1119288 |
+| ExchangeOrder  | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    93417 |       94333 |   243458 |             72.85 | 1166.85 |  857011 |
+| ExchangeOrder  | Extract   | Cold-Alloc |         10880 |   129041 |      130458 |   132333 |             83.34 | 1019.91 |  980483 |
+| ExchangeOrder  | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         10880 |   102833 |      103375 |   217625 |             94.49 | 899.56 | 1111654 |
+| ExchangeOrder  | Serialize | Cold-Alloc |         10880 |    90417 |       91166 |    92416 |            119.14 | 713.46 | 1401622 |
+| ExchangeOrder  | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         10880 |    63042 |      109750 |   165750 |             99.43 | 854.90 | 1169729 |
+| RpcEnvelope    | Parse     | Cold-Alloc |         13330 |   122375 |      126750 |   255541 |             89.21 | 1167.32 |  856666 |
+| RpcEnvelope    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   100708 |      101834 |   102500 |            131.04 | 794.71 | 1258320 |
+| RpcEnvelope    | Validate  | Cold-Alloc |         13330 |   160916 |      162667 |   167125 |             77.10 | 1350.70 |  740357 |
+| RpcEnvelope    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   120625 |      121709 |   122083 |            108.34 | 961.20 | 1040367 |
+| RpcEnvelope    | Extract   | Cold-Alloc |         13330 |   179041 |      182209 |   260791 |             68.52 | 1519.94 |  657922 |
+| RpcEnvelope    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         13330 |   127667 |      129333 |   750125 |             41.11 | 2533.22 |  394755 |
+| RpcEnvelope    | Serialize | Cold-Alloc |         13330 |   106666 |      116000 |   171958 |            106.97 | 973.52 | 1027202 |
+| RpcEnvelope    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         13330 |    82834 |       83125 |    83500 |            152.74 | 681.80 | 1466697 |
+| LargeCatalog   | Parse     | Cold-Alloc |       4441600 | 38517458 |    44186584 | 50777208 |             92.64 | 374558.12 |    2670 |
+| LargeCatalog   | Parse     | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 31172292 |    32779959 | 36572708 |            132.44 | 262014.26 |    3817 |
+| LargeCatalog   | Validate  | Cold-Alloc |       4441600 | 34058625 |    35109042 | 61271000 |            108.92 | 318594.55 |    3139 |
+| LargeCatalog   | Validate  | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 33818000 |    37432583 | 47236750 |            110.93 | 312807.70 |    3197 |
+| LargeCatalog   | Extract   | Cold-Alloc |       4441600 | 30675583 |    32301875 | 44689875 |            126.08 | 275224.58 |    3633 |
+| LargeCatalog   | Extract   | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 36807083 |    40676417 | 61518333 |            101.86 | 340656.33 |    2936 |
+| LargeCatalog   | Serialize | Cold-Alloc |       4441600 | 26467791 |    29116250 | 36359417 |            145.18 | 239006.93 |    4184 |
+| LargeCatalog   | Serialize | Warm-Scratch (Zero-Alloc Reuse) |       4441600 | 24692250 |    31034292 | 49465667 |            129.36 | 268237.30 |    3728 |
+| VectorCoordinates | Parse     | Cold-Alloc |        112768 |  1084542 |     1194084 |  2949750 |             82.34 | 10700.15 |   93457 |
+| VectorCoordinates | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1026041 |     1038500 |  1194333 |            103.30 | 8528.48 |  117254 |
+| VectorCoordinates | Validate  | Cold-Alloc |        112768 |  1192167 |     1207916 |  1287625 |             91.36 | 9642.81 |  103704 |
+| VectorCoordinates | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1168792 |     1236458 |  1588917 |             86.39 | 10198.29 |   98056 |
+| VectorCoordinates | Extract   | Cold-Alloc |        112768 |  1298791 |     1770667 |  4028834 |             51.91 | 16970.78 |   58925 |
+| VectorCoordinates | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        112768 |  1191084 |     1238625 |  2384625 |             66.94 | 13161.61 |   75979 |
+| VectorCoordinates | Serialize | Cold-Alloc |        112768 |   484417 |      533458 |   639292 |            207.02 | 4255.58 |  234985 |
+| VectorCoordinates | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        112768 |   414167 |      450458 |   477625 |            249.95 | 3524.72 |  283710 |
+| DeepNesting    | Parse     | Cold-Alloc |         18304 |   340333 |      342416 |   413125 |             50.05 | 2857.32 |  349978 |
+| DeepNesting    | Parse     | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   229000 |      230959 |   280375 |             75.82 | 1886.07 |  530204 |
+| DeepNesting    | Validate  | Cold-Alloc |         18304 |   836833 |      860208 |  1105583 |             20.21 | 7074.98 |  141343 |
+| DeepNesting    | Validate  | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   341875 |      346791 |   652375 |             46.95 | 3045.91 |  328309 |
+| DeepNesting    | Extract   | Cold-Alloc |         18304 |   857667 |      932208 |  1007750 |             19.77 | 7233.15 |  138252 |
+| DeepNesting    | Extract   | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   346584 |      349042 |   352125 |             51.56 | 2773.36 |  360574 |
+| DeepNesting    | Serialize | Cold-Alloc |         18304 |   310542 |      311791 |   324458 |             58.38 | 2449.27 |  408285 |
+| DeepNesting    | Serialize | Warm-Scratch (Zero-Alloc Reuse) |         18304 |   242750 |      255208 |   260041 |             72.75 | 1965.53 |  508770 |
+| EscapedUnicode | Parse     | Cold-Alloc |        257682 |  1932417 |     1940750 |  2206084 |            130.48 | 15428.92 |   64813 |
+| EscapedUnicode | Parse     | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1831291 |     1837167 |  2004208 |            138.33 | 14553.03 |   68714 |
+| EscapedUnicode | Validate  | Cold-Alloc |        257682 |  1336333 |     1360083 |  1412542 |            188.19 | 10697.36 |   93481 |
+| EscapedUnicode | Validate  | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1280708 |     1553375 |  3386750 |            123.00 | 16366.81 |   61099 |
+| EscapedUnicode | Extract   | Cold-Alloc |        257682 |  1352375 |     1656375 |  2591292 |            133.50 | 15079.59 |   66315 |
+| EscapedUnicode | Extract   | Warm-Scratch (Zero-Alloc Reuse) |        257682 |  1271958 |     1359250 |  2503333 |            148.35 | 13570.49 |   73689 |
+| EscapedUnicode | Serialize | Cold-Alloc |        257682 |   361125 |      382792 |   411375 |            668.14 | 3013.05 |  331889 |
+| EscapedUnicode | Serialize | Warm-Scratch (Zero-Alloc Reuse) |        257682 |   324750 |      343625 |   414583 |            730.71 | 2755.03 |  362973 |
+
+exit: 0
+
+SUPPLEMENT (operation-only timing):
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/bin/jmax_bench-system-alloc', '--wave6', '/Users/revenge/code/jsonmax-rs/reports/wave6/benchmark/jmax-supplement-system-alloc.jsonl']
+wave6 NagoyaAuth                Parse                Cold-Owned                615.9 ns/doc
+wave6 NagoyaAuth                Parse                Cold-Borrowed             585.3 ns/doc
+wave6 NagoyaAuth                Parse                Warm-Owned                455.7 ns/doc
+wave6 NagoyaAuth                Parse                Warm-Borrowed             431.6 ns/doc
+wave6 NagoyaAuth                Validate-Syntax      Warm-Borrowed             729.8 ns/doc
+wave6 NagoyaAuth                Validate-Schema      Cold-Owned                739.6 ns/doc
+wave6 NagoyaAuth                Validate-Schema      Warm-Owned                639.0 ns/doc
+wave6 NagoyaAuth                Validate-Schema      Warm-Borrowed             613.9 ns/doc
+wave6 NagoyaAuth                Extract-Strict       Cold-Owned                892.2 ns/doc
+wave6 NagoyaAuth                Extract-Strict       Cold-Borrowed             817.4 ns/doc
+wave6 NagoyaAuth                Extract-Strict       Warm-Owned                686.9 ns/doc
+wave6 NagoyaAuth                Extract-Strict       Warm-Borrowed             667.3 ns/doc
+wave6 NagoyaAuth                Extract-Query-Schema Cold-Borrowed             997.1 ns/doc
+wave6 NagoyaAuth                Extract-Query-Path   Cold-Borrowed            1158.9 ns/doc
+wave6 NagoyaAuth                Serialize-Staged-Sink Cold-Owned                666.0 ns/doc
+wave6 NagoyaAuth                Serialize-Native-Direct Warm-Owned                422.9 ns/doc
+wave6 ExchangeOrder             Parse                Cold-Owned                726.2 ns/doc
+wave6 ExchangeOrder             Parse                Cold-Borrowed             696.0 ns/doc
+wave6 ExchangeOrder             Parse                Warm-Owned                532.5 ns/doc
+wave6 ExchangeOrder             Parse                Warm-Borrowed             505.5 ns/doc
+wave6 ExchangeOrder             Validate-Syntax      Warm-Borrowed             875.7 ns/doc
+wave6 ExchangeOrder             Validate-Schema      Cold-Owned                825.9 ns/doc
+wave6 ExchangeOrder             Validate-Schema      Warm-Owned                730.1 ns/doc
+wave6 ExchangeOrder             Validate-Schema      Warm-Borrowed             719.7 ns/doc
+wave6 ExchangeOrder             Extract-Strict       Cold-Owned                988.3 ns/doc
+wave6 ExchangeOrder             Extract-Strict       Cold-Borrowed             924.1 ns/doc
+wave6 ExchangeOrder             Extract-Strict       Warm-Owned                805.7 ns/doc
+wave6 ExchangeOrder             Extract-Strict       Warm-Borrowed             774.4 ns/doc
+wave6 ExchangeOrder             Extract-Query-Schema Cold-Borrowed            1052.1 ns/doc
+wave6 ExchangeOrder             Extract-Query-Path   Cold-Borrowed            1356.8 ns/doc
+wave6 ExchangeOrder             Serialize-Staged-Sink Cold-Owned                737.3 ns/doc
+wave6 ExchangeOrder             Serialize-Native-Direct Warm-Owned                516.0 ns/doc
+wave6 RpcEnvelope               Parse                Cold-Owned                829.8 ns/doc
+wave6 RpcEnvelope               Parse                Cold-Borrowed             797.9 ns/doc
+wave6 RpcEnvelope               Parse                Warm-Owned                647.5 ns/doc
+wave6 RpcEnvelope               Parse                Warm-Borrowed             617.2 ns/doc
+wave6 RpcEnvelope               Validate-Syntax      Warm-Borrowed            1084.6 ns/doc
+wave6 RpcEnvelope               Validate-Schema      Cold-Owned               1234.4 ns/doc
+wave6 RpcEnvelope               Validate-Schema      Warm-Owned                939.8 ns/doc
+wave6 RpcEnvelope               Validate-Schema      Warm-Borrowed             931.6 ns/doc
+wave6 RpcEnvelope               Extract-Strict       Cold-Owned               1352.9 ns/doc
+wave6 RpcEnvelope               Extract-Strict       Cold-Borrowed            1276.4 ns/doc
+wave6 RpcEnvelope               Extract-Strict       Warm-Owned               1005.5 ns/doc
+wave6 RpcEnvelope               Extract-Strict       Warm-Borrowed             977.2 ns/doc
+wave6 RpcEnvelope               Extract-Query-Schema Cold-Borrowed            1478.2 ns/doc
+wave6 RpcEnvelope               Extract-Query-Path   Cold-Borrowed            1108.4 ns/doc
+wave6 RpcEnvelope               Serialize-Staged-Sink Cold-Owned                850.6 ns/doc
+wave6 RpcEnvelope               Serialize-Native-Direct Warm-Owned                617.2 ns/doc
+wave6 LargeCatalog              Parse                Cold-Owned             201639.6 ns/doc
+wave6 LargeCatalog              Parse                Cold-Borrowed          196861.3 ns/doc
+wave6 LargeCatalog              Parse                Warm-Owned             249954.4 ns/doc
+wave6 LargeCatalog              Parse                Warm-Borrowed          262445.0 ns/doc
+wave6 LargeCatalog              Validate-Syntax      Warm-Borrowed          385390.3 ns/doc
+wave6 LargeCatalog              Validate-Schema      Cold-Owned             404790.4 ns/doc
+wave6 LargeCatalog              Validate-Schema      Warm-Owned             399961.3 ns/doc
+wave6 LargeCatalog              Validate-Schema      Warm-Borrowed          623136.4 ns/doc
+wave6 LargeCatalog              Extract-Strict       Cold-Owned             492604.8 ns/doc
+wave6 LargeCatalog              Extract-Strict       Cold-Borrowed          773488.6 ns/doc
+wave6 LargeCatalog              Extract-Strict       Warm-Owned             577349.3 ns/doc
+wave6 LargeCatalog              Extract-Strict       Warm-Borrowed          436173.8 ns/doc
+wave6 LargeCatalog              Extract-Query-Schema Cold-Borrowed          563937.5 ns/doc
+wave6 LargeCatalog              Extract-Query-Path   Cold-Borrowed           30727.2 ns/doc
+wave6 LargeCatalog              Serialize-Staged-Sink Cold-Owned             301561.8 ns/doc
+wave6 LargeCatalog              Serialize-Native-Direct Warm-Owned             229911.8 ns/doc
+wave6 VectorCoordinates         Parse                Cold-Owned               7787.1 ns/doc
+wave6 VectorCoordinates         Parse                Cold-Borrowed            7072.3 ns/doc
+wave6 VectorCoordinates         Parse                Warm-Owned               7271.2 ns/doc
+wave6 VectorCoordinates         Parse                Warm-Borrowed            6889.0 ns/doc
+wave6 VectorCoordinates         Validate-Syntax      Warm-Borrowed            9244.1 ns/doc
+wave6 VectorCoordinates         Validate-Schema      Cold-Owned              10173.5 ns/doc
+wave6 VectorCoordinates         Validate-Schema      Warm-Owned              10018.9 ns/doc
+wave6 VectorCoordinates         Validate-Schema      Warm-Borrowed           10052.4 ns/doc
+wave6 VectorCoordinates         Extract-Strict       Cold-Owned              10813.1 ns/doc
+wave6 VectorCoordinates         Extract-Strict       Cold-Borrowed            9457.0 ns/doc
+wave6 VectorCoordinates         Extract-Strict       Warm-Owned               9959.3 ns/doc
+wave6 VectorCoordinates         Extract-Strict       Warm-Borrowed            9430.3 ns/doc
+wave6 VectorCoordinates         Extract-Query-Schema Cold-Borrowed            5348.0 ns/doc
+wave6 VectorCoordinates         Extract-Query-Path   Cold-Borrowed           10905.6 ns/doc
+wave6 VectorCoordinates         Serialize-Staged-Sink Cold-Owned               4241.9 ns/doc
+wave6 VectorCoordinates         Serialize-Native-Direct Warm-Owned               3664.7 ns/doc
+wave6 DeepNesting               Parse                Cold-Owned               2382.5 ns/doc
+wave6 DeepNesting               Parse                Cold-Borrowed            2349.9 ns/doc
+wave6 DeepNesting               Parse                Warm-Owned               1674.8 ns/doc
+wave6 DeepNesting               Parse                Warm-Borrowed            1648.1 ns/doc
+wave6 DeepNesting               Validate-Syntax      Warm-Borrowed            4085.9 ns/doc
+wave6 DeepNesting               Validate-Schema      Cold-Owned               7293.0 ns/doc
+wave6 DeepNesting               Validate-Schema      Warm-Owned               3192.1 ns/doc
+wave6 DeepNesting               Validate-Schema      Warm-Borrowed            3137.4 ns/doc
+wave6 DeepNesting               Extract-Strict       Cold-Owned               7787.4 ns/doc
+wave6 DeepNesting               Extract-Strict       Cold-Borrowed            7375.3 ns/doc
+wave6 DeepNesting               Extract-Strict       Warm-Owned               3238.9 ns/doc
+wave6 DeepNesting               Extract-Strict       Warm-Borrowed            3251.6 ns/doc
+wave6 DeepNesting               Extract-Query-Schema Cold-Borrowed             973.3 ns/doc
+wave6 DeepNesting               Extract-Query-Path   Cold-Borrowed            4121.8 ns/doc
+wave6 DeepNesting               Serialize-Staged-Sink Cold-Owned               2657.6 ns/doc
+wave6 DeepNesting               Serialize-Native-Direct Warm-Owned               2098.3 ns/doc
+wave6 EscapedUnicode            Parse                Cold-Owned              11285.8 ns/doc
+wave6 EscapedUnicode            Parse                Cold-Borrowed           11090.5 ns/doc
+wave6 EscapedUnicode            Parse                Warm-Owned              10670.2 ns/doc
+wave6 EscapedUnicode            Parse                Warm-Borrowed           10548.5 ns/doc
+wave6 EscapedUnicode            Validate-Syntax      Warm-Borrowed           10523.8 ns/doc
+wave6 EscapedUnicode            Validate-Schema      Cold-Owned              11191.7 ns/doc
+wave6 EscapedUnicode            Validate-Schema      Warm-Owned              10602.2 ns/doc
+wave6 EscapedUnicode            Validate-Schema      Warm-Borrowed           11396.8 ns/doc
+wave6 EscapedUnicode            Extract-Strict       Cold-Owned              11136.1 ns/doc
+wave6 EscapedUnicode            Extract-Strict       Cold-Borrowed           11440.1 ns/doc
+wave6 EscapedUnicode            Extract-Strict       Warm-Owned              11711.9 ns/doc
+wave6 EscapedUnicode            Extract-Strict       Warm-Borrowed           12666.3 ns/doc
+wave6 EscapedUnicode            Extract-Query-Schema Cold-Borrowed           12526.4 ns/doc
+wave6 EscapedUnicode            Extract-Query-Path   Cold-Borrowed           12716.1 ns/doc
+wave6 EscapedUnicode            Serialize-Staged-Sink Cold-Owned               3589.2 ns/doc
+wave6 EscapedUnicode            Serialize-Native-Direct Warm-Owned               3805.0 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned               3645.8 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            4251.3 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               3239.3 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            3278.6 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed            5741.9 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned               5389.0 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned               4814.5 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed            5295.2 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Owned               5932.3 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Borrowed            6520.2 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Owned               5192.1 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Borrowed            5073.6 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Query-Schema Cold-Borrowed            6641.0 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            7865.6 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               3973.0 ns/doc
+wave6 small_object-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               3575.5 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned              18911.5 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed           20230.1 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned              18717.8 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed           18540.4 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed           18573.2 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned              20773.4 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned              20313.1 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed           18430.3 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Owned              21921.5 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Borrowed           21704.8 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Owned              36214.2 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Borrowed           20815.1 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Query-Schema Cold-Borrowed           23306.6 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed           23529.6 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               8586.6 ns/doc
+wave6 escaped_strings-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               8211.9 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned               5487.3 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            5437.2 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               5404.0 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            4890.0 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed            7617.8 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned               7173.2 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned               7027.7 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed            6405.3 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Owned               6964.2 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Borrowed            7446.6 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Owned               7327.5 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Borrowed            7215.8 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Query-Schema Cold-Borrowed            8954.4 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            9169.6 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               5039.7 ns/doc
+wave6 unicode-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               4441.4 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned               2234.4 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            2237.3 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               1954.1 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            2051.4 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed            2459.6 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned               3408.2 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned               3323.6 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed            3318.4 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            3446.6 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               1838.2 ns/doc
+wave6 number_array-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               1379.6 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned              10849.9 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            9500.0 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               9007.8 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            8138.0 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed           12271.5 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned              10350.3 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned              10380.2 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed           10026.4 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Owned              10526.7 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Borrowed           10597.7 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Owned              10080.4 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Borrowed           10156.2 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Query-Schema Cold-Borrowed           10668.9 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            3335.0 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned              11934.9 ns/doc
+wave6 depth_book-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned              12098.6 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned               1319.0 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            1296.9 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               1038.4 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            1009.8 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed            1848.3 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned               1645.8 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned               1508.1 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed            1503.9 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Owned               1885.4 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Cold-Borrowed            1794.9 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Owned               1645.5 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Strict       Warm-Borrowed            1609.4 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Query-Schema Cold-Borrowed            2279.0 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            2577.1 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               1412.1 ns/doc
+wave6 agg_trade-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               1127.0 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Owned               2128.6 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Parse                Cold-Borrowed            2097.7 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Owned               1619.1 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Parse                Warm-Borrowed            1587.9 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Validate-Syntax      Warm-Borrowed            3544.3 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Cold-Owned               6433.3 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Owned               2839.2 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Validate-Schema      Warm-Borrowed            2808.3 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Extract-Query-Path   Cold-Borrowed            3901.0 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Serialize-Staged-Sink Cold-Owned               2435.9 ns/doc
+wave6 nested-seed-5354007379338153539-docs-128-items-32 Serialize-Native-Direct Warm-Owned               1976.2 ns/doc
+wave6 long-unescaped-ascii      Parse                Cold-Owned               1875.3 ns/doc
+wave6 long-unescaped-ascii      Parse                Cold-Borrowed            1865.9 ns/doc
+wave6 long-unescaped-ascii      Parse                Warm-Owned               1812.5 ns/doc
+wave6 long-unescaped-ascii      Parse                Warm-Borrowed            1791.3 ns/doc
+wave6 long-unescaped-ascii      Validate-Syntax      Warm-Borrowed            1898.4 ns/doc
+wave6 long-unescaped-ascii      Validate-Schema      Cold-Owned               1992.5 ns/doc
+wave6 long-unescaped-ascii      Validate-Schema      Warm-Owned               1904.0 ns/doc
+wave6 long-unescaped-ascii      Validate-Schema      Warm-Borrowed            1900.7 ns/doc
+wave6 long-unescaped-ascii      Extract-Strict       Cold-Owned               2116.2 ns/doc
+wave6 long-unescaped-ascii      Extract-Strict       Cold-Borrowed            2058.6 ns/doc
+wave6 long-unescaped-ascii      Extract-Strict       Warm-Owned               1931.3 ns/doc
+wave6 long-unescaped-ascii      Extract-Strict       Warm-Borrowed            1935.5 ns/doc
+wave6 long-unescaped-ascii      Extract-Query-Schema Cold-Borrowed            2174.8 ns/doc
+wave6 long-unescaped-ascii      Extract-Query-Path   Cold-Borrowed            2253.9 ns/doc
+wave6 long-unescaped-ascii      Serialize-Staged-Sink Cold-Owned                779.9 ns/doc
+wave6 long-unescaped-ascii      Serialize-Native-Direct Warm-Owned                547.5 ns/doc
+wave6 long-unescaped-unicode    Parse                Cold-Owned               7277.7 ns/doc
+wave6 long-unescaped-unicode    Parse                Cold-Borrowed            8430.0 ns/doc
+wave6 long-unescaped-unicode    Parse                Warm-Owned               7234.4 ns/doc
+wave6 long-unescaped-unicode    Parse                Warm-Borrowed            7236.7 ns/doc
+wave6 long-unescaped-unicode    Validate-Syntax      Warm-Borrowed            7300.8 ns/doc
+wave6 long-unescaped-unicode    Validate-Schema      Cold-Owned               7404.3 ns/doc
+wave6 long-unescaped-unicode    Validate-Schema      Warm-Owned               7326.8 ns/doc
+wave6 long-unescaped-unicode    Validate-Schema      Warm-Borrowed            7346.0 ns/doc
+wave6 long-unescaped-unicode    Extract-Strict       Cold-Owned               7531.6 ns/doc
+wave6 long-unescaped-unicode    Extract-Strict       Cold-Borrowed            7471.7 ns/doc
+wave6 long-unescaped-unicode    Extract-Strict       Warm-Owned               7357.1 ns/doc
+wave6 long-unescaped-unicode    Extract-Strict       Warm-Borrowed            8144.5 ns/doc
+wave6 long-unescaped-unicode    Extract-Query-Schema Cold-Borrowed            8308.6 ns/doc
+wave6 long-unescaped-unicode    Extract-Query-Path   Cold-Borrowed            8351.9 ns/doc
+wave6 long-unescaped-unicode    Serialize-Staged-Sink Cold-Owned               2307.0 ns/doc
+wave6 long-unescaped-unicode    Serialize-Native-Direct Warm-Owned               1860.4 ns/doc
+wave6 escape-dense              Parse                Cold-Owned              42511.7 ns/doc
+wave6 escape-dense              Parse                Cold-Borrowed           28343.1 ns/doc
+wave6 escape-dense              Parse                Warm-Owned              26526.4 ns/doc
+wave6 escape-dense              Parse                Warm-Borrowed           27880.9 ns/doc
+wave6 escape-dense              Validate-Syntax      Warm-Borrowed           20771.5 ns/doc
+wave6 escape-dense              Validate-Schema      Cold-Owned              29282.6 ns/doc
+wave6 escape-dense              Validate-Schema      Warm-Owned              27580.7 ns/doc
+wave6 escape-dense              Validate-Schema      Warm-Borrowed           27300.8 ns/doc
+wave6 escape-dense              Extract-Strict       Cold-Owned              27804.7 ns/doc
+wave6 escape-dense              Extract-Strict       Cold-Borrowed           28732.1 ns/doc
+wave6 escape-dense              Extract-Strict       Warm-Owned              29007.8 ns/doc
+wave6 escape-dense              Extract-Strict       Warm-Borrowed           28244.8 ns/doc
+wave6 escape-dense              Extract-Query-Schema Cold-Borrowed           28894.5 ns/doc
+wave6 escape-dense              Extract-Query-Path   Cold-Borrowed           28995.4 ns/doc
+wave6 escape-dense              Serialize-Staged-Sink Cold-Owned              34832.4 ns/doc
+wave6 escape-dense              Serialize-Native-Direct Warm-Owned              32750.6 ns/doc
+wave6 long-backslash-runs       Parse                Cold-Owned              17238.6 ns/doc
+wave6 long-backslash-runs       Parse                Cold-Borrowed           18288.1 ns/doc
+wave6 long-backslash-runs       Parse                Warm-Owned              17003.3 ns/doc
+wave6 long-backslash-runs       Parse                Warm-Borrowed           16988.9 ns/doc
+wave6 long-backslash-runs       Validate-Syntax      Warm-Borrowed           12286.5 ns/doc
+wave6 long-backslash-runs       Validate-Schema      Cold-Owned              18432.6 ns/doc
+wave6 long-backslash-runs       Validate-Schema      Warm-Owned              17794.3 ns/doc
+wave6 long-backslash-runs       Validate-Schema      Warm-Borrowed           17096.7 ns/doc
+wave6 long-backslash-runs       Extract-Strict       Cold-Owned              18556.6 ns/doc
+wave6 long-backslash-runs       Extract-Strict       Cold-Borrowed           18531.9 ns/doc
+wave6 long-backslash-runs       Extract-Strict       Warm-Owned              18418.3 ns/doc
+wave6 long-backslash-runs       Extract-Strict       Warm-Borrowed           19770.5 ns/doc
+wave6 long-backslash-runs       Extract-Query-Schema Cold-Borrowed           20600.9 ns/doc
+wave6 long-backslash-runs       Extract-Query-Path   Cold-Borrowed           20517.9 ns/doc
+wave6 long-backslash-runs       Serialize-Staged-Sink Cold-Owned              32834.3 ns/doc
+wave6 long-backslash-runs       Serialize-Native-Direct Warm-Owned              32250.6 ns/doc
+wave6 wide-object               Parse                Cold-Owned             115051.4 ns/doc
+wave6 wide-object               Parse                Cold-Borrowed          103602.5 ns/doc
+wave6 wide-object               Parse                Warm-Owned              92244.8 ns/doc
+wave6 wide-object               Parse                Warm-Borrowed           87969.1 ns/doc
+wave6 wide-object               Validate-Syntax      Warm-Borrowed          142502.6 ns/doc
+wave6 wide-object               Validate-Schema      Cold-Owned             150199.5 ns/doc
+wave6 wide-object               Validate-Schema      Warm-Owned             133357.4 ns/doc
+wave6 wide-object               Validate-Schema      Warm-Borrowed          133462.6 ns/doc
+wave6 wide-object               Extract-Strict       Cold-Owned             150257.5 ns/doc
+wave6 wide-object               Extract-Strict       Cold-Borrowed          146360.0 ns/doc
+wave6 wide-object               Extract-Strict       Warm-Owned             134135.7 ns/doc
+wave6 wide-object               Extract-Strict       Warm-Borrowed          141854.2 ns/doc
+wave6 wide-object               Extract-Query-Schema Cold-Borrowed          110929.0 ns/doc
+wave6 wide-object               Extract-Query-Path   Cold-Borrowed          155334.6 ns/doc
+wave6 wide-object               Serialize-Staged-Sink Cold-Owned              71415.4 ns/doc
+wave6 wide-object               Serialize-Native-Direct Warm-Owned              68256.2 ns/doc
+wave6 reordered-fields          Parse                Cold-Owned                740.2 ns/doc
+wave6 reordered-fields          Parse                Cold-Borrowed             723.3 ns/doc
+wave6 reordered-fields          Parse                Warm-Owned                599.6 ns/doc
+wave6 reordered-fields          Parse                Warm-Borrowed             572.3 ns/doc
+wave6 reordered-fields          Validate-Syntax      Warm-Borrowed             952.8 ns/doc
+wave6 reordered-fields          Validate-Schema      Cold-Owned               1175.5 ns/doc
+wave6 reordered-fields          Validate-Schema      Warm-Owned               1086.6 ns/doc
+wave6 reordered-fields          Validate-Schema      Warm-Borrowed            1063.8 ns/doc
+wave6 reordered-fields          Extract-Strict       Cold-Owned               1288.7 ns/doc
+wave6 reordered-fields          Extract-Strict       Cold-Borrowed            1246.7 ns/doc
+wave6 reordered-fields          Extract-Strict       Warm-Owned               1120.4 ns/doc
+wave6 reordered-fields          Extract-Strict       Warm-Borrowed            1096.0 ns/doc
+wave6 reordered-fields          Extract-Query-Schema Cold-Borrowed             827.8 ns/doc
+wave6 reordered-fields          Extract-Query-Path   Cold-Borrowed            1029.0 ns/doc
+wave6 reordered-fields          Serialize-Staged-Sink Cold-Owned                674.2 ns/doc
+wave6 reordered-fields          Serialize-Native-Direct Warm-Owned                530.6 ns/doc
+wave6 sparse-large-subtree      Parse                Cold-Owned             480812.2 ns/doc
+wave6 sparse-large-subtree      Parse                Cold-Borrowed          566350.3 ns/doc
+wave6 sparse-large-subtree      Parse                Warm-Owned             598606.1 ns/doc
+wave6 sparse-large-subtree      Parse                Warm-Borrowed          565077.5 ns/doc
+wave6 sparse-large-subtree      Validate-Syntax      Warm-Borrowed          926506.2 ns/doc
+wave6 sparse-large-subtree      Validate-Schema      Cold-Owned             794475.6 ns/doc
+wave6 sparse-large-subtree      Validate-Schema      Warm-Owned             860856.4 ns/doc
+wave6 sparse-large-subtree      Validate-Schema      Warm-Borrowed          741395.5 ns/doc
+wave6 sparse-large-subtree      Extract-Strict       Cold-Owned             914883.5 ns/doc
+wave6 sparse-large-subtree      Extract-Strict       Cold-Borrowed         1116741.9 ns/doc
+wave6 sparse-large-subtree      Extract-Strict       Warm-Owned            1043573.2 ns/doc
+wave6 sparse-large-subtree      Extract-Strict       Warm-Borrowed          813213.2 ns/doc
+wave6 sparse-large-subtree      Extract-Query-Schema Cold-Borrowed           68731.4 ns/doc
+wave6 sparse-large-subtree      Extract-Query-Path   Cold-Borrowed           66095.1 ns/doc
+wave6 sparse-large-subtree      Serialize-Staged-Sink Cold-Owned             500807.0 ns/doc
+wave6 sparse-large-subtree      Serialize-Native-Direct Warm-Owned             598328.5 ns/doc
+wave6 NagoyaAuth                Reactive-Handoff     Single-Lane-Poll         1437.8 ns/doc
+
+exit: 0

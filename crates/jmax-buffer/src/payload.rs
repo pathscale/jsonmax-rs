@@ -22,6 +22,25 @@ pub fn from_arc(bytes: Arc<[u8]>, limits: BufferLimits) -> Result<Payload> {
     Ok(Payload::Shared(bytes))
 }
 
+/// Adopts a generic immutable `Arc<T>` byte owner without copying or wrapper allocation.
+pub fn from_arc_owner<T: AsRef<[u8]> + Send + Sync + 'static>(
+    owner: Arc<T>,
+    limits: BufferLimits,
+) -> Result<Payload> {
+    validate_len((*owner).as_ref().len(), limits)?;
+    Payload::from_arc_owner(owner)
+}
+
+/// Creates an owner-preserving subview of `payload` for `span` without copying bytes.
+pub fn slice_payload(
+    payload: &Payload,
+    span: super::Span32,
+    limits: BufferLimits,
+) -> Result<Payload> {
+    validate_len(span.len as usize, limits)?;
+    payload.try_slice(span)
+}
+
 /// Transfers a vector through the canonical ABI ownership constructor.
 ///
 /// Spare capacity does not count toward the payload limit. No capacity

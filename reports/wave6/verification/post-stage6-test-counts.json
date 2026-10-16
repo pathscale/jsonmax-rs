@@ -1,0 +1,14 @@
+{
+  "post-stage6-workspace-test": {
+    "passed": 148,
+    "failed": 0,
+    "ignored": 0,
+    "targets": 104
+  },
+  "post-stage6-feature-test": {
+    "passed": 35,
+    "failed": 0,
+    "ignored": 1,
+    "targets": 10
+  }
+}

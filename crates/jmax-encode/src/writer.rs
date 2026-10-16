@@ -13,6 +13,7 @@ impl<'a> JsonWriter<'a> {
             frames: Vec::new(),
             root_written: false,
             poisoned: false,
+            escape_masker: jmax_string::EscapeMasker::new(),
         }
     }
 
@@ -35,30 +36,56 @@ impl<'a> JsonWriter<'a> {
     /// Emits one escaped property name and its colon. Duplicate names are legal.
     pub fn key(&mut self, key: &str) -> Result<()> {
         self.operation(|writer| {
-            let frame = writer.frames.last().ok_or_else(|| {
-                encode_error(ErrorCode::InvalidSyntax, "key outside an object")
-            })?;
-            if frame.kind != WriteContainer::Object || !frame.expecting_key {
-                return Err(encode_error(ErrorCode::InvalidSyntax, "object is not expecting a key"));
-            }
-            if frame.count >= writer.limits.max_container_items {
-                return Err(encode_error(ErrorCode::BudgetExhausted, "object property limit exceeded"));
-            }
-            let comma = frame.count != 0;
+            let comma = writer.key_comma()?;
             writer.check_string(key)?;
-            let size = checked_output_len(escaped_string_len(key)?, 1, usize::MAX)?;
+            // Reserve the unescaped spelling, comma and colon together. Each
+            // encountered escape extends this reservation by only its growth.
+            let size = checked_output_len(key.len(), 3, usize::MAX)?;
             let size = checked_output_len(size, usize::from(comma), usize::MAX)?;
             writer.sink.reserve(size)?;
             writer.write_comma(comma)?;
             writer.write_string(key)?;
             writer.sink.write_byte(b':')?;
-            // The count was checked before any output, so this cannot overflow.
-            let frame = writer.frames.last_mut().ok_or_else(|| {
-                encode_error(ErrorCode::InternalError, "object frame disappeared during key emission")
-            })?;
-            frame.count += 1;
-            frame.expecting_key = false;
+            writer.accept_key()?;
             Ok(())
+        })
+    }
+
+    /// Only handle-derived unescaped native DOM tokens may use this path.
+    /// Construction checked quotes, UTF-8, controls and absence of backslashes.
+    pub(crate) fn trusted_quoted_key(&mut self, token: &[u8]) -> Result<()> {
+        self.operation(|writer| {
+            let comma = writer.key_comma()?;
+            writer.check_string_len(token.len() - 2)?;
+            let size = checked_output_len(token.len(), 1 + usize::from(comma), usize::MAX)?;
+            writer.sink.reserve(size)?;
+            writer.write_comma(comma)?;
+            writer.sink.write_bytes(token)?;
+            writer.sink.write_byte(b':')?;
+            writer.accept_key()
+        })
+    }
+
+    /// Writes an immutable native string's original quoted token in one slice.
+    pub(crate) fn trusted_quoted_string(&mut self, token: &[u8]) -> Result<()> {
+        self.operation(|writer| {
+            writer.check_string_len(token.len() - 2)?;
+            writer.token(token)
+        })
+    }
+
+    /// Reserve output and nesting storage once from validated document metadata.
+    pub(crate) fn reserve_document(&mut self, raw_len: usize, depth: u16) -> Result<()> {
+        self.operation(|writer| {
+            writer
+                .sink
+                .reserve_capacity(raw_len.min(writer.limits.max_output_bytes))?;
+            writer
+                .frames
+                .try_reserve_exact(usize::from(depth))
+                .map_err(|_| {
+                    encode_error(ErrorCode::BudgetExhausted, "writer frame allocation failed")
+                })
         })
     }
 
@@ -73,7 +100,8 @@ impl<'a> JsonWriter<'a> {
     pub fn string(&mut self, value: &str) -> Result<()> {
         self.operation(|writer| {
             writer.check_string(value)?;
-            let comma = writer.reserve_value(escaped_string_len(value)?)?;
+            let size = checked_output_len(value.len(), 2, usize::MAX)?;
+            let comma = writer.reserve_value(size)?;
             writer.write_comma(comma)?;
             writer.write_string(value)?;
             writer.accept_value();
@@ -113,13 +141,19 @@ impl<'a> JsonWriter<'a> {
             if !matches!(bytes.first(), Some(b'-' | b'0'..=b'9'))
                 || !bytes.last().is_some_and(u8::is_ascii_digit)
             {
-                return Err(encode_error(ErrorCode::InvalidNumber, "expected a JSON number lexeme"));
+                return Err(encode_error(
+                    ErrorCode::InvalidNumber,
+                    "expected a JSON number lexeme",
+                ));
             }
             // Starting with a number keeps fragment validation on its scalar
             // path, which uses no heap storage and checks the complete grammar.
             let validated = super::raw::validate(bytes, writer.limits)?;
             if validated.kind() != FragmentKind::Number {
-                return Err(encode_error(ErrorCode::InvalidNumber, "expected a JSON number lexeme"));
+                return Err(encode_error(
+                    ErrorCode::InvalidNumber,
+                    "expected a JSON number lexeme",
+                ));
             }
             writer.number_token(validated.as_bytes())
         })
@@ -129,18 +163,31 @@ impl<'a> JsonWriter<'a> {
     pub fn f64(&mut self, value: f64) -> Result<()> {
         self.operation(|writer| {
             if !value.is_finite() {
-                return Err(encode_error(ErrorCode::InvalidNumber, "nonfinite JSON number"));
+                return Err(encode_error(
+                    ErrorCode::InvalidNumber,
+                    "nonfinite JSON number",
+                ));
             }
             if value == 0.0 {
-                return writer.number_token(if value.is_sign_negative() { b"-0" } else { b"0" });
+                return writer.number_token(if value.is_sign_negative() {
+                    b"-0"
+                } else {
+                    b"0"
+                });
             }
             let mut ordinary = jmax_number::NumberText::new();
             let mut scientific = jmax_number::NumberText::new();
             write!(&mut ordinary, "{}", value).map_err(|_| {
-                encode_error(ErrorCode::InternalError, "float formatting exceeded scratch storage")
+                encode_error(
+                    ErrorCode::InternalError,
+                    "float formatting exceeded scratch storage",
+                )
             })?;
             write!(&mut scientific, "{:e}", value).map_err(|_| {
-                encode_error(ErrorCode::InternalError, "float formatting exceeded scratch storage")
+                encode_error(
+                    ErrorCode::InternalError,
+                    "float formatting exceeded scratch storage",
+                )
             })?;
             let text = if scientific.len() < ordinary.len() {
                 scientific.as_bytes()
@@ -159,7 +206,10 @@ impl<'a> JsonWriter<'a> {
             let contents_len = len - 2;
             writer.check_number_len(contents_len)?;
             if contents_len > writer.limits.max_string_bytes as usize {
-                return Err(encode_error(ErrorCode::BudgetExhausted, "decimal string limit exceeded"));
+                return Err(encode_error(
+                    ErrorCode::BudgetExhausted,
+                    "decimal string limit exceeded",
+                ));
             }
             writer.token(&text[..len])
         })
@@ -188,16 +238,25 @@ impl<'a> JsonWriter<'a> {
     /// Completes a single root and reports only bytes appended by this writer.
     pub fn finish(self) -> Result<usize> {
         if self.poisoned || self.sink.is_poisoned() {
-            return Err(encode_error(ErrorCode::InternalError, "JSON writer is poisoned"));
+            return Err(encode_error(
+                ErrorCode::InternalError,
+                "JSON writer is poisoned",
+            ));
         }
         if !self.root_written || !self.frames.is_empty() {
-            return Err(encode_error(ErrorCode::UnexpectedEof, "incomplete JSON message"));
+            return Err(encode_error(
+                ErrorCode::UnexpectedEof,
+                "incomplete JSON message",
+            ));
         }
         Ok(self.sink.appended_len())
     }
 
-    pub fn new_with_scratch(sink: &'a mut dyn ByteSink, limits: EncodeLimits,
-        scratch: &mut WriterScratch) -> Self {
+    pub fn new_with_scratch(
+        sink: &'a mut dyn ByteSink,
+        limits: EncodeLimits,
+        scratch: &mut WriterScratch,
+    ) -> Self {
         let mut writer = Self::new(sink, limits);
         writer.frames = core::mem::take(&mut scratch.frames);
         writer.frames.clear();
@@ -206,10 +265,18 @@ impl<'a> JsonWriter<'a> {
     /// Return frames even when emission failed, before checking completion.
     pub fn finish_with_scratch(mut self, scratch: &mut WriterScratch) -> Result<usize> {
         let result = if self.poisoned || self.sink.is_poisoned() {
-            Err(encode_error(ErrorCode::InternalError, "JSON writer is poisoned"))
+            Err(encode_error(
+                ErrorCode::InternalError,
+                "JSON writer is poisoned",
+            ))
         } else if !self.root_written || !self.frames.is_empty() {
-            Err(encode_error(ErrorCode::UnexpectedEof, "incomplete JSON message"))
-        } else { Ok(self.sink.appended_len()) };
+            Err(encode_error(
+                ErrorCode::UnexpectedEof,
+                "incomplete JSON message",
+            ))
+        } else {
+            Ok(self.sink.appended_len())
+        };
         self.frames.clear();
         scratch.frames = core::mem::take(&mut self.frames);
         result
@@ -219,7 +286,10 @@ impl<'a> JsonWriter<'a> {
     fn operation(&mut self, action: impl FnOnce(&mut Self) -> Result<()>) -> Result<()> {
         if self.poisoned || self.sink.is_poisoned() {
             self.poisoned = true;
-            return Err(encode_error(ErrorCode::InternalError, "JSON writer is poisoned"));
+            return Err(encode_error(
+                ErrorCode::InternalError,
+                "JSON writer is poisoned",
+            ));
         }
         let result = action(self);
         if result.is_err() {
@@ -231,7 +301,10 @@ impl<'a> JsonWriter<'a> {
     fn begin(&mut self, kind: WriteContainer) -> Result<()> {
         self.value_comma()?;
         if self.frames.len() >= usize::from(self.limits.max_depth) {
-            return Err(encode_error(ErrorCode::DepthLimitExceeded, "writer depth limit exceeded"));
+            return Err(encode_error(
+                ErrorCode::DepthLimitExceeded,
+                "writer depth limit exceeded",
+            ));
         }
         self.frames.try_reserve(1).map_err(|_| {
             encode_error(ErrorCode::BudgetExhausted, "writer frame allocation failed")
@@ -250,13 +323,22 @@ impl<'a> JsonWriter<'a> {
 
     fn end(&mut self, kind: WriteContainer) -> Result<()> {
         let frame = self.frames.last().ok_or_else(|| {
-            encode_error(ErrorCode::InvalidSyntax, "closing delimiter without an open container")
+            encode_error(
+                ErrorCode::InvalidSyntax,
+                "closing delimiter without an open container",
+            )
         })?;
         if frame.kind != kind {
-            return Err(encode_error(ErrorCode::InvalidSyntax, "mismatched closing delimiter"));
+            return Err(encode_error(
+                ErrorCode::InvalidSyntax,
+                "mismatched closing delimiter",
+            ));
         }
         if kind == WriteContainer::Object && !frame.expecting_key {
-            return Err(encode_error(ErrorCode::InvalidSyntax, "object key has no value"));
+            return Err(encode_error(
+                ErrorCode::InvalidSyntax,
+                "object key has no value",
+            ));
         }
         self.sink.reserve(1)?;
         self.sink.write_byte(match kind {
@@ -268,15 +350,25 @@ impl<'a> JsonWriter<'a> {
     }
 
     fn check_string(&self, text: &str) -> Result<()> {
-        if text.len() > self.limits.max_string_bytes as usize {
-            return Err(encode_error(ErrorCode::BudgetExhausted, "decoded string limit exceeded"));
+        self.check_string_len(text.len())
+    }
+
+    fn check_string_len(&self, len: usize) -> Result<()> {
+        if len > self.limits.max_string_bytes as usize {
+            return Err(encode_error(
+                ErrorCode::BudgetExhausted,
+                "decoded string limit exceeded",
+            ));
         }
         Ok(())
     }
 
     fn check_number_len(&self, len: usize) -> Result<()> {
         if len > self.limits.max_number_bytes as usize {
-            return Err(encode_error(ErrorCode::BudgetExhausted, "number text limit exceeded"));
+            return Err(encode_error(
+                ErrorCode::BudgetExhausted,
+                "number text limit exceeded",
+            ));
         }
         Ok(())
     }
@@ -286,18 +378,64 @@ impl<'a> JsonWriter<'a> {
         self.token(bytes)
     }
 
+    /// Only immutable native DOM number records may bypass lexical validation.
+    /// Their spelling was accepted during construction; output limits and
+    /// writer state still apply to every emission.
+    pub(crate) fn trusted_number_lexeme(&mut self, bytes: &[u8]) -> Result<()> {
+        self.operation(|writer| writer.number_token(bytes))
+    }
+
+    fn key_comma(&self) -> Result<bool> {
+        let frame = self
+            .frames
+            .last()
+            .ok_or_else(|| encode_error(ErrorCode::InvalidSyntax, "key outside an object"))?;
+        if frame.kind != WriteContainer::Object || !frame.expecting_key {
+            return Err(encode_error(
+                ErrorCode::InvalidSyntax,
+                "object is not expecting a key",
+            ));
+        }
+        if frame.count >= self.limits.max_container_items {
+            return Err(encode_error(
+                ErrorCode::BudgetExhausted,
+                "object property limit exceeded",
+            ));
+        }
+        Ok(frame.count != 0)
+    }
+
+    fn accept_key(&mut self) -> Result<()> {
+        let frame = self.frames.last_mut().ok_or_else(|| {
+            encode_error(
+                ErrorCode::InternalError,
+                "object frame disappeared during key emission",
+            )
+        })?;
+        // key_comma checked the counter before any output.
+        frame.count += 1;
+        frame.expecting_key = false;
+        Ok(())
+    }
+
     /// Examines state without committing a root, array item, or object value.
     fn value_comma(&self) -> Result<bool> {
         match self.frames.last() {
             Some(frame) if frame.kind == WriteContainer::Object => {
                 if frame.expecting_key {
-                    return Err(encode_error(ErrorCode::InvalidSyntax, "object value requires a key"));
+                    return Err(encode_error(
+                        ErrorCode::InvalidSyntax,
+                        "object value requires a key",
+                    ));
                 }
                 Ok(false)
             }
             Some(frame) => {
                 if frame.count >= self.limits.max_container_items {
-                    return Err(encode_error(ErrorCode::BudgetExhausted, "array item limit exceeded"));
+                    return Err(encode_error(
+                        ErrorCode::BudgetExhausted,
+                        "array item limit exceeded",
+                    ));
                 }
                 Ok(frame.count != 0)
             }
@@ -338,15 +476,16 @@ impl<'a> JsonWriter<'a> {
         Ok(())
     }
 
-    /// The complete quoted token was reserved by the caller. Emit unchanged
-    /// UTF-8 runs between escapes, never interpreting a partial UTF-8 sequence.
+    /// The caller reserved len + 2 and surrounding punctuation. Consume each
+    /// 64-byte escape mask once, extending the still-pending reservation only
+    /// when an escape expands. Ordinary runs span block boundaries and remain
+    /// maximal, including UTF-8 code points split across classifier blocks.
     fn write_string(&mut self, text: &str) -> Result<()> {
         self.sink.write_byte(b'"')?;
         let bytes = text.as_bytes();
         let mut start = 0;
-        let policy = jmax_string::EscapePolicy::default();
-        while let Some(relative) = jmax_string::escape::find_escape(&bytes[start..], policy) {
-            let index = start + relative;
+        for index in EscapePositions::new(bytes, self.escape_masker) {
+            self.sink.reserve_extra(escape_extra(bytes[index]))?;
             if start != index {
                 self.sink.write_bytes(&bytes[start..index])?;
             }
@@ -364,8 +503,12 @@ impl<'a> JsonWriter<'a> {
                 _ => {
                     const HEX: &[u8; 16] = b"0123456789abcdef";
                     self.sink.write_bytes(&[
-                        b'\\', b'u', b'0', b'0',
-                        HEX[usize::from(byte >> 4)], HEX[usize::from(byte & 15)],
+                        b'\\',
+                        b'u',
+                        b'0',
+                        b'0',
+                        HEX[usize::from(byte >> 4)],
+                        HEX[usize::from(byte & 15)],
                     ])?;
                     start = index + 1;
                     continue;
@@ -398,7 +541,10 @@ fn unsigned_digits(mut value: u128, digits: &mut [u8; 39]) -> usize {
 /// use unsigned_abs so the full i128 range is supported without signed overflow.
 fn decimal_text(value: Decimal128, text: &mut [u8; 43]) -> Result<usize> {
     if value.scale > 38 {
-        return Err(encode_error(ErrorCode::DecimalScaleMismatch, "decimal scale exceeds 38"));
+        return Err(encode_error(
+            ErrorCode::DecimalScaleMismatch,
+            "decimal scale exceeds 38",
+        ));
     }
     let mut scratch = [0; 39];
     let start = unsigned_digits(value.coefficient.unsigned_abs(), &mut scratch);

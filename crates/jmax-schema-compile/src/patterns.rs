@@ -5,12 +5,16 @@
 //! Execution merges all search origins at each scalar boundary and visits each
 //! PC at most once per closure, including in the presence of epsilon cycles.
 
-use super::{compile_error, Error, ErrorCode, PatternOp, PatternProgram, Result, PATTERN_VERSION};
+use super::{Error, ErrorCode, PATTERN_VERSION, PatternOp, PatternProgram, Result, compile_error};
+use crate::ValidatedProgram;
 use alloc::vec::Vec;
 use core::{iter::Peekable, str::Chars};
 
 fn budget() -> Error {
-    compile_error(ErrorCode::BudgetExhausted, "pattern resource budget exhausted")
+    compile_error(
+        ErrorCode::BudgetExhausted,
+        "pattern resource budget exhausted",
+    )
 }
 
 fn syntax(detail: &'static str) -> Error {
@@ -86,16 +90,31 @@ impl Builder {
 
     fn exit(&mut self, pc: u32, second: bool) -> Result<Exits> {
         let index = self.patches.len();
-        push(&mut self.patches, Patch { pc, second, next: None })?;
-        Ok(Exits { head: Some(index), tail: Some(index) })
+        push(
+            &mut self.patches,
+            Patch {
+                pc,
+                second,
+                next: None,
+            },
+        )?;
+        Ok(Exits {
+            head: Some(index),
+            tail: Some(index),
+        })
     }
 
     fn join(&mut self, left: Exits, right: Exits) -> Result<Exits> {
         match (left.tail, right.head) {
             (Some(tail), Some(_)) => {
-                self.patches.get_mut(tail)
-                    .ok_or_else(|| malformed("invalid compiler patch tail"))?.next = right.head;
-                Ok(Exits { head: left.head, tail: right.tail })
+                self.patches
+                    .get_mut(tail)
+                    .ok_or_else(|| malformed("invalid compiler patch tail"))?
+                    .next = right.head;
+                Ok(Exits {
+                    head: left.head,
+                    tail: right.tail,
+                })
             }
             (None, _) => Ok(right),
             (_, None) => Ok(left),
@@ -105,19 +124,33 @@ impl Builder {
     fn patch(&mut self, exits: Exits, target: u32) -> Result<()> {
         let mut cursor = exits.head;
         while let Some(index) = cursor {
-            let patch = self.patches.get(index)
+            let patch = self
+                .patches
+                .get(index)
                 .ok_or_else(|| malformed("invalid compiler patch index"))?;
             let pc = usize::try_from(patch.pc).map_err(|_| budget())?;
-            let op = self.ops.get_mut(pc)
+            let op = self
+                .ops
+                .get_mut(pc)
                 .ok_or_else(|| malformed("invalid compiler patch instruction"))?;
             let edge = match op {
                 PatternOp::Split { first, second } => {
-                    if patch.second { second } else { first }
+                    if patch.second {
+                        second
+                    } else {
+                        first
+                    }
                 }
-                PatternOp::Char { next, .. } | PatternOp::Class { next, .. }
-                | PatternOp::Any { next } | PatternOp::Jump { next }
-                | PatternOp::AssertStart { next } | PatternOp::AssertEnd { next }
-                    if !patch.second => next,
+                PatternOp::Char { next, .. }
+                | PatternOp::Class { next, .. }
+                | PatternOp::Any { next }
+                | PatternOp::Jump { next }
+                | PatternOp::AssertStart { next }
+                | PatternOp::AssertEnd { next }
+                    if !patch.second =>
+                {
+                    next
+                }
                 _ => return Err(malformed("compiler patch has no outgoing edge")),
             };
             if *edge != DANGLING {
@@ -131,7 +164,10 @@ impl Builder {
 
     fn atom(&mut self, op: PatternOp) -> Result<Fragment> {
         let start = self.emit(op)?;
-        Ok(Fragment { start, exits: self.exit(start, false)? })
+        Ok(Fragment {
+            start,
+            exits: self.exit(start, false)?,
+        })
     }
 
     fn empty(&mut self) -> Result<Fragment> {
@@ -140,22 +176,40 @@ impl Builder {
 
     fn concat(&mut self, left: Fragment, right: Fragment) -> Result<Fragment> {
         self.patch(left.exits, right.start)?;
-        Ok(Fragment { start: left.start, exits: right.exits })
+        Ok(Fragment {
+            start: left.start,
+            exits: right.exits,
+        })
     }
 
     fn alternate(&mut self, left: Fragment, right: Fragment) -> Result<Fragment> {
-        let start = self.emit(PatternOp::Split { first: left.start, second: right.start })?;
-        Ok(Fragment { start, exits: self.join(left.exits, right.exits)? })
+        let start = self.emit(PatternOp::Split {
+            first: left.start,
+            second: right.start,
+        })?;
+        Ok(Fragment {
+            start,
+            exits: self.join(left.exits, right.exits)?,
+        })
     }
 
     fn repeat(&mut self, atom: Fragment, quantifier: char) -> Result<Fragment> {
-        let split = self.emit(PatternOp::Split { first: atom.start, second: DANGLING })?;
+        let split = self.emit(PatternOp::Split {
+            first: atom.start,
+            second: DANGLING,
+        })?;
         let exit = self.exit(split, true)?;
         if quantifier == '?' {
-            return Ok(Fragment { start: split, exits: self.join(atom.exits, exit)? });
+            return Ok(Fragment {
+                start: split,
+                exits: self.join(atom.exits, exit)?,
+            });
         }
         self.patch(atom.exits, split)?;
-        Ok(Fragment { start: if quantifier == '+' { atom.start } else { split }, exits: exit })
+        Ok(Fragment {
+            start: if quantifier == '+' { atom.start } else { split },
+            exits: exit,
+        })
     }
 }
 
@@ -200,23 +254,30 @@ impl Frame {
 
     fn finish(mut self, builder: &mut Builder) -> Result<Fragment> {
         self.finish_branch(builder)?;
-        self.alternatives.ok_or_else(|| malformed("compiler expression has no fragment"))
+        self.alternatives
+            .ok_or_else(|| malformed("compiler expression has no fragment"))
     }
 }
 
 fn escaped(chars: &mut Peekable<Chars<'_>>) -> Result<char> {
-    match chars.next().ok_or_else(|| syntax("unfinished pattern escape"))? {
+    match chars
+        .next()
+        .ok_or_else(|| syntax("unfinished pattern escape"))?
+    {
         'n' => Ok('\n'),
         'r' => Ok('\r'),
         't' => Ok('\t'),
-        ch @ ('\\' | '.' | '*' | '+' | '?' | '|' | '(' | ')' | '[' | ']'
-            | '^' | '$' | '-' | '{' | '}') => Ok(ch),
+        ch @ ('\\' | '.' | '*' | '+' | '?' | '|' | '(' | ')' | '[' | ']' | '^' | '$' | '-'
+        | '{' | '}') => Ok(ch),
         _ => Err(unsupported("unsupported pattern escape")),
     }
 }
 
 fn class_scalar(chars: &mut Peekable<Chars<'_>>) -> Result<u32> {
-    match chars.next().ok_or_else(|| syntax("unclosed pattern class"))? {
+    match chars
+        .next()
+        .ok_or_else(|| syntax("unclosed pattern class"))?
+    {
         '\\' => Ok(u32::from(escaped(chars)?)),
         ']' => Err(syntax("missing class range endpoint")),
         '{' | '}' => Err(unsupported("unescaped braces are unsupported")),
@@ -232,7 +293,10 @@ fn parse_class(chars: &mut Peekable<Chars<'_>>) -> Result<PatternOp> {
     let mut ranges = Vec::new();
     loop {
         match chars.peek() {
-            Some(']') => { chars.next(); break; }
+            Some(']') => {
+                chars.next();
+                break;
+            }
             None => return Err(syntax("unclosed pattern class")),
             _ => {}
         }
@@ -265,7 +329,11 @@ fn parse_class(chars: &mut Peekable<Chars<'_>>) -> Result<PatternOp> {
         }
     }
     ranges.truncate(written);
-    Ok(PatternOp::Class { ranges, negated, next: DANGLING })
+    Ok(PatternOp::Class {
+        ranges,
+        negated,
+        next: DANGLING,
+    })
 }
 
 /// Compile the supported grammar without recursion or backtracking.
@@ -281,7 +349,11 @@ pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<Pattern
         return Err(budget());
     }
     count(pattern.len())?;
-    let mut builder = Builder { ops: Vec::new(), patches: Vec::new(), max_states };
+    let mut builder = Builder {
+        ops: Vec::new(),
+        patches: Vec::new(),
+        max_states,
+    };
     let mut parents = Vec::new();
     let mut frame = Frame::default();
     let mut chars = pattern.chars().peekable();
@@ -296,13 +368,18 @@ pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<Pattern
                 continue;
             }
             ')' => {
-                let mut parent = parents.pop().ok_or_else(|| syntax("unmatched closing group"))?;
+                let mut parent = parents
+                    .pop()
+                    .ok_or_else(|| syntax("unmatched closing group"))?;
                 let atom = frame.finish(&mut builder)?;
                 parent.set_atom(&mut builder, atom)?;
                 frame = parent;
                 continue;
             }
-            '|' => { frame.finish_branch(&mut builder)?; continue; }
+            '|' => {
+                frame.finish_branch(&mut builder)?;
+                continue;
+            }
             '*' | '+' | '?' => {
                 if frame.quantified {
                     return Err(if ch == '?' || ch == '+' {
@@ -311,7 +388,10 @@ pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<Pattern
                         syntax("repeated pattern quantifier")
                     });
                 }
-                let atom = frame.atom.take().ok_or_else(|| syntax("misplaced pattern quantifier"))?;
+                let atom = frame
+                    .atom
+                    .take()
+                    .ok_or_else(|| syntax("misplaced pattern quantifier"))?;
                 frame.atom = Some(builder.repeat(atom, ch)?);
                 frame.quantified = true;
                 continue;
@@ -322,8 +402,14 @@ pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<Pattern
             '.' => PatternOp::Any { next: DANGLING },
             '^' => PatternOp::AssertStart { next: DANGLING },
             '$' => PatternOp::AssertEnd { next: DANGLING },
-            '\\' => PatternOp::Char { scalar: u32::from(escaped(&mut chars)?), next: DANGLING },
-            ch => PatternOp::Char { scalar: u32::from(ch), next: DANGLING },
+            '\\' => PatternOp::Char {
+                scalar: u32::from(escaped(&mut chars)?),
+                next: DANGLING,
+            },
+            ch => PatternOp::Char {
+                scalar: u32::from(ch),
+                next: DANGLING,
+            },
         };
         let atom = builder.atom(op)?;
         frame.set_atom(&mut builder, atom)?;
@@ -334,14 +420,20 @@ pub fn compile(pattern: &str, max_states: u32, max_steps: u32) -> Result<Pattern
     let expression = frame.finish(&mut builder)?;
     let accept = builder.emit(PatternOp::Accept)?;
     builder.patch(expression.exits, accept)?;
-    Ok(PatternProgram { version: PATTERN_VERSION, start: expression.start,
-        ops: builder.ops, max_steps })
+    Ok(PatternProgram {
+        version: PATTERN_VERSION,
+        start: expression.start,
+        ops: builder.ops,
+        max_steps,
+    })
 }
 
 fn pc_index(pc: u32, len: usize) -> Result<usize> {
     let index = usize::try_from(pc).map_err(|_| malformed("pattern target does not fit usize"))?;
     if index >= len {
-        Err(malformed("pattern target is outside its instruction vector"))
+        Err(malformed(
+            "pattern target is outside its instruction vector",
+        ))
     } else {
         Ok(index)
     }
@@ -349,9 +441,12 @@ fn pc_index(pc: u32, len: usize) -> Result<usize> {
 
 fn successors(op: &PatternOp) -> (Option<u32>, Option<u32>) {
     match *op {
-        PatternOp::Char { next, .. } | PatternOp::Class { next, .. }
-        | PatternOp::Any { next } | PatternOp::Jump { next }
-        | PatternOp::AssertStart { next } | PatternOp::AssertEnd { next } => (Some(next), None),
+        PatternOp::Char { next, .. }
+        | PatternOp::Class { next, .. }
+        | PatternOp::Any { next }
+        | PatternOp::Jump { next }
+        | PatternOp::AssertStart { next }
+        | PatternOp::AssertEnd { next } => (Some(next), None),
         PatternOp::Split { first, second } => (Some(first), Some(second)),
         PatternOp::Accept => (None, None),
     }
@@ -363,7 +458,9 @@ fn successors(op: &PatternOp) -> (Option<u32>, Option<u32>) {
 /// Empty classes and epsilon cycles are valid. Resource limits are inclusive.
 pub fn validate(program: &PatternProgram, max_states: u32) -> Result<()> {
     if program.version != PATTERN_VERSION || program.max_steps == 0 || program.ops.is_empty() {
-        return Err(malformed("invalid pattern version, allowance, or empty instruction vector"));
+        return Err(malformed(
+            "invalid pattern version, allowance, or empty instruction vector",
+        ));
     }
     let len = u32::try_from(program.ops.len())
         .map_err(|_| malformed("pattern instruction count does not fit u32"))?;
@@ -381,10 +478,14 @@ pub fn validate(program: &PatternProgram, max_states: u32) -> Result<()> {
                     .map_err(|_| malformed("pattern range count does not fit u32"))?;
                 let mut previous: Option<u32> = None;
                 for &(first, last) in ranges {
-                    if char::from_u32(first).is_none() || char::from_u32(last).is_none()
-                        || first > last || previous.is_some_and(|end| first <= end.saturating_add(1))
+                    if char::from_u32(first).is_none()
+                        || char::from_u32(last).is_none()
+                        || first > last
+                        || previous.is_some_and(|end| first <= end.saturating_add(1))
                     {
-                        return Err(malformed("pattern ranges are not canonical scalar intervals"));
+                        return Err(malformed(
+                            "pattern ranges are not canonical scalar intervals",
+                        ));
                     }
                     previous = Some(last);
                 }
@@ -448,7 +549,11 @@ impl Closure {
         let seen = filled(len, 0)?;
         let mut pending = Vec::new();
         reserve(&mut pending, len)?;
-        Ok(Self { seen, generation: 0, pending })
+        Ok(Self {
+            seen,
+            generation: 0,
+            pending,
+        })
     }
 
     fn begin(&mut self) -> Result<()> {
@@ -489,19 +594,29 @@ fn class_contains(ranges: &[(u32, u32)], scalar: u32, meter: &mut Meter<'_>) -> 
     Ok(false)
 }
 
-fn consuming_target(op: &PatternOp, scalar: Option<char>, meter: &mut Meter<'_>) -> Result<Option<u32>> {
+fn consuming_target(
+    op: &PatternOp,
+    scalar: Option<char>,
+    meter: &mut Meter<'_>,
+) -> Result<Option<u32>> {
     // Charge a transition test even at the end of input, where it must fail.
     meter.charge()?;
-    let Some(ch) = scalar else { return Ok(None); };
+    let Some(ch) = scalar else {
+        return Ok(None);
+    };
     match op {
         PatternOp::Char { scalar, next } => Ok((u32::from(ch) == *scalar).then_some(*next)),
         PatternOp::Any { next } => {
             Ok((!matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')).then_some(*next))
         }
-        PatternOp::Class { ranges, negated, next } => {
-            Ok((class_contains(ranges, u32::from(ch), meter)? != *negated).then_some(*next))
-        }
-        _ => Err(malformed("non-consuming instruction used as a scalar transition")),
+        PatternOp::Class {
+            ranges,
+            negated,
+            next,
+        } => Ok((class_contains(ranges, u32::from(ch), meter)? != *negated).then_some(*next)),
+        _ => Err(malformed(
+            "non-consuming instruction used as a scalar transition",
+        )),
     }
 }
 
@@ -515,7 +630,30 @@ fn consuming_target(op: &PatternOp, scalar: Option<char>, meter: &mut Meter<'_>)
 /// Only the per-call local allowance is initialized; the caller is never reset.
 pub fn is_match(program: &PatternProgram, text: &str, steps_left: &mut u64) -> Result<bool> {
     validate(program, u32::MAX)?;
-    let mut meter = Meter { local: u64::from(program.max_steps), caller: steps_left };
+    is_match_inner(program, text, steps_left)
+}
+
+/// Execute a pattern owned by a fully validated immutable schema, without
+/// repeating structural validation of its instructions on every string.
+pub fn is_match_validated(
+    program: &ValidatedProgram,
+    pattern_index: u32,
+    text: &str,
+    steps_left: &mut u64,
+) -> Result<bool> {
+    let pattern = program
+        .program()
+        .patterns
+        .get(pattern_index as usize)
+        .ok_or_else(|| malformed("pattern index outside validated program"))?;
+    is_match_inner(pattern, text, steps_left)
+}
+
+fn is_match_inner(program: &PatternProgram, text: &str, steps_left: &mut u64) -> Result<bool> {
+    let mut meter = Meter {
+        local: u64::from(program.max_steps),
+        caller: steps_left,
+    };
     let mut closure = Closure::new(program.ops.len())?;
     let mut seeds = Vec::new();
     let mut next = Vec::new();
@@ -549,11 +687,15 @@ pub fn is_match(program: &PatternProgram, text: &str, steps_left: &mut u64) -> R
                 }
                 PatternOp::AssertStart { next } => {
                     meter.charge()?;
-                    if at_start { closure.schedule(*next)?; }
+                    if at_start {
+                        closure.schedule(*next)?;
+                    }
                 }
                 PatternOp::AssertEnd { next } => {
                     meter.charge()?;
-                    if at_end { closure.schedule(*next)?; }
+                    if at_end {
+                        closure.schedule(*next)?;
+                    }
                 }
                 op => {
                     if let Some(target) = consuming_target(op, scalar, &mut meter)? {

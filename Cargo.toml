@@ -52,6 +52,7 @@ publish = false
 [workspace.dependencies]
 bytes = { version = "1", default-features = false }
 ps-simdutf8 = { path = "../ps-simdutf8", default-features = false }
+rusty_alloc = { package = "ps-rusty_alloc", path = "../ps-rusty_alloc" }
 nagoya = { path = "../nagoya", default-features = false, features = ["std"] }
 nago-http = { path = "../nago-http", default-features = false }
 nago-wss = { path = "../nago-wss", default-features = false }

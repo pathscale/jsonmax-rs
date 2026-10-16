@@ -1,0 +1,86 @@
+--- timed/crates/jmax-string/src/lib.rs
++++ instrumented/crates/jmax-string/src/lib.rs
+@@ -116,3 +116,12 @@
+         )
+     })
+ }
++
++/// Untimed source-copy counters, absent from production and timing builds.
++pub mod wave6_stats {
++ use core::sync::atomic::{AtomicUsize,Ordering};
++ pub static BLOCKS:AtomicUsize=AtomicUsize::new(0);
++ pub static BYTES:AtomicUsize=AtomicUsize::new(0);
++ pub fn reset(){BLOCKS.store(0,Ordering::Relaxed);BYTES.store(0,Ordering::Relaxed);}
++ pub fn read()->[usize;2]{[BLOCKS.load(Ordering::Relaxed),BYTES.load(Ordering::Relaxed)]}
++}
+--- timed/crates/jmax-string/src/masks.rs
++++ instrumented/crates/jmax-string/src/masks.rs
+@@ -67,6 +67,8 @@
+                 self.block_base = position / 64 * 64;
+                 self.block_end = self.bytes.len().min(self.block_base.saturating_add(64));
+                 let block = &self.bytes[self.block_base..self.block_end];
++                crate::wave6_stats::BLOCKS.fetch_add(1,core::sync::atomic::Ordering::Relaxed);
++                crate::wave6_stats::BYTES.fetch_add(block.len(),core::sync::atomic::Ordering::Relaxed);
+                 self.escape_or_control_mask = if let Ok(full) = <&[u8; 64]>::try_from(block) {
+                     self.masker.classify(full).escape_or_control()
+                 } else {
+--- timed/crates/jmax-syntax/src/lib.rs
++++ instrumented/crates/jmax-syntax/src/lib.rs
+@@ -504,3 +504,14 @@
+         capability,
+     })
+ }
++
++/// Untimed source-copy counters, absent from production and timing builds.
++pub mod wave6_stats {
++ use core::sync::atomic::{AtomicUsize,Ordering};
++ pub static CURSOR_BLOCKS:AtomicUsize=AtomicUsize::new(0);
++ pub static CURSOR_BYTES:AtomicUsize=AtomicUsize::new(0);
++ pub static QUERY_SKIP_BYTES:AtomicUsize=AtomicUsize::new(0);
++ pub static STRICT_SKIP_BYTES:AtomicUsize=AtomicUsize::new(0);
++ pub fn reset(){for a in [&CURSOR_BLOCKS,&CURSOR_BYTES,&QUERY_SKIP_BYTES,&STRICT_SKIP_BYTES]{a.store(0,Ordering::Relaxed);}jmax_string::wave6_stats::reset();}
++ pub fn read()->[usize;6]{let d=jmax_string::wave6_stats::read();[CURSOR_BLOCKS.load(Ordering::Relaxed),CURSOR_BYTES.load(Ordering::Relaxed),d[0],d[1],QUERY_SKIP_BYTES.load(Ordering::Relaxed),STRICT_SKIP_BYTES.load(Ordering::Relaxed)]}
++}
+--- timed/crates/jmax-syntax/src/block_cursor.rs
++++ instrumented/crates/jmax-syntax/src/block_cursor.rs
+@@ -250,6 +250,8 @@
+             let start = self.cache.block_end as usize;
+             let end = (start + 64).min(self.input.len());
+             let bytes = &self.input[start..end];
++            crate::wave6_stats::CURSOR_BLOCKS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
++            crate::wave6_stats::CURSOR_BYTES.fetch_add(bytes.len(), core::sync::atomic::Ordering::Relaxed);
+             let masks = if bytes.len() == 64 {
+                 let block: &[u8; 64] = bytes.try_into().map_err(|_| {
+                     syntax_error(
+@@ -791,7 +793,13 @@
+                     self.skip_query_inner(current_depth, true)?;
+                 }
+             }
+-            Ok(Span32::new(start, self.offset() - start))
++            let len=self.offset()-start;
++            match mode {
++                SkipMode::QueryOnly => {crate::wave6_stats::QUERY_SKIP_BYTES.fetch_add(len as usize,core::sync::atomic::Ordering::Relaxed);},
++                SkipMode::StrictValidate => {crate::wave6_stats::STRICT_SKIP_BYTES.fetch_add(len as usize,core::sync::atomic::Ordering::Relaxed);},
++                _=>{}
++            }
++            Ok(Span32::new(start, len))
+         })();
+         if result.is_err() {
+             decoded.truncate(checkpoint);
+--- timed/crates/jsonmax/src/query.rs
++++ instrumented/crates/jsonmax/src/query.rs
+@@ -445,6 +445,7 @@
+ 
+ impl SelectorTrie {
+     fn compile(paths: &[String]) -> Result<Self> {
++        WAVE6_TRIE_BUILDS.fetch_add(1,core::sync::atomic::Ordering::Relaxed);
+         let limits = PathLimits::default();
+         let mut trie = Self {
+             nodes: Vec::new(),
+@@ -892,3 +893,6 @@
+         detail,
+     )
+ }
++
++/// Untimed source-copy query-plan compilation counter.
++pub static WAVE6_TRIE_BUILDS:core::sync::atomic::AtomicUsize=core::sync::atomic::AtomicUsize::new(0);

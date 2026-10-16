@@ -1,22 +1,24 @@
 //! Bounded schema programs. ABI instructions and all side tables have explicit owners.
 #![no_std]
-#![forbid(unsafe_code)]
 
 extern crate alloc;
 
 use alloc::{string::String, sync::Arc, vec::Vec};
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
-pub use jmax_abi::schema::{CompileLimits, FieldId, InsnWord, KeyEntry, Opcode,
-    SchemaId, SchemaImage, SchemaImageHeader, StateId};
+pub use jmax_abi::schema::{
+    CompileLimits, FieldId, InsnWord, KeyEntry, Opcode, SchemaId, SchemaImage, SchemaImageHeader,
+    StateId,
+};
 pub use jmax_abi::span::Span32;
 pub use jmax_format::{FormatId, FormatOptions};
-pub use jmax_schema_ir::{DecimalConstraints, ResolvedSchema, SchemaPolicy,
-    ScalarConstraints, TypeId, ValueKind};
+pub use jmax_schema_ir::{
+    DecimalConstraints, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId, ValueKind,
+};
 
-pub mod lower;
-pub mod keys;
-pub mod patterns;
 pub mod image;
+pub mod keys;
+pub mod lower;
+pub mod patterns;
 
 pub use lower::compile;
 
@@ -44,9 +46,14 @@ pub struct CompilerOptions {
 
 impl Default for CompilerOptions {
     fn default() -> Self {
-        Self { limits: CompileLimits::default_limits(), policy: SchemaPolicy::default(),
-            max_image_bytes: DEFAULT_MAX_IMAGE_BYTES, max_pattern_steps: 1_000_000,
-            max_hash_attempts: 256, swar_threshold: 8 }
+        Self {
+            limits: CompileLimits::default_limits(),
+            policy: SchemaPolicy::default(),
+            max_image_bytes: DEFAULT_MAX_IMAGE_BYTES,
+            max_pattern_steps: 1_000_000,
+            max_hash_attempts: 256,
+            swar_threshold: 8,
+        }
     }
 }
 
@@ -54,8 +61,14 @@ impl Default for CompilerOptions {
 pub enum StateKind {
     Any,
     Scalar(ValueKind),
-    Object { key_table: u32, required_count: u16, reject_unknown: bool },
-    Array { items: StateId },
+    Object {
+        key_table: u32,
+        required_count: u16,
+        reject_unknown: bool,
+    },
+    Array {
+        items: StateId,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -90,16 +103,31 @@ pub struct KeySpec {
 pub enum KeyStrategy {
     Swar,
     /// Slots contain global image key indices, or `EMPTY_KEY_SLOT`.
-    PerfectHash { seed: u64, slots: Vec<u32> },
+    PerfectHash {
+        seed: u64,
+        slots: Vec<u32>,
+    },
     /// Two-level perfect hashing with one bounded secondary probe.
-    BucketedPerfectHash { seed: u64, buckets: Vec<HashBucket>, slots: Vec<u32> },
+    BucketedPerfectHash {
+        seed: u64,
+        buckets: Vec<HashBucket>,
+        slots: Vec<u32>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct HashBucket { pub seed: u64, pub first_slot: u32, pub slot_count: u32 }
+pub struct HashBucket {
+    pub seed: u64,
+    pub first_slot: u32,
+    pub slot_count: u32,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct KeyTable { pub first_key: u32, pub key_count: u32, pub strategy: KeyStrategy }
+pub struct KeyTable {
+    pub first_key: u32,
+    pub key_count: u32,
+    pub strategy: KeyStrategy,
+}
 
 /// Construction result has local key indices and spans, rebased once by lowering.
 #[derive(Clone, Debug)]
@@ -112,13 +140,31 @@ pub struct BuiltKeys {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PatternOp {
-    Char { scalar: u32, next: u32 },
-    Class { ranges: Vec<(u32, u32)>, negated: bool, next: u32 },
-    Any { next: u32 },
-    Split { first: u32, second: u32 },
-    Jump { next: u32 },
-    AssertStart { next: u32 },
-    AssertEnd { next: u32 },
+    Char {
+        scalar: u32,
+        next: u32,
+    },
+    Class {
+        ranges: Vec<(u32, u32)>,
+        negated: bool,
+        next: u32,
+    },
+    Any {
+        next: u32,
+    },
+    Split {
+        first: u32,
+        second: u32,
+    },
+    Jump {
+        next: u32,
+    },
+    AssertStart {
+        next: u32,
+    },
+    AssertEnd {
+        next: u32,
+    },
     Accept,
 }
 
@@ -131,7 +177,11 @@ pub struct PatternProgram {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SlotSpec { pub slot: u32, pub field_id: FieldId, pub state: StateId }
+pub struct SlotSpec {
+    pub slot: u32,
+    pub field_id: FieldId,
+    pub state: StateId,
+}
 
 #[derive(Clone, Debug)]
 pub struct CompiledProgram {
@@ -158,11 +208,58 @@ pub struct ValidatedProgram {
 pub(crate) struct ProgramIndexes {
     pub field_slots: Vec<u32>,
     pub table_states: Vec<StateId>,
+    pub dispatch: Vec<CompiledStateDispatch>,
+    pub parents: Vec<Vec<StateId>>,
+    pub required_masks: Vec<Vec<u64>>,
+}
+
+/// Immutable dispatch prepared after the canonical bytecode has been validated.
+/// Scalar mask bits use `scalar_kind_bit`; container states have a zero mask.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CompiledStateDispatch {
+    pub scalar_mask: u8,
+    /// A unique incoming capture slot, if one exists. Shared states may have
+    /// multiple incoming slots; field dispatch remains authoritative there.
+    pub slot_index: Option<u32>,
+    pub has_slots: bool,
+    pub has_constraints: bool,
+    pub subtree_has_slots: bool,
+    pub subtree_has_constraints: bool,
+    pub unknown_fields_unconstrained: bool,
+}
+
+pub const fn scalar_kind_bit(kind: jmax_abi::syntax::ScalarKind) -> u8 {
+    use jmax_abi::syntax::ScalarKind;
+    match kind {
+        ScalarKind::String => 1,
+        ScalarKind::Number => 2,
+        ScalarKind::True => 4,
+        ScalarKind::False => 8,
+        ScalarKind::Null => 16,
+    }
 }
 
 impl ValidatedProgram {
-    pub fn program(&self) -> &CompiledProgram { &self.program }
-    pub fn image(&self) -> &SchemaImage { &self.program.image }
+    pub fn program(&self) -> &CompiledProgram {
+        &self.program
+    }
+    /// Reverse schema edges, prepared once for selection reachability.
+    pub fn parents(&self, id: StateId) -> Option<&[StateId]> {
+        self.indexes.parents.get(id.0 as usize).map(Vec::as_slice)
+    }
+    /// Required membership uses the same table-local bits as duplicate tracking.
+    pub fn required_mask(&self, table: u32) -> Option<&[u64]> {
+        self.indexes
+            .required_masks
+            .get(table as usize)
+            .map(Vec::as_slice)
+    }
+    pub fn dispatch(&self, id: StateId) -> Option<&CompiledStateDispatch> {
+        self.indexes.dispatch.get(id.0 as usize)
+    }
+    pub fn image(&self) -> &SchemaImage {
+        &self.program.image
+    }
     pub fn state(&self, id: StateId) -> Option<&ProgramState> {
         self.program.states.get(id.0 as usize)
     }
@@ -170,7 +267,9 @@ impl ValidatedProgram {
     pub fn slot_for_field(&self, field: FieldId) -> Option<&SlotSpec> {
         let index = usize::try_from(field.0).ok()?;
         let slot = *self.indexes.field_slots.get(index)?;
-        if slot == EMPTY_KEY_SLOT { return None; }
+        if slot == EMPTY_KEY_SLOT {
+            return None;
+        }
         self.program.slots.get(slot as usize)
     }
     /// The unique object state owning a key table, indexed at validation time.
@@ -188,30 +287,49 @@ impl ValidatedProgram {
 
 /// Includes the complete deterministic encoded program to disambiguate hash collisions.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CacheKey { pub fingerprint: u64, pub image_version: u16, pub bytes: Vec<u8> }
+pub struct CacheKey {
+    pub fingerprint: u64,
+    pub image_version: u16,
+    pub bytes: Vec<u8>,
+}
 
 /// The ABI opcode enum has no representation guarantee. Never cast it to bytes.
 pub const fn opcode_byte(opcode: Opcode) -> u8 {
     match opcode {
-        Opcode::EnterObject => 1, Opcode::LeaveObject => 2,
-        Opcode::EnterArray => 3, Opcode::LeaveArray => 4,
-        Opcode::MatchKeySwar => 5, Opcode::MatchKeyPhf => 6,
-        Opcode::CheckScalarKind => 7, Opcode::CheckIntBounds => 8,
-        Opcode::CheckDecimalBounds => 9, Opcode::CheckStringLen => 10,
-        Opcode::ExecPattern => 11, Opcode::ExecFormat => 12,
-        Opcode::EmitSlot => 13, Opcode::RejectUnknown => 14,
+        Opcode::EnterObject => 1,
+        Opcode::LeaveObject => 2,
+        Opcode::EnterArray => 3,
+        Opcode::LeaveArray => 4,
+        Opcode::MatchKeySwar => 5,
+        Opcode::MatchKeyPhf => 6,
+        Opcode::CheckScalarKind => 7,
+        Opcode::CheckIntBounds => 8,
+        Opcode::CheckDecimalBounds => 9,
+        Opcode::CheckStringLen => 10,
+        Opcode::ExecPattern => 11,
+        Opcode::ExecFormat => 12,
+        Opcode::EmitSlot => 13,
+        Opcode::RejectUnknown => 14,
     }
 }
 
 pub const fn decode_opcode(byte: u8) -> Option<Opcode> {
     match byte {
-        1 => Some(Opcode::EnterObject), 2 => Some(Opcode::LeaveObject),
-        3 => Some(Opcode::EnterArray), 4 => Some(Opcode::LeaveArray),
-        5 => Some(Opcode::MatchKeySwar), 6 => Some(Opcode::MatchKeyPhf),
-        7 => Some(Opcode::CheckScalarKind), 8 => Some(Opcode::CheckIntBounds),
-        9 => Some(Opcode::CheckDecimalBounds), 10 => Some(Opcode::CheckStringLen),
-        11 => Some(Opcode::ExecPattern), 12 => Some(Opcode::ExecFormat),
-        13 => Some(Opcode::EmitSlot), 14 => Some(Opcode::RejectUnknown), _ => None,
+        1 => Some(Opcode::EnterObject),
+        2 => Some(Opcode::LeaveObject),
+        3 => Some(Opcode::EnterArray),
+        4 => Some(Opcode::LeaveArray),
+        5 => Some(Opcode::MatchKeySwar),
+        6 => Some(Opcode::MatchKeyPhf),
+        7 => Some(Opcode::CheckScalarKind),
+        8 => Some(Opcode::CheckIntBounds),
+        9 => Some(Opcode::CheckDecimalBounds),
+        10 => Some(Opcode::CheckStringLen),
+        11 => Some(Opcode::ExecPattern),
+        12 => Some(Opcode::ExecFormat),
+        13 => Some(Opcode::EmitSlot),
+        14 => Some(Opcode::RejectUnknown),
+        _ => None,
     }
 }
 

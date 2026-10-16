@@ -1,0 +1,18 @@
+{
+  "timed_source_unchanged": true,
+  "source_files": 282,
+  "changed_source": [],
+  "historical_files": 9,
+  "historical_unchanged": true,
+  "historical_changes": [],
+  "snapshot_matches": true,
+  "protected_siblings_unchanged": true,
+  "protected_files_per_repository": {
+    "/Users/revenge/code/ps-rusty_alloc": 126,
+    "/Users/revenge/code/nagoya": 606,
+    "/Users/revenge/code/nago-http": 28,
+    "/Users/revenge/code/nago-wss": 32
+  },
+  "generated_corpora_unchanged": 21,
+  "sequential_command_intervals": true
+}

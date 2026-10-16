@@ -267,3 +267,105 @@ impl DocumentParts {
         self.max_depth = 0;
     }
 }
+
+/// Tag values in bits `0..8` of a native packed [`TapeWord`] header.
+pub const TAPE_TAG_NULL: u8 = 0;
+pub const TAPE_TAG_FALSE: u8 = 1;
+pub const TAPE_TAG_TRUE: u8 = 2;
+pub const TAPE_TAG_NUMBER: u8 = 3;
+pub const TAPE_TAG_STRING: u8 = 4;
+pub const TAPE_TAG_ARRAY: u8 = 5;
+pub const TAPE_TAG_OBJECT: u8 = 6;
+pub const TAPE_TAG_KEY: u8 = 7;
+
+/// Maximum compact 19-bit length/count stored directly in `aux24` (`0..=524_287`).
+pub const TAPE_AUX_LEN_MASK: u32 = 0x0007_ffff;
+/// Set on value nodes when preceded by an object `Key` record; key record is extended (3 words) vs compact (1 word).
+pub const TAPE_FLAG_KEY_EXTENDED: u32 = 0x0008_0000;
+/// Set on value nodes (`tag in 0..=6`) that are object members preceded by a `Key` record.
+pub const TAPE_FLAG_HAS_KEY: u32 = 0x0010_0000;
+/// Set when full 32-bit lengths / scalar counts follow in extension words.
+pub const TAPE_FLAG_EXTENDED: u32 = 0x0020_0000;
+/// Set on `String` and `Key` records when `scalar_len == cooked_byte_len` (pure ASCII).
+pub const TAPE_FLAG_ASCII: u32 = 0x0040_0000;
+/// Set on `String` and `Key` records when cooked bytes live in `DecodedArena` rather than `RawPayload`.
+pub const TAPE_FLAG_ESCAPED: u32 = 0x0080_0000;
+
+/// Packed 64-bit native DOM tape word.
+///
+/// Header word layout (`Word 0` of a record):
+/// - bits `0..8`: `tag` (`TAPE_TAG_*`)
+/// - bits `8..32`: `aux24` (`TAPE_FLAG_*` in bits `19..24` + compact 19-bit length/count in bits `0..19`)
+/// - bits `32..64`: `operand` (`raw_offset: u32` in the input payload)
+///
+/// Deterministic variable-width record sizes in `Vec<u64>`:
+/// - **Compact `Key` (`tag == 7`, `!TAPE_FLAG_EXTENDED`)**: 1 word (`[header]`), unescaped ASCII key with `content_len <= TAPE_AUX_LEN_MASK` at `raw_offset` (opening quote).
+/// - **Extended `Key` (`tag == 7`, `TAPE_FLAG_EXTENDED`)**: 3 words (`[header, cooked_offset | (cooked_len << 32), scalar_len | (raw_len << 32)]`).
+/// - **Compact `Null`/`False`/`True`/`Number` (`tag in 0..=3`, `!TAPE_FLAG_EXTENDED`)**: 2 words (`[header, parent_idx | (subtree_end_idx << 32)]`).
+/// - **Extended `Number` (`tag == 3`, `TAPE_FLAG_EXTENDED`)**: 3 words (`[header, parent_idx | (subtree_end_idx << 32), raw_len as u64]`).
+/// - **Compact `String` (`tag == 4`, `!TAPE_FLAG_EXTENDED`)**: 2 words (`[header, parent_idx | (subtree_end_idx << 32)]`), unescaped ASCII string with `content_len <= TAPE_AUX_LEN_MASK`.
+/// - **Extended `String` (`tag == 4`, `TAPE_FLAG_EXTENDED`)**: 4 words (`[header, parent_idx | (subtree_end_idx << 32), cooked_offset | (cooked_len << 32), scalar_len | (raw_len << 32)]`).
+/// - **Containers `Array`/`Object` (`tag in 5..=6`)**: 3 words (`[header, parent_idx | (subtree_end_idx << 32), child_count | (raw_end_offset << 32)]`).
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub struct TapeWord(pub u64);
+
+impl TapeWord {
+    pub const fn pack_header(tag: u8, aux24: u32, raw_offset: u32) -> Self {
+        Self(
+            (tag as u64)
+                | (((aux24 & 0x00ff_ffff) as u64) << 8)
+                | ((raw_offset as u64) << 32),
+        )
+    }
+
+    pub const fn pack_pair(low32: u32, high32: u32) -> Self {
+        Self((low32 as u64) | ((high32 as u64) << 32))
+    }
+
+    pub const fn tag(self) -> u8 {
+        self.0 as u8
+    }
+
+    pub const fn aux24(self) -> u32 {
+        ((self.0 >> 8) & 0x00ff_ffff) as u32
+    }
+
+    pub const fn compact_len(self) -> u32 {
+        self.aux24() & TAPE_AUX_LEN_MASK
+    }
+
+    pub const fn has_flag(self, flag: u32) -> bool {
+        (self.aux24() & flag) != 0
+    }
+
+    pub const fn raw_offset(self) -> u32 {
+        (self.0 >> 32) as u32
+    }
+
+    pub const fn low32(self) -> u32 {
+        self.0 as u32
+    }
+
+    pub const fn high32(self) -> u32 {
+        (self.0 >> 32) as u32
+    }
+
+    /// Number of `u64` words occupied by the record starting with this header word.
+    pub const fn record_words(self) -> usize {
+        let extended = self.has_flag(TAPE_FLAG_EXTENDED);
+        match self.tag() {
+            TAPE_TAG_KEY => {
+                if extended { 3 } else { 1 }
+            }
+            TAPE_TAG_NULL | TAPE_TAG_FALSE | TAPE_TAG_TRUE | TAPE_TAG_NUMBER => {
+                if extended { 3 } else { 2 }
+            }
+            TAPE_TAG_STRING => {
+                if extended { 4 } else { 2 }
+            }
+            TAPE_TAG_ARRAY | TAPE_TAG_OBJECT => 3,
+            _ => 0,
+        }
+    }
+}

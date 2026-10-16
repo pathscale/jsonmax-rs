@@ -24,6 +24,27 @@ pub fn end_input(state: &mut SyntaxState) -> Result<()> {
 /// Successful finalization is idempotent; the first failure is permanent.
 pub fn finish(state: &mut SyntaxState) -> Result<()> {
     end_input(state)?;
+    if state.query_skipped {
+        let mut discarded = Vec::new();
+        let result = (|| {
+            let mut cursor = BlockCursor::new(
+                &state.input,
+                state.limits,
+                state.numeric,
+                DuplicatePolicyOwner::Syntax,
+            )?;
+            cursor.skip_value(
+                &mut discarded,
+                0,
+                jmax_abi::syntax::SkipMode::StrictValidate,
+            )?;
+            cursor.finish_eof()
+        })();
+        if let Err(error) = result {
+            return Err(state.fail(error));
+        }
+        state.query_skipped = false;
+    }
     loop {
         match feed::next(state)? {
             ScanStep::Emit(_) => {}

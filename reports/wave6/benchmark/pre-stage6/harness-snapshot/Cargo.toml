@@ -1,0 +1,34 @@
+[package]
+name = "jmax-vs-parsers"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+system-alloc = []
+[dependencies]
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+simd-json = "0.18"
+sonic-rs = "0.5"
+json = "0.12"
+miniserde = "0.1"
+pikkr = { package = "ps-pikkr", path = "/Users/revenge/code/ps-pikkr" }
+rusty_alloc = { package = "ps-rusty_alloc", path = "/Users/revenge/code/ps-rusty_alloc" }
+jsonmax = { path = "/Users/revenge/code/jsonmax-rs/crates/jsonmax" }
+jmax-abi = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-abi" }
+jmax-cursor = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-cursor" }
+jmax-syntax = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-syntax" }
+jmax-dom = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-dom" }
+jmax-encode = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-encode" }
+jmax-schema-ir = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir" }
+jmax-schema-compile = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile" }
+jmax-schema-vm = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm" }
+jmax-number = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-number" }
+jmax-string = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-string" }
+jmax-utf8 = { path = "/Users/revenge/code/jsonmax-rs/crates/jmax-utf8" }
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

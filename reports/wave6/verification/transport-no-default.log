@@ -1,0 +1,19 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check -p jmax-nagoya -p jmax-http -p jmax-wss --no-default-features --offline
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+    Checking jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+    Checking jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+    Checking jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+    Checking jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+    Checking jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+    Checking jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+    Checking jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+    Checking jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+    Checking jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+    Checking jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+    Checking jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+    Checking jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+    Checking jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+    Checking jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.14s
+exit=0

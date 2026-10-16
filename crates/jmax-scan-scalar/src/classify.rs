@@ -13,6 +13,21 @@ use super::*;
 pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
     valid_mask(input.len())?;
     validate_carry(carry)?;
+    if input.is_empty() {
+        return Ok(BlockMasks::default());
+    }
+    if input.len() == BLOCK_BYTES {
+        let block: &[u8; BLOCK_BYTES] = input.try_into().map_err(|_| {
+            Error::new(
+                ErrorCode::InternalError,
+                ErrorSource::Scanner,
+                0,
+                "full scanner block has an invalid length",
+            )
+        })?;
+        return classify_loaded(block, BLOCK_BYTES as u8, carry);
+    }
+
     let block = tails::load_block(input)?;
     // The length check above makes this conversion lossless.
     classify_loaded(&block, input.len() as u8, carry)
@@ -22,10 +37,7 @@ pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
 ///
 /// This has the same masks, state transitions, and transactional error behavior
 /// as [`classify`] on the array's full slice.
-pub fn classify_block(
-    input: &[u8; BLOCK_BYTES],
-    carry: &mut ScanCarry,
-) -> Result<BlockMasks> {
+pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Result<BlockMasks> {
     validate_carry(carry)?;
     classify_loaded(input, BLOCK_BYTES as u8, carry)
 }

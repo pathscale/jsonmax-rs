@@ -1,91 +1,45 @@
-//! Raw lexical classes for four consecutive 16-byte lanes.
-//!
-//! Every bit follows byte-address order. Quoting, tail clipping, UTF-8
-//! validation, and grammar validation belong to the surrounding pipeline.
-
+//! Structural callers share the fused four-load raw classifier.
 use super::*;
 
-/// Classify all 64 bytes, independently of string state.
-///
-/// Punctuation matches `: , { } [ ]`. JSON whitespace is exactly space,
-/// tab, CR, and LF; control bytes are below 0x20, digits are ASCII 0 through
-/// 9, and non-ASCII bytes are at least 0x80. Tab, CR, and LF belong to both
-/// whitespace and control classes. Quotes and backslashes are not punctuation.
-///
-/// This infallible function accepts arbitrary byte values, allocates nothing,
-/// and requires neither alignment nor padding beyond the supplied array.
-/// It checks NEON support independently and otherwise uses a local scalar
-/// implementation, including on non-AArch64 and no_std targets.
 pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
-    #[cfg(target_arch = "aarch64")]
-    if is_supported() {
-        // SAFETY: the support check establishes NEON availability. The array
-        // contains the complete 64-byte object required by the native loads.
-        return unsafe { classify_neon(input) };
-    }
-
-    classify_scalar(input)
+    classify::classify_raw(input).classes
 }
 
-fn classify_scalar(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
-    let mut masks = StructuralMasks::default();
-    for (index, &byte) in input.iter().enumerate() {
-        let bit = 1u64 << index;
-        match byte {
-            b':' => masks.colon_mask |= bit,
-            b',' => masks.comma_mask |= bit,
-            b'{' => masks.lbrace_mask |= bit,
-            b'}' => masks.rbrace_mask |= bit,
-            b'[' => masks.lbracket_mask |= bit,
-            b']' => masks.rbracket_mask |= bit,
-            _ => {}
-        }
-        if matches!(byte, b' ' | b'\t' | b'\r' | b'\n') {
-            masks.whitespace_mask |= bit;
-        }
-        if byte < 0x20 {
-            masks.control_mask |= bit;
-        }
-        if byte >= b'0' && byte <= b'9' {
-            masks.digit_mask |= bit;
-        }
-        if byte >= 0x80 {
-            masks.non_ascii_mask |= bit;
-        }
-    }
-    masks
-}
-
-/// Reduce comparison bytes (0x00 or 0xff) in the same order as classify_raw.
-/// Each eight-byte half sums distinct powers of two, never exceeding 255.
-/// No integer reinterpretation or native-endian load participates in reduction.
+/// Pack comparison bytes in address order, with one reduction tree for both
+/// eight-byte halves. Weights are hoisted out of all per-class reductions.
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
-unsafe fn comparison_mask(value: core::arch::aarch64::uint8x16_t) -> u16 {
+#[inline]
+unsafe fn comparison_mask(
+    value: core::arch::aarch64::uint8x16_t,
+    weights: core::arch::aarch64::uint8x16_t,
+) -> u16 {
     use core::arch::aarch64::*;
-
-    let weights = [1u8, 2, 4, 8, 16, 32, 64, 128];
-    // SAFETY: the caller establishes NEON availability. The unaligned load
-    // reads exactly the eight initialized bytes in weights.
-    unsafe {
-        let weights = vld1_u8(weights.as_ptr());
-        let low = vaddv_u8(vand_u8(vget_low_u8(value), weights));
-        let high = vaddv_u8(vand_u8(vget_high_u8(value), weights));
-        u16::from(low) | (u16::from(high) << 8)
-    }
+    let pairs = vpaddlq_u8(vandq_u8(value, weights));
+    let quads = vpaddlq_u16(pairs);
+    let halves = vpaddlq_u32(quads);
+    (vgetq_lane_u64(halves, 0) | (vgetq_lane_u64(halves, 1) << 8)) as u16
 }
 
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
-unsafe fn classify_neon(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
+pub(crate) unsafe fn classify_neon(input: &[u8; BLOCK_BYTES]) -> RawMasks {
     use core::arch::aarch64::*;
 
     let mut masks = StructuralMasks::default();
+    let mut quote_mask = 0u64;
+    let mut backslash_mask = 0u64;
     // SAFETY: the only production caller checks NEON support. Offsets
     // 0, 16, 32, and 48 each leave 16 initialized bytes in input. vld1q_u8
     // accepts unaligned addresses. The private reduction helper inherits
     // this feature guarantee and receives only 0x00/0xff comparison bytes.
     unsafe {
+        let weights = vcombine_u8(
+            vcreate_u8(u64::from_ne_bytes([1, 2, 4, 8, 16, 32, 64, 128])),
+            vcreate_u8(u64::from_ne_bytes([1, 2, 4, 8, 16, 32, 64, 128])),
+        );
+        let quote = vdupq_n_u8(b'"');
+        let backslash = vdupq_n_u8(b'\\');
         let colon = vdupq_n_u8(b':');
         let comma = vdupq_n_u8(b',');
         let lbrace = vdupq_n_u8(b'{');
@@ -103,28 +57,40 @@ unsafe fn classify_neon(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
         for lane in 0..VECTOR_LANES {
             let offset = lane * LANE_BYTES;
             let bytes = vld1q_u8(input.as_ptr().add(offset));
+            quote_mask |= u64::from(comparison_mask(vceqq_u8(bytes, quote), weights)) << offset;
+            backslash_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, backslash), weights)) << offset;
             let whitespace = vorrq_u8(
                 vorrq_u8(vceqq_u8(bytes, space), vceqq_u8(bytes, tab)),
                 vorrq_u8(vceqq_u8(bytes, cr), vceqq_u8(bytes, lf)),
             );
-            let digits = vandq_u8(
-                vcgeq_u8(bytes, digit_low),
-                vcleq_u8(bytes, digit_high),
-            );
+            let digits = vandq_u8(vcgeq_u8(bytes, digit_low), vcleq_u8(bytes, digit_high));
 
             // Each mask is widened before shifting, including lane 3.
-            masks.colon_mask |= u64::from(comparison_mask(vceqq_u8(bytes, colon))) << offset;
-            masks.comma_mask |= u64::from(comparison_mask(vceqq_u8(bytes, comma))) << offset;
-            masks.lbrace_mask |= u64::from(comparison_mask(vceqq_u8(bytes, lbrace))) << offset;
-            masks.rbrace_mask |= u64::from(comparison_mask(vceqq_u8(bytes, rbrace))) << offset;
-            masks.lbracket_mask |= u64::from(comparison_mask(vceqq_u8(bytes, lbracket))) << offset;
-            masks.rbracket_mask |= u64::from(comparison_mask(vceqq_u8(bytes, rbracket))) << offset;
-            masks.whitespace_mask |= u64::from(comparison_mask(whitespace)) << offset;
-            masks.control_mask |= u64::from(comparison_mask(vcltq_u8(bytes, space))) << offset;
-            masks.digit_mask |= u64::from(comparison_mask(digits)) << offset;
+            masks.colon_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, colon), weights)) << offset;
+            masks.comma_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, comma), weights)) << offset;
+            masks.lbrace_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, lbrace), weights)) << offset;
+            masks.rbrace_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, rbrace), weights)) << offset;
+            masks.lbracket_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, lbracket), weights)) << offset;
+            masks.rbracket_mask |=
+                u64::from(comparison_mask(vceqq_u8(bytes, rbracket), weights)) << offset;
+            masks.whitespace_mask |= u64::from(comparison_mask(whitespace, weights)) << offset;
+            masks.control_mask |=
+                u64::from(comparison_mask(vcltq_u8(bytes, space), weights)) << offset;
+            masks.digit_mask |= u64::from(comparison_mask(digits, weights)) << offset;
             masks.non_ascii_mask |=
-                u64::from(comparison_mask(vcgeq_u8(bytes, non_ascii_low))) << offset;
+                u64::from(comparison_mask(vcgeq_u8(bytes, non_ascii_low), weights)) << offset;
         }
     }
-    masks
+    RawMasks {
+        quote_mask,
+        backslash_mask,
+        classes: masks,
+        backend: BackendId::Neon,
+    }
 }

@@ -1,0 +1,91 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check --workspace --all-targets --offline
+warning: field `rename_all` is never read
+  --> crates/jmax-derive/src/lib.rs:79:16
+   |
+76 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+79 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> crates/jmax-derive/src/lib.rs:143:16
+    |
+142 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+143 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib) generated 2 warnings
+warning: function `required_slot` is never used
+   --> crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib) generated 1 warning
+warning: unused import: `std::io::ErrorKind`
+ --> crates/jmax-validator/src/ui.rs:4:5
+  |
+4 | use std::io::ErrorKind;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-validator` (lib) generated 1 warning (run `cargo fix --lib -p jmax-validator` to apply 1 suggestion)
+warning: unused import: `Artifact`
+ --> crates/jmax-gen-cli/src/check.rs:4:29
+  |
+4 |     validate_artifact_path, Artifact, CheckReport, CliError, CliResult, Drift, DriftKind,
+  |                             ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-gen-cli` (lib) generated 1 warning (run `cargo fix --lib -p jmax-gen-cli` to apply 1 suggestion)
+    Checking jmax-bench v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-bench)
+warning: `jmax-derive` (lib) generated 2 warnings (2 duplicates)
+warning: `jmax-derive` (lib test) generated 2 warnings (2 duplicates)
+warning: `jmax-gen-cli` (lib test) generated 1 warning (1 duplicate)
+warning: unused imports: `FailureKind`, `Outcome`, and `RejectionComparison`
+ --> crates/jmax-fuzz/src/syntax.rs:6:76
+  |
+6 |     compare_outcomes, harness_error, DeterministicRng, ErrorCode, Failure, FailureKind,
+  |                                                                            ^^^^^^^^^^^
+7 |     FuzzConfig, FuzzReport, Limits, Outcome, Payload, RejectionComparison, Result, SyntaxOracle,
+  |                                     ^^^^^^^           ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FailureKind`, `Outcome`, and `RejectionComparison`
+ --> crates/jmax-fuzz/src/schema.rs:6:78
+  |
+6 |     compare_outcomes, harness_error, Error, ErrorCode, ErrorSource, Failure, FailureKind,
+  |                                                                              ^^^^^^^^^^^
+7 |     FieldId, FuzzConfig, FuzzReport, Limits, Outcome, Payload, Result, RejectionComparison,
+  |                                              ^^^^^^^                   ^^^^^^^^^^^^^^^^^^^
+
+warning: value assigned to `parity` is never read
+   --> crates/jmax-fuzz/src/ownership.rs:112:44
+    |
+112 |     let mut parity: Option<Vec<Vec<u8>>> = None;
+    |                                            ^^^^ this value is reassigned later and never used
+...
+188 |                 parity = Some(resolved);
+    |                 ------ `parity` is overwritten here before the previous value is read
+    |
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-fuzz` (lib test) generated 3 warnings (run `cargo fix --lib -p jmax-fuzz --tests` to apply 2 suggestions)
+warning: `jmax-fuzz` (lib) generated 3 warnings (3 duplicates)
+warning: `jmax-validator` (lib test) generated 1 warning (1 duplicate)
+warning: `jmax-exchange` (lib test) generated 1 warning (1 duplicate)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s
+exit=0

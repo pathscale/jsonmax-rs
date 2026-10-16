@@ -1,0 +1,19 @@
+[package]
+name = "jmax-nagoya"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+nagoya-rt = ["dep:nagoya"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-syntax = { workspace = true }
+jmax-schema-vm = { workspace = true }
+nagoya = { workspace = true, optional = true }

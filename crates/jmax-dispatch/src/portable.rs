@@ -2,11 +2,11 @@
 //!
 //! Scalar construction needs no detection. Native resolution checks current
 //! availability and never substitutes a different backend for an explicit request.
-//! The scanner entry points independently guard any native instructions.
+//! Resolved bindings retain feature checks for all subsequent blocks.
 
 #![forbid(unsafe_code)]
 
-use super::{detect, unavailable_backend, BackendId, ClassifyFn, Dispatch, Result};
+use super::{detect, unavailable_backend, BackendId, Dispatch, Result};
 
 /// Returns the always-available scalar classifier without probing hardware.
 ///
@@ -16,6 +16,7 @@ pub fn scalar() -> Dispatch {
     Dispatch {
         backend: BackendId::Scalar,
         classifier: jmax_scan_scalar::classify::classify,
+        block_classifier: jmax_scan_scalar::classify::classify_block,
     }
 }
 
@@ -38,13 +39,18 @@ pub fn resolve(backend: BackendId) -> Result<Dispatch> {
         return Err(unavailable_backend());
     }
 
-    // These module entry points are safe on every architecture. Do not bind
-    // directly to their private routines that require target features.
-    let classifier: ClassifyFn = match backend {
-        BackendId::Scalar => jmax_scan_scalar::classify::classify,
-        BackendId::Neon => jmax_scan_neon::classify::classify,
-        BackendId::Avx2 => jmax_scan_avx2::classify::classify,
-        BackendId::Avx512 => jmax_scan_avx512::classify::classify,
-    };
-    Ok(Dispatch { backend, classifier })
+    // Each scanner resolves private guarded bindings. Subsequent blocks keep
+    // this CPU/OS capability invariant and avoid general-entry detection.
+    let (classifier, block_classifier) = match backend {
+        BackendId::Scalar => return Ok(scalar()),
+        BackendId::Neon => jmax_scan_neon::classify::cached_classifiers(),
+        BackendId::Avx2 => jmax_scan_avx2::classify::cached_classifiers(),
+        BackendId::Avx512 => jmax_scan_avx512::classify::cached_classifiers(),
+    }
+    .ok_or_else(unavailable_backend)?;
+    Ok(Dispatch {
+        backend,
+        classifier,
+        block_classifier,
+    })
 }

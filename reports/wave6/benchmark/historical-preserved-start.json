@@ -1,0 +1,11 @@
+{
+  "reports/BENCHMARK-7-WORKLOADS-COLD-VS-WARM.md": "0093eb0a95e3ace7a2a76d465003da87ce9931152e4e84ee0977537bb765cce4",
+  "reports/BENCHMARK-JMAX-VS-PARSERS-2026-10-15.md": "b1cfd9f0cd3409483966ea2d478e6cd85175dd985abfdc58cf4e51c5c6d968b8",
+  "reports/investigation-2026-10-16/ps-pikkr-tests.log": "ca4caf4630508ca85dcc57e01f6ce9b373b5f0ae4b9348dba4e66a357eb048a2",
+  "reports/wave5/W5-01-SIMD-SYNTAX.json": "558e7750891875dbc615bc400eadf82b1572b3d01c2cbd86bc386a369d05b992",
+  "reports/wave5/W5-02-DOM-ENCODE.json": "4e68724d9df7fc14de07b03c988f3b90aeaac4bfbe8e001678355d4544142148",
+  "reports/wave5/W5-03-SCHEMA-VM.json": "9eb5c4a0dd9f4e23e97dca588063f115155d243cc942505db28e5c4fe86de23b",
+  "reports/wave5/W5-04-FACADE-BENCH.json": "3aaa7637ccf4c773222dd127773e1858c7ef70196aa45d7986b9a56ec2986d79",
+  "reports/wave5/W5-05-WIRE-DIALECT.json": "51a8295d34ad0db850beb370cab4736ae503b2e20b0c3c20b8c16d64b99e67c2",
+  "reports/wave5/W5-VERIFY.json": "22a1e33ef336d1c4dc160f91dff4c3564a76ec6ca8f2d43c244770cb97a1808c"
+}

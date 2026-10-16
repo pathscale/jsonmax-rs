@@ -4,17 +4,23 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc, vec::Vec};
-use core::{future::Future, sync::atomic::{AtomicBool, AtomicUsize, Ordering}};
-pub use jmax_abi::buffer::{ParsedMessage, Payload};
+use core::{
+    future::Future,
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+};
+pub use jmax_abi::buffer::{ParsedMessage, Payload, ValidationCapability};
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::schema::ValidatedSlots;
 pub use jmax_abi::syntax::{Limits, Scratch};
 pub use jmax_abi::traits::{JsonDecode, ResourceBudget, SchemaProvider};
 
-pub mod submit;
-pub mod batch;
 pub mod admission;
+pub mod batch;
 pub mod ordered;
+#[cfg(feature = "nagoya-rt")]
+pub mod reactive;
+pub mod submit;
+pub mod worker;
 
 pub const CONTRACT_VERSION: u16 = 1;
 pub const DEFAULT_BATCH_LIMIT: usize = 1024;
@@ -24,15 +30,36 @@ pub const DEFAULT_REORDER_LIMIT: usize = 1024;
 #[derive(Clone, Debug, Default)]
 pub struct CancellationToken {
     cancelled: Arc<AtomicBool>,
+    #[cfg(feature = "nagoya-rt")]
+    notification: Arc<nagoya::sync::Notify>,
 }
 
 impl CancellationToken {
-    pub fn new() -> Self { Self::default() }
-    pub fn cancel(&self) { self.cancelled.store(true, Ordering::Release); }
-    pub fn is_cancelled(&self) -> bool { self.cancelled.load(Ordering::Acquire) }
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        #[cfg(feature = "nagoya-rt")]
+        self.notification.notify_waiters();
+    }
+    /// Suspends until cancellation; registering before checking avoids lost wakes.
+    #[cfg(feature = "nagoya-rt")]
+    pub async fn cancelled(&self) {
+        let notified = self.notification.notified();
+        if !self.is_cancelled() {
+            notified.await;
+        }
+    }
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
     pub fn check(&self) -> Result<()> {
         if self.is_cancelled() {
-            Err(runtime_error(ErrorCode::Cancelled, "CPU operation cancelled"))
+            Err(runtime_error(
+                ErrorCode::Cancelled,
+                "CPU operation cancelled",
+            ))
         } else {
             Ok(())
         }
@@ -43,7 +70,8 @@ impl CancellationToken {
 /// Rejection must drop the job. Accepted jobs run at most once.
 pub trait CpuExecutor {
     type Task<T>: Future<Output = Result<T>> + Send + 'static
-    where T: Send + 'static;
+    where
+        T: Send + 'static;
 
     fn submit<T: Send + 'static>(
         &self,
@@ -62,6 +90,54 @@ pub trait ParseValidator: Send + Sync + 'static {
         retained_budget_bytes: usize,
         cancellation: &CancellationToken,
     ) -> Result<ValidatedSlots>;
+
+    /// Canonical validators can carry exact-owner validation evidence through
+    /// publication. Existing external validators retain defensive byte checks.
+    fn validate_output(
+        &self,
+        payload: Payload,
+        limits: Limits,
+        scratch: &mut Scratch,
+        scratch_budget_bytes: usize,
+        retained_budget_bytes: usize,
+        cancellation: &CancellationToken,
+    ) -> Result<ValidationOutput> {
+        self.validate(
+            payload,
+            limits,
+            scratch,
+            scratch_budget_bytes,
+            retained_budget_bytes,
+            cancellation,
+        )
+        .map(ValidationOutput::external)
+    }
+}
+
+/// Owned validation result. Only the canonical adapter can attach a capability;
+/// keeping fields private prevents replacement of its bound payload or proof.
+#[derive(Debug)]
+pub struct ValidationOutput {
+    slots: ValidatedSlots,
+    capability: Option<ValidationCapability>,
+}
+
+impl ValidationOutput {
+    pub fn external(slots: ValidatedSlots) -> Self {
+        Self {
+            slots,
+            capability: None,
+        }
+    }
+    pub fn slots(&self) -> &ValidatedSlots {
+        &self.slots
+    }
+    pub fn capability(&self) -> Option<ValidationCapability> {
+        self.capability
+    }
+    pub fn into_slots(self) -> ValidatedSlots {
+        self.slots
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -79,7 +155,10 @@ pub struct BatchOptions {
 
 impl Default for BatchOptions {
     fn default() -> Self {
-        Self { max_items: DEFAULT_BATCH_LIMIT, max_retained_bytes: 64 * 1024 * 1024 }
+        Self {
+            max_items: DEFAULT_BATCH_LIMIT,
+            max_retained_bytes: 64 * 1024 * 1024,
+        }
     }
 }
 
@@ -151,14 +230,22 @@ pub struct AdmissionLease {
 }
 
 impl AdmissionLease {
-    pub fn request(&self) -> ResourceRequest { self.request }
+    pub fn request(&self) -> ResourceRequest {
+        self.request
+    }
 }
 
 impl Drop for AdmissionLease {
     fn drop(&mut self) {
-        self.state.scratch_bytes.fetch_sub(self.request.scratch_bytes, Ordering::AcqRel);
-        self.state.retained_bytes.fetch_sub(self.request.retained_bytes, Ordering::AcqRel);
-        self.state.jobs.fetch_sub(self.request.jobs, Ordering::AcqRel);
+        self.state
+            .scratch_bytes
+            .fetch_sub(self.request.scratch_bytes, Ordering::AcqRel);
+        self.state
+            .retained_bytes
+            .fetch_sub(self.request.retained_bytes, Ordering::AcqRel);
+        self.state
+            .jobs
+            .fetch_sub(self.request.jobs, Ordering::AcqRel);
     }
 }
 
@@ -171,9 +258,15 @@ pub struct ScratchLease {
 }
 
 impl ScratchLease {
-    pub fn budget_bytes(&self) -> usize { self.lease.request.scratch_bytes }
-    pub fn scratch(&self) -> &Scratch { &self.scratch }
-    pub fn scratch_mut(&mut self) -> &mut Scratch { &mut self.scratch }
+    pub fn budget_bytes(&self) -> usize {
+        self.lease.request.scratch_bytes
+    }
+    pub fn scratch(&self) -> &Scratch {
+        &self.scratch
+    }
+    pub fn scratch_mut(&mut self) -> &mut Scratch {
+        &mut self.scratch
+    }
 }
 
 /// The value is dropped before its accounting lease. Completed jobs therefore
@@ -185,10 +278,16 @@ pub struct Admitted<T> {
 }
 
 impl<T> Admitted<T> {
-    pub fn value(&self) -> &T { &self.value }
-    pub fn reservation(&self) -> ResourceRequest { self.lease.request() }
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+    pub fn reservation(&self) -> ResourceRequest {
+        self.lease.request()
+    }
     /// Transfers accounting responsibility along with the owned value.
-    pub fn into_parts(self) -> (T, AdmissionLease) { (self.value, self.lease) }
+    pub fn into_parts(self) -> (T, AdmissionLease) {
+        (self.value, self.lease)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -200,7 +299,11 @@ pub struct OrderedOptions {
 
 impl Default for OrderedOptions {
     fn default() -> Self {
-        Self { first_sequence: 0, max_pending: DEFAULT_REORDER_LIMIT, max_pending_bytes: 64 * 1024 * 1024 }
+        Self {
+            first_sequence: 0,
+            max_pending: DEFAULT_REORDER_LIMIT,
+            max_pending_bytes: 64 * 1024 * 1024,
+        }
     }
 }
 

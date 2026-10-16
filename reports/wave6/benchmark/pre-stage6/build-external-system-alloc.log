@@ -1,0 +1,47 @@
+cwd: /Users/revenge/code/jsonmax-rs
+command: ['cargo', '+1.98.1', 'build', '--release', '--manifest-path', '/tmp/jmax-vs-parsers/Cargo.toml', '--offline', '--features', 'system-alloc']
+warning: unused macro definition: `ra_assert`
+   --> /Users/revenge/code/ps-rusty_alloc/src/lib.rs:149:14
+    |
+149 | macro_rules! ra_assert {
+    |              ^^^^^^^^^
+    |
+    = note: `#[warn(unused_macros)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ps-rusty_alloc` (lib) generated 1 warning
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-derive` (lib) generated 2 warnings
+warning: `jmax-exchange` (lib) generated 1 warning
+   Compiling jmax-vs-parsers v0.1.0 (/tmp/jmax-vs-parsers)
+    Finished `release` profile [optimized] target(s) in 12.86s
+
+exit: 0

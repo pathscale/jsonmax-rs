@@ -1,0 +1,23 @@
+| Workload (first doc) | Input | u64 tape live | Decoded live | Warm tape capacity | Warm decoded capacity | Legacy 6 Vec live | Legacy 6 Vec capacity |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| NagoyaAuth | 83 | 120 | 0 | 128 | 0 | 436 | 436 |
+| ExchangeOrder | 85 | 144 | 0 | 256 | 0 | 520 | 520 |
+| RpcEnvelope | 103 | 200 | 0 | 256 | 0 | 704 | 704 |
+| LargeCatalog | 34116 | 61520 | 0 | 65536 | 0 | 223516 | 223516 |
+| VectorCoordinates | 881 | 1592 | 0 | 2048 | 0 | 8264 | 8264 |
+| DeepNesting | 143 | 944 | 0 | 1024 | 0 | 3384 | 3384 |
+| EscapedUnicode | 2012 | 88 | 1637 | 128 | 2048 | 1905 | 1905 |
+| small_object-seed-5354007379338153539-docs-128-items-32 | 567 | 792 | 0 | 1024 | 0 | 2788 | 2788 |
+| escaped_strings-seed-5354007379338153539-docs-128-items-32 | 2807 | 1304 | 1750 | 2048 | 2048 | 4538 | 4538 |
+| unicode-seed-5354007379338153539-docs-128-items-32 | 1783 | 1304 | 0 | 2048 | 0 | 2788 | 2788 |
+| number_array-seed-5354007379338153539-docs-128-items-32 | 343 | 536 | 0 | 1024 | 0 | 2788 | 2788 |
+| depth_book-seed-5354007379338153539-docs-128-items-32 | 1608 | 3792 | 0 | 4096 | 0 | 17872 | 17872 |
+| agg_trade-seed-5354007379338153539-docs-128-items-32 | 149 | 288 | 0 | 512 | 0 | 1024 | 1024 |
+| nested-seed-5354007379338153539-docs-128-items-32 | 147 | 912 | 0 | 1024 | 0 | 3284 | 3284 |
+| long-unescaped-ascii | 2056 | 48 | 0 | 64 | 0 | 184 | 184 |
+| long-unescaped-unicode | 7688 | 64 | 0 | 64 | 0 | 184 | 184 |
+| escape-dense | 7176 | 64 | 2560 | 64 | 4096 | 2744 | 2744 |
+| long-backslash-runs | 4104 | 64 | 2048 | 64 | 2048 | 2232 | 2232 |
+| wide-object | 16213 | 24600 | 0 | 32768 | 0 | 86116 | 86116 |
+| reordered-fields | 58 | 232 | 0 | 256 | 0 | 888 | 888 |
+| sparse-large-subtree | 89045 | 262280 | 0 | 524288 | 0 | 1098196 | 1098196 |

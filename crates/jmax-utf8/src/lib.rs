@@ -5,10 +5,12 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+pub mod count;
 pub mod validate;
-pub mod stream;
-pub mod proof;
+pub use count::{count_continuation_bytes, count_scalars_trusted_utf8, validate_and_count_scalars};
 pub mod fused;
+pub mod proof;
+pub mod stream;
 
 #[cfg(feature = "alloc")]
 pub use jmax_abi::buffer::Payload;
@@ -31,7 +33,11 @@ pub struct Utf8Summary {
 
 impl Default for Utf8Summary {
     fn default() -> Self {
-        Self { byte_len: 0, scalar_len: 0, ascii_only: true }
+        Self {
+            byte_len: 0,
+            scalar_len: 0,
+            ascii_only: true,
+        }
     }
 }
 

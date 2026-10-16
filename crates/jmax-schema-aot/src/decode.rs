@@ -13,9 +13,8 @@
 use alloc::vec::Vec;
 
 use crate::{
-    aot_error, Decimal128, DecodePlan, Error, ErrorCode, ErrorSource, FieldId,
-    Result, SlotKind, SlotReader, SlotSpec, SlotValue, Span32, StrRef,
-    ValidatedSlots,
+    Decimal128, DecodePlan, Error, ErrorCode, ErrorSource, FieldId, Result, SlotKind, SlotReader,
+    SlotSpec, SlotValue, Span32, StrRef, aot_error,
 };
 
 /// Check the owner and fingerprint, then the entire plan and every selected value.
@@ -24,9 +23,12 @@ use crate::{
 /// unique. Plan order need not equal slot order. Structural errors are reported
 /// before value errors. Validation uses O(n) temporary storage and O(n log n)
 /// comparisons; allocation failure is reported as `BudgetExhausted`.
-pub fn validate_slots(values: &ValidatedSlots, plan: &DecodePlan<'_>) -> Result<()> {
+pub fn validate_slots(
+    values: &(impl crate::SlotSource + ?Sized),
+    plan: &DecodePlan<'_>,
+) -> Result<()> {
     let reader = SlotReader::new(values, plan.schema_fingerprint)?;
-    validate_from(&reader, values.slots.len(), plan.slots)
+    validate_from(&reader, reader.values().slots.len(), plan.slots)
 }
 
 /// Read an exact Boolean slot, or `None` for an optional empty slot.
@@ -60,10 +62,7 @@ pub fn decode_f64(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<f64
 }
 
 /// Read a decimal with its exact coefficient and scale, without normalization.
-pub fn decode_decimal(
-    reader: &SlotReader<'_>,
-    spec: &SlotSpec,
-) -> Result<Option<Decimal128>> {
+pub fn decode_decimal(reader: &SlotReader<'_>, spec: &SlotSpec) -> Result<Option<Decimal128>> {
     decode_from(reader, spec)
 }
 
@@ -124,16 +123,18 @@ fn decode_from<'a, T: FromSlot<'a>>(
         return Err(decode_error(
             ErrorCode::SchemaImageInvalid,
             "slot specification has the wrong decoder kind",
-        ).with_schema(0, spec.field_id.0));
+        )
+        .with_schema(0, spec.field_id.0));
     }
-    let value = reader.slot(spec.index, spec.field_id)
+    let value = reader
+        .slot(spec.index, spec.field_id)
         .map_err(|error| error.with_schema(0, spec.field_id.0))?;
     if value == SlotValue::Empty {
         return if spec.required {
-            Err(decode_error(
-                ErrorCode::MissingRequiredField,
-                "required slot is empty",
-            ).with_schema(0, spec.field_id.0))
+            Err(
+                decode_error(ErrorCode::MissingRequiredField, "required slot is empty")
+                    .with_schema(0, spec.field_id.0),
+            )
         } else {
             Ok(None)
         };
@@ -168,9 +169,8 @@ impl<'a> FromSlot<'a> for u32 {
 
     fn from_slot(value: SlotValue, reader: &impl SlotAccess<'a>) -> Result<Self> {
         let value = <u64 as FromSlot<'a>>::from_slot(value, reader)?;
-        u32::try_from(value).map_err(|_| decode_error(
-            ErrorCode::NumberOverflow, "unsigned slot does not fit u32",
-        ))
+        u32::try_from(value)
+            .map_err(|_| decode_error(ErrorCode::NumberOverflow, "unsigned slot does not fit u32"))
     }
 }
 
@@ -179,9 +179,8 @@ impl<'a> FromSlot<'a> for i32 {
 
     fn from_slot(value: SlotValue, reader: &impl SlotAccess<'a>) -> Result<Self> {
         let value = <i64 as FromSlot<'a>>::from_slot(value, reader)?;
-        i32::try_from(value).map_err(|_| decode_error(
-            ErrorCode::NumberOverflow, "signed slot does not fit i32",
-        ))
+        i32::try_from(value)
+            .map_err(|_| decode_error(ErrorCode::NumberOverflow, "signed slot does not fit i32"))
     }
 }
 
@@ -195,7 +194,10 @@ impl<'a> FromSlot<'a> for f64 {
                 if value.is_finite() {
                     Ok(value)
                 } else {
-                    Err(decode_error(ErrorCode::InvalidNumber, "floating slot is not finite"))
+                    Err(decode_error(
+                        ErrorCode::InvalidNumber,
+                        "floating slot is not finite",
+                    ))
                 }
             }
             _ => Err(type_mismatch()),
@@ -228,29 +230,37 @@ impl<'a> FromSlot<'a> for &'a [u8] {
 fn validate_shape(slot_count: usize, specs: &[SlotSpec]) -> Result<()> {
     if specs.len() != slot_count {
         return Err(decode_error(
-            ErrorCode::SchemaImageInvalid, "decode plan does not cover the slot array",
+            ErrorCode::SchemaImageInvalid,
+            "decode plan does not cover the slot array",
         ));
     }
     let mut ordered: Vec<&SlotSpec> = Vec::new();
-    ordered.try_reserve_exact(specs.len()).map_err(|_| decode_error(
-        ErrorCode::BudgetExhausted, "cannot allocate decode plan validation scratch",
-    ))?;
+    ordered.try_reserve_exact(specs.len()).map_err(|_| {
+        decode_error(
+            ErrorCode::BudgetExhausted,
+            "cannot allocate decode plan validation scratch",
+        )
+    })?;
     ordered.extend(specs.iter());
     ordered.sort_unstable_by_key(|spec| spec.index);
     // Equal lengths and exact dense indices also exclude duplicate indices.
     for (expected, spec) in ordered.iter().enumerate() {
         if usize::try_from(spec.index).ok() != Some(expected) {
             return Err(decode_error(
-                ErrorCode::SchemaImageInvalid, "decode plan indices are not unique and dense",
-            ).with_schema(0, spec.field_id.0));
+                ErrorCode::SchemaImageInvalid,
+                "decode plan indices are not unique and dense",
+            )
+            .with_schema(0, spec.field_id.0));
         }
     }
     ordered.sort_unstable_by_key(|spec| spec.field_id.0);
     for pair in ordered.windows(2) {
         if pair[0].field_id == pair[1].field_id {
             return Err(decode_error(
-                ErrorCode::SchemaImageInvalid, "decode plan has duplicate field identifiers",
-            ).with_schema(0, pair[1].field_id.0));
+                ErrorCode::SchemaImageInvalid,
+                "decode plan has duplicate field identifiers",
+            )
+            .with_schema(0, pair[1].field_id.0));
         }
     }
     Ok(())

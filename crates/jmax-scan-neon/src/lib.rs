@@ -43,8 +43,12 @@ pub struct StructuralMasks {
 impl StructuralMasks {
     /// All six punctuation classes, before string exclusion.
     pub const fn punctuation_mask(&self) -> u64 {
-        self.colon_mask | self.comma_mask | self.lbrace_mask | self.rbrace_mask
-            | self.lbracket_mask | self.rbracket_mask
+        self.colon_mask
+            | self.comma_mask
+            | self.lbrace_mask
+            | self.rbrace_mask
+            | self.lbracket_mask
+            | self.rbracket_mask
     }
 }
 
@@ -81,11 +85,17 @@ pub struct QuoteMasks {
 /// Without std, only statically enabled NEON is accepted.
 pub fn is_supported() -> bool {
     #[cfg(all(feature = "std", target_arch = "aarch64"))]
-    { std::arch::is_aarch64_feature_detected!("neon") }
+    {
+        std::arch::is_aarch64_feature_detected!("neon")
+    }
     #[cfg(all(not(feature = "std"), target_arch = "aarch64"))]
-    { cfg!(target_feature = "neon") }
+    {
+        cfg!(target_feature = "neon")
+    }
     #[cfg(not(target_arch = "aarch64"))]
-    { false }
+    {
+        false
+    }
 }
 
 /// Low `len` bits, including the zero-length and full-width cases.
@@ -133,6 +143,7 @@ impl RawMasks {
         Ok(BlockMasks {
             quote_mask: self.quote_mask & valid,
             backslash_mask: self.backslash_mask & valid,
+            delimiter_quote_mask: quotes.delimiter_quote_mask & valid,
             in_string_mask: in_string,
             colon_mask: c.colon_mask & valid,
             comma_mask: c.comma_mask & valid,
@@ -156,3 +167,6 @@ impl RawMasks {
 pub fn classify(input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
     classify::classify(input, carry)
 }
+
+/// Safe full-block binding returned only after backend capability resolution.
+pub type ClassifyBlockFn = fn(&[u8; BLOCK_BYTES], &mut ScanCarry) -> Result<BlockMasks>;

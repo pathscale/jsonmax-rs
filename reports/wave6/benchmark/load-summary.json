@@ -1,0 +1,12 @@
+{
+  "snapshots": 66,
+  "load1_min": 12.6240234375,
+  "load1_median": 26.22216796875,
+  "load1_max": 45.30517578125,
+  "first_at": "2026-10-16T03:21:35.685375+07:00",
+  "last_at": "2026-10-16T03:33:02.766464+07:00",
+  "other_cpu_median": 902.1500000000001,
+  "other_cpu_max": 1400.7,
+  "compiler_cpu_max": 897.9999999999999,
+  "unrelated_benchmark_snapshots": 0
+}

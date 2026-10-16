@@ -1,0 +1,66 @@
+cwd=/Users/revenge/code/jsonmax-rs
+command=cargo +1.98.1 check -p jsonmax --features rusty-alloc --offline
+    Checking jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-abi)
+warning: field `rename_all` is never read
+  --> crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib) generated 2 warnings
+    Checking jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+    Checking jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+    Checking jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+    Checking jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+    Checking jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+    Checking jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-utf8)
+    Checking jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-error)
+    Checking jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-decimal)
+    Checking jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir)
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+    Checking jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-number)
+    Checking jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+    Checking jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+    Checking jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+    Checking jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+    Checking jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+    Checking jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+    Checking jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+    Checking jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-path)
+    Checking jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+    Checking jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+    Checking jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+    Checking jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+    Checking jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-aot)
+    Checking jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+    Checking jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-exchange)
+    Checking jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+warning: function `required_slot` is never used
+   --> crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib) generated 1 warning
+    Checking jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+    Checking jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.81s
+exit=0

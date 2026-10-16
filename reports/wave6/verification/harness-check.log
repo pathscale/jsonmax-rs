@@ -1,0 +1,367 @@
+cwd=/tmp/jmax-vs-parsers
+command=env RUSTFLAGS=-C target-cpu=native cargo +1.98.1 check --offline
+     Locking 18 packages to latest Rust 1.98.1 compatible versions
+      Adding cpufeatures v0.3.1
+      Adding flexpect v0.1.1
+      Adding fnv v1.0.7
+      Adding portable-atomic v1.15.0
+      Adding ps-pikkr v0.16.1 (/Users/revenge/code/ps-pikkr)
+      Adding ps-rusty_alloc v2.3.3 (/Users/revenge/code/ps-rusty_alloc)
+      Adding ps-simdutf8 v0.1.6 (/Users/revenge/code/ps-simdutf8)
+      Adding windows-link v0.2.1
+      Adding windows-sys v0.60.2
+      Adding windows-targets v0.53.5
+      Adding windows_aarch64_gnullvm v0.53.1
+      Adding windows_aarch64_msvc v0.53.1
+      Adding windows_i686_gnu v0.53.1
+      Adding windows_i686_gnullvm v0.53.1
+      Adding windows_i686_msvc v0.53.1
+      Adding windows_x86_64_gnu v0.53.1
+      Adding windows_x86_64_gnullvm v0.53.1
+      Adding windows_x86_64_msvc v0.53.1
+   Compiling libc v0.2.190
+   Compiling rustversion v1.0.23
+    Checking bytes v1.12.1
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling autocfg v1.5.1
+   Compiling zmij v1.0.23
+    Checking cfg-if v1.0.5
+    Checking itoa v1.0.18
+    Checking equivalent v1.0.3
+   Compiling version_check v0.9.5
+    Checking foldhash v0.2.0
+   Compiling getrandom v0.3.4
+   Compiling zerocopy v0.8.63
+    Checking allocator-api2 v0.2.21
+    Checking simdutf8 v0.1.5
+   Compiling thiserror v2.0.21
+   Compiling ahash v0.8.12
+   Compiling serde_json v1.0.154
+   Compiling ref-cast v1.0.27
+    Checking memchr v2.8.3
+   Compiling miniserde v0.1.46
+   Compiling num-traits v0.2.19
+    Checking ryu v1.0.23
+    Checking hashbrown v0.16.1
+    Checking once_cell v1.21.4
+    Checking sonic-simd v0.1.4
+    Checking sonic-number v0.1.3
+    Checking fnv v1.0.7
+    Checking bumpalo v3.20.3
+    Checking ps-pikkr v0.16.1 (/Users/revenge/code/ps-pikkr)
+    Checking json v0.12.4
+   Compiling ps-simdutf8 v0.1.6 (/Users/revenge/code/ps-simdutf8)
+   Compiling flexpect v0.1.1
+    Checking jmax-abi v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-abi)
+    Checking jmax-scan-neon v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-neon)
+    Checking jmax-scan-avx512 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx512)
+    Checking jmax-scan-avx2 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-avx2)
+    Checking jmax-scan-scalar v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-scan-scalar)
+    Checking jmax-buffer v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-buffer)
+    Checking jmax-error v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-error)
+    Checking jmax-decimal v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-decimal)
+    Checking jmax-schema-ir v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-ir)
+   Compiling syn v3.0.9
+    Checking jmax-dispatch v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dispatch)
+    Checking jmax-number v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-number)
+    Checking cpufeatures v0.3.1
+    Checking float-cmp v0.10.0
+    Checking ps-rusty_alloc v2.3.3 (/Users/revenge/code/ps-rusty_alloc)
+    Checking jmax-utf8 v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-utf8)
+    Checking jmax-string v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-string)
+    Checking jmax-syntax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-syntax)
+    Checking jmax-format v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-format)
+    Checking jmax-schema-compile v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-compile)
+    Checking jmax-endpoint-model v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-endpoint-model)
+    Checking jmax-cursor v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-cursor)
+    Checking jmax-dom v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-dom)
+    Checking jmax-path v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-path)
+    Checking jmax-encode v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-encode)
+    Checking jmax-schema-vm v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-vm)
+    Checking jmax-nagoya v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-nagoya)
+    Checking jmax-wire v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wire)
+    Checking jmax-schema-aot v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-schema-aot)
+    Checking jmax-http v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-http)
+    Checking jmax-exchange v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-exchange)
+    Checking jmax-mcp v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-mcp)
+warning: function `required_slot` is never used
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-exchange/src/lib.rs:141:15
+    |
+141 | pub(crate) fn required_slot(slots: &ValidatedSlots, index: usize) -> Result<SlotValue> {
+    |               ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `jmax-exchange` (lib) generated 1 warning
+    Checking jmax-wss v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-wss)
+   Compiling serde_derive v1.0.229
+   Compiling ref-cast-impl v1.0.27
+   Compiling thiserror-impl v2.0.21
+   Compiling mini-internal v0.1.46
+   Compiling jmax-derive v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jmax-derive)
+warning: field `rename_all` is never read
+  --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:64:16
+   |
+61 | pub(crate) struct ContainerAttrs {
+   |                   -------------- field in this struct
+...
+64 |     pub(crate) rename_all: RenameRule,
+   |                ^^^^^^^^^^
+   |
+   = note: `ContainerAttrs` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `ident` is never read
+   --> /Users/revenge/code/jsonmax-rs/crates/jmax-derive/src/lib.rs:115:16
+    |
+114 | pub(crate) struct VariantSpec {
+    |                   ----------- field in this struct
+115 |     pub(crate) ident: Ident,
+    |                ^^^^^
+    |
+    = note: `VariantSpec` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `jmax-derive` (lib) generated 2 warnings
+    Checking jsonmax v0.1.0 (/Users/revenge/code/jsonmax-rs/crates/jsonmax)
+    Checking halfbrown v0.4.0
+    Checking faststr v0.2.34
+    Checking sonic-rs v0.5.10
+    Checking value-trait v0.12.2
+    Checking simd-json v0.18.1
+    Checking jmax-vs-parsers v0.1.0 (/private/tmp/jmax-vs-parsers)
+error[E0423]: expected value, found type alias `AllocBackend`
+  --> src/main.rs:17:18
+   |
+17 |         unsafe { AllocBackend.alloc(layout) }
+   |                  ^^^^^^^^^^^^
+   |
+help: use the path separator to refer to an item
+   |
+17 -         unsafe { AllocBackend.alloc(layout) }
+17 +         unsafe { AllocBackend::alloc(layout) }
+   |
+
+error[E0423]: expected value, found type alias `AllocBackend`
+  --> src/main.rs:21:18
+   |
+21 |         unsafe { AllocBackend.dealloc(ptr, layout) }
+   |                  ^^^^^^^^^^^^
+   |
+help: use the path separator to refer to an item
+   |
+21 -         unsafe { AllocBackend.dealloc(ptr, layout) }
+21 +         unsafe { AllocBackend::dealloc(ptr, layout) }
+   |
+
+error[E0423]: expected value, found type alias `AllocBackend`
+  --> src/main.rs:25:18
+   |
+25 |         unsafe { AllocBackend.alloc_zeroed(layout) }
+   |                  ^^^^^^^^^^^^
+   |
+help: use the path separator to refer to an item
+   |
+25 -         unsafe { AllocBackend.alloc_zeroed(layout) }
+25 +         unsafe { AllocBackend::alloc_zeroed(layout) }
+   |
+
+error[E0423]: expected value, found type alias `AllocBackend`
+  --> src/main.rs:29:18
+   |
+29 |         unsafe { AllocBackend.realloc(ptr, layout, new_size) }
+   |                  ^^^^^^^^^^^^
+   |
+help: use the path separator to refer to an item
+   |
+29 -         unsafe { AllocBackend.realloc(ptr, layout, new_size) }
+29 +         unsafe { AllocBackend::realloc(ptr, layout, new_size) }
+   |
+
+error: captured variable cannot escape `FnMut` closure body
+   --> src/main.rs:693:21
+    |
+686 |               let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    |                   ----------- variable defined here
+...
+692 |                   || {
+    |                    - inferred to be a `FnMut` closure
+693 | /                     Ok(jsonmax::endpoint::extract_payload_with_scratch(
+694 | |                         black_box(&payload),
+695 | |                         &p.schema,
+696 | |                         &p.selection,
+697 | |                         options(),
+698 | |                         &mut scratch,
+    | |                              ------- variable captured here
+699 | |                     )?)
+    | |_______________________^ returns a reference to a captured variable which escapes the closure body
+    |
+    = note: `FnMut` closures only have access to their captured variables while they are executing...
+    = note: ...therefore, they cannot allow references to captured variables to escape
+
+error[E0597]: `scratch` does not live long enough
+   --> src/main.rs:579:30
+    |
+568 |             let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    |                 ----------- binding `scratch` declared here
+...
+574 |                 || {
+    |                 -- value captured here
+...
+579 |                         &mut scratch,
+    |                              ^^^^^^^ borrowed value does not live long enough
+...
+583 |         }
+    |         - `scratch` dropped here while still borrowed
+...
+587 |                 &mut jobs,
+    |                 --------- borrow later used here
+
+error[E0597]: `scratch` does not live long enough
+   --> src/main.rs:596:30
+    |
+585 |             let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    |                 ----------- binding `scratch` declared here
+...
+591 |                 || {
+    |                 -- value captured here
+...
+596 |                         &mut scratch,
+    |                              ^^^^^^^ borrowed value does not live long enough
+...
+600 |         }
+    |         - `scratch` dropped here while still borrowed
+601 |         add(&mut jobs, "A-scan", "serde-json-ignored", b.len(), || {
+    |             --------- borrow later used here
+
+error[E0597]: `query` does not live long enough
+   --> src/main.rs:651:22
+    |
+643 |         let query = jsonmax::query::compile_paths(&[query_path(name)])?;
+    |             ----- binding `query` declared here
+...
+649 |             || {
+    |             -- value captured here
+650 |                 Ok(jsonmax::query::execute_borrowed(
+651 |                     &query,
+    |                      ^^^^^ borrowed value does not live long enough
+...
+985 |     }
+    |     -
+    |     |
+    |     `query` dropped here while still borrowed
+    |     borrow might be used here, when `jobs` is dropped and runs the `Drop` code for type `std::vec::Vec`
+    |
+    = note: values in a scope are dropped in the opposite order they are defined
+
+error[E0597]: `scratch` does not live long enough
+   --> src/main.rs:698:30
+    |
+686 |             let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    |                 ----------- binding `scratch` declared here
+...
+692 |                 || {
+    |                 -- value captured here
+...
+698 |                         &mut scratch,
+    |                              ^^^^^^^ borrowed value does not live long enough
+...
+702 |         }
+    |         - `scratch` dropped here while still borrowed
+...
+985 |     }
+    |     - borrow might be used here, when `jobs` is dropped and runs the `Drop` code for type `std::vec::Vec`
+    |
+    = note: values in a scope are dropped in the opposite order they are defined
+
+error[E0597]: `path` does not live long enough
+   --> src/main.rs:705:26
+    |
+704 |             let path = format!("$.{}", query_path(name));
+    |                 ---- binding `path` declared here
+705 |             let paths = [path.as_bytes()];
+    |                          ^^^^ borrowed value does not live long enough
+...
+739 |         } else {
+    |         - `path` dropped here while still borrowed
+...
+746 |         add(&mut jobs, "B-dom", "jmax-dom+copy", b.len(), || {
+    |             --------- borrow later used here
+
+error[E0597]: `untrained` does not live long enough
+   --> src/main.rs:730:23
+    |
+706 |             let mut untrained = pikkr::Pikkr::new(&paths, 1000)?;
+    |                 ------------- binding `untrained` declared here
+...
+730 |                 || Ok(untrained.parse(black_box(&b))?),
+    |                 --    ^^^^^^^^^ borrowed value does not live long enough
+    |                 |
+    |                 value captured here
+...
+739 |         } else {
+    |         - `untrained` dropped here while still borrowed
+...
+746 |         add(&mut jobs, "B-dom", "jmax-dom+copy", b.len(), || {
+    |             --------- borrow later used here
+
+error[E0597]: `trained` does not live long enough
+   --> src/main.rs:737:23
+    |
+716 |             let mut trained = pikkr::Pikkr::new(&paths, 1)?;
+    |                 ----------- binding `trained` declared here
+...
+737 |                 || Ok(trained.parse(black_box(&b))?),
+    |                 --    ^^^^^^^ borrowed value does not live long enough
+    |                 |
+    |                 value captured here
+738 |             );
+739 |         } else {
+    |         - `trained` dropped here while still borrowed
+...
+746 |         add(&mut jobs, "B-dom", "jmax-dom+copy", b.len(), || {
+    |             --------- borrow later used here
+
+error[E0597]: `scratch` does not live long enough
+   --> src/main.rs:769:30
+    |
+759 |             let mut scratch = jsonmax::DomScratch::new();
+    |                 ----------- binding `scratch` declared here
+...
+765 |                 || {
+    |                 -- value captured here
+...
+769 |                         &mut scratch,
+    |                              ^^^^^^^ borrowed value does not live long enough
+...
+777 |         }
+    |         - `scratch` dropped here while still borrowed
+...
+781 |                 &mut jobs,
+    |                 --------- borrow later used here
+
+error[E0597]: `scratch` does not live long enough
+   --> src/main.rs:789:30
+    |
+779 |             let mut scratch = jsonmax::DomScratch::new();
+    |                 ----------- binding `scratch` declared here
+...
+785 |                 || {
+    |                 -- value captured here
+...
+789 |                         &mut scratch,
+    |                              ^^^^^^^ borrowed value does not live long enough
+...
+797 |         }
+    |         - `scratch` dropped here while still borrowed
+798 |         add(
+799 |             &mut jobs,
+    |             --------- borrow later used here
+
+Some errors have detailed explanations: E0423, E0597.
+For more information about an error, try `rustc --explain E0423`.
+error: could not compile `jmax-vs-parsers` (bin "jmax-vs-parsers") due to 14 previous errors
+exit=101

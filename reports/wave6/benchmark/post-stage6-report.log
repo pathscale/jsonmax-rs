@@ -1,0 +1,17 @@
+{
+  "comparisons": 1172,
+  "scan_helper_blocks": [
+    129,
+    32
+  ],
+  "scan_helper_bytes": [
+    8154,
+    1989
+  ],
+  "sparse_warm_rows_zero": 8,
+  "cli_ratios": {
+    "rusty-alloc": 1.164413545347863,
+    "system-alloc": 0.9324931981420076
+  },
+  "protected_unchanged": true
+}

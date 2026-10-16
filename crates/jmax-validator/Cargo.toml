@@ -22,3 +22,4 @@ jmax-wss = { workspace = true }
 jmax-path = { workspace = true }
 jmax-dom = { workspace = true }
 jmax-encode = { workspace = true }
+rusty_alloc = { workspace = true }

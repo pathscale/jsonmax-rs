@@ -139,3 +139,40 @@ fn reserve(
         }
     }
 }
+
+/// Lower bound on bytes pinned by this owner, including an Arc subview's full
+/// backing. Bytes exposes only its visible length, so hidden capacity is unknown.
+pub fn payload_retained_bytes(payload: &Payload) -> usize {
+    payload.backing_len_lower_bound()
+}
+
+/// Request/result owners coexist during publication. Charge shared storage once,
+/// using the larger known lower bound; distinct allocations must both be covered.
+pub fn handoff_backing_bytes(request: &Payload, result: &Payload) -> Result<usize> {
+    let input = payload_retained_bytes(request);
+    let output = payload_retained_bytes(result);
+    if request.shares_backing_with(result) {
+        Ok(input.max(output))
+    } else {
+        input.checked_add(output).ok_or_else(|| {
+            runtime_error(ErrorCode::BudgetExhausted, "handoff backing size overflow")
+        })
+    }
+}
+
+impl Admission {
+    /// Reserve a parse's full known backing plus caller-declared output storage.
+    /// Extra storage covers decoded/slot capacities and any typed allocations;
+    /// sharing the input owner with its result does not require another charge.
+    pub fn try_parse(
+        &self,
+        payload: &Payload,
+        additional_retained_bytes: usize,
+        scratch_bytes: usize,
+    ) -> Result<ScratchLease> {
+        let retained_bytes = payload_retained_bytes(payload)
+            .checked_add(additional_retained_bytes)
+            .ok_or_else(|| runtime_error(ErrorCode::BudgetExhausted, "parse reservation overflow"))?;
+        self.try_scratch(ResourceRequest { jobs: 1, retained_bytes, scratch_bytes })
+    }
+}

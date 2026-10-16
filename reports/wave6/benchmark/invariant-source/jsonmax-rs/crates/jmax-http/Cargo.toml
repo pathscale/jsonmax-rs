@@ -1,0 +1,21 @@
+[package]
+name = "jmax-http"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+nago-http-client = ["dep:nago-http"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-schema-vm = { workspace = true }
+jmax-encode = { workspace = true }
+jmax-nagoya = { workspace = true }
+bytes = { workspace = true }
+nago-http = { workspace = true, optional = true }

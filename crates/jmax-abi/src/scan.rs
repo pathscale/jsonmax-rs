@@ -29,6 +29,7 @@ pub struct ScanCarry {
 pub struct BlockMasks {
     pub quote_mask: u64,
     pub backslash_mask: u64,
+    pub delimiter_quote_mask: u64,
     pub in_string_mask: u64,
     pub colon_mask: u64,
     pub comma_mask: u64,
@@ -44,6 +45,38 @@ pub struct BlockMasks {
     pub valid_mask: u64,
     pub valid_len: u8,
     pub backend: u8,
+}
+
+impl BlockMasks {
+    /// Unescaped quote positions that act as string delimiters in this block.
+    pub const fn delimiter_quotes(&self) -> u64 {
+        if self.delimiter_quote_mask != 0 || self.quote_mask == 0 {
+            self.delimiter_quote_mask & self.valid_mask
+        } else {
+            self.quote_mask & !self.in_string_mask & self.valid_mask
+        }
+    }
+
+    /// Raw punctuation positions before string exclusion.
+    pub const fn raw_punctuation_mask(&self) -> u64 {
+        (self.colon_mask
+            | self.comma_mask
+            | self.lbrace_mask
+            | self.rbrace_mask
+            | self.lbracket_mask
+            | self.rbracket_mask)
+            & self.valid_mask
+    }
+
+    /// Unquoted opening container positions (`{` and `[`).
+    pub const fn open_container_mask(&self) -> u64 {
+        (self.lbrace_mask | self.lbracket_mask) & !self.in_string_mask & self.valid_mask
+    }
+
+    /// Unquoted closing container positions (`}` and `]`).
+    pub const fn close_container_mask(&self) -> u64 {
+        (self.rbrace_mask | self.rbracket_mask) & !self.in_string_mask & self.valid_mask
+    }
 }
 
 pub type ClassifyFn = fn(&[u8], &mut ScanCarry) -> Result<BlockMasks>;

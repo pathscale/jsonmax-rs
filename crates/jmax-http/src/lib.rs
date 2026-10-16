@@ -16,6 +16,7 @@ pub mod client;
 pub mod incoming;
 pub mod outgoing;
 pub mod hosted;
+pub mod body;
 
 pub const CONTRACT_VERSION: u16 = 1;
 pub const JSON_MEDIA_TYPE: &str = "application/json";
@@ -213,7 +214,7 @@ pub fn validate_body(
     }
     let original = payload.clone();
     let slots = validator.validate(payload, schema_fingerprint, syntax)?;
-    check_proof(&slots, schema_fingerprint, original.as_slice())?;
+    check_proof(&slots, schema_fingerprint, &original)?;
     if slots.decoded.len() > syntax.max_decoded_bytes as usize {
         return Err(http_error(ErrorCode::DecodedArenaOverflow, "validator exceeded decoded arena limit"));
     }
@@ -253,11 +254,14 @@ impl ByteSink for BodySink {
 
 /// Common ownership/proof check after a validator returns. This does not issue
 /// a proof; correctness of schema validation remains the validator's contract.
-pub(crate) fn check_proof(slots: &ValidatedSlots, fingerprint: u64, original: &[u8]) -> Result<()> {
+pub(crate) fn check_proof(slots: &ValidatedSlots, fingerprint: u64, original: &Payload) -> Result<()> {
     if slots.proof.schema_fingerprint() != fingerprint {
         return Err(http_error(ErrorCode::SchemaImageInvalid, "response schema fingerprint mismatch"));
     }
-    if slots.payload.as_slice() != original
+    let same_owner = slots.payload.shares_backing_with(original)
+        && slots.payload.as_slice().as_ptr() == original.as_slice().as_ptr()
+        && slots.payload.len() == original.len();
+    if (!same_owner && slots.payload.as_slice() != original.as_slice())
         || slots.payload.len() != slots.proof.payload_len() as usize
         || slots.decoded.len() != slots.proof.decoded_len() as usize
     {

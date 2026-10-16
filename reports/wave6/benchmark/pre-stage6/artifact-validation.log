@@ -1,0 +1,52 @@
+{
+  "pass": true,
+  "runs": [
+    {
+      "allocator": "rusty-alloc",
+      "run": 1,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    },
+    {
+      "allocator": "rusty-alloc",
+      "run": 2,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    },
+    {
+      "allocator": "rusty-alloc",
+      "run": 3,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    },
+    {
+      "allocator": "system-alloc",
+      "run": 1,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    },
+    {
+      "allocator": "system-alloc",
+      "run": 2,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    },
+    {
+      "allocator": "system-alloc",
+      "run": 3,
+      "canonical_pass_samples": 1120,
+      "external_rows": 259,
+      "external_batch_samples": 15799
+    }
+  ],
+  "supplement_operation_rows": 654,
+  "supplement_pass_samples": 13080,
+  "canonical_pass_samples": 6720,
+  "external_batch_samples": 94794,
+  "successful_commands": 26
+}

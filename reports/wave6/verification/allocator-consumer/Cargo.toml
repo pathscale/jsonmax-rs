@@ -1,0 +1,10 @@
+[package]
+name = "wave6-allocator-consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+jsonmax = { path = "../../../../crates/jsonmax", features = ["rusty-alloc"] }

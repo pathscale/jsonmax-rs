@@ -25,7 +25,7 @@ pub fn classify_structural(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
     if is_supported() {
         // SAFETY: the root detector establishes AVX2 CPU and OS support, or
         // statically enabled AVX2 without std. The reference covers all 64 bytes.
-        return unsafe { classify_avx2(input) };
+        return unsafe { classify_avx2(input) }.classes;
     }
 
     classify_scalar(input)
@@ -63,31 +63,36 @@ fn classify_scalar(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
 /// The caller must establish AVX2 CPU and OS support.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn classify_avx2(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
+pub(crate) unsafe fn classify_avx2(input: &[u8; BLOCK_BYTES]) -> RawMasks {
     // SAFETY: the array is readable for exactly BLOCK_BYTES bytes. Each loadu
     // reads 32 bytes, at offsets zero and 32, without alignment requirements.
     // Both lane helpers inherit this function's AVX2 precondition.
     let (low, high) = unsafe {
         let low = arch::_mm256_loadu_si256(input.as_ptr().cast::<arch::__m256i>());
-        let high = arch::_mm256_loadu_si256(
-            input.as_ptr().add(LANE_BYTES).cast::<arch::__m256i>(),
-        );
+        let high = arch::_mm256_loadu_si256(input.as_ptr().add(LANE_BYTES).cast::<arch::__m256i>());
         (classify_lane(low), classify_lane(high))
     };
 
     // Each lane mask is already zero-extended from u32. Only the second lane
     // can contribute bits 32..63, including when the first lane's bit 31 is set.
-    StructuralMasks {
-        colon_mask: low.colon_mask | (high.colon_mask << LANE_BYTES),
-        comma_mask: low.comma_mask | (high.comma_mask << LANE_BYTES),
-        lbrace_mask: low.lbrace_mask | (high.lbrace_mask << LANE_BYTES),
-        rbrace_mask: low.rbrace_mask | (high.rbrace_mask << LANE_BYTES),
-        lbracket_mask: low.lbracket_mask | (high.lbracket_mask << LANE_BYTES),
-        rbracket_mask: low.rbracket_mask | (high.rbracket_mask << LANE_BYTES),
-        whitespace_mask: low.whitespace_mask | (high.whitespace_mask << LANE_BYTES),
-        control_mask: low.control_mask | (high.control_mask << LANE_BYTES),
-        digit_mask: low.digit_mask | (high.digit_mask << LANE_BYTES),
-        non_ascii_mask: low.non_ascii_mask | (high.non_ascii_mask << LANE_BYTES),
+    RawMasks {
+        quote_mask: low.quote_mask | (high.quote_mask << LANE_BYTES),
+        backslash_mask: low.backslash_mask | (high.backslash_mask << LANE_BYTES),
+        backend: BackendId::Avx2,
+        classes: StructuralMasks {
+            colon_mask: low.classes.colon_mask | (high.classes.colon_mask << LANE_BYTES),
+            comma_mask: low.classes.comma_mask | (high.classes.comma_mask << LANE_BYTES),
+            lbrace_mask: low.classes.lbrace_mask | (high.classes.lbrace_mask << LANE_BYTES),
+            rbrace_mask: low.classes.rbrace_mask | (high.classes.rbrace_mask << LANE_BYTES),
+            lbracket_mask: low.classes.lbracket_mask | (high.classes.lbracket_mask << LANE_BYTES),
+            rbracket_mask: low.classes.rbracket_mask | (high.classes.rbracket_mask << LANE_BYTES),
+            whitespace_mask: low.classes.whitespace_mask
+                | (high.classes.whitespace_mask << LANE_BYTES),
+            control_mask: low.classes.control_mask | (high.classes.control_mask << LANE_BYTES),
+            digit_mask: low.classes.digit_mask | (high.classes.digit_mask << LANE_BYTES),
+            non_ascii_mask: low.classes.non_ascii_mask
+                | (high.classes.non_ascii_mask << LANE_BYTES),
+        },
     }
 }
 
@@ -95,7 +100,7 @@ unsafe fn classify_avx2(input: &[u8; BLOCK_BYTES]) -> StructuralMasks {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
 #[inline]
-unsafe fn classify_lane(bytes: arch::__m256i) -> StructuralMasks {
+unsafe fn classify_lane(bytes: arch::__m256i) -> RawMasks {
     // SAFETY: all intrinsics require only AVX2, established by the caller.
     // This helper operates solely on values and performs no memory access.
     unsafe {
@@ -124,30 +129,47 @@ unsafe fn classify_lane(bytes: arch::__m256i) -> StructuralMasks {
 
         // Movemask returns i32: every conversion must pass through u32 to
         // prevent a matching byte 31 from sign-extending into the high lane.
-        StructuralMasks {
-            colon_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b':' as i8),
+        RawMasks {
+            quote_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                bytes,
+                arch::_mm256_set1_epi8(b'"' as i8),
             )) as u32 as u64,
-            comma_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b',' as i8),
+            backslash_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                bytes,
+                arch::_mm256_set1_epi8(b'\\' as i8),
             )) as u32 as u64,
-            lbrace_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b'{' as i8),
-            )) as u32 as u64,
-            rbrace_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b'}' as i8),
-            )) as u32 as u64,
-            lbracket_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b'[' as i8),
-            )) as u32 as u64,
-            rbracket_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
-                bytes, arch::_mm256_set1_epi8(b']' as i8),
-            )) as u32 as u64,
-            whitespace_mask: arch::_mm256_movemask_epi8(whitespace) as u32 as u64,
-            control_mask: arch::_mm256_movemask_epi8(control) as u32 as u64,
-            digit_mask: arch::_mm256_movemask_epi8(digit) as u32 as u64,
-            // The input sign bits are exactly the unsigned >= 0x80 predicate.
-            non_ascii_mask: arch::_mm256_movemask_epi8(bytes) as u32 as u64,
+            backend: BackendId::Avx2,
+            classes: StructuralMasks {
+                colon_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b':' as i8),
+                )) as u32 as u64,
+                comma_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b',' as i8),
+                )) as u32 as u64,
+                lbrace_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b'{' as i8),
+                )) as u32 as u64,
+                rbrace_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b'}' as i8),
+                )) as u32 as u64,
+                lbracket_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b'[' as i8),
+                )) as u32 as u64,
+                rbracket_mask: arch::_mm256_movemask_epi8(arch::_mm256_cmpeq_epi8(
+                    bytes,
+                    arch::_mm256_set1_epi8(b']' as i8),
+                )) as u32 as u64,
+                whitespace_mask: arch::_mm256_movemask_epi8(whitespace) as u32 as u64,
+                control_mask: arch::_mm256_movemask_epi8(control) as u32 as u64,
+                digit_mask: arch::_mm256_movemask_epi8(digit) as u32 as u64,
+                // The input sign bits are exactly the unsigned >= 0x80 predicate.
+                non_ascii_mask: arch::_mm256_movemask_epi8(bytes) as u32 as u64,
+            },
         }
     }
 }

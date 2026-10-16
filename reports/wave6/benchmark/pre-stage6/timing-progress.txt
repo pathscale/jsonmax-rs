@@ -1,0 +1,15 @@
+2026-10-16T02:18:58.892369+07:00 jmax-bench-rusty-alloc-r1
+2026-10-16T02:19:08.033038+07:00 jmax-bench-rusty-alloc-r2
+2026-10-16T02:19:16.154953+07:00 jmax-bench-rusty-alloc-r3
+2026-10-16T02:19:26.296798+07:00 jmax-supplement-rusty-alloc
+2026-10-16T02:20:18.776882+07:00 jmax-bench-system-alloc-r1
+2026-10-16T02:20:25.945470+07:00 jmax-bench-system-alloc-r2
+2026-10-16T02:20:34.128257+07:00 jmax-bench-system-alloc-r3
+2026-10-16T02:20:43.272268+07:00 jmax-supplement-system-alloc
+2026-10-16T02:21:52.905922+07:00 jmax-vs-parsers-rusty-alloc-r1
+2026-10-16T02:23:01.663829+07:00 jmax-vs-parsers-rusty-alloc-r2
+2026-10-16T02:24:29.385751+07:00 jmax-vs-parsers-rusty-alloc-r3
+2026-10-16T02:25:51.060469+07:00 jmax-vs-parsers-system-alloc-r1
+2026-10-16T02:27:22.845057+07:00 jmax-vs-parsers-system-alloc-r2
+2026-10-16T02:29:38.944050+07:00 jmax-vs-parsers-system-alloc-r3
+ALL SEQUENTIAL TIMINGS COMPLETE

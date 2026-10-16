@@ -1,0 +1,131 @@
+ M Cargo.lock
+ M Cargo.toml
+ M crates/jmax-abi/src/buffer.rs
+ M crates/jmax-abi/src/lib.rs
+ M crates/jmax-abi/src/node.rs
+ M crates/jmax-abi/src/scan.rs
+ M crates/jmax-abi/src/syntax.rs
+ M crates/jmax-bench/Cargo.toml
+ M crates/jmax-bench/src/bin/jmax_bench.rs
+ M crates/jmax-bench/src/corpus.rs
+ M crates/jmax-bench/src/lib.rs
+ M crates/jmax-bench/src/parse.rs
+ M crates/jmax-bench/src/serialize.rs
+ M crates/jmax-bench/src/service.rs
+ M crates/jmax-buffer/src/payload.rs
+ M crates/jmax-buffer/src/retention.rs
+ M crates/jmax-cursor/src/lib.rs
+ M crates/jmax-cursor/src/resume.rs
+ M crates/jmax-cursor/src/select.rs
+ M crates/jmax-cursor/src/skip.rs
+ M crates/jmax-cursor/src/walk.rs
+ M crates/jmax-dispatch/src/detect.rs
+ M crates/jmax-dispatch/src/lib.rs
+ M crates/jmax-dispatch/src/portable.rs
+ M crates/jmax-dom/Cargo.toml
+ M crates/jmax-dom/src/build.rs
+ M crates/jmax-dom/src/lib.rs
+ M crates/jmax-dom/src/navigate.rs
+ M crates/jmax-dom/src/rebuild.rs
+ M crates/jmax-dom/src/scalar.rs
+ M crates/jmax-encode/Cargo.toml
+ M crates/jmax-encode/src/lib.rs
+ M crates/jmax-encode/src/sink.rs
+ M crates/jmax-encode/src/typed.rs
+ M crates/jmax-encode/src/writer.rs
+ M crates/jmax-fuzz/src/ownership.rs
+ M crates/jmax-gen-cli/Cargo.toml
+ M crates/jmax-gen-cli/src/main.rs
+ M crates/jmax-http/src/client.rs
+ M crates/jmax-http/src/hosted.rs
+ M crates/jmax-http/src/lib.rs
+ M crates/jmax-nagoya/src/admission.rs
+ M crates/jmax-nagoya/src/lib.rs
+ M crates/jmax-nagoya/src/submit.rs
+ M crates/jmax-runner/Cargo.toml
+ M crates/jmax-runner/src/main.rs
+ M crates/jmax-scan-avx2/src/classify.rs
+ M crates/jmax-scan-avx2/src/lib.rs
+ M crates/jmax-scan-avx2/src/quotes.rs
+ M crates/jmax-scan-avx2/src/structural.rs
+ M crates/jmax-scan-avx512/src/classify.rs
+ M crates/jmax-scan-avx512/src/lib.rs
+ M crates/jmax-scan-avx512/src/quotes.rs
+ M crates/jmax-scan-avx512/src/structural.rs
+ M crates/jmax-scan-neon/src/classify.rs
+ M crates/jmax-scan-neon/src/lib.rs
+ M crates/jmax-scan-neon/src/quotes.rs
+ M crates/jmax-scan-neon/src/structural.rs
+ M crates/jmax-scan-scalar/src/classify.rs
+ M crates/jmax-scan-scalar/src/lib.rs
+ M crates/jmax-scan-scalar/src/quotes.rs
+ M crates/jmax-schema-aot/Cargo.toml
+ M crates/jmax-schema-aot/src/decode.rs
+ M crates/jmax-schema-aot/src/lib.rs
+ M crates/jmax-schema-compile/src/image.rs
+ M crates/jmax-schema-compile/src/keys.rs
+ M crates/jmax-schema-compile/src/lib.rs
+ M crates/jmax-schema-compile/src/patterns.rs
+ M crates/jmax-schema-vm/Cargo.toml
+ M crates/jmax-schema-vm/src/constraints.rs
+ M crates/jmax-schema-vm/src/execute.rs
+ M crates/jmax-schema-vm/src/lib.rs
+ M crates/jmax-schema-vm/src/objects.rs
+ M crates/jmax-string/Cargo.toml
+ M crates/jmax-string/src/escape.rs
+ M crates/jmax-string/src/length.rs
+ M crates/jmax-string/src/lib.rs
+ M crates/jmax-string/src/scan.rs
+ M crates/jmax-string/src/unescape.rs
+ M crates/jmax-syntax/src/feed.rs
+ M crates/jmax-syntax/src/finish.rs
+ M crates/jmax-syntax/src/frames.rs
+ M crates/jmax-syntax/src/lib.rs
+ M crates/jmax-utf8/Cargo.toml
+ M crates/jmax-utf8/src/lib.rs
+ M crates/jmax-utf8/src/proof.rs
+ M crates/jmax-utf8/src/stream.rs
+ M crates/jmax-utf8/src/validate.rs
+ M crates/jmax-validator/Cargo.toml
+ M crates/jmax-validator/src/main.rs
+ M crates/jmax-wss/Cargo.toml
+ M crates/jmax-wss/src/bridge.rs
+ M crates/jmax-wss/src/lib.rs
+ M crates/jmax-wss/src/policy.rs
+ M crates/jmax-wss/src/receive.rs
+ M crates/jmax-wss/src/send.rs
+ M crates/jsonmax/Cargo.toml
+ M crates/jsonmax/src/encode.rs
+ M crates/jsonmax/src/endpoint.rs
+ M crates/jsonmax/src/lib.rs
+ M crates/jsonmax/src/parse.rs
+ M crates/jsonmax/src/query.rs
+?? crates/jmax-cursor/tests/
+?? crates/jmax-dispatch/tests/
+?? crates/jmax-dom/src/legacy.rs
+?? crates/jmax-dom/tests/
+?? crates/jmax-encode/tests/
+?? crates/jmax-http/src/body.rs
+?? crates/jmax-http/tests/
+?? crates/jmax-nagoya/src/reactive.rs
+?? crates/jmax-nagoya/src/worker.rs
+?? crates/jmax-nagoya/tests/
+?? crates/jmax-scan-avx2/tests/
+?? crates/jmax-scan-avx512/tests/
+?? crates/jmax-scan-neon/tests/
+?? crates/jmax-scan-scalar/tests/
+?? crates/jmax-schema-aot/tests/
+?? crates/jmax-schema-compile/tests/
+?? crates/jmax-schema-vm/src/direct.rs
+?? crates/jmax-schema-vm/tests/
+?? crates/jmax-string/src/masks.rs
+?? crates/jmax-string/tests/
+?? crates/jmax-syntax/src/block_cursor.rs
+?? crates/jmax-syntax/tests/
+?? crates/jmax-utf8/src/count.rs
+?? crates/jmax-utf8/tests/
+?? crates/jmax-wss/tests/
+?? crates/jsonmax/tests/
+?? reports/investigation-2026-10-16/
+?? reports/wave6/
+?? target/

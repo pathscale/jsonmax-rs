@@ -1,0 +1,38 @@
+[package]
+name = "jsonmax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc", "jmax-dom/alloc", "jmax-syntax/alloc", "jmax-cursor/alloc", "jmax-encode/alloc", "jmax-schema-vm/alloc", "jmax-schema-aot/alloc"]
+std = ["alloc", "jmax-abi/std", "jmax-dispatch/std", "jmax-dom/std", "jmax-syntax/std", "jmax-cursor/std", "jmax-encode/std", "jmax-schema-vm/std", "jmax-schema-aot/std"]
+rusty-alloc = ["std", "dep:rusty_alloc"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-error = { workspace = true }
+jmax-dispatch = { workspace = true }
+jmax-cursor = { workspace = true }
+jmax-syntax = { workspace = true }
+jmax-path = { workspace = true }
+jmax-dom = { workspace = true }
+jmax-schema-ir = { workspace = true }
+jmax-number = { workspace = true }
+jmax-schema-compile = { workspace = true }
+jmax-schema-vm = { workspace = true }
+jmax-schema-aot = { workspace = true, default-features = false }
+jmax-encode = { workspace = true }
+jmax-derive = { workspace = true }
+jmax-exchange = { workspace = true }
+jmax-endpoint-model = { workspace = true }
+jmax-wire = { workspace = true }
+jmax-mcp = { workspace = true }
+jmax-nagoya = { workspace = true }
+jmax-http = { workspace = true }
+jmax-wss = { workspace = true }
+bytes = { workspace = true }
+rusty_alloc = { workspace = true, optional = true }

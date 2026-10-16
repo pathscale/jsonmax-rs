@@ -1,0 +1,78 @@
+[package]
+name = "nago-wss"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+description = "RFC 6455 WebSockets without tokio: a sans-io protocol core plus its own reactor"
+repository = "https://github.com/pathscale/nago-wss"
+keywords = ["websocket", "no-std", "sans-io", "rfc6455", "async"]
+categories = ["network-programming", "web-programming::websocket", "no-std"]
+
+[features]
+# The protocol core alone. No I/O, no allocator beyond `alloc`, no platform.
+default = ["std", "reactor", "tls"]
+std = []
+# The readiness reactor: kqueue/epoll, sockets, and the futures over them.
+# Needs `std` for `io::Error` and owned descriptors.
+reactor = ["std", "dep:libc", "dep:nagoya"]
+# wss:// rather than ws://. Pulls in rustls, which is sans-io, so this is glue
+# rather than a second I/O stack.
+tls = ["reactor", "dep:nago-rustls"]
+
+[dependencies]
+# Payload ownership. `Bytes` is what endpoint-libs' WireMessage already carries,
+# so a frame payload crosses the seam without a copy or a reallocation.
+bytes = { version = "1.7", default-features = false }
+
+# The platform, for the reactor only. A crate wrapping libc is still a crate
+# that links no Rust std of its own; the ban is on std, and the platform already
+# provides libc. Same version the house uses in ekostd.
+libc = { version = "^0.2.189", default-features = false, optional = true }
+# TLS, as its own crate. The loop that drives rustls turned out to have
+# nothing to do with WebSockets, so it lives in nago-rustls and this crate is
+# one of its consumers rather than its owner.
+nago-rustls = { version = "0.1", path = "../nago-rustls", optional = true }
+
+# The scheduler, sync and time this crate does not implement. Nagoya ships no
+# I/O driver on purpose, which is why the reactor below is ours and not its.
+nagoya = { path = "../nagoya", optional = true }
+
+[dev-dependencies]
+# Test certificates, generated in process. Same version endpoint-libs uses.
+rcgen = "0.14"
+# The comparison arm, and the only reason these are here. Same version
+# endpoint-libs pins, so the number reflects what the fleet actually runs.
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["connect", "handshake"] }
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+# The third arm: advertises itself as an ultra low latency WebSocket for HFT,
+# and gets there with SIMD masking and a good deal of unsafe. Worth measuring
+# against precisely because it sits at the other end of that trade from this
+# crate, which forbids unsafe in the protocol core.
+sockudo-ws = "2.0.1"
+
+[[bench]]
+name = "echo"
+harness = false
+
+[[bench]]
+name = "floor"
+harness = false
+
+[[bench]]
+name = "concurrent"
+harness = false
+
+[[bench]]
+name = "scale"
+harness = false
+
+[[bench]]
+name = "micro"
+harness = false
+
+# A diagnostic rather than a benchmark: it attributes the floor to its layers.
+[[example]]
+name = "floor_probe"
+required-features = ["reactor"]
