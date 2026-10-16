@@ -41,7 +41,7 @@ pub fn generate(options: &Options) -> CliResult<GenerationPlan> {
 
     for format in &options.formats {
         match format {
-            OutputFormat::Rust => append_rust(&mut plan, &model, options.legacy)?,
+            OutputFormat::Rust => append_rust(&mut plan, &model, options.legacy, options.native.as_deref())?,
             OutputFormat::Services => append_services(&mut plan, &model)?,
             OutputFormat::JsonSchema => append_json_schema(&mut plan, &model, &registry)?,
             OutputFormat::OpenApi => append_openapi(&mut plan, &model, &registry)?,
@@ -119,14 +119,39 @@ pub fn write_plan(output: &Path, plan: &GenerationPlan) -> CliResult<()> {
     Ok(())
 }
 
-fn append_rust(plan: &mut GenerationPlan, model: &jmax_endpoint_ron::EndpointModel, legacy: bool) -> CliResult<()> {
+fn append_rust(
+    plan: &mut GenerationPlan,
+    model: &jmax_endpoint_ron::EndpointModel,
+    legacy: bool,
+    native: Option<&Path>,
+) -> CliResult<()> {
     let mut options = jmax_codegen_rust::CodegenOptions::default();
     options.module_name = String::from("rust");
     if legacy {
         options.compatibility.mode = jmax_codegen_rust::CompatibilityMode::LegacyV1;
         options.compatibility.emit_definition_variants = true;
     }
-    let generation = jmax_codegen_rust::generate(model, &options)?;
+    let generation = match native {
+        None => jmax_codegen_rust::generate(model, &options)?,
+        Some(path) => {
+            // Native models nest arrays and structs, which the flat schema
+            // tables and decoders cannot describe, so the tables are off.
+            options.emit_schema_tables = false;
+            let bytes = read_bounded(path, MAX_INPUT_BYTES, "read native specification")?;
+            let text = std::str::from_utf8(&bytes).map_err(|_| io_error(
+                "decode native specification", path,
+                io::Error::new(io::ErrorKind::InvalidData, "native specification is not UTF-8"),
+            ))?;
+            let limits = ConfigLimits {
+                max_input_bytes: u32::try_from(MAX_INPUT_BYTES).unwrap_or(u32::MAX),
+                ..ConfigLimits::default()
+            };
+            let spec = jmax_endpoint_ron::load_native_spec(text, &limits)?;
+            jmax_codegen_rust::generate_with_native(
+                model, &spec, &options, &jmax_codegen_rust::NativeOptions::default(),
+            )?
+        }
+    };
     let mut found = [false; 4];
     for artifact in generation.into_artifacts() {
         let relative = artifact.path.strip_prefix("rust/").unwrap_or(&artifact.path);
@@ -135,6 +160,7 @@ fn append_rust(plan: &mut GenerationPlan, model: &jmax_endpoint_ron::EndpointMod
             "endpoints.rs" => { found[1] = true; Some(("rust/endpoints.rs", OutputFormat::Rust)) }
             "registries.rs" => { found[2] = true; Some(("rust/registries.rs", OutputFormat::Rust)) }
             "schema_tables.rs" => { found[3] = true; Some(("rust/schema_tables.rs", OutputFormat::Rust)) }
+            "native.rs" => Some(("rust/native.rs", OutputFormat::Rust)),
             _ => None,
         };
         if let Some((path, format)) = format {
@@ -143,6 +169,9 @@ fn append_rust(plan: &mut GenerationPlan, model: &jmax_endpoint_ron::EndpointMod
     }
     if found.iter().any(|present| !present) {
         return Err(generator_contract_error("Rust generator omitted a required artifact"));
+    }
+    if native.is_some() && !plan.artifacts.iter().any(|artifact| artifact.path == Path::new("rust/native.rs")) {
+        return Err(generator_contract_error("Rust generator omitted the native artifact"));
     }
     Ok(())
 }

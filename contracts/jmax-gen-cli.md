@@ -18,7 +18,7 @@ where I: IntoIterator<Item = OsString>;
 pub fn parse_format(value: &str) -> CliResult<Vec<OutputFormat>>;
 ```
 
-Native options exactly match HELP: --input/-i PATH, --output/-o DIR, repeatable --format/-f NAME, --check, --legacy, --help/-h, --version/-V. Also accept --input=PATH, --output=DIR, and --format=NAME. Paths retain OsString encoding; option names and format names require UTF-8. With no format option, select all six formats. Values are rust, services, json-schema, openapi, asyncapi, markdown, and all; all expands to all six. Repeated format selections are deduplicated and sorted by OutputFormat's declaration order, independent of command-line order. Formats must not be empty. parse_format returns the same canonical order, with a single format or all, and rejects comma lists or unknown names with Usage.
+Native options exactly match HELP: --input/-i PATH, --output/-o DIR, repeatable --format/-f NAME, --native PATH, --check, --legacy, --help/-h, --version/-V. Also accept --input=PATH, --output=DIR, and --format=NAME. Paths retain OsString encoding; option names and format names require UTF-8. With no format option, select all six formats. Values are rust, services, json-schema, openapi, asyncapi, markdown, and all; all expands to all six. Repeated format selections are deduplicated and sorted by OutputFormat's declaration order, independent of command-line order. Formats must not be empty. parse_format returns the same canonical order, with a single format or all, and rejects comma lists or unknown names with Usage.
 
 Freeze version-1 legacy aliases: --input-dir is --input, --output-dir is --output, --rust is --format rust, --docs is --format markdown, --spec is --format services. Any legacy alias sets Options.legacy=true and may be combined with native aliases subject to the same singleton duplicate rules. A legacy directory input resolves its entrypoint as `services.ron`; an explicit file remains a file. No other guessed alias is accepted. --legacy enables existing legacy generator conventions and artifact content, not a schema validation bypass.
 
@@ -96,7 +96,7 @@ pub const EXIT_FAILURE: u8 = 1;
 pub const EXIT_USAGE: u8 = 2;
 pub const EXIT_DRIFT: u8 = 3;
 pub const MAX_INPUT_BYTES: u64 = 64 * 1024 * 1024;
-pub const HELP: &str = "jsonmax-gen --input PATH --output DIR [--format rust|services|json-schema|openapi|asyncapi|markdown|all] [--check] [--legacy]\n\n--input, -i       Endpoint RON input\n--output, -o      Artifact directory\n--format, -f      Repeatable output selection (default: all)\n--check          Compare without creating or changing files\n--legacy         Enable version-1 legacy generation conventions\n--help, -h       Show help\n--version, -V    Show version\n";
+pub const HELP: &str = "jsonmax-gen --input PATH --output DIR [--format rust|services|json-schema|openapi|asyncapi|markdown|all] [--native PATH] [--check] [--legacy]\n\n--input, -i       Endpoint RON input\n--output, -o      Artifact directory\n--format, -f      Repeatable output selection (default: all)\n--native         Native decoder specification; adds rust/native.rs\n--check          Compare without creating or changing files\n--legacy         Enable version-1 legacy generation conventions\n--help, -h       Show help\n--version, -V    Show version\n";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputFormat { Rust, Services, JsonSchema, OpenApi, AsyncApi, Markdown }
@@ -111,6 +111,8 @@ pub struct Options {
     pub formats: Vec<OutputFormat>,
     pub mode: RunMode,
     pub legacy: bool,
+    /// Native decoder specification (native.ron); needs the Rust format.
+    pub native: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -286,3 +288,5 @@ model, validates it against the model's registry, and calls codegen-rust generat
 adding `rust/native.rs` to the Rust artifact paths. The manifest lists it with the Rust format,
 and check mode reports drift for it like any artifact. Without `--native` nothing changes:
 the four Rust artifacts and every other format are byte-identical to before.
+
+With `--native` the Rust artifacts are generated with `emit_schema_tables` off, because the flat schema tables cannot describe the nested native models; `rust/schema_tables.rs` is still emitted (without tables). Options.native is None for every other caller and changes nothing for them.

@@ -34,6 +34,7 @@ where
     let mut saw_format = false;
     let mut check = false;
     let mut legacy = false;
+    let mut native: Option<PathBuf> = None;
 
     while let Some(argument) = args.next() {
         let Some(argument_text) = argument.to_str() else {
@@ -82,6 +83,7 @@ where
             "--input" | "-i" => (OptionKind::Input, false),
             "--output" | "-o" => (OptionKind::Output, false),
             "--format" | "-f" => (OptionKind::Format, false),
+            "--native" => (OptionKind::Native, false),
             "--input-dir" => (OptionKind::Input, true),
             "--output-dir" => (OptionKind::Output, true),
             _ => return Err(usage(format!("unknown option: {argument_text}"))),
@@ -123,6 +125,12 @@ where
                 }
                 output = Some(PathBuf::from(value));
             }
+            OptionKind::Native => {
+                if native.is_some() {
+                    return Err(usage("native specification specified more than once"));
+                }
+                native = Some(PathBuf::from(value));
+            }
             OptionKind::Format => {
                 let Some(text) = value.to_str() else {
                     return Err(usage("format names must be valid UTF-8"));
@@ -152,6 +160,14 @@ where
     if formats.is_empty() {
         return Err(usage("at least one output format is required"));
     }
+    if native.is_some() {
+        if !formats.contains(&OutputFormat::Rust) {
+            return Err(usage("--native needs the rust format"));
+        }
+        if legacy {
+            return Err(usage("--native cannot be combined with legacy options"));
+        }
+    }
 
     Ok(Command::Generate(Options {
         input,
@@ -159,6 +175,7 @@ where
         formats,
         mode: if check { RunMode::Check } else { RunMode::Write },
         legacy,
+        native,
     }))
 }
 
@@ -167,6 +184,7 @@ enum OptionKind {
     Input,
     Output,
     Format,
+    Native,
 }
 
 fn all_formats() -> Vec<OutputFormat> {
@@ -215,6 +233,7 @@ fn is_recognized_flag(value: &OsStr) -> bool {
             | "-o"
             | "--format"
             | "-f"
+            | "--native"
             | "--check"
             | "--legacy"
             | "--help"
