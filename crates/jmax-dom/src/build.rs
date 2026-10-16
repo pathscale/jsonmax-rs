@@ -323,7 +323,11 @@ fn build_inner(
                 close(&mut cursor, scratch)?;
                 continue;
             }
-            cursor.expect_byte(b',', "expected comma or closing container delimiter")?;
+            if byte == b',' {
+                cursor.advance(1);
+            } else {
+                cursor.expect_byte(b',', "expected comma or closing container delimiter")?;
+            }
             if let Some(top) = scratch.stack.last_mut() {
                 top.phase = Phase::Next;
             }
@@ -343,26 +347,37 @@ fn build_inner(
                     "expected an object member key",
                 ));
             }
-            let meta = cursor.scan_key_meta(&mut scratch.decoded, limits.reject_duplicate_keys)?;
-            let key_index = tape_index(scratch.tape.len(), meta.string.raw_token.offset)?;
-            append_string(&mut scratch.tape, TAPE_TAG_KEY, meta.string, 0, NO_NODE)?;
+            let string = cursor.scan_string_meta(&mut scratch.decoded)?;
+            let key_index = tape_index(scratch.tape.len(), string.raw_token.offset)?;
+            append_string(&mut scratch.tape, TAPE_TAG_KEY, string, 0, NO_NODE)?;
             if limits.reject_duplicate_keys {
                 let depth = scratch.stack.len() - 1;
+                // The hash only places keys in this builder's private table;
+                // matches are always confirmed on the cooked bytes.
+                let hash = key_hash(string_bytes(
+                    raw,
+                    &scratch.decoded,
+                    string.cooked.span,
+                    string.cooked.source,
+                ));
                 check_duplicate(
                     scratch,
                     raw,
                     depth,
-                    meta.cooked_hash,
-                    meta.string.cooked,
-                    meta.string.raw_token.offset,
+                    hash,
+                    string.cooked,
+                    string.raw_token.offset,
                 )?;
             }
             key_flags = TAPE_FLAG_HAS_KEY;
             if scratch.tape[key_index as usize].has_flag(TAPE_FLAG_EXTENDED) {
                 key_flags |= TAPE_FLAG_KEY_EXTENDED;
             }
-            cursor.skip_whitespace()?;
-            cursor.expect_byte(b':', "expected colon after object member key")?;
+            if cursor.skip_whitespace()? == Some(b':') {
+                cursor.advance(1);
+            } else {
+                cursor.expect_byte(b':', "expected colon after object member key")?;
+            }
         } else {
             check_count(frame, limits, cursor.offset())?;
         }
@@ -498,10 +513,12 @@ fn close(cursor: &mut BlockCursor<'_>, scratch: &mut DomScratch) -> Result<()> {
             "DOM close has no open container",
         )
     })?;
-    cursor.expect_byte(
-        if frame.tag == TAG_OBJECT { b'}' } else { b']' },
-        "mismatched JSON container delimiter",
-    )?;
+    let closing = if frame.tag == TAG_OBJECT { b'}' } else { b']' };
+    if cursor.peek_byte() == Some(closing) {
+        cursor.advance(1);
+    } else {
+        cursor.expect_byte(closing, "mismatched JSON container delimiter")?;
+    }
     let end = tape_index(scratch.tape.len(), cursor.offset())?;
     let index = frame.node as usize;
     let parent = scratch.tape[index + 1].low32();
@@ -724,6 +741,32 @@ fn string_bytes<'a>(
     };
     let start = span.offset as usize;
     &bytes[start..start + span.len as usize]
+}
+
+/// Placement hash for the builder's private duplicate-key tables. Matches are
+/// always confirmed on the cooked bytes, so this affects probe length only.
+/// Word-at-a-time instead of FNV-1a's dependent multiply per byte.
+#[inline(always)]
+fn key_hash(bytes: &[u8]) -> u64 {
+    const K: u64 = 0x9e37_79b9_7f4a_7c15;
+    let mut hash = (bytes.len() as u64).wrapping_mul(K);
+    let mut chunks = bytes.chunks_exact(8);
+    for chunk in &mut chunks {
+        let mut word = [0u8; 8];
+        word.copy_from_slice(chunk);
+        hash = (hash ^ u64::from_le_bytes(word)).wrapping_mul(K);
+        hash ^= hash >> 32;
+    }
+    let rest = chunks.remainder();
+    if !rest.is_empty() {
+        let mut word = 0u64;
+        for (index, &byte) in rest.iter().enumerate() {
+            word |= u64::from(byte) << (8 * index);
+        }
+        hash = (hash ^ word).wrapping_mul(K);
+        hash ^= hash >> 32;
+    }
+    hash
 }
 
 #[cfg(test)]
