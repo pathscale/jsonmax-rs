@@ -209,3 +209,7 @@ crates/jsonmax/src/parse.rs	W1	W1-39	gpt-6-luna	jsonmax	native facade/owned pars
 crates/jsonmax/src/query.rs	W2	W2-39	gpt-6-luna	jsonmax	strict/query facade separation
 crates/jsonmax/src/encode.rs	W3	W3-39	gpt-6-luna	jsonmax	typed output facade
 crates/jsonmax/src/endpoint.rs	W4	W4-39	gpt-6-luna	jsonmax	schema/endpoint facade
+crates/jmax-native/src/lib.rs	W7	W7-NATIVE	jmax-native	jmax-native	frozen_root
+crates/jmax-native/src/reader.rs	W7	W7-NATIVE	jmax-native	jmax-native	token primitives
+crates/jmax-native/src/context.rs	W7	W7-NATIVE	jmax-native	jmax-native	reusable decoding state
+crates/jmax-native/src/decode.rs	W7	W7-NATIVE	jmax-native	jmax-native	decision flow

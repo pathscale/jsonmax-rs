@@ -25,6 +25,7 @@ members = [
   "crates/jmax-encode",
   "crates/jmax-derive",
   "crates/jmax-schema-aot",
+  "crates/jmax-native",
   "crates/jmax-endpoint-model",
   "crates/jmax-endpoint-ron",
   "crates/jmax-codegen-rust",
@@ -81,6 +82,7 @@ jmax-format = { path = "crates/jmax-format", version = "0.1.0", default-features
 jmax-encode = { path = "crates/jmax-encode", version = "0.1.0", default-features = false }
 jmax-derive = { path = "crates/jmax-derive", version = "0.1.0", default-features = false }
 jmax-schema-aot = { path = "crates/jmax-schema-aot", version = "0.1.0", default-features = false }
+jmax-native = { path = "crates/jmax-native", version = "0.1.0", default-features = false }
 jmax-endpoint-model = { path = "crates/jmax-endpoint-model", version = "0.1.0", default-features = false }
 jmax-endpoint-ron = { path = "crates/jmax-endpoint-ron", version = "0.1.0", default-features = false }
 jmax-codegen-rust = { path = "crates/jmax-codegen-rust", version = "0.1.0", default-features = false }

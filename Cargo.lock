@@ -601,6 +601,7 @@ dependencies = [
  "jmax-abi",
  "jmax-endpoint-model",
  "jmax-schema-compile",
+ "jmax-schema-ir",
 ]
 
 [[package]]
@@ -691,6 +692,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "jmax-native"
+version = "0.1.0"
+dependencies = [
+ "jmax-abi",
+ "jmax-decimal",
+ "jmax-endpoint-model",
+ "jmax-endpoint-ron",
+ "jmax-number",
+ "jmax-schema-aot",
+ "jmax-schema-compile",
+ "jmax-schema-ir",
+ "jmax-schema-vm",
+ "jmax-string",
+ "jmax-syntax",
+]
+
+[[package]]
 name = "jmax-number"
 version = "0.1.0"
 dependencies = [
@@ -755,6 +773,8 @@ name = "jmax-schema-aot"
 version = "0.1.0"
 dependencies = [
  "jmax-abi",
+ "jmax-endpoint-model",
+ "jmax-endpoint-ron",
  "jmax-schema-compile",
  "jmax-schema-ir",
  "jmax-schema-vm",

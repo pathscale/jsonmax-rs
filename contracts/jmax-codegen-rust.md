@@ -373,14 +373,14 @@ program image, built from the same schema graph as endpoint-model schema_graph_f
 jmax-schema-aot compile_graph. Generated decoders are monomorphic single-pass recursive
 descent: key dispatch by length and one or two masked word compares (escaped keys are
 decoded first), a seen bitmask with a REQUIRED check at the closing brace, a repeated known
-key is a Fail, unknown keys are rejected or skipped with skip_strict plus duplicate
+key is a Fail when the limits reject duplicate keys (otherwise the last value wins), unknown keys are rejected or skipped with skip_strict plus duplicate
 detection, arrays are cleared and refilled into reused capacity with VM-equal inclusive
 bounds, decimals use the Reader's inline fixed-point path, and post_check carries value
 checks. With predict_layout, a per-root predicted key order is tried first by full byte
 compare with no rollback; a miss falls through to the general dispatch.
 
 Unsupported inputs return UnsupportedSchemaFeature and never produce a weaker decoder:
-patterns, formats other than those the graph lowering supports, Object, Enum, recursive
-types, heterogeneous tuples, and Optional elements inside arrays. Native decoders return
+patterns, formats (until jmax-native provides their validators), Object, Enum, recursive
+types, heterogeneous tuples, and Optional elements inside arrays Native decoders return
 typed values only; every failure re-runs the embedded program on the VM, which alone builds
 errors. They never create a ValidationProof or ParsedMessage.

@@ -55,19 +55,21 @@ impl<'a> Reader<'a> {
     pub fn expect(&mut self, byte: u8) -> NativeResult<()>;
     pub fn end(&mut self) -> NativeResult<()>;
     pub fn boolean(&mut self) -> NativeResult<bool>;
-    pub fn uint(&mut self, ctx: &NativeContext, max: u64) -> NativeResult<u64>;
-    pub fn int(&mut self, ctx: &NativeContext, min: i64, max: i64) -> NativeResult<i64>;
-    pub fn float(&mut self, ctx: &NativeContext) -> NativeResult<f64>;
-    pub fn decimal(&mut self, ctx: &NativeContext, policy: &DecimalPolicy) -> NativeResult<Decimal128>;
+    pub fn uint(&mut self, ctx: &mut NativeContext, max: u64) -> NativeResult<u64>;
+    pub fn int(&mut self, ctx: &mut NativeContext, min: i64, max: i64) -> NativeResult<i64>;
+    pub fn float(&mut self, ctx: &mut NativeContext) -> NativeResult<f64>;
+    pub fn decimal(&mut self, ctx: &mut NativeContext, policy: &DecimalPolicy) -> NativeResult<Decimal128>;
     pub fn string<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str> where 'a: 'c;
+    pub fn key<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str> where 'a: 'c;
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()>;
 }
 ```
 
 Every primitive skips JSON whitespace (space, tab, CR, LF) before its token, consumes
-exactly one token on success, and leaves the position unchanged on Fail. Any method that is
-not given the context takes no limits. Primitives never allocate except string, which may
-grow the context's decoded buffer once per capacity step, and skip_value (scratch reuse).
+exactly one token on success, and leaves the position unchanged on Fail. Primitives that read a string or
+number take the context for its limits, policies and scratch. They never allocate after
+warmup: string may grow the context's decoded buffer once per capacity step, as may skip_value
+its scratch.
 
 peek returns the next non-whitespace byte without consuming it. eat consumes the byte when
 it is next. expect is eat that Fails. end succeeds only when nothing but whitespace remains.
@@ -104,20 +106,27 @@ impl NativeContext {
     pub fn new(limits: VmLimits, numeric: NumericPolicy) -> Self;
     pub const fn limits(&self) -> VmLimits;
     pub const fn numeric(&self) -> NumericPolicy;
+    pub fn with_program(program: &ValidatedProgram, limits: VmLimits, numeric: NumericPolicy) -> Result<Self>;
+    pub fn begin_object(&self) -> usize;
     pub fn unknown_key(&mut self, key: &str) -> NativeResult<()>;
-    pub fn begin_object(&mut self);
+    pub fn end_object(&mut self, mark: usize) -> NativeResult<()>;
 }
 ```
 
-NativeContext holds, and reuses across calls: the requested limits and numeric policy, the
-effective numeric policy (the VM's combination of the request and the program's schema
-policy, computed when the program is first built), a decoded-text buffer, an unknown-key
-table with generations like the VM's, the strict-skip scratch and its decoded buffer, a
-ValidationScratch for the VM fallback, and the lazily built program with its cached
-budget_safe decision inputs. After warmup a decode of any input no larger than one already
-seen performs no allocation. begin_object opens a new unknown-key generation. unknown_key
-records a decoded key of the current object and Fails when the same decoded key was already
-recorded in that object and limits.syntax.reject_duplicate_keys is set.
+NativeContext serves one decoder type at a time (decode_into rebuilds the program when the
+type changes) and reuses across calls: the requested limits and numeric policy, the
+effective numeric policy for number tokens (the VM's combination of the request and the
+program's schema policy, computed when the program is installed), the program's own policy
+(which governs numbers inside strings, such as decimals and quoted integers), a decoded-text
+buffer, a stack of unknown keys, the strict-skip scratch and its decoded buffer, and the
+lazily built program with the largest input length budget_safe accepts for it. After warmup a
+decode of the supported shapes performs no allocation. The VM fallback uses a fresh
+ValidationScratch on every call, because retained scratch capacity counts against the VM's
+scratch budget and would change its answer. begin_object returns a mark for the current
+object's unknown keys, unknown_key records a decoded key of the innermost object, and
+end_object(mark) Fails when two recorded keys of that object are equal and
+limits.syntax.reject_duplicate_keys is set; it always discards the object's keys. with_program
+builds a context for callers that drive a Reader directly.
 
 ## Wave 3: src/decode.rs
 
@@ -141,8 +150,8 @@ with safe inputs decode_core Ok implies the VM succeeds, and the VM succeeds imp
 decode_core Ok.
 
 The accept set of decode_core must equal the VM's. decode_core must reject (Fail): any
-syntax error, trailing content, an unexpected, repeated or (with reject_unknown) unknown
-key, a missing required key, a value of the wrong kind, an integer outside its bounds, a
+syntax error, trailing content, an unexpected or (with reject_unknown) unknown
+key, a repeated known key when limits.syntax.reject_duplicate_keys is set (otherwise the later value wins and is checked too), a missing required key, a value of the wrong kind, an integer outside its bounds, a
 string whose scalar count is outside min/max length, an array outside min/max items, a
 decimal outside its policy or bounds, and any limit the VM enforces: depth (inclusive, a
 root container is depth 1), fields per object (known and unknown keys together), items per
