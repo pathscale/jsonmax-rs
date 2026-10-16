@@ -11,6 +11,7 @@ pub mod feed;
 pub mod finish;
 pub mod frames;
 pub mod machine;
+mod strict_fast;
 
 pub use jmax_abi::buffer::Payload;
 pub use jmax_abi::buffer::{ValidationCapability, ValidationProof};
@@ -418,6 +419,21 @@ pub fn validate_borrowed(
 ) -> Result<ValidationProof> {
     scratch.clear();
     let mut cursor = BlockCursor::new(input, limits, numeric, DuplicatePolicyOwner::Syntax)?;
+    // The one-pass acceptor answers only "accepted", with the decoded buffer
+    // left as the exact path leaves it. Anything else runs the exact path,
+    // which alone produces diagnostics.
+    if cursor.fast_validate(&mut scratch.decoded_buf).is_some() {
+        // SAFETY: as below. The fast acceptor consumed the complete slice
+        // under the same grammar, limits and numeric policy as the exact
+        // traversal, and leaves the arena as that traversal does (empty).
+        return Ok(unsafe {
+            ValidationProof::issue_unchecked(
+                0,
+                input.len() as u32,
+                scratch.decoded_buf.len() as u32,
+            )
+        });
+    }
     cursor.skip_value(
         &mut scratch.decoded_buf,
         0,

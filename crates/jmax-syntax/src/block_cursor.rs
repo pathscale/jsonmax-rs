@@ -25,6 +25,7 @@ pub(crate) struct CursorCache {
 pub struct SkipScratch {
     frames: Vec<Frame>,
     tables: Vec<frames::KeyTable>,
+    fast: super::strict_fast::FastScratch,
 }
 pub(crate) type DiscardScratch = SkipScratch;
 
@@ -918,6 +919,38 @@ impl<'a> BlockCursor<'a> {
         self.retain(result)
     }
 
+    /// Cumulative bytes of discarded decoded strings, for equivalence tests.
+    #[cfg(test)]
+    pub(crate) const fn discarded_decoded(&self) -> u32 {
+        self.cache.discarded_decoded
+    }
+
+    /// Conservative one-pass strict validation of the whole input from offset
+    /// zero: `Some(())` only when `skip_value(StrictValidate)` then `finish_eof`
+    /// would accept it with the same decoded total and `decoded` state. On
+    /// `None`, `decoded` is as it was and the exact path must run.
+    pub(crate) fn fast_validate(&mut self, decoded: &mut Vec<u8>) -> Option<()> {
+        if self.failure.is_some() || self.offset() != 0 {
+            return None;
+        }
+        let params = super::strict_fast::Params {
+            limits: self.limits,
+            numeric: self.numeric,
+            max_depth: usize::from(self.limits.max_depth),
+            masker: self.cache.escape_masker,
+            whole_input: true,
+        };
+        let (end, _) = super::strict_fast::accept(
+            self.input,
+            0,
+            &params,
+            self.cache.discarded_decoded,
+            decoded,
+            &mut self.discard.fast,
+        )?;
+        (end == self.input.len()).then_some(())
+    }
+
     pub fn skip_value(
         &mut self,
         decoded: &mut Vec<u8>,
@@ -1440,7 +1473,7 @@ fn earlier(current: &mut Option<Error>, candidate: Error) {
 
 /// Single-pass escaped-content traversal with bulk ordinary runs. The legacy
 /// escape unit is invoked only at a backslash, retaining its exact diagnostics.
-fn decode_content(
+pub(crate) fn decode_content(
     input: &[u8],
     start: u32,
     end: u32,
