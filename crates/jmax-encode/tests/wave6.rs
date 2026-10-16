@@ -300,6 +300,8 @@ fn native_tokens_write_whole_quoted_slices_with_one_output_reservation() -> Resu
             assert_eq!(output.reservations, [(0, input.len().min(maximum))]);
             // Keys and values, including extended Unicode records, arrive as
             // their original quoted token rather than three separate writes.
+            // Small documents are staged and delivered in batched writes, so
+            // each token must appear whole inside one write.
             for token in [
                 r#""plain""#,
                 r#""value/é""#,
@@ -307,7 +309,11 @@ fn native_tokens_write_whole_quoted_slices_with_one_output_reservation() -> Resu
                 r#""🦀""#,
                 "-0.00E+02",
             ] {
-                assert!(output.writes.iter().any(|write| write == token.as_bytes()));
+                assert!(output.writes.iter().any(|write| {
+                    write
+                        .windows(token.len())
+                        .any(|window| window == token.as_bytes())
+                }));
             }
         }
     }
@@ -517,7 +523,8 @@ fn native_limits_and_scratch_recovery_after_errors() -> Result<()> {
     assert!(scratch.retained_bytes() > 0);
     let retained = scratch.retained_bytes();
     let mut failing = RecordingSink {
-        fail_write: Some(2),
+        // The batched native emitter delivers this small document in one write.
+        fail_write: Some(1),
         ..RecordingSink::default()
     };
     assert_eq!(

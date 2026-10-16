@@ -460,7 +460,7 @@ impl<'a> JsonWriter<'a> {
         Ok(())
     }
 
-    fn accept_value(&mut self) {
+    pub(crate) fn accept_value(&mut self) {
         match self.frames.last_mut() {
             Some(frame) if frame.kind == WriteContainer::Object => frame.expecting_key = true,
             Some(frame) => frame.count += 1,
