@@ -15,3 +15,6 @@ jmax-abi = { workspace = true }
 jmax-endpoint-model = { workspace = true }
 jmax-schema-aot = { workspace = true }
 jmax-encode = { workspace = true }
+
+[dev-dependencies]
+jmax-endpoint-ron = { workspace = true }

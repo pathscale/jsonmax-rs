@@ -26,6 +26,7 @@ members = [
   "crates/jmax-derive",
   "crates/jmax-schema-aot",
   "crates/jmax-native",
+  "crates/jmax-native-fixtures",
   "crates/jmax-endpoint-model",
   "crates/jmax-endpoint-ron",
   "crates/jmax-codegen-rust",

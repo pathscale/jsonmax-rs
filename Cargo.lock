@@ -501,6 +501,7 @@ dependencies = [
  "jmax-abi",
  "jmax-encode",
  "jmax-endpoint-model",
+ "jmax-endpoint-ron",
  "jmax-schema-aot",
 ]
 
@@ -705,6 +706,21 @@ dependencies = [
  "jmax-schema-ir",
  "jmax-schema-vm",
  "jmax-string",
+ "jmax-syntax",
+]
+
+[[package]]
+name = "jmax-native-fixtures"
+version = "0.1.0"
+dependencies = [
+ "jmax-abi",
+ "jmax-codegen-rust",
+ "jmax-decimal",
+ "jmax-endpoint-model",
+ "jmax-endpoint-ron",
+ "jmax-native",
+ "jmax-schema-aot",
+ "jmax-schema-vm",
  "jmax-syntax",
 ]
 

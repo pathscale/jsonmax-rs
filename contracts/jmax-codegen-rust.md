@@ -379,8 +379,10 @@ bounds, decimals use the Reader's inline fixed-point path, and post_check carrie
 checks. With predict_layout, a per-root predicted key order is tried first by full byte
 compare with no rollback; a miss falls through to the general dispatch.
 
+Emitted details that the signatures do not show. `NATIVE_<SNAKE_UPPER_TYPE>_PROGRAM: &[u8]` holds the bytes of jmax-schema-aot dump_program (the complete compiler image) of the lowered graph, whose schema id is 5000 plus the root's index in NativeSpec.roots; build_program is jmax-schema-aot load_program of those bytes. No flat ABI table projection is emitted: a nested program is not a flat projection and does not verify as one. `pub const NATIVE_ROOTS` lists the roots. Models derive no Default, so native.rs implements `Default` for every struct it decodes (objects, tuples and roots); arrays of boxed structs keep and overwrite their existing elements and `truncate` on shrink, so a document with fewer elements than the previous one drops boxes and a later larger one allocates again. Objects have 1 to 128 fields, the seen mask being the smallest of u8..u128. Overrides apply to nominal model structs only, not to endpoint request and response records. generate_with_native applies the spec's idents to models.rs through options_with_native_idents, so its shared artifacts equal `generate` called with that merged option set, not with the caller's unmerged options. With the spec rejecting unknown keys an unknown key is a Fail; otherwise it is a Fail only while limits.syntax.reject_unknown_keys is set, else it is recorded and skipped with skip_strict. Programs with unknown-key-tolerant objects have no budget_safe bound, so those decoders always take the VM-first route.
+
 Unsupported inputs return UnsupportedSchemaFeature and never produce a weaker decoder:
 patterns, formats (until jmax-native provides their validators), Object, Enum, recursive
-types, heterogeneous tuples, and Optional elements inside arrays Native decoders return
+types, heterogeneous tuples, empty structs, structs over 128 fields, and Optional elements inside arrays. Native decoders return
 typed values only; every failure re-runs the embedded program on the VM, which alone builds
 errors. They never create a ValidationProof or ParsedMessage.

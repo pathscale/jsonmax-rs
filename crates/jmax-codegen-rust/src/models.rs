@@ -29,6 +29,20 @@ fn pascal(name: &str) -> Result<String> {
     Ok(name)
 }
 
+/// The generated type name of a model name.
+pub(crate) fn pascal_name(name: &str) -> Result<String> {
+    pascal(name)
+}
+
+/// The Rust identifier of one wire field of the generated struct `type_name`:
+/// a configured override, else the derived snake_case name.
+pub(crate) fn member_ident(options: &CodegenOptions, type_name: &str, wire: &str) -> Result<String> {
+    match options.ident_overrides.iter().find(|item| item.type_name == type_name && item.wire == wire) {
+        Some(item) => Ok(item.ident.clone()),
+        None => field_name(wire),
+    }
+}
+
 fn field_name(name: &str) -> Result<String> {
     // These identifiers cannot be escaped with Rust's raw identifier syntax.
     if matches!(name, "self" | "Self" | "super" | "crate" | "_") {
@@ -105,7 +119,7 @@ fn type_source(ty: &EndpointType, mode: RustTypeMode, options: &CodegenOptions, 
 
 // Resolve aliases only at references. An inline nominal owns its declaration;
 // it must never be expanded by following fields of recursive records.
-fn resolved_source<'a>(ty: &'a EndpointType, mode: RustTypeMode, options: &CodegenOptions,
+pub(crate) fn resolved_source<'a>(ty: &'a EndpointType, mode: RustTypeMode, options: &CodegenOptions,
     registry: &Registry<'a>, depth: usize) -> Result<String> {
     check_depth(depth)?;
     match ty {
@@ -200,11 +214,11 @@ fn validate_names(model: &EndpointModel, catalog: &Catalog<'_>, options: &Codege
                 let mut fields_seen = BTreeMap::new();
                 for (index, field) in fields.iter().enumerate() {
                     let id = u32::try_from(index).map_err(|_| codegen_error(ErrorCode::BudgetExhausted, "field count exceeds u32"))?;
-                    let name = field_name(&field.name).map_err(|error| error.with_schema(0, id))?;
-                    if options.emit_views && matches!(name.as_str(), "new" | "value") {
+                    let member = member_ident(options, &name, &field.name).map_err(|error| error.with_schema(0, id))?;
+                    if options.emit_views && matches!(member.as_str(), "new" | "value") {
                         return Err(constraint("view field getter collides with constructor or owner accessor").with_schema(0, id));
                     }
-                    if fields_seen.insert(name, ()).is_some() {
+                    if fields_seen.insert(member, ()).is_some() {
                         return Err(constraint("colliding generated Rust field names").with_schema(0, id));
                     }
                 }
@@ -216,6 +230,20 @@ fn validate_names(model: &EndpointModel, catalog: &Catalog<'_>, options: &Codege
     for definition in &model.definitions {
         if !matches!(definition.ty, EndpointType::Struct { .. } | EndpointType::Enum { .. }) {
             reserve_name(&mut names, pascal(&definition.name)?)?;
+        }
+    }
+    for item in &options.ident_overrides {
+        let mut found = false;
+        for (original, ty) in &catalog.nominals {
+            if let EndpointType::Struct { fields, .. } = ty {
+                if pascal(original)? == item.type_name {
+                    found = fields.iter().any(|field| field.name == item.wire);
+                    break;
+                }
+            }
+        }
+        if !found {
+            return Err(constraint("identifier override names no struct field"));
         }
     }
     Ok(())
@@ -312,13 +340,13 @@ fn emit_record<'a>(out: &mut String, original: &str, fields: &'a [EndpointField]
     out.push_str(&format!("#[derive(Clone, Debug, PartialEq)]\npub struct {name} {{\n"));
     for field in fields {
         let ty = resolved_source(&field.ty, RustTypeMode::Owned, options, registry, 0)?;
-        out.push_str(&format!("    pub {}: {ty},\n", field_name(&field.name)?));
+        out.push_str(&format!("    pub {}: {ty},\n", member_ident(options, &name, &field.name)?));
     }
     out.push_str("}\n");
     out.push_str(&format!("impl {name} {{\n    pub(super) fn __jmax_encode(&self, sink: &mut dyn __jmax_abi::ByteSink, depth: usize) -> __jmax_abi::Result<()> {{\n        let depth = __jmax_next_depth(depth)?;\n        sink.write_byte(b'{{')?;\n"));
     if !fields.is_empty() { out.push_str("        let mut __jmax_first = true;\n"); }
     for field in fields {
-        let member = field_name(&field.name)?;
+        let member = member_ident(options, &name, &field.name)?;
         let wire = rust_string_literal(&field.name);
         if let EndpointType::Optional(inner) = &field.ty {
             out.push_str(&format!("        if let ::core::option::Option::Some(__jmax_value) = &self.{member} {{\n"));
@@ -335,7 +363,7 @@ fn emit_record<'a>(out: &mut String, original: &str, fields: &'a [EndpointField]
     out.push_str("        sink.write_byte(b'}')\n    }\n}\n");
     emit_encode_impl(out, &name);
     if options.emit_views { emit_view(out, &name, Some(fields), options, registry)?; }
-    if let Some(schema) = schema { emit_schema(out, &name, fields, schema)?; }
+    if let Some(schema) = schema { emit_schema(out, &name, fields, schema, options)?; }
     Ok(())
 }
 
@@ -423,7 +451,7 @@ fn emit_view<'a>(out: &mut String, name: &str, fields: Option<&'a [EndpointField
     emit_view_shell(out, name);
     if let Some(fields) = fields {
         for field in fields {
-            let member = field_name(&field.name)?;
+            let member = member_ident(options, name, &field.name)?;
             let ty = resolved_source(&field.ty, RustTypeMode::View, options, registry, 0)?;
             let expr = view_expr(&field.ty, &format!("&self.value.{member}"), options, registry, 0)?;
             out.push_str(&format!("    pub fn {member}(&self) -> {ty} {{ {expr} }}\n"));
@@ -494,7 +522,7 @@ fn slot_decoder(ty: &EndpointType) -> Result<(&'static str, &'static str)> {
     }
 }
 
-fn emit_schema(out: &mut String, name: &str, fields: &[EndpointField], schema: &SchemaEntry) -> Result<()> {
+fn emit_schema(out: &mut String, name: &str, fields: &[EndpointField], schema: &SchemaEntry, options: &CodegenOptions) -> Result<()> {
     let ir = &schema.ir;
     let id = ir.schema_id.0;
     out.push_str(&format!("impl __jmax_abi::SchemaProvider for {name} {{\n    fn schema_ir() -> __jmax_abi::SchemaIr {{\n        __jmax_abi::SchemaIr {{\n            name: alloc::string::String::from({}),\n            schema_id: __jmax_abi::SchemaId({id}u32),\n            required_count: {}u16,\n            reject_unknown: true,\n            fields: alloc::vec![\n", rust_string_literal(&ir.name), ir.required_count));
@@ -533,7 +561,7 @@ fn emit_schema(out: &mut String, name: &str, fields: &[EndpointField], schema: &
         let value = if required {
             format!("({converted}).ok_or_else(|| __jmax_abi::Error::new(__jmax_abi::ErrorCode::MissingRequiredField, __jmax_abi::ErrorSource::Decode, 0, \"missing required model field\").with_schema({id}u32, {index}u32))?")
         } else { converted };
-        out.push_str(&format!("            {}: {value},\n", field_name(&field.name)?));
+        out.push_str(&format!("            {}: {value},\n", member_ident(options, name, &field.name)?));
     }
     out.push_str("        })\n    }\n}\n");
     Ok(())

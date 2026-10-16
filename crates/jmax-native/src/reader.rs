@@ -2,6 +2,7 @@
 //! success and leaves the position unchanged on `Fail`.
 
 use crate::{Decimal128, DecimalPolicy, Fail, NativeContext, NativeResult};
+use alloc::vec::Vec;
 use jmax_number::NumberToken;
 use jmax_abi::span::NumberLexKind;
 
@@ -246,8 +247,36 @@ impl<'a> Reader<'a> {
         Ok(key)
     }
 
+    /// An object key and its colon, recorded as a key of the innermost object
+    /// opened with `NativeContext::begin_object`. Decoders call this on a clone
+    /// of the reader taken before `key`, because the key returned by `key`
+    /// borrows the context.
+    pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()> {
+        self.skip_ws();
+        let max = ctx.limits.syntax.max_string_bytes as usize;
+        let (text, end) = self.string_in(max, &mut ctx.arena, self.pos)?;
+        ctx.unknown.push_key(text)?;
+        self.pos = end;
+        self.expect(b':')
+    }
+
     /// The string starting at `start` and the offset just past it; no state changes.
     fn string_at<'c>(&self, ctx: &'c mut NativeContext, start: usize) -> NativeResult<(&'c str, usize)>
+    where
+        'a: 'c,
+    {
+        let max = ctx.limits.syntax.max_string_bytes as usize;
+        self.string_in(max, &mut ctx.arena, start)
+    }
+
+    /// `string_at` over a bare decoded-text buffer, so a caller can keep using
+    /// the rest of the context while the text is borrowed.
+    fn string_in<'c>(
+        &self,
+        max: usize,
+        arena: &'c mut Vec<u8>,
+        start: usize,
+    ) -> NativeResult<(&'c str, usize)>
     where
         'a: 'c,
     {
@@ -255,7 +284,6 @@ impl<'a> Reader<'a> {
         if input.get(start) != Some(&b'"') {
             return Err(Fail);
         }
-        let max = ctx.limits.syntax.max_string_bytes as usize;
         let content_start = start + 1;
         let special = jmax_string::scan::first_special(&input[content_start..]).ok_or(Fail)?;
         let at = content_start + special;
@@ -273,13 +301,13 @@ impl<'a> Reader<'a> {
                 if scan.content.len as usize > max {
                     return Err(Fail);
                 }
-                ctx.arena.clear();
-                let lengths = jmax_string::unescape::unescape(input, scan.content, &mut ctx.arena)
+                arena.clear();
+                let lengths = jmax_string::unescape::unescape(input, scan.content, arena)
                     .map_err(|_| Fail)?;
                 if lengths.byte_len as usize > max {
                     return Err(Fail);
                 }
-                let text = core::str::from_utf8(&ctx.arena).map_err(|_| Fail)?;
+                let text = core::str::from_utf8(arena).map_err(|_| Fail)?;
                 Ok((text, scan.next_offset as usize))
             }
             _ => Err(Fail),

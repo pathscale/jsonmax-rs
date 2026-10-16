@@ -62,6 +62,7 @@ impl<'a> Reader<'a> {
     pub fn string<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str> where 'a: 'c;
     pub fn key<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str> where 'a: 'c;
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()>;
+    pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()>;
 }
 ```
 
@@ -99,6 +100,8 @@ context's limits, effective numeric policy and a depth supplied by the caller (t
 enclosing containers). It accepts exactly what BlockCursor::skip_value(StrictValidate)
 accepts and Fails otherwise.
 
+unknown_key reads an object key and its colon exactly as key does and records the decoded key as an unknown key of the innermost object opened with begin_object. Generated code calls it on a clone of the reader taken before key, because the &str that key returns borrows the whole context and so cannot be passed to NativeContext::unknown_key.
+
 ## Wave 2: src/context.rs
 
 ```rust
@@ -125,7 +128,7 @@ ValidationScratch on every call, because retained scratch capacity counts agains
 scratch budget and would change its answer. begin_object returns a mark for the current
 object's unknown keys, unknown_key records a decoded key of the innermost object, and
 end_object(mark) Fails when two recorded keys of that object are equal and
-limits.syntax.reject_duplicate_keys is set; it always discards the object's keys. with_program
+limits.syntax.reject_duplicate_keys is set; it always discards the object's keys. decode_into discards any keys left by an earlier decode that failed inside an object before it runs decode_core; a caller driving decode_core directly bounds the same leftovers with the mark. with_program
 builds a context for callers that drive a Reader directly.
 
 ## Wave 3: src/decode.rs

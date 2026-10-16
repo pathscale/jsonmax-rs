@@ -289,6 +289,13 @@ pub fn load_program(bytes: &[u8]) -> Result<ValidatedProgram> {
     jmax_schema_compile::image::decode(bytes, &CompilerOptions::default())
 }
 
+/// The complete compiler image of a program, exactly the bytes `load_program`
+/// accepts. Unlike `tables::emit_program` this does not require the flat ABI
+/// projection to verify, so it also serves programs lowered from nested graphs.
+pub fn dump_program(program: &ValidatedProgram) -> Result<alloc::vec::Vec<u8>> {
+    jmax_schema_compile::image::encode(program, jmax_schema_compile::DEFAULT_MAX_IMAGE_BYTES)
+}
+
 /// Rust source literal with no raw-string delimiter hazards.
 pub fn rust_string_literal(text: &str) -> String {
     let mut out = String::from("\"");

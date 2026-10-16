@@ -43,6 +43,8 @@ fn run_vm(program: &ValidatedProgram, ctx: &NativeContext, input: &[u8]) -> Resu
 }
 
 fn core_decode<T: NativeDecode>(ctx: &mut NativeContext, input: &[u8], out: &mut T) -> NativeResult<()> {
+    // A failed earlier decode may have left keys of objects it never closed.
+    ctx.unknown.clear();
     let mut reader = Reader::new(input);
     T::decode_core(&mut reader, ctx, out)?;
     reader.end()

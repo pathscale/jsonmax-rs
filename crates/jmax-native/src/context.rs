@@ -27,8 +27,7 @@ pub struct NativeContext {
     pub(crate) arena: Vec<u8>,
     pub(crate) skip_decoded: Vec<u8>,
     pub(crate) skip: SkipScratch,
-    unknown: Vec<UnknownEntry>,
-    unknown_bytes: Vec<u8>,
+    pub(crate) unknown: UnknownKeys,
     pub(crate) program: Option<ValidatedProgram>,
     pub(crate) program_type: Option<TypeId>,
     /// Largest input length judged safe by `budget_safe`, if any.
@@ -55,8 +54,7 @@ impl NativeContext {
             arena: Vec::new(),
             skip_decoded: Vec::new(),
             skip: SkipScratch::default(),
-            unknown: Vec::new(),
-            unknown_bytes: Vec::new(),
+            unknown: UnknownKeys::default(),
             program: None,
             program_type: None,
             safe_max_len: None,
@@ -114,25 +112,48 @@ impl NativeContext {
 
     /// Open an object scope for unknown-key tracking; pass the mark to `end_object`.
     pub fn begin_object(&self) -> usize {
-        self.unknown.len()
+        self.unknown.entries.len()
     }
 
     /// Record a decoded unknown key of the object opened at `mark`.
     pub fn unknown_key(&mut self, key: &str) -> NativeResult<()> {
-        let start = u32::try_from(self.unknown_bytes.len()).map_err(|_| crate::Fail)?;
-        let len = u32::try_from(key.len()).map_err(|_| crate::Fail)?;
-        self.unknown_bytes.extend_from_slice(key.as_bytes());
-        self.unknown.push(UnknownEntry { hash: key_hash(key.as_bytes()), start, len });
-        Ok(())
+        self.unknown.push_key(key)
     }
 
     /// Close the object opened at `mark`. With duplicate rejection on, two equal
     /// decoded unknown keys in it are a Fail. Always discards the object's keys.
     pub fn end_object(&mut self, mark: usize) -> NativeResult<()> {
-        let base = self.unknown.get(mark).map(|entry| entry.start as usize);
-        let result = if self.limits.syntax.reject_duplicate_keys {
-            let bytes = &self.unknown_bytes;
-            let slice = self.unknown.get_mut(mark..).ok_or(crate::Fail)?;
+        self.unknown.finish(mark, self.limits.syntax.reject_duplicate_keys)
+    }
+}
+
+/// The unknown keys of every open object, innermost last.
+#[derive(Default)]
+pub(crate) struct UnknownKeys {
+    entries: Vec<UnknownEntry>,
+    bytes: Vec<u8>,
+}
+
+impl UnknownKeys {
+    /// Forget every key, e.g. after a decode that failed inside an object.
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
+        self.bytes.clear();
+    }
+
+    pub(crate) fn push_key(&mut self, key: &str) -> NativeResult<()> {
+        let start = u32::try_from(self.bytes.len()).map_err(|_| crate::Fail)?;
+        let len = u32::try_from(key.len()).map_err(|_| crate::Fail)?;
+        self.bytes.extend_from_slice(key.as_bytes());
+        self.entries.push(UnknownEntry { hash: key_hash(key.as_bytes()), start, len });
+        Ok(())
+    }
+
+    fn finish(&mut self, mark: usize, reject_duplicates: bool) -> NativeResult<()> {
+        let base = self.entries.get(mark).map(|entry| entry.start as usize);
+        let result = if reject_duplicates {
+            let bytes = &self.bytes;
+            let slice = self.entries.get_mut(mark..).ok_or(crate::Fail)?;
             slice.sort_unstable_by_key(|entry| entry.hash);
             let key = |entry: &UnknownEntry| {
                 bytes.get(entry.start as usize..(entry.start + entry.len) as usize)
@@ -149,9 +170,9 @@ impl NativeContext {
             Ok(())
         };
         if let Some(base) = base {
-            self.unknown_bytes.truncate(base);
+            self.bytes.truncate(base);
         }
-        self.unknown.truncate(mark);
+        self.entries.truncate(mark);
         result
     }
 }

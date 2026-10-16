@@ -435,3 +435,38 @@ fn unknown_keys_detect_duplicates_per_object() {
     ctx.unknown_key("a").unwrap();
     ctx.end_object(object).unwrap();
 }
+
+#[test]
+fn reader_unknown_key_records_decoded_keys() {
+    let program = scalar_program(ScalarConstraints::new(ValueKind::Number));
+    let numeric = NumericPolicy::strict_default();
+    let mut ctx = context(&program, VmLimits::default(), numeric);
+    // An escaped spelling and a plain one are the same decoded key.
+    let escaped_a: &[u8] = b" \"\\u0061\" : ";
+    let plain_a: &[u8] = b"\"a\":";
+    let plain_b: &[u8] = b"\"b\":";
+    let escaped_pair: &[u8] = b"\"\\ud83d\\ude00\":";
+    let plain_pair: &[u8] = "\"\u{1f600}\":".as_bytes();
+    let object = ctx.begin_object();
+    for text in [escaped_a, plain_a, plain_b] {
+        let mut reader = Reader::new(text);
+        reader.unknown_key(&mut ctx).unwrap();
+        assert_eq!(reader.pos(), text.len() - usize::from(text.ends_with(b" ")));
+    }
+    assert!(ctx.end_object(object).is_err());
+    let object = ctx.begin_object();
+    for text in [plain_a, plain_b, escaped_pair] {
+        Reader::new(text).unknown_key(&mut ctx).unwrap();
+    }
+    assert!(ctx.end_object(object).is_ok());
+    let object = ctx.begin_object();
+    for text in [escaped_pair, plain_pair] {
+        Reader::new(text).unknown_key(&mut ctx).unwrap();
+    }
+    assert!(ctx.end_object(object).is_err());
+    // A missing colon, an unterminated or invalid string is a Fail.
+    let bad: [&[u8]; 5] = [b"\"a\"", b"\"a", b"a:", b"\"\\ud800\":", b"\"\x01\":"];
+    for text in bad {
+        assert!(Reader::new(text).unknown_key(&mut ctx).is_err(), "{text:?}");
+    }
+}

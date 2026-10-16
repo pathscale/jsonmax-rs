@@ -54,6 +54,7 @@ impl<'a> SlotReader<'a> {
 pub fn fingerprint_schema(schema: &SchemaIr) -> Result<u64>;
 pub fn compile_schema(schema: &SchemaIr) -> Result<ValidatedProgram>;
 pub fn load_program(bytes: &[u8]) -> Result<ValidatedProgram>;
+pub fn dump_program(program: &ValidatedProgram) -> Result<alloc::vec::Vec<u8>>;
 pub fn rust_string_literal(text: &str) -> alloc::string::String;
 pub fn validate_symbol(symbol: &str) -> Result<()>;
 pub fn validate_rust_path(path: &str) -> Result<()>;
@@ -94,7 +95,9 @@ FINGERPRINT_PRIME are the same FNV-1a constants as schema-ir, not a separate has
 
 compile_schema performs that same normalization/resolution, then calls
 schema-compile::lower::compile with CompilerOptions::default(). load_program
-calls schema-compile::image::decode with the same options. The full compiler
+calls schema-compile::image::decode with the same options. dump_program is its inverse:
+schema-compile::image::encode under DEFAULT_MAX_IMAGE_BYTES, with no requirement that the
+flat ABI projection verify, so programs lowered from nested graphs can be embedded. The full compiler
 ValidatedProgram owns states, constraints, key strategies, patterns, slots,
 policy, format options, and canonical schema bytes. A bare StaticSchemaImage is
 only the ABI table projection and is not an executable program witness. Neither
