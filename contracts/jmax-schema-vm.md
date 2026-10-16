@@ -295,7 +295,7 @@ pub fn budget_safe(program: &ValidatedProgram, len: usize, limits: VmLimits) -> 
 budget_bound returns an upper bound, valid for every input of at most len bytes, on the VM
 steps and scratch bytes that a strict validate_borrowed_into can charge, as a function of len,
 the program and limits.syntax. It is deliberately conservative and returns None when no bound is
-derived: any program state with a pattern or a format constraint, a program with an unbounded
+derived: any program state with a pattern constraint, an object that retains unknown keys, a constrained untyped value, a program with an unbounded
 construct, or an arithmetic overflow. budget_safe is true only when budget_bound is Some, its
 steps do not exceed limits.max_steps, its scratch bytes do not exceed limits.max_scratch_bytes,
 len does not exceed limits.syntax.max_payload_bytes or limits.syntax.max_decoded_bytes, and len
