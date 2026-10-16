@@ -1056,3 +1056,104 @@ fn digit_run(bytes: &[u8]) -> usize {
         .position(|&byte| byte.wrapping_sub(b'0') >= 10)
         .unwrap_or(bytes.len())
 }
+
+/// `number_accepted_fast` driven by a precomputed non-digit mask: bit `i` of
+/// `non_digits` is set exactly when `bytes[i]` is not an ASCII digit, for
+/// `bytes.len() <= 64`. The few separator positions are found with bit scans
+/// instead of a byte loop over every digit. Same acceptance as
+/// `number_accepted_fast`; returns false whenever it cannot decide quickly.
+#[inline(always)]
+pub(crate) fn number_accepted_masked(
+    bytes: &[u8],
+    non_digits: u64,
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+) -> bool {
+    let len = bytes.len() as u32;
+    if len == 0 || len > 64 {
+        return false;
+    }
+    // First non-digit at or after `from`, or `len`.
+    let next = |from: u32| -> u32 {
+        if from >= 64 {
+            return len;
+        }
+        let rest = non_digits >> from;
+        if rest == 0 {
+            len
+        } else {
+            (from + rest.trailing_zeros()).min(len)
+        }
+    };
+    let negative = bytes[0] == b'-';
+    let integer_start = u32::from(negative);
+    if non_digits & 1 != 0 && !negative {
+        return false;
+    }
+    let integer_end = next(integer_start);
+    let integer_len = integer_end - integer_start;
+    if integer_len == 0 || (bytes[integer_start as usize] == b'0' && integer_len > 1) {
+        return false;
+    }
+    let leading_nonzero = bytes[integer_start as usize] != b'0';
+    let mut position = integer_end;
+    let mut fraction = 0..0;
+    if position < len && bytes[position as usize] == b'.' {
+        let fraction_end = next(position + 1);
+        if fraction_end == position + 1 {
+            return false;
+        }
+        fraction = (position + 1) as usize..fraction_end as usize;
+        position = fraction_end;
+    }
+    let mut exponent = 0i64;
+    let is_float = position != integer_end || position < len;
+    if position < len {
+        if !matches!(bytes[position as usize], b'e' | b'E') {
+            return false;
+        }
+        let mut digits_start = position + 1;
+        let exponent_negative = bytes.get(digits_start as usize) == Some(&b'-');
+        if matches!(bytes.get(digits_start as usize), Some(b'+' | b'-')) {
+            digits_start += 1;
+        }
+        let digits_end = next(digits_start);
+        if digits_end != len || digits_end == digits_start || digits_end - digits_start > 12 {
+            return false;
+        }
+        for &byte in &bytes[digits_start as usize..digits_end as usize] {
+            exponent = exponent * 10 + i64::from(byte - b'0');
+        }
+        let limit = numeric.map_or(i64::MAX, |policy| i64::from(policy.max_exponent_abs));
+        if exponent > limit {
+            return false;
+        }
+        if exponent_negative {
+            exponent = -exponent;
+        }
+    }
+    let (reject_negative_zero, reject_non_finite) = match numeric {
+        Some(policy) => (policy.reject_negative_zero, policy.reject_non_finite_float),
+        None => (false, false),
+    };
+    if negative && reject_negative_zero && !leading_nonzero {
+        // "-0..." needs a nonzero fraction digit (lexical negative zero), and
+        // its scale bounds the underflow check below.
+        let Some(first) = bytes[fraction].iter().position(|&byte| byte != b'0') else {
+            return false;
+        };
+        if is_float && exponent - (first as i64 + 1) < -323 {
+            return false;
+        }
+    }
+    if is_float && numeric.is_some() {
+        let integer_digits = i64::from(integer_len);
+        if reject_non_finite && integer_digits + exponent > 308 {
+            return false;
+        }
+        if reject_negative_zero && negative && leading_nonzero && integer_digits - 1 + exponent < -323
+        {
+            return false;
+        }
+    }
+    true
+}

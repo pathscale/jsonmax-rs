@@ -586,8 +586,63 @@ impl<'a> BlockCursor<'a> {
         let result = self.number_inner();
         self.retain(result)
     }
+    /// The common number, decided from the active block's masks alone: the
+    /// atom ends inside this block at a number delimiter, is within the digit
+    /// limit, and is accepted by the integer rule of `number_inner` or by
+    /// `number_accepted_fast`. Exactly `number_inner`'s accepting outcome for
+    /// such atoms; anything else returns None with no side effects.
+    #[inline(always)]
+    fn number_in_block(&mut self) -> Option<Span32> {
+        let start = self.offset();
+        if start < self.cache.block_start || start >= self.cache.block_end {
+            return None;
+        }
+        let masks = &self.cache.masks;
+        let relative = start - self.cache.block_start;
+        let remaining = masks.valid_mask & (u64::MAX << relative);
+        let boundaries =
+            (masks.structural_mask | masks.raw_punctuation_mask() | masks.whitespace_mask)
+                & remaining;
+        if boundaries == 0 {
+            return None;
+        }
+        let end = boundaries.trailing_zeros();
+        let len = end - relative;
+        let digits = (masks.digit_mask & remaining & low_bits(end)).count_ones();
+        if digits > u32::from(self.limits.max_number_digits) {
+            return None;
+        }
+        let end_offset = self.cache.block_start + end;
+        // The boundary byte exists: it is a set bit of the valid mask.
+        if !jmax_number::is_number_delimiter(self.input[end_offset as usize]) {
+            return None;
+        }
+        let bytes = &self.input[start as usize..end_offset as usize];
+        let unsigned =
+            digits == len && (bytes.first().is_some_and(|&byte| byte != b'0') || len == 1);
+        let signed = len >= 2
+            && digits == len - 1
+            && bytes[0] == b'-'
+            && (bytes[1] != b'0'
+                || (len == 2
+                    && !self
+                        .numeric
+                        .is_some_and(|policy| policy.reject_negative_zero)));
+        let non_digits = (!masks.digit_mask >> relative) & low_bits(len);
+        if !(unsigned
+            || signed
+            || super::feed::number_accepted_masked(bytes, non_digits, self.numeric))
+        {
+            return None;
+        }
+        self.cache.offset = end_offset;
+        Some(Span32::new(start, len))
+    }
     #[inline(always)]
     fn number_inner(&mut self) -> Result<Span32> {
+        if let Some(span) = self.number_in_block() {
+            return Ok(span);
+        }
         {
             let (span, excess, digits) = self.atom_span()?;
             // A mask-proven nonzero-leading integer needs no second byte/UTF-8
@@ -1027,37 +1082,52 @@ impl<'a> BlockCursor<'a> {
                 }
                 b'"' => {
                     let key = matches!(phase, FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd);
-                    // The opening quote is known; this is expect_byte's success path.
-                    self.cache.offset = start + 1;
-                    if key && reject_dup {
-                        let checkpoint = decoded.len();
-                        let meta = match self.scan_string_body(start, decoded, true) {
-                            Ok(meta) => meta,
-                            Err(error) => {
-                                decoded.truncate(checkpoint);
-                                return Err(error);
-                            }
-                        };
-                        let bytes = match meta.cooked.source {
-                            SpanSource::RawPayload => meta.cooked.span.slice(self.input),
-                            SpanSource::DecodedArena => meta.cooked.span.slice(decoded),
-                        }
-                        .ok_or_else(|| {
-                            syntax_error(
-                                ErrorCode::InternalError,
-                                meta.raw_token.offset,
-                                "cooked key reference outside arena",
-                            )
-                        })?;
-                        key_hash = discard_key_hash(bytes);
-                        key_ref = Some(meta.cooked);
-                    } else {
-                        let meta = self.scan_string_body(start, decoded, false)?;
+                    if let Some(meta) = self.ascii_string_in_block() {
+                        // Raw ASCII content: nothing is decoded or discarded.
                         if key {
+                            if reject_dup {
+                                let content = meta.raw_content;
+                                key_hash = discard_key_hash(
+                                    &self.input[content.offset as usize
+                                        ..(content.offset + content.len) as usize],
+                                );
+                            }
                             key_ref = Some(meta.cooked);
                         }
+                        TokenKind::String
+                    } else {
+                        // The opening quote is known; this is expect_byte's success path.
+                        self.cache.offset = start + 1;
+                        if key && reject_dup {
+                            let checkpoint = decoded.len();
+                            let meta = match self.scan_string_body(start, decoded, true) {
+                                Ok(meta) => meta,
+                                Err(error) => {
+                                    decoded.truncate(checkpoint);
+                                    return Err(error);
+                                }
+                            };
+                            let bytes = match meta.cooked.source {
+                                SpanSource::RawPayload => meta.cooked.span.slice(self.input),
+                                SpanSource::DecodedArena => meta.cooked.span.slice(decoded),
+                            }
+                            .ok_or_else(|| {
+                                syntax_error(
+                                    ErrorCode::InternalError,
+                                    meta.raw_token.offset,
+                                    "cooked key reference outside arena",
+                                )
+                            })?;
+                            key_hash = discard_key_hash(bytes);
+                            key_ref = Some(meta.cooked);
+                        } else {
+                            let meta = self.scan_string_body(start, decoded, false)?;
+                            if key {
+                                key_ref = Some(meta.cooked);
+                            }
+                        }
+                        TokenKind::String
                     }
-                    TokenKind::String
                 }
                 b'-' | b'0'..=b'9' => {
                     self.number_inner()?;
