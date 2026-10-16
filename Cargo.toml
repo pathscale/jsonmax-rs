@@ -1,5 +1,6 @@
 [workspace]
 resolver = "3"
+exclude = ["bench/harness", "bench/dcheck"]
 members = [
   "crates/jmax-abi",
   "crates/jmax-buffer",
