@@ -1503,7 +1503,13 @@ fn decode_content(
                     ));
                 }
                 let run = &tail[..run_len];
-                let validation = jmax_utf8::validate_and_count_scalars(run, position);
+                // ASCII runs (the common text between escapes) are valid UTF-8
+                // with one scalar per byte; skip the general validator for them.
+                let validation = if run.is_ascii() {
+                    Ok(run.len() as u32)
+                } else {
+                    jmax_utf8::validate_and_count_scalars(run, position)
+                };
                 let raw_remaining =
                     limits.max_string_bytes.saturating_sub(position - start - 1) as usize;
                 let decoded_remaining = limits.max_string_bytes.saturating_sub(byte_len) as usize;
