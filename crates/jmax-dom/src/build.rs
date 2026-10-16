@@ -745,28 +745,46 @@ fn string_bytes<'a>(
 
 /// Placement hash for the builder's private duplicate-key tables. Matches are
 /// always confirmed on the cooked bytes, so this affects probe length only.
-/// Word-at-a-time instead of FNV-1a's dependent multiply per byte.
+/// Constant work per key (length, head word, tail word) instead of FNV-1a's
+/// dependent multiply per byte or a pass over every word.
 #[inline(always)]
 fn key_hash(bytes: &[u8]) -> u64 {
     const K: u64 = 0x9e37_79b9_7f4a_7c15;
-    let mut hash = (bytes.len() as u64).wrapping_mul(K);
-    let mut chunks = bytes.chunks_exact(8);
-    for chunk in &mut chunks {
-        let mut word = [0u8; 8];
-        word.copy_from_slice(chunk);
-        hash = (hash ^ u64::from_le_bytes(word)).wrapping_mul(K);
-        hash ^= hash >> 32;
-    }
-    let rest = chunks.remainder();
-    if !rest.is_empty() {
-        let mut word = 0u64;
-        for (index, &byte) in rest.iter().enumerate() {
-            word |= u64::from(byte) << (8 * index);
-        }
-        hash = (hash ^ word).wrapping_mul(K);
-        hash ^= hash >> 32;
-    }
-    hash
+    let len = bytes.len();
+    // Constant work per key: length plus a head word and a tail word, which
+    // overlap (and so cover every byte) up to 16 bytes. Bytes beyond that in
+    // the middle only matter to the byte comparison that confirms a match.
+    let (head, tail) = if len >= 8 {
+        (load_u64(bytes, 0), load_u64(bytes, len - 8))
+    } else if len >= 4 {
+        let word = u64::from(load_u32(bytes, 0)) | u64::from(load_u32(bytes, len - 4)) << 32;
+        (word, word)
+    } else if len > 0 {
+        let word = u64::from(bytes[0])
+            | u64::from(bytes[len >> 1]) << 8
+            | u64::from(bytes[len - 1]) << 16;
+        (word, word)
+    } else {
+        (0, 0)
+    };
+    let mut hash = ((len as u64).wrapping_mul(K) ^ head).wrapping_mul(K);
+    hash ^= hash >> 32;
+    hash = (hash ^ tail).wrapping_mul(K);
+    hash ^ (hash >> 32)
+}
+
+#[inline(always)]
+fn load_u64(bytes: &[u8], at: usize) -> u64 {
+    let mut word = [0u8; 8];
+    word.copy_from_slice(&bytes[at..at + 8]);
+    u64::from_le_bytes(word)
+}
+
+#[inline(always)]
+fn load_u32(bytes: &[u8], at: usize) -> u32 {
+    let mut word = [0u8; 4];
+    word.copy_from_slice(&bytes[at..at + 4]);
+    u32::from_le_bytes(word)
 }
 
 #[cfg(test)]

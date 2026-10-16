@@ -420,3 +420,24 @@ fn cursor_fast_skip_matches_exact_offsets_totals_and_capacity() {
     }
     assert!(fast_steps > 5000, "too few accepted skips: {fast_steps}");
 }
+
+/// The exact loop's key hash only looks at the length and the ends of a key;
+/// keys that differ only in the middle must still be distinct, and equal keys
+/// must still collide, with and without escapes.
+#[test]
+fn constant_work_key_hash_keeps_duplicate_semantics() {
+    let limits = Limits::strict_default();
+    let numeric = Some(NumericPolicy::strict_default());
+    let key = |mid: &str| format!("0123456789abcdef{mid}fedcba9876543210");
+    let accepts = |text: String| reference(text.as_bytes(), limits, numeric, 0, 0).accepted;
+    assert!(accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AAAB"))));
+    assert!(!accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AAAA"))));
+    assert!(!accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AA\\u0041A"))));
+    assert!(accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AA\\u0042A"))));
+    for n in 0..24usize {
+        let a = "k".repeat(n);
+        let b = format!("{}x{}", "k".repeat(n / 2), "k".repeat(n - n / 2));
+        assert!(accepts(format!(r#"{{"{a}":1,"{b}":2}}"#)));
+        assert!(!accepts(format!(r#"{{"{a}":1,"{a}":2}}"#)));
+    }
+}
