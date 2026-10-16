@@ -1054,6 +1054,15 @@ impl<'a> BlockCursor<'a> {
     fn strict_discard_loop(&mut self, decoded: &mut Vec<u8>) -> Result<()> {
         // skip_strict_inner installs the syntax duplicate owner.
         let reject_dup = self.limits.reject_duplicate_keys;
+        let max_depth = usize::from(self.limits.max_depth);
+        // The innermost open container (or the root) lives in locals; `frames`
+        // holds only the enclosing containers. `depth` counts open containers,
+        // i.e. the event machine's `frames.len()`.
+        let mut depth = 0usize;
+        let mut phase = self.root_phase;
+        let mut count = 0u32;
+        let mut checkpoint = decoded.len();
+        let mut top_start = self.offset();
         loop {
             let Some(byte) = self.whitespace_inner()? else {
                 return Err(syntax_error(
@@ -1063,7 +1072,6 @@ impl<'a> BlockCursor<'a> {
                 ));
             };
             let start = self.offset();
-            let phase = self.phase();
             let mut key_ref = None;
             let mut key_hash = 0u64;
             let kind = match byte {
@@ -1144,12 +1152,8 @@ impl<'a> BlockCursor<'a> {
             };
             match (phase, kind) {
                 (FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd, TokenKind::String) => {
-                    let depth = self.frames.len();
-                    let Some(frame) = self.frames.last_mut() else {
-                        return Err(inconsistent_frame(start));
-                    };
-                    let count = increment_count(
-                        frame.count,
+                    count = increment_count(
+                        count,
                         self.limits.max_fields_per_object,
                         start,
                         "object field count exceeds its limit",
@@ -1164,9 +1168,9 @@ impl<'a> BlockCursor<'a> {
                             .span
                             .slice(owner)
                             .ok_or_else(|| inconsistent_frame(start))?;
-                        let table = self
-                            .key_tables
-                            .get_mut(depth - 1)
+                        let table = depth
+                            .checked_sub(1)
+                            .and_then(|index| self.key_tables.get_mut(index))
                             .ok_or_else(|| inconsistent_frame(start))?;
                         if table
                             .insert_unique(key_hash, reference, bytes, self.input, decoded, start)?
@@ -1178,34 +1182,35 @@ impl<'a> BlockCursor<'a> {
                             ));
                         }
                     }
-                    frame.phase = FramePhase::ObjectColon;
-                    frame.count = count;
+                    phase = FramePhase::ObjectColon;
                 }
-                (FramePhase::ObjectColon, TokenKind::Colon) => {
-                    self.set_top_phase(FramePhase::ObjectValue, start)?;
-                }
+                (FramePhase::ObjectColon, TokenKind::Colon) => phase = FramePhase::ObjectValue,
                 (FramePhase::ObjectCommaOrEnd, TokenKind::Comma) => {
-                    self.set_top_phase(FramePhase::ObjectKeyOrEnd, start)?;
+                    phase = FramePhase::ObjectKeyOrEnd;
                 }
                 (FramePhase::ArrayCommaOrEnd, TokenKind::Comma) => {
-                    self.set_top_phase(FramePhase::ArrayValueOrEnd, start)?;
+                    phase = FramePhase::ArrayValueOrEnd;
                 }
                 (FramePhase::ObjectStart | FramePhase::ObjectCommaOrEnd, TokenKind::RBrace)
                 | (FramePhase::ArrayStart | FramePhase::ArrayCommaOrEnd, TokenKind::RBracket) => {
-                    let frame = self.frames.pop().ok_or_else(|| inconsistent_frame(start))?;
                     // The closed container's keys are no longer consulted.
                     // Preserve cumulative resource accounting while returning
                     // the physical arena to its parent's live-key checkpoint.
-                    let checkpoint = frame.decoded_checkpoint;
                     self.cache.discarded_decoded = self
                         .cache
                         .discarded_decoded
                         .saturating_add((decoded.len() - checkpoint) as u32);
                     decoded.truncate(checkpoint);
-                    if self.frames.is_empty() {
+                    if depth == 1 {
                         // root_phase was set to RootDone when the root opened.
                         return Ok(());
                     }
+                    let parent = self.frames.pop().ok_or_else(|| inconsistent_frame(start))?;
+                    phase = parent.phase;
+                    count = parent.count;
+                    checkpoint = parent.decoded_checkpoint;
+                    top_start = parent.start_offset;
+                    depth -= 1;
                 }
                 (
                     FramePhase::RootStart
@@ -1226,52 +1231,62 @@ impl<'a> BlockCursor<'a> {
                         _ => FramePhase::ArrayCommaOrEnd,
                     };
                     let child = match kind {
-                        TokenKind::LBrace => Some((ContainerKind::Object, FramePhase::ObjectStart)),
-                        TokenKind::LBracket => Some((ContainerKind::Array, FramePhase::ArrayStart)),
+                        TokenKind::LBrace => Some(FramePhase::ObjectStart),
+                        TokenKind::LBracket => Some(FramePhase::ArrayStart),
                         _ => None,
                     };
-                    let depth = self.frames.len();
-                    if child.is_some() && depth >= usize::from(self.limits.max_depth) {
+                    if child.is_some() && depth >= max_depth {
                         return Err(syntax_error(
                             ErrorCode::DepthLimitExceeded,
                             start,
                             "container depth exceeds its limit",
                         ));
                     }
-                    match self.frames.last_mut() {
-                        Some(frame) => {
-                            if frame.kind == ContainerKind::Array {
-                                frame.count = increment_count(
-                                    frame.count,
-                                    self.limits.max_array_items,
-                                    start,
-                                    "array item count exceeds its limit",
-                                )?;
-                            }
-                            frame.phase = next_phase;
-                        }
-                        None => self.root_phase = next_phase,
+                    if matches!(phase, FramePhase::ArrayStart | FramePhase::ArrayValueOrEnd) {
+                        count = increment_count(
+                            count,
+                            self.limits.max_array_items,
+                            start,
+                            "array item count exceeds its limit",
+                        )?;
                     }
                     match child {
-                        Some((kind, phase)) => {
-                            reserve_one(&mut self.frames, start)?;
+                        Some(child_phase) => {
                             if self.key_tables.len() == depth {
                                 reserve_one(&mut self.key_tables, start)?;
                                 self.key_tables.push(frames::KeyTable::new());
                             }
                             self.key_tables[depth].reset();
-                            self.frames.push(Frame {
-                                kind,
-                                phase,
-                                start_offset: start,
-                                count: 0,
-                                decoded_checkpoint: decoded.len(),
-                            });
+                            if depth == 0 {
+                                self.root_phase = next_phase;
+                            } else {
+                                // The parent's advanced phase and count wait on
+                                // the stack while the child is the top.
+                                reserve_one(&mut self.frames, start)?;
+                                self.frames.push(Frame {
+                                    kind: if matches!(next_phase, FramePhase::ObjectCommaOrEnd) {
+                                        ContainerKind::Object
+                                    } else {
+                                        ContainerKind::Array
+                                    },
+                                    phase: next_phase,
+                                    start_offset: top_start,
+                                    count,
+                                    decoded_checkpoint: checkpoint,
+                                });
+                            }
+                            phase = child_phase;
+                            count = 0;
+                            checkpoint = decoded.len();
+                            top_start = start;
+                            depth += 1;
                         }
                         None => {
                             if depth == 0 {
+                                self.root_phase = next_phase;
                                 return Ok(());
                             }
+                            phase = next_phase;
                         }
                     }
                 }
@@ -1284,16 +1299,6 @@ impl<'a> BlockCursor<'a> {
                 }
             }
         }
-    }
-
-    #[inline(always)]
-    fn set_top_phase(&mut self, phase: FramePhase, offset: u32) -> Result<()> {
-        let frame = self
-            .frames
-            .last_mut()
-            .ok_or_else(|| inconsistent_frame(offset))?;
-        frame.phase = phase;
-        Ok(())
     }
 
     fn skip_query_inner(&mut self, current_depth: u16, trusted: bool) -> Result<()> {
