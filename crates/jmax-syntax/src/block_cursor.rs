@@ -233,7 +233,7 @@ impl<'a> BlockCursor<'a> {
 
     /// Ensures the active block covers offset, classifying intervening blocks
     /// when a lexical consumer advanced across them. Carry always flows forward.
-    #[inline]
+    #[inline(always)]
     fn refill(&mut self) -> Result<()> {
         let position = self.offset();
         if position >= self.cache.block_start && position < self.cache.block_end {
