@@ -456,7 +456,10 @@ fn validate_number_inner(
     let result = jmax_number::lex::lex_number(input, span.offset, &policy);
     let error = match result {
         Ok(number) if number.span() == span => {
-            if numeric.is_some() && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal {
+            if numeric.is_some()
+                && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal
+                && !float_policy_cannot_fail(&number, &policy)
+            {
                 jmax_number::float::parse_f64(&number, &policy).err()
             } else {
                 None
@@ -900,4 +903,48 @@ fn next_complete(state: &mut SyntaxState) -> Result<ScanStep> {
             return Ok(ScanStep::Emit(event));
         }
     }
+}
+
+/// True when `parse_f64`'s policy checks cannot fail for a token that
+/// `lex_number` accepted under the same policy, so the binary64 conversion
+/// (whose value is discarded here) can be skipped. Conservative: anything not
+/// proven by decimal magnitude bounds still converts.
+///
+/// - Overflow: the value is below 10^(integer digits + exponent); at most
+///   10^308 it stays under f64::MAX.
+/// - Underflow to negative zero: the magnitude is at least 10^m, where m comes
+///   from the first nonzero significand digit; m >= -323 gives at least 1e-323,
+///   above half the smallest subnormal, so it cannot round to zero.
+/// The lexer has already enforced the exponent limit and rejected lexical
+/// negative zero, and every lexed spelling parses as a decimal float.
+#[inline]
+fn float_policy_cannot_fail(
+    number: &jmax_number::NumberToken<'_>,
+    policy: &jmax_number::NumericPolicy,
+) -> bool {
+    let integer = i64::from(number.integer_digits());
+    let exponent = i64::from(number.exponent());
+    if policy.reject_non_finite_float && integer + exponent > 308 {
+        return false;
+    }
+    if policy.reject_negative_zero && number.is_negative() {
+        // The spelling is "-" followed by the integer digits.
+        let digits = number.raw_bytes().get(1..).unwrap_or(&[]);
+        let magnitude = if digits.first().is_some_and(|&byte| byte != b'0') {
+            integer - 1 + exponent
+        } else {
+            // "0.fraction": scale of the first nonzero fraction digit.
+            let fraction = digits
+                .get(2..2 + number.fraction_digits() as usize)
+                .unwrap_or(&[]);
+            match fraction.iter().position(|&byte| byte != b'0') {
+                Some(index) => exponent - (index as i64 + 1),
+                None => return false,
+            }
+        };
+        if magnitude < -323 {
+            return false;
+        }
+    }
+    true
 }
