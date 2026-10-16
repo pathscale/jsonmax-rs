@@ -5,6 +5,7 @@
 //! specification; `binance_open` from the same model with a specification that
 //! accepts unknown keys, which exercises the skip path.
 
+pub mod fuzzing;
 pub mod harness;
 pub mod regen;
 

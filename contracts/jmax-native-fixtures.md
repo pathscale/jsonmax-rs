@@ -34,3 +34,18 @@ so the public result of a schema-valid input is always its value.
 
 Tests: tests/drift.rs, tests/generated.rs (the differential suite), tests/steady_state.rs
 (zero allocations on the native route after warmup, with a counting allocator).
+
+## Fuzz target native_vs_vm
+
+`fuzzing::native_vs_vm(data)` is the target: `data[0]` selects one of the ten decoders in
+`fuzzing::SUBJECTS` (modulo their number), `data[1]` a limit set from `harness::limit_variants`
+(modulo their number), and the rest is the input. It runs `harness::check_one`, so any
+disagreement between the core, the public result, the VM and the value oracle panics, which is
+what a fuzzing engine reports; shorter inputs do nothing. Decoders, contexts and reused outputs
+are built once per thread. `fuzzing::seed_corpus()` gives valid and near-valid documents for every
+decoder with their selector prefix; the `fuzz_seeds` example writes them to a directory.
+
+`fuzz/` is a cargo-fuzz package (own workspace, listed in the root `exclude`, needs nightly and
+libfuzzer-sys) whose target is `fuzz_targets/native_vs_vm.rs`. `tests/fuzz_smoke.rs` runs the same
+function over the seeds, every limit set and deterministic mutants without an engine
+(`JMAX_FUZZ_ROUNDS`, default 12 per seed and limit set); 1,500 rounds in release mode found nothing.

@@ -252,3 +252,4 @@ crates/jmax-native-fixtures/src/binance_plain/registries.rs	W7	W7-NATIVE	jmax-na
 crates/jmax-native-fixtures/src/binance_plain/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
 crates/jmax-native-fixtures/src/binance_plain/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
 crates/jmax-native-fixtures/src/binance_plain/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/fuzzing.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	fuzz target native_vs_vm

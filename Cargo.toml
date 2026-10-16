@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-exclude = ["bench/harness", "bench/dcheck", "bench/native"]
+exclude = ["bench/harness", "bench/dcheck", "bench/native", "crates/jmax-native-fixtures/fuzz"]
 members = [
   "crates/jmax-abi",
   "crates/jmax-buffer",
