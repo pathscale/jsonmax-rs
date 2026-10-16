@@ -32,6 +32,8 @@ pub struct NativeContext {
     pub(crate) program_type: Option<TypeId>,
     /// Largest input length judged safe by `budget_safe`, if any.
     pub(crate) safe_max_len: Option<usize>,
+    /// Decimal scalars read since the last `core_decode` began.
+    pub(crate) decimals: u64,
 }
 
 impl core::fmt::Debug for NativeContext {
@@ -58,6 +60,7 @@ impl NativeContext {
             program: None,
             program_type: None,
             safe_max_len: None,
+            decimals: 0,
         }
     }
 

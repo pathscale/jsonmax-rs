@@ -187,3 +187,86 @@ fn unbounded_programs_and_tight_limits_are_not_safe() {
     assert!(!budget_safe(trade, 200, small));
     assert!(!budget_safe(trade, usize::MAX, limits));
 }
+
+/// `check` against the bound for a known number of decimals.
+fn check_counted(program: &ValidatedProgram, input: &[u8], decimals: u64, stats: &mut Stats) {
+    let limits = VmLimits::default();
+    let bound = jmax_schema_vm::budget_bound_counted(program, input.len(), decimals, limits)
+        .expect("fixture programs are boundable");
+    let steps = smallest(bound.steps * 2 + 1_000_000, |max_steps| {
+        run(program, input, VmLimits { max_steps, max_scratch_bytes: u32::MAX, ..limits }).is_some_and(resource)
+    });
+    let scratch = smallest(u64::from(u32::MAX), |max| {
+        let max_scratch_bytes = u32::try_from(max).unwrap();
+        run(program, input, VmLimits { max_scratch_bytes, max_steps: u64::MAX, ..limits }).is_some_and(resource)
+    });
+    assert!(steps <= bound.steps, "steps {steps} exceed counted bound {} for {} bytes, {decimals} decimals", bound.steps, input.len());
+    assert!(scratch <= bound.scratch_bytes, "scratch {scratch} exceeds {}", bound.scratch_bytes);
+    stats.worst_ratio = stats.worst_ratio.max(steps as f64 / bound.steps as f64);
+    stats.inputs += 1;
+    if jmax_schema_vm::budget_safe_counted(program, input.len(), decimals, limits) {
+        stats.safe += 1;
+        assert!(!run(program, input, limits).is_some_and(resource));
+    }
+}
+
+#[test]
+fn counted_bound_covers_large_books_and_long_decimals() {
+    let programs = common::fixture_programs();
+    let program = |name: &str| &programs.iter().find(|(root, _)| root == name).unwrap().1;
+    let (update, snapshot) = (program("DepthUpdate"), program("DepthSnapshot"));
+    let mut stats = Stats { inputs: 0, safe: 0, worst_ratio: 0.0 };
+    let mut rng = Rng(0xdec1_0a1c_0ffe_e001);
+
+    // Books of known size: four decimals per level pair (two per side level).
+    for levels in [0usize, 1, 20, 100, 1000, 3000] {
+        let doc = common::depth_document(levels, false);
+        check_counted(update, &doc, 4 * levels as u64, &mut stats);
+        let snap = common::depth_document(levels, true);
+        check_counted(snapshot, &snap, 4 * levels as u64, &mut stats);
+    }
+    // The goal: a 1000 level book under the default limits is judged safe once its
+    // decimals are counted, while the length alone cannot vouch for it.
+    let book = common::depth_document(1000, true);
+    assert!(book.len() > 60_000);
+    assert!(!budget_safe(snapshot, book.len(), VmLimits::default()));
+    assert!(jmax_schema_vm::budget_safe_counted(snapshot, book.len(), 4000, VmLimits::default()));
+    // But not a book of the densest decimals whose count would need more steps than allowed.
+    assert!(!jmax_schema_vm::budget_safe_counted(snapshot, book.len(), 40_000, VmLimits::default()));
+
+    // The densest decimals: one digit, two per level.
+    let dense = format!("{{\"lastUpdateId\":1,\"bids\":[{}],\"asks\":[]}}", vec!["[\"1\",\"2\"]"; 2500].join(","));
+    check_counted(snapshot, dense.as_bytes(), 5000, &mut stats);
+    // Long, odd and malformed decimals: many digits, exponents, signs, escapes.
+    let odd = [
+        "123456789012345678901234567890.123456789012345678901234567890",
+        "-0.00000000000000000000000000000000000001",
+        "1e400", "1E-400", "-1.5e3", "00.1", "1.", ".5", "+1", "1\\u002e5", "\\u0031\\u0032",
+        "99999999999999999999999999999999999999.99999999999999999999",
+        "0.000000000000000000000000000000000000000000000000000000000000000001",
+    ];
+    for text in odd {
+        for repeat in [1usize, 40, 400] {
+            let level = format!("[\"{text}\",\"{text}\"]");
+            let levels = vec![level; repeat].join(",");
+            let doc = format!("{{\"lastUpdateId\":1,\"bids\":[{levels}],\"asks\":[{levels}]}}");
+            check_counted(snapshot, doc.as_bytes(), 4 * repeat as u64, &mut stats);
+        }
+    }
+    // Mutations of large books, with the count of the seed (an upper bound for most
+    // mutants; a mutant with more decimals than the seed cannot arise from one byte
+    // change except by splitting a string, and every mutant is checked against its
+    // own quote count as well).
+    for levels in [20usize, 1000] {
+        let seed = common::depth_document(levels, true);
+        let seed_decimals = 4 * levels as u64;
+        for _ in 0..if levels > 100 { 8 } else { 200 } {
+            let mutant = mutate(&seed, &mut rng);
+            let quotes = mutant.iter().filter(|byte| **byte == b'"').count() as u64;
+            check_counted(snapshot, &mutant, seed_decimals.max(quotes / 2), &mut stats);
+        }
+    }
+    assert!(stats.worst_ratio < 1.0);
+    eprintln!("counted bound: worst measured/bound {:.3} over {} inputs, {} safe", stats.worst_ratio, stats.inputs, stats.safe);
+    assert!(stats.safe > 20, "{} of {}", stats.safe, stats.inputs);
+}

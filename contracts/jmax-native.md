@@ -144,15 +144,21 @@ builds a context for callers that drive a Reader directly.
 decode_into runs this decision flow. Let program be the lazily built T::build_program(),
 which is cached in the context; an error from build_program is returned unchanged.
 
-1. Compute `safe = jmax_schema_vm::budget_safe(program, input.len(), limits)`.
-2. If not safe: run the VM first (`validate_borrowed_into`, strict, with the request's numeric
-   policy). A VM error is returned unchanged. Otherwise run decode_core. A Fail here is a
-   divergence and returns InternalError (Decode source, detail "native decoder diverged
-   from schema VM"). Then run post_check.
-3. If safe: run decode_core, which must consume the whole input (Reader::end). On success run
-   post_check and return its result. On Fail run the VM with the same arguments and return
-   the VM's exact Error. A VM success after a Fail is a divergence and returns the same
-   InternalError. The value in `out` after any error is unspecified but valid.
+1. Run decode_core, which must consume the whole input (Reader::end). The context counts
+   the decimal scalars it reads.
+2. The result is proven when decode_core succeeded and either `input.len()` is at most the
+   context's safe length (the largest length for which `budget_safe` holds) or
+   `jmax_schema_vm::budget_safe_counted(program, input.len(), decimals, limits)` holds for
+   the decimals actually read. A proven result runs post_check and is returned.
+3. Otherwise run the VM (`validate_borrowed_into`, strict, with the request's numeric policy,
+   fresh scratch). A VM error is returned unchanged. A VM success after a decode_core Fail is
+   a divergence and returns InternalError (Decode source, detail "native decoder diverged
+   from schema VM"). Otherwise run post_check. The value in `out` after any error is
+   unspecified but valid.
+
+Programs with no budget bound (open objects and the like) are never proven, so for them
+the VM always runs. A long input of a program with a bound is proven by its counted bound,
+so a 1,000 level book of decimals needs no VM run under the default limits.
 
 safe means the VM cannot fail by exhausting its step or scratch budget or its decoded-arena
 limit on this input, so the VM's only possible errors are syntax, number, limit, type and

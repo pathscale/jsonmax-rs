@@ -45,6 +45,7 @@ fn run_vm(program: &ValidatedProgram, ctx: &NativeContext, input: &[u8]) -> Resu
 fn core_decode<T: NativeDecode>(ctx: &mut NativeContext, input: &[u8], out: &mut T) -> NativeResult<()> {
     // A failed earlier decode may have left keys of objects it never closed.
     ctx.unknown.clear();
+    ctx.decimals = 0;
     let mut reader = Reader::new(input);
     T::decode_core(&mut reader, ctx, out)?;
     reader.end()
@@ -68,15 +69,21 @@ fn decide<T: NativeDecode>(
     input: &[u8],
     out: &mut T,
 ) -> Result<()> {
-    let safe = ctx.safe_max_len.is_some_and(|max| input.len() <= max);
-    if !safe {
+    // The native decoder runs first. Its answer stands on its own when the VM
+    // provably could not have failed on resources: by the length alone, or, for
+    // a long input, by the length together with the number of decimals the
+    // decoder actually read (the VM bills each decimal a fixed amount). Otherwise
+    // the VM decides, and a native Fail is always the VM's to explain.
+    let native = core_decode(ctx, input, out);
+    let by_length = ctx.safe_max_len.is_some_and(|max| input.len() <= max);
+    let proven = native.is_ok()
+        && (by_length
+            || jmax_schema_vm::budget_safe_counted(program, input.len(), ctx.decimals, ctx.limits));
+    if !proven {
         run_vm(program, ctx, input)?;
-        core_decode(ctx, input, out).map_err(|_| diverged())?;
-    } else if core_decode(ctx, input, out).is_err() {
-        return match run_vm(program, ctx, input) {
-            Err(error) => Err(error),
-            Ok(()) => Err(diverged()),
-        };
+        if native.is_err() {
+            return Err(diverged());
+        }
     }
     out.post_check()
 }

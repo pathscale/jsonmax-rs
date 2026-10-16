@@ -234,6 +234,7 @@ impl<'a> Reader<'a> {
         let max_string = ctx.limits.syntax.max_string_bytes as usize;
         if let Some((value, end)) = fast_decimal(self.input, self.pos, policy, digits_limit, max_string) {
             self.pos = end;
+            ctx.decimals += 1;
             return Ok(value);
         }
         self.decimal_slow(ctx, policy)
@@ -249,6 +250,7 @@ impl<'a> Reader<'a> {
         let (text, end) = self.string_at(ctx, start)?;
         let value = parse_decimal(text.as_bytes(), policy, &numeric, digits_limit)?;
         self.pos = end;
+        ctx.decimals += 1;
         Ok(value)
     }
 

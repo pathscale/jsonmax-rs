@@ -20,8 +20,9 @@ pub struct BudgetBound {
     pub scratch_bytes: u64,
 }
 
-/// Steps charged by one decimal scalar beyond its token bytes.
-const DECIMAL_FIXED: u64 = 2_048;
+/// Steps charged by one decimal scalar beyond its token bytes: the VM prepays
+/// 2,048 for rescaling and validation; the rest is slack for its own passes.
+const DECIMAL_FIXED: u64 = 2_048 + 48;
 /// Per-byte factor for plain scalars and strings, with slack.
 const SCALAR_PER_BYTE: u64 = 8;
 /// Shared by every byte: input prepayment, loop iteration and value charge.
@@ -34,6 +35,25 @@ const FIXED_SLACK: u64 = 4_096;
 /// Bound the strict-validation cost of any input of at most `len` bytes.
 /// `None` means no bound is claimed.
 pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) -> Option<BudgetBound> {
+    // A decimal is at least three bytes plus a delimiter, so an input of `len`
+    // bytes holds at most len / 4 + 1 of them.
+    let decimals = u64::try_from(len).ok()? / 4 + 1;
+    budget_bound_counted(program, len, decimals, limits)
+}
+
+/// Bound the strict-validation cost of any input of at most `len` bytes that
+/// holds at most `decimals` decimal scalars. The VM bills each decimal a fixed
+/// amount that does not depend on its length, so a caller that knows the count
+/// (a decoder that has just read the whole input) gets a much tighter bound than
+/// the worst case `budget_bound` must assume. The bound is `None` for the same
+/// programs, and is never below the measured consumption of an input with at
+/// most that many decimals.
+pub fn budget_bound_counted(
+    program: &ValidatedProgram,
+    len: usize,
+    decimals: u64,
+    limits: VmLimits,
+) -> Option<BudgetBound> {
     let compiled = program.program();
     if !compiled.patterns.is_empty() {
         return None;
@@ -51,12 +71,12 @@ pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) ->
                     return None;
                 }
             }
-            StateKind::Scalar(ValueKind::Decimal) => decimal = true,
             StateKind::Object { reject_unknown, .. } => {
                 if !*reject_unknown {
                     return None;
                 }
             }
+            StateKind::Scalar(ValueKind::Decimal) => decimal = true,
             StateKind::Scalar(_) | StateKind::Array { .. } => {}
         }
     }
@@ -78,15 +98,8 @@ pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) ->
     let key_factor = passes.checked_add(1)?.checked_mul(3)?.checked_add(3)?;
     let structural = words.checked_add(8)?;
     let scalar = if formatted { FORMAT_PER_BYTE } else { SCALAR_PER_BYTE };
-    let token = if decimal {
-        // A decimal is at least three bytes plus a delimiter.
-        (DECIMAL_FIXED + 8 * 4 + 16) / 4 + 1
-    } else {
-        0
-    }
-    .max(scalar);
     let per_byte = COMMON_PER_BYTE
-        .checked_add(token.max(key_factor).max(structural))?;
+        .checked_add(scalar.max(key_factor).max(structural))?;
 
     // Frames grow one slot at a time, charging the new size at each growth.
     let frame = size_of::<VmFrame>() as u64;
@@ -100,7 +113,10 @@ pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) ->
         .checked_add(mask_growth)?
         .checked_add(slots.checked_mul(2)?)?
         .checked_add(states.checked_mul(16)?)?;
-    let steps = len.checked_mul(per_byte)?.checked_add(fixed)?;
+    let steps = len
+        .checked_mul(per_byte)?
+        .checked_add(fixed)?
+        .checked_add(if decimal { decimals.checked_mul(DECIMAL_FIXED)? } else { 0 })?;
 
     let frames = depth.checked_add(1)?.checked_mul(frame)?.checked_mul(2)?;
     let arena = len.checked_mul(2)?.checked_add(FIXED_SLACK)?;
@@ -124,13 +140,22 @@ fn lookup_passes(table: &KeyTable) -> u64 {
 /// True only when a strict validation of any input of at most `len` bytes
 /// cannot fail by exhausting steps, scratch, payload or decoded-arena limits.
 pub fn budget_safe(program: &ValidatedProgram, len: usize, limits: VmLimits) -> bool {
+    safe_with(len, limits, budget_bound(program, len, limits))
+}
+
+/// `budget_safe` for an input known to hold at most `decimals` decimal scalars.
+pub fn budget_safe_counted(program: &ValidatedProgram, len: usize, decimals: u64, limits: VmLimits) -> bool {
+    safe_with(len, limits, budget_bound_counted(program, len, decimals, limits))
+}
+
+fn safe_with(len: usize, limits: VmLimits, bound: Option<BudgetBound>) -> bool {
     let Ok(wide) = u32::try_from(len) else {
         return false;
     };
     if wide > limits.syntax.max_payload_bytes || wide > limits.syntax.max_decoded_bytes {
         return false;
     }
-    match budget_bound(program, len, limits) {
+    match bound {
         Some(bound) => {
             bound.steps <= limits.max_steps
                 && bound.scratch_bytes <= u64::from(limits.max_scratch_bytes)
