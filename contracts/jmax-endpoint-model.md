@@ -264,14 +264,14 @@ to every BlockchainDecimal; reject_unknown applies to every object. validate_nat
 requires every root and tuple to name a definition that resolves to a Struct (uniqueness
 and nonempty names included), every ident to name an existing field of a struct reachable
 from a root with a legal snake_case non-keyword identifier, no two idents for one field and
-no collision among the resulting identifiers, and DecimalPolicy to satisfy
-jmax_decimal::validate_policy shape (precision and scale consistent). Failures are
+no collision among the resulting identifiers, and a DecimalPolicy with max_precision in 1..=38, target_scale at most 38 and a nonnegative
+tick_step (the schema-ir scalar rules). Failures are
 ConstraintViolation; wire-name collisions are DuplicateObjectKey.
 
 schema_graph_for lowers root, a root name from spec.roots, to a nested jmax_schema_ir::Schema
 named after the root with the supplied SchemaId and runs jmax_schema_ir::model::validate. Mapping:
 Struct (and StructRef/StructTable resolved through the registry) to Object with one Property per
-field in declaration order, FieldId(index + 1) per object, required unless the field type is
+field in declaration order, a FieldId unique across the whole graph (a counter from 1 in depth-first declaration order), required unless the field type is
 Optional, and reject_unknown from the spec; Vec to Array with no bounds; Optional
 unwraps its element and clears required (absence allowed, explicit null rejected, nested Optional
 and Optional elements in arrays unsupported); a tuple struct to Array with min_items =

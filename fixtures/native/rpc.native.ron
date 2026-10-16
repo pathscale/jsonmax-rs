@@ -1,0 +1,5 @@
+// Native decoder specification for fixtures/native/rpc.ron.
+NativeSpec(
+    roots: ["RpcRequest"],
+    reject_unknown: true,
+)
