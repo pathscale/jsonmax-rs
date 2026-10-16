@@ -6,7 +6,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 pub mod block_cursor;
-pub use block_cursor::{BlockCursor, SkipScratch};
+pub use block_cursor::{BlockCursor, SkipScratch, skip_strict};
 pub mod feed;
 pub mod finish;
 pub mod frames;

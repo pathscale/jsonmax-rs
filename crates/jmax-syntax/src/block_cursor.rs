@@ -1781,3 +1781,61 @@ fn load_u32(bytes: &[u8], at: usize) -> u32 {
     word.copy_from_slice(&bytes[at..at + 4]);
     u32::from_le_bytes(word)
 }
+
+/// Strictly validate and discard the one value that starts at `start`,
+/// returning the offset just past it.
+///
+/// Equal to a `BlockCursor` over `input` moved to `start` and then
+/// `skip_value(decoded, current_depth, SkipMode::StrictValidate)`: the same end
+/// offset, the same final `decoded` contents and the same error (code, offset,
+/// detail, with `decoded` truncated to its original length). Container values
+/// first try the one-pass strict acceptor; scalars, doubt and every diagnostic
+/// run the exact cursor path. `start` must not lie inside a token.
+pub fn skip_strict(
+    input: &[u8],
+    start: u32,
+    current_depth: u16,
+    limits: Limits,
+    numeric: Option<NumericPolicy>,
+    dup_owner: DuplicatePolicyOwner,
+    decoded: &mut Vec<u8>,
+    scratch: &mut SkipScratch,
+) -> Result<u32> {
+    // The same checks, in the same order, as BlockCursor::new.
+    frames::check_payload_growth(0, input.len(), limits)?;
+    check_duplicate_owner(limits, dup_owner)?;
+    if numeric.is_some_and(|policy| policy.max_exponent_abs < 0) {
+        return Err(syntax_error(
+            ErrorCode::ConstraintViolation,
+            0,
+            "numeric exponent limit cannot be negative",
+        ));
+    }
+    let first = input.get(start as usize).copied();
+    if matches!(first, Some(b'{' | b'['))
+        && current_depth <= limits.max_depth
+        && start as usize <= input.len()
+    {
+        let params = super::strict_fast::Params {
+            limits,
+            numeric,
+            max_depth: usize::from(limits.max_depth - current_depth),
+            masker: jmax_string::EscapeMasker::new(),
+            whole_input: false,
+        };
+        if let Some((end, _)) = super::strict_fast::accept(
+            input,
+            start as usize,
+            &params,
+            0,
+            decoded,
+            &mut scratch.fast,
+        ) {
+            return Ok(end as u32);
+        }
+    }
+    let mut cursor = BlockCursor::with_scratch(input, limits, numeric, dup_owner, scratch)?;
+    cursor.advance(start);
+    cursor.skip_value(decoded, current_depth, SkipMode::StrictValidate)?;
+    Ok(cursor.offset())
+}
