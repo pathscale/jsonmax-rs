@@ -197,6 +197,7 @@ impl __native::NativeDecode for super::models::TradeBatch {
         __decode_trade_batch(r, ctx, out, 1)
     }
 }
+#[inline]
 fn __decode_trade_batch(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::TradeBatch, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -260,6 +261,7 @@ fn __decode_trade_batch(r: &mut __native::Reader<'_>, ctx: &mut __native::Native
     }
     Ok(())
 }
+#[inline]
 fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::AggTrade, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -370,6 +372,7 @@ fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCo
     }
     Ok(())
 }
+#[inline]
 fn __decode_array_0(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::boxed::Box<super::models::AggTrade>>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {

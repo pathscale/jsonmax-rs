@@ -72,6 +72,7 @@ impl<'a> Reader<'a> {
         if self.pos == self.input.len() { Ok(()) } else { Err(Fail) }
     }
 
+    #[inline]
     pub fn boolean(&mut self) -> NativeResult<bool> {
         self.skip_ws();
         let rest = &self.input[self.pos..];
@@ -87,6 +88,7 @@ impl<'a> Reader<'a> {
     }
 
     /// A nonnegative integer no greater than `max`.
+    #[inline]
     pub fn uint(&mut self, ctx: &mut NativeContext, max: u64) -> NativeResult<u64> {
         self.skip_ws();
         let input = self.input;
@@ -124,6 +126,7 @@ impl<'a> Reader<'a> {
     }
 
     /// An integer within `min..=max`.
+    #[inline]
     pub fn int(&mut self, ctx: &mut NativeContext, min: i64, max: i64) -> NativeResult<i64> {
         self.skip_ws();
         let input = self.input;
@@ -251,6 +254,7 @@ impl<'a> Reader<'a> {
 
     /// A string. Without escapes it borrows the input; with escapes it is
     /// decoded once into the context's buffer.
+    #[inline]
     pub fn string<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str>
     where
         'a: 'c,
@@ -262,6 +266,7 @@ impl<'a> Reader<'a> {
     }
 
     /// An object key and its colon.
+    #[inline]
     pub fn key<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str>
     where
         'a: 'c,

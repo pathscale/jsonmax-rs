@@ -363,6 +363,7 @@ impl __native::NativeDecode for super::models::Shape {
         result
     }
 }
+#[inline]
 fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::Shape, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -567,6 +568,7 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_point(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::Point, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -638,6 +640,7 @@ fn __decode_point(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_tag(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::Tag, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -727,6 +730,7 @@ fn __decode_tag(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext,
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_pair(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::Pair, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth || 2u32 > limits.max_array_items {
@@ -738,6 +742,7 @@ fn __decode_pair(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext
     out.high = r.int(ctx, i64::MIN, i64::MAX)?;
     r.expect(b']')
 }
+#[inline]
 fn __decode_array_0(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::boxed::Box<super::models::Tag>>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -768,6 +773,7 @@ fn __decode_array_0(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCont
     out.truncate(count);
     Ok(())
 }
+#[inline]
 fn __decode_array_1(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::string::String>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -802,6 +808,7 @@ fn __decode_array_1(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCont
     out.truncate(count);
     Ok(())
 }
+#[inline]
 fn __decode_array_2(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::vec::Vec<i64>>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -832,6 +839,7 @@ fn __decode_array_2(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCont
     out.truncate(count);
     Ok(())
 }
+#[inline]
 fn __decode_array_3(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<i64>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -862,6 +870,7 @@ fn __decode_array_3(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCont
     out.truncate(count);
     Ok(())
 }
+#[inline]
 fn __decode_array_4(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::boxed::Box<super::models::Pair>>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -892,6 +901,7 @@ fn __decode_array_4(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCont
     out.truncate(count);
     Ok(())
 }
+#[inline]
 fn __decode_array_5(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<i32>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {

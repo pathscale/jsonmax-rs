@@ -52,57 +52,57 @@ three runs of 15 samples. Treat differences under 10% as noise.
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 191 | 718 | 3036 | 3081 | 0 | 0 |
-| jmax-native budget | 190 | 721 | 3036 | 3081 | 0 | 0 |
-| jmax vm+reparse | 2765 | 50 | 27116 | 27161 | 1 | 168 |
-| serde_json String | 458 | 299 | 6130 | 6130 | 4 | 36 |
+| jmax-native | 182 | 753 | 2802 | 3036 | 0 | 0 |
+| jmax-native budget | 179 | 764 | 2802 | 3036 | 0 | 0 |
+| jmax vm+reparse | 2684 | 51 | 26882 | 27116 | 1 | 168 |
+| serde_json String | 461 | 297 | 6130 | 6130 | 4 | 36 |
 | serde_json fixed | 480 | 285 | 6134 | 6134 | 2 | 14 |
-| sonic-rs String | 340 | 403 | 4830 | 4830 | 4 | 36 |
-| sonic-rs fixed | 352 | 389 | 4948 | 4948 | 2 | 14 |
-| simd-json String | 564 | 243 | 9222 | 9222 | 13 | 3430 |
-| simd-json fixed | 588 | 233 | 9277 | 9277 | 11 | 3408 |
+| sonic-rs String | 352 | 389 | 4830 | 4830 | 4 | 36 |
+| sonic-rs fixed | 386 | 354 | 4948 | 4948 | 2 | 14 |
+| simd-json String | 561 | 244 | 9222 | 9222 | 13 | 3430 |
+| simd-json fixed | 584 | 235 | 9277 | 9277 | 11 | 3408 |
 
 ### depth_20 (1234 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 1864 | 662 | 26452 | 26514 | 0 | 0 |
-| jmax-native budget | 1846 | 669 | 26452 | 26514 | 0 | 0 |
-| jmax vm+reparse | 26135 | 47 | 236770 | 236832 | 3 | 1008 |
-| serde_json String | 3785 | 326 | 68300 | 68300 | 90 | 6617 |
-| serde_json fixed | 4424 | 279 | 56758 | 56758 | 10 | 1937 |
-| sonic-rs String | 3338 | 370 | 56250 | 56250 | 90 | 6617 |
-| sonic-rs fixed | 3212 | 384 | 45061 | 45060 | 10 | 1937 |
-| simd-json String | 3638 | 339 | 62704 | 62704 | 93 | 22817 |
-| simd-json fixed | 3643 | 339 | 47104 | 47104 | 13 | 20697 |
+| jmax-native | 1811 | 681 | 26363 | 26452 | 0 | 0 |
+| jmax-native budget | 1816 | 679 | 26363 | 26452 | 0 | 0 |
+| jmax vm+reparse | 25400 | 49 | 236681 | 236770 | 3 | 1008 |
+| serde_json String | 3732 | 331 | 68300 | 68300 | 90 | 6617 |
+| serde_json fixed | 4346 | 284 | 56758 | 56758 | 10 | 1937 |
+| sonic-rs String | 3145 | 392 | 56250 | 56250 | 90 | 6617 |
+| sonic-rs fixed | 3152 | 392 | 45061 | 45061 | 10 | 1937 |
+| simd-json String | 3625 | 340 | 62704 | 62704 | 93 | 22817 |
+| simd-json fixed | 3534 | 349 | 47104 | 47104 | 13 | 20697 |
 
 ### depth_1000 (63602 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 1447330 | 44 | 11991228 | 11991240 | 3 | 1008 |
-| jmax-native budget | 88912 | 715 | 1297467 | 1297477 | 0 | 0 |
-| jmax vm+reparse | 1503776 | 42 | 11991213 | 11991223 | 3 | 1008 |
-| serde_json String | 181800 | 350 | 3245418 | 3245418 | 4018 | 243784 |
-| serde_json fixed | 213302 | 298 | 2622912 | 2622912 | 18 | 65408 |
-| sonic-rs String | 156553 | 406 | 2632857 | 2632857 | 4018 | 243784 |
-| sonic-rs fixed | 142481 | 446 | 2021518 | 2021518 | 18 | 65408 |
-| simd-json String | 174696 | 364 | 2870628 | 2870628 | 4010 | 693036 |
-| simd-json fixed | 170494 | 373 | 2227663 | 2227663 | 10 | 581476 |
+| jmax-native | 1440290 | 44 | 11991195 | 11991228 | 3 | 1008 |
+| jmax-native budget | 89284 | 712 | 1297434 | 1297467 | 0 | 0 |
+| jmax vm+reparse | 1440167 | 44 | 11991180 | 11991213 | 3 | 1008 |
+| serde_json String | 168235 | 378 | 3245418 | 3245418 | 4018 | 243784 |
+| serde_json fixed | 196104 | 324 | 2622912 | 2622912 | 18 | 65408 |
+| sonic-rs String | 156046 | 408 | 2632857 | 2632857 | 4018 | 243784 |
+| sonic-rs fixed | 143294 | 444 | 2021518 | 2021518 | 18 | 65408 |
+| simd-json String | 186261 | 341 | 2870628 | 2870628 | 4010 | 693036 |
+| simd-json fixed | 169735 | 375 | 2227663 | 2227663 | 10 | 581476 |
 
 ### trades_100 (14632 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 21178 | 691 | 295159 | 303063 | 0 | 0 |
-| jmax-native budget | 20930 | 699 | 295162 | 303061 | 0 | 0 |
-| jmax vm+reparse | 219077 | 67 | 2200602 | 2208503 | 3 | 1008 |
-| serde_json String | 51662 | 283 | 730119 | 730119 | 406 | 39858 |
-| serde_json fixed | 52681 | 278 | 667799 | 667799 | 206 | 29624 |
-| sonic-rs String | 35626 | 411 | 593067 | 593067 | 406 | 39858 |
-| sonic-rs fixed | 37270 | 393 | 541618 | 541618 | 206 | 29624 |
-| simd-json String | 43450 | 337 | 621980 | 621980 | 410 | 236830 |
-| simd-json fixed | 44010 | 332 | 587330 | 587330 | 210 | 231460 |
+| jmax-native | 20666 | 708 | 276359 | 295159 | 0 | 0 |
+| jmax-native budget | 19649 | 745 | 276362 | 295162 | 0 | 0 |
+| jmax vm+reparse | 227960 | 64 | 2181802 | 2200602 | 3 | 1008 |
+| serde_json String | 56628 | 258 | 730119 | 730119 | 406 | 39858 |
+| serde_json fixed | 53601 | 273 | 667799 | 667799 | 206 | 29624 |
+| sonic-rs String | 42334 | 346 | 593067 | 593067 | 406 | 39858 |
+| sonic-rs fixed | 40198 | 364 | 541618 | 541618 | 206 | 29624 |
+| simd-json String | 43588 | 336 | 621980 | 621980 | 410 | 236830 |
+| simd-json fixed | 42914 | 341 | 587330 | 587330 | 210 | 231460 |
 
 ## Reading the result
 
@@ -130,3 +130,8 @@ Short strings and keys (an inline scan of up to 32 ASCII bytes before the shared
 `key_bytes` for the dispatch path) took `aggTrade` from 3,081 to 3,036 and `trades_100` from
 303,063 to 295,159 instructions: the strings left after prediction are the symbol and event
 type values, which still need a UTF-8 check to become `String`s.
+
+Inlining (`#[inline]` on the generated object, tuple and array functions and on the Reader's
+scalar methods) took `aggTrade` from 3,036 to 2,802, `trades_100` from 295,159 to 276,359 and
+left the depth documents near 26.4k and 1.30M: their cost is the 258 instructions each decimal
+still takes (digit loops and the checks around them), not call overhead.

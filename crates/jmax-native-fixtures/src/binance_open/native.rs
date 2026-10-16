@@ -427,6 +427,7 @@ impl __native::NativeDecode for super::models::DepthSnapshot {
         result
     }
 }
+#[inline]
 fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::AggTrade, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -545,6 +546,7 @@ fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCo
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_depth_update(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::DepthUpdate, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -644,6 +646,7 @@ fn __decode_depth_update(r: &mut __native::Reader<'_>, ctx: &mut __native::Nativ
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_price_level(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::PriceLevel, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth || 2u32 > limits.max_array_items {
@@ -655,6 +658,7 @@ fn __decode_price_level(r: &mut __native::Reader<'_>, ctx: &mut __native::Native
     out.quantity = r.decimal(ctx, &DECIMAL_POLICY)?;
     r.expect(b']')
 }
+#[inline]
 fn __decode_depth_snapshot(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::DepthSnapshot, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {
@@ -742,6 +746,7 @@ fn __decode_depth_snapshot(r: &mut __native::Reader<'_>, ctx: &mut __native::Nat
     ctx.end_object(mark)?;
     Ok(())
 }
+#[inline]
 fn __decode_array_0(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::alloc::vec::Vec<super::alloc::boxed::Box<super::models::PriceLevel>>, depth: u16) -> __native::NativeResult<()> {
     let limits = ctx.limits().syntax;
     if depth > limits.max_depth {

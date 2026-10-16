@@ -205,7 +205,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
             }
         }
         out.push_str(&format!(
-            "fn {fname}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::{}, depth: u16) -> __native::NativeResult<()> {{\n",
+            "#[inline]\nfn {fname}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::{}, depth: u16) -> __native::NativeResult<()> {{\n",
             info.name
         ));
         out.push_str("    let limits = ctx.limits().syntax;\n    if depth > limits.max_depth {\n        return Err(__native::Fail);\n    }\n    r.expect(b'{')?;\n");
@@ -351,7 +351,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
         let fname = self.struct_fn(&info.name)?;
         let count = info.fields.len();
         out.push_str(&format!(
-            "fn {fname}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::{}, depth: u16) -> __native::NativeResult<()> {{\n",
+            "#[inline]\nfn {fname}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::{}, depth: u16) -> __native::NativeResult<()> {{\n",
             info.name
         ));
         out.push_str(&format!(
@@ -370,7 +370,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
 
     fn emit_array(&self, out: &mut String, index: usize, info: &ArrayInfo, element: &'a EndpointType) -> Result<()> {
         out.push_str(&format!(
-            "fn __decode_array_{index}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut {}, depth: u16) -> __native::NativeResult<()> {{\n",
+            "#[inline]\nfn __decode_array_{index}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut {}, depth: u16) -> __native::NativeResult<()> {{\n",
             info.rust_type
         ));
         out.push_str("    let limits = ctx.limits().syntax;\n    if depth > limits.max_depth {\n        return Err(__native::Fail);\n    }\n    r.expect(b'[')?;\n    let mut count = 0usize;\n    if !r.eat(b']') {\n        loop {\n");
