@@ -135,3 +135,9 @@ Inlining (`#[inline]` on the generated object, tuple and array functions and on 
 scalar methods) took `aggTrade` from 3,036 to 2,802, `trades_100` from 295,159 to 276,359 and
 left the depth documents near 26.4k and 1.30M: their cost is the 258 instructions each decimal
 still takes (digit loops and the checks around them), not call overhead.
+
+Tried and dropped: reading digit runs eight bytes at a time (SWAR) in `uint`, `int` and the
+decimal fast path made every case slower (`aggTrade` 2,802 to 2,951, `depth_20` 26,363 to
+28,645, `trades_100` 276,359 to 296,243 instructions), and using it only for the integers still
+lost (`aggTrade` 2,976, `trades_100` 290,276). The numbers here are mostly 1 to 6 digits long, so
+the chunk test and the fallback to the byte loop cost more than they save; the scalar loops stay.
