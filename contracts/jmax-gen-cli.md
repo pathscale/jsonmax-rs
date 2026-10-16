@@ -275,3 +275,14 @@ fn main() -> ExitCode {
     ExitCode::from(code)
 }
 ```
+
+## Native decoders (--native)
+
+The option `--native PATH` (also `--native=PATH`) names a native.ron file.
+It is valid only when the Rust format is selected, with no legacy alias, and may be given at
+most once; otherwise parse_args returns the usual Cli argument error. generate loads it with
+jmax-endpoint-ron load_native_spec under the same bounded read and size limit as the input
+model, validates it against the model's registry, and calls codegen-rust generate_with_native,
+adding `rust/native.rs` to the Rust artifact paths. The manifest lists it with the Rust format,
+and check mode reports drift for it like any artifact. Without `--native` nothing changes:
+the four Rust artifacts and every other format are byte-identical to before.

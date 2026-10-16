@@ -268,3 +268,21 @@ types only after normalization. Every size conversion is checked, resource
 ceilings apply before growth, missing fields differ from explicitly empty fields,
 and unsupported input fails closed. No wave edits root definitions, adds parser
 dependencies, or issues a payload validation proof.
+
+## Native specification loading
+
+```rust
+pub fn load_native_spec(source: &str, limits: &ConfigLimits) -> Result<NativeSpec>;
+```
+
+Parses a separate `native.ron` document with the Wave 1 grammar and normalizes it. The root is
+a record (optionally wrapped as `NativeSpec(...)` or `Native(...)`) with keys `roots`,
+`tuples` (sequences of quoted names), `decimal` (optional record `(max_precision, target_scale,
+allow_exponent, reject_inexact_rescale, tick_step)`, default DecimalPolicy::spot_8),
+`reject_unknown` (boolean, default true) and `idents` (sequence of `Ident(type, wire, ident)`
+tuples or `(type: .., wire: .., ident: ..)` records). Unknown keys are UnknownObjectKey,
+duplicate keys DuplicateObjectKey, wrong value kinds TypeMismatch, integer overflow
+NumberOverflow, an unfinished document UnexpectedEof, all with the offending node offset and
+SchemaCompile source. No name is resolved here: model-dependent validation is
+endpoint-model validate_native_spec, so loading never needs a model. The loader leaves the
+model grammar and load_model untouched. Limits are enforced as for load_model.

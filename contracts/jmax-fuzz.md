@@ -287,3 +287,16 @@ pub fn harness_error(code: ErrorCode, detail: &'static str) -> Error {
     Error::new(code, ErrorSource::Decode, 0, detail)
 }
 ```
+
+## Wave 5: native.rs
+
+```rust
+pub fn native_seed_corpus(max_input_bytes: usize) -> Result<Vec<Payload>>;
+pub fn run_native_vs_vm(inputs: &[Payload], native: &mut dyn SyntaxOracle, vm: &mut dyn SyntaxOracle, limits: Limits, config: FuzzConfig) -> Result<FuzzReport>;
+```
+
+native_seed_corpus returns deterministic Binance aggTrade, depthUpdate (0, 1, 20 and 1000
+levels), snapshot and RPC request documents plus their mutations by syntax.rs mutate. The
+harness is run_syntax with RejectionComparison::CodeAndOffset fixed: native is the public
+jmax-native decode_into outcome and vm the schema VM outcome, so any difference in
+acceptance, code or offset is a failure. Accepted outcomes compare canonical typed values.

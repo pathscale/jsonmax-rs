@@ -239,3 +239,49 @@ locale independent. Utilities never call build_registry internally; functions
 requiring resolution take an already constructed index. Model errors remain the
 canonical ABI Error, with deterministic declaration-order validation failures.
 These contracts add metadata wrappers without extending the frozen ABI structs.
+
+## Wave 5: src/native.rs
+
+```rust
+pub struct NativeIdent { pub type_name: String, pub wire: String, pub ident: String }
+pub struct NativeSpec {
+    pub roots: Vec<String>,
+    pub tuples: Vec<String>,
+    pub decimal_policy: DecimalPolicy,
+    pub reject_unknown: bool,
+    pub idents: Vec<NativeIdent>,
+}
+pub fn validate_native_spec(registry: &Registry<'_>, spec: &NativeSpec) -> Result<()>;
+pub fn schema_graph_for(registry: &Registry<'_>, spec: &NativeSpec, root: &str, schema_id: SchemaId) -> Result<jmax_schema_ir::Schema>;
+```
+
+NativeSpec is a separate artifact from the endpoint model; it never changes a model's
+meaning. It derives Clone + Debug + PartialEq + Eq; NativeIdent likewise. Default:
+no roots, no tuples, DecimalPolicy::spot_8, reject_unknown true, no idents. roots lists
+top-level definition names whose nominal struct becomes a decoder entry; tuples lists
+definition names of structs encoded on the wire as a JSON array; decimal_policy applies
+to every BlockchainDecimal; reject_unknown applies to every object. validate_native_spec
+requires every root and tuple to name a definition that resolves to a Struct (uniqueness
+and nonempty names included), every ident to name an existing field of a struct reachable
+from a root with a legal snake_case non-keyword identifier, no two idents for one field and
+no collision among the resulting identifiers, and DecimalPolicy to satisfy
+jmax_decimal::validate_policy shape (precision and scale consistent). Failures are
+ConstraintViolation; wire-name collisions are DuplicateObjectKey.
+
+schema_graph_for lowers root, a root name from spec.roots, to a nested jmax_schema_ir::Schema
+named after the root with the supplied SchemaId and runs jmax_schema_ir::model::validate. Mapping:
+Struct (and StructRef/StructTable resolved through the registry) to Object with one Property per
+field in declaration order, FieldId(index + 1) per object, required unless the field type is
+Optional, and reject_unknown from the spec; Vec to Array with no bounds; Optional
+unwraps its element and clears required (absence allowed, explicit null rejected, nested Optional
+and Optional elements in arrays unsupported); a tuple struct to Array with min_items =
+max_items = field count whose single items node is shared by all fields, which therefore must
+lower to structurally equal nodes; BlockchainDecimal to Decimal with
+DecimalConstraints{policy: decimal_policy, no bounds}; UInt32/Int32/Int64/TimeStampMs to
+Integer with their exact signed-representable bounds (0..=u32::MAX, i32, i64); Float64 to
+Number; Boolean to Boolean; String to String; UUID, IpAddr, BlockchainAddress and
+BlockchainTransactionHash to String with the same format names as utilities::schema_for_fields;
+NanoId only for len=21 as there; Bytea with format base64. Recursion, Enum, EnumRef, Object,
+Unit, heterogeneous tuples and unavailable formats return UnsupportedSchemaFeature. Traversal
+is bounded by MAX_REFERENCE_DEPTH (DepthLimitExceeded). The result contains no pattern and no
+definitions or references; each nested object is its own node, so the graph is a tree.

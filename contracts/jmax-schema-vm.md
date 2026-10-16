@@ -283,3 +283,23 @@ pub(crate) fn vm_error(code: ErrorCode, offset: u32, detail: &'static str) -> Er
     Error::new(code, ErrorSource::SchemaVm, offset, detail)
 }
 ```
+
+## budget_safe
+
+```rust
+pub struct BudgetBound { pub steps: u64, pub scratch_bytes: u64 }
+pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) -> Option<BudgetBound>;
+pub fn budget_safe(program: &ValidatedProgram, len: usize, limits: VmLimits) -> bool;
+```
+
+budget_bound returns an upper bound, valid for every input of at most len bytes, on the VM
+steps and scratch bytes that a strict validate_borrowed_into can charge, as a function of len,
+the program and limits.syntax. It is deliberately conservative and returns None when no bound is
+derived: any program state with a pattern or a format constraint, a program with an unbounded
+construct, or an arithmetic overflow. budget_safe is true only when budget_bound is Some, its
+steps do not exceed limits.max_steps, its scratch bytes do not exceed limits.max_scratch_bytes,
+len does not exceed limits.syntax.max_payload_bytes or limits.syntax.max_decoded_bytes, and len
+fits u32. When true, the VM cannot fail with BudgetExhausted, DecodedArenaOverflow or
+PayloadTooLarge for this program on any such input. A test measures real consumption
+(by bisecting max_steps and max_scratch_bytes) over the corpora and their mutations and asserts
+it never exceeds the bound. Both functions are pure and allocation free.

@@ -24,8 +24,11 @@ pub struct CompatibilityOptions {
 pub struct CodegenOptions {
     pub module_name: String, pub abi_path: String, pub aot_path: String, pub derive_path: String,
     pub emit_views: bool, pub emit_schema_tables: bool, pub compatibility: CompatibilityOptions,
+    pub ident_overrides: Vec<IdentOverride>,
 }
-pub enum ArtifactKind { ModuleRoot, Models, Endpoints, Registries, SchemaTables, Compatibility }
+pub struct IdentOverride { pub type_name: String, pub wire: String, pub ident: String }
+pub struct NativeOptions { pub runtime_path: String, pub predict_layout: bool }
+pub enum ArtifactKind { ModuleRoot, Models, Endpoints, Registries, SchemaTables, Compatibility, Native }
 pub struct GeneratedArtifact { pub path: String, pub contents: String, pub kind: ArtifactKind }
 pub struct RegistryArtifacts { pub registries: GeneratedArtifact, pub schema_tables: GeneratedArtifact }
 pub struct Generation { artifacts: Vec<GeneratedArtifact> }
@@ -39,8 +42,9 @@ three small enums are Clone + Copy + Debug + PartialEq + Eq; ArtifactKind also
 has PartialOrd + Ord in declaration order. CompatibilityMode defaults to Native;
 CompatibilityOptions defaults to Native/false. CodegenOptions defaults to
 module_name generated, abi_path ::jmax_abi, aot_path ::jmax_schema_aot,
-derive_path ::jmax_derive, emit_views true, emit_schema_tables true, and default
-compatibility. A configured derive crate is a dependency of the generated
+derive_path ::jmax_derive, emit_views true, emit_schema_tables true, default
+compatibility, and no ident_overrides. NativeOptions defaults to runtime_path
+::jmax_native and predict_layout false. A configured derive crate is a dependency of the generated
 consumer when derives are emitted, not an added dependency of this generator.
 
 ```rust
@@ -53,6 +57,7 @@ pub fn validate_artifact_path(path: &str) -> Result<()>;
 pub fn validate_options(options: &CodegenOptions) -> Result<()>;
 pub fn rust_string_literal(text: &str) -> String;
 pub fn generate(model: &EndpointModel, options: &CodegenOptions) -> Result<Generation>;
+pub fn generate_with_native(model: &EndpointModel, spec: &NativeSpec, options: &CodegenOptions, native: &NativeOptions) -> Result<Generation>;
 pub(crate) fn codegen_error(code: ErrorCode, detail: &'static str) -> Error;
 ```
 
@@ -335,3 +340,47 @@ Generated encode/decode errors use Encode/Decode source respectively and
 propagate sink or checked-reader errors. No generator or generated view issues
 ValidationProof. A consumer may trust full programs only after the compiler
 validator constructs ValidatedProgram; StaticSchemaImage is merely a projection.
+
+## Native decoders: ident_overrides and Wave 5 (src/native.rs)
+
+The root and `native` re-export jmax-endpoint-model's NativeSpec. IdentOverride and
+NativeOptions are Clone + Debug + PartialEq + Eq; NativeOptions defaults to runtime_path
+`::jmax_native` and predict_layout false and is validated with validate_rust_path.
+`generate` is unchanged and never emits a native artifact. ArtifactKind::Native is last in
+declaration order, so existing ordering is preserved.
+
+```rust
+pub fn generate_native(model: &EndpointModel, spec: &NativeSpec, options: &CodegenOptions, native: &NativeOptions) -> Result<GeneratedArtifact>;
+```
+
+generate_with_native validates options, the NativeOptions and the NativeSpec against the
+model's registry (endpoint-model native::validate_native_spec), then returns exactly the six
+artifacts of `generate` plus `M/native.rs` with kind Native, and `M/mod.rs` additionally
+declares `pub mod native;`. With the same model and options, the six shared artifacts are
+byte-identical to those of `generate`, except that mod.rs gains the one declaration.
+
+ident_overrides replaces the snake_case Rust field identifier of one wire field of one
+nominal type: type_name is the PascalCase generated type, wire the exact wire name, ident a
+valid non-keyword snake_case identifier that must not collide with another field of that
+type. In Wave 1 an override is used instead of the derived identifier; remaining collisions
+are still ConstraintViolation, an override naming no type or field is ConstraintViolation,
+and the spec's NativeSpec.idents are applied as additional overrides (the two lists must not
+name the same field twice). This is how Binance fields `e` and `E` become distinct.
+
+Wave 5 emits, for every NativeSpec root, `impl NativeDecode for <Type>` over
+`jmax_native::Reader` plus a `NATIVE_<TYPE>_PROGRAM` static holding the lowered reference
+program image, built from the same schema graph as endpoint-model schema_graph_for and
+jmax-schema-aot compile_graph. Generated decoders are monomorphic single-pass recursive
+descent: key dispatch by length and one or two masked word compares (escaped keys are
+decoded first), a seen bitmask with a REQUIRED check at the closing brace, a repeated known
+key is a Fail, unknown keys are rejected or skipped with skip_strict plus duplicate
+detection, arrays are cleared and refilled into reused capacity with VM-equal inclusive
+bounds, decimals use the Reader's inline fixed-point path, and post_check carries value
+checks. With predict_layout, a per-root predicted key order is tried first by full byte
+compare with no rollback; a miss falls through to the general dispatch.
+
+Unsupported inputs return UnsupportedSchemaFeature and never produce a weaker decoder:
+patterns, formats other than those the graph lowering supports, Object, Enum, recursive
+types, heterogeneous tuples, and Optional elements inside arrays. Native decoders return
+typed values only; every failure re-runs the embedded program on the VM, which alone builds
+errors. They never create a ValidationProof or ParsedMessage.

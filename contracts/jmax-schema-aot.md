@@ -241,3 +241,17 @@ module paths. tables depends on verify; decode and encode use root SlotReader;
 verify uses root types/fingerprint and never calls tables, preventing recursion.
 All source strings are data until returned to the caller. Unsupported schema
 semantics must be explicit errors rather than generated weaker validators.
+
+## compile_graph
+
+```rust
+pub fn compile_graph(schema: &jmax_schema_ir::Schema) -> Result<ValidatedProgram>;
+```
+
+compile_graph lowers an already nested schema graph with the same path and options as
+compile_schema: schema-ir resolve with default ResolveLimits (consuming a clone of the input,
+which is never mutated), then schema-compile::lower::compile with CompilerOptions::default().
+It performs the validation that resolve performs and no other normalization. Errors propagate
+without replacement. A graph produced by endpoint-model schema_graph_for compiles to the
+program embedded next to a native decoder, and the same graph always compiles to the same
+fingerprint and image bytes.
