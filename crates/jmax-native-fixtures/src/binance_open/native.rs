@@ -449,9 +449,9 @@ fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCo
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
-                    1 => match key.as_bytes() {
+                    1 => match key {
                         [b'e'] => 0,
                         [b'E'] => 1,
                         [b's'] => 2,
@@ -567,9 +567,9 @@ fn __decode_depth_update(r: &mut __native::Reader<'_>, ctx: &mut __native::Nativ
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
-                    1 => match key.as_bytes() {
+                    1 => match key {
                         [b'e'] => 0,
                         [b'E'] => 1,
                         [b's'] => 2,
@@ -677,10 +677,10 @@ fn __decode_depth_snapshot(r: &mut __native::Reader<'_>, ctx: &mut __native::Nat
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
                     4 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"bids" {
                             1
                         } else if bytes == b"asks" {
@@ -690,7 +690,7 @@ fn __decode_depth_snapshot(r: &mut __native::Reader<'_>, ctx: &mut __native::Nat
                         }
                     }
                     12 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"lastUpdateId" {
                             0
                         } else {

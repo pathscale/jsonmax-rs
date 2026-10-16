@@ -193,6 +193,7 @@ fn layout_prediction_is_opt_in_and_only_touches_object_dispatch() {
     .unwrap();
     assert!(!plain.contents.contains("match_key"));
     assert!(predicted.contents.contains("r.match_key(ctx, KEYS[next])"));
+    assert!(plain.contents.contains("r.key_bytes(ctx)?"));
     assert!(predicted.contents.contains("const KEYS: [&[u8]; 11] = [b\"\\\"e\\\":\", b\"\\\"E\\\":\""));
     assert_ne!(plain.contents, predicted.contents);
     // The embedded programs are the same bytes either way.

@@ -217,10 +217,10 @@ fn __decode_trade_batch(r: &mut __native::Reader<'_>, ctx: &mut __native::Native
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
                     6 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"trades" {
                             0
                         } else {
@@ -280,9 +280,9 @@ fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCo
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
-                    1 => match key.as_bytes() {
+                    1 => match key {
                         [b'e'] => 0,
                         [b'E'] => 1,
                         [b's'] => 2,

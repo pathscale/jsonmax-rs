@@ -239,14 +239,14 @@ impl<'r, 'a> Emitter<'r, 'a> {
         }
         if self.predict {
             out.push_str("            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
-            out.push_str("            let which: u32;\n            if r.match_key(ctx, KEYS[next]) {\n                which = next as u32;\n            } else {\n                let key = r.key(ctx)?;\n");
+            out.push_str("            let which: u32;\n            if r.match_key(ctx, KEYS[next]) {\n                which = next as u32;\n            } else {\n                let key = r.key_bytes(ctx)?;\n");
             out.push_str(&self.dispatch(info, count_literal, "which =", "    ")?);
             out.push_str("            }\n");
             out.push_str(&format!(
                 "            if (which as usize) < {count_literal} {{\n                next = (which as usize + 1) % {count_literal};\n            }}\n"
             ));
         } else {
-            out.push_str("            let key = r.key(ctx)?;\n            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
+            out.push_str("            let key = r.key_bytes(ctx)?;\n            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
             out.push_str(&self.dispatch(info, count_literal, "let which: u32 =", "")?);
         }
         out.push_str(&format!(
@@ -317,7 +317,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
                 .filter(|(_, field)| field.name.len() == length)
                 .collect();
             if length == 1 {
-                text.push_str("match key.as_bytes() {\n");
+                text.push_str("match key {\n");
                 for (index, field) in &members {
                     text.push_str(&format!(
                         "                    [{}] => {index},\n",
@@ -326,7 +326,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
                 }
                 text.push_str(&format!("                    _ => {count},\n                }},\n"));
             } else {
-                text.push_str("{\n                    let bytes = key.as_bytes();\n                    ");
+                text.push_str("{\n                    let bytes = key;\n                    ");
                 for (position, (index, field)) in members.iter().enumerate() {
                     if position > 0 {
                         text.push_str(" else ");

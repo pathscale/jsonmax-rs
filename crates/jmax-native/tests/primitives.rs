@@ -300,6 +300,34 @@ fn strings_match_the_vm_and_jmax_syntax() {
         }
         tokens.push(text.into_bytes());
     }
+    // Around the 32 byte reach of the inline scan: a special byte at each position
+    // from 29 to 34, and plain runs of 28 to 36 bytes, closed or not.
+    for length in 28..=36usize {
+        for special in ["", "\\n", "é", "\u{1}", "\\u0041", "\\\"", "\u{1f980}"] {
+            for at in 29..=34usize {
+                if at > length {
+                    continue;
+                }
+                let mut text = String::from("\"");
+                text.push_str(&"a".repeat(at));
+                text.push_str(special);
+                text.push_str(&"b".repeat(length - at));
+                tokens.push(text.clone().into_bytes());
+                text.push('"');
+                tokens.push(text.into_bytes());
+            }
+        }
+    }
+    // Bytes that are not UTF-8 (a lone continuation, 0xff) near the boundary.
+    for byte in [0x80u8, 0xbf, 0xc3, 0xff] {
+        for at in [0usize, 5, 30, 31, 32, 33] {
+            let mut token = std::vec![b'"'];
+            token.extend(std::iter::repeat(b'a').take(at));
+            token.push(byte);
+            token.extend_from_slice(b"zz\"");
+            tokens.push(token);
+        }
+    }
     let program = scalar_program(ScalarConstraints::new(ValueKind::String));
     let numeric = NumericPolicy::strict_default();
     let (mut accepted, mut compared) = (0u32, 0u32);
@@ -309,6 +337,14 @@ fn strings_match_the_vm_and_jmax_syntax() {
             let vm = vm_accepts(&program, token, limits, numeric);
             let mut reader = Reader::new(token);
             let native = reader.string(&mut ctx).ok().map(str::to_owned).filter(|_| reader.end().is_ok());
+            // key_bytes has the same accept set and the same bytes as string.
+            let keyed = {
+                let mut with_colon = token.clone();
+                with_colon.push(b':');
+                let mut reader = Reader::new(&with_colon);
+                reader.key_bytes(&mut ctx).ok().map(<[u8]>::to_vec).filter(|_| reader.end().is_ok())
+            };
+            assert_eq!(keyed, native.as_ref().map(|text| text.as_bytes().to_vec()), "{:?}", String::from_utf8_lossy(token));
             compared += 1;
             match native {
                 Some(text) => {

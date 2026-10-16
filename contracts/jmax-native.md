@@ -64,6 +64,7 @@ impl<'a> Reader<'a> {
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()>;
     pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()>;
     pub fn match_key(&mut self, ctx: &NativeContext, pattern: &[u8]) -> bool;
+    pub fn key_bytes<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c [u8]>;
 }
 ```
 
@@ -102,6 +103,8 @@ skip_value strictly validates and discards one value with jmax_syntax::skip_stri
 context's limits, effective numeric policy and a depth supplied by the caller (the number of
 enclosing containers). It accepts exactly what BlockCursor::skip_value(StrictValidate)
 accepts and Fails otherwise.
+
+key_bytes has exactly the accept set of `key` and returns the decoded key as bytes; generated decoders use it on the dispatch path because they only compare it, and a short plain-ASCII key then needs no UTF-8 check. Every string and key scan first tries an inline scan of at most 32 bytes that stops at the closing quote and gives way, to the shared scanner and with identical answers, at the first backslash, control byte, byte of 0x80 or above, or 32nd byte.
 
 match_key supports layout prediction. `pattern` is the exact bytes `"name":` of an unescaped key; after whitespace, a match consumes the pattern and returns true, and a miss consumes only the whitespace. A pattern that is not of that form, or whose name is longer than limits.syntax.max_string_bytes, never matches, so a hit is exactly a successful `key` returning that name and the caller may fall through to `key` on a miss with no rollback.
 

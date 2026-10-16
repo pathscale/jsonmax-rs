@@ -385,10 +385,10 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
                     2 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"id" {
                             0
                         } else if bytes == b"ok" {
@@ -398,7 +398,7 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
                         }
                     }
                     3 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"pin" {
                             13
                         } else {
@@ -406,7 +406,7 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
                         }
                     }
                     4 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"type" {
                             4
                         } else if bytes == b"tags" {
@@ -424,7 +424,7 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
                         }
                     }
                     5 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"delta" {
                             1
                         } else if bytes == b"ratio" {
@@ -444,7 +444,7 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
                         }
                     }
                     6 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"origin" {
                             5
                         } else {
@@ -589,9 +589,9 @@ fn __decode_point(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
-                    1 => match key.as_bytes() {
+                    1 => match key {
                         [b'x'] => 0,
                         [b'y'] => 1,
                         _ => 2,
@@ -660,10 +660,10 @@ fn __decode_tag(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext,
             if r.match_key(ctx, KEYS[next]) {
                 which = next as u32;
             } else {
-                let key = r.key(ctx)?;
+                let key = r.key_bytes(ctx)?;
                 which = match key.len() {
                     4 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"name" {
                             0
                         } else {
@@ -671,7 +671,7 @@ fn __decode_tag(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext,
                         }
                     }
                     6 => {
-                        let bytes = key.as_bytes();
+                        let bytes = key;
                         if bytes == b"weight" {
                             1
                         } else {

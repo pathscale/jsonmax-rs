@@ -6,6 +6,12 @@ use alloc::vec::Vec;
 use jmax_number::NumberToken;
 use jmax_abi::span::NumberLexKind;
 
+/// A scanned string: ASCII bytes (valid UTF-8 by construction) or validated text.
+enum Scanned<'c> {
+    Ascii(&'c [u8]),
+    Text(&'c str),
+}
+
 #[derive(Clone, Debug)]
 pub struct Reader<'a> {
     input: &'a [u8],
@@ -288,6 +294,23 @@ impl<'a> Reader<'a> {
         }
     }
 
+    /// `key` as bytes: the same accept set, and no UTF-8 check of a short ASCII key.
+    #[inline]
+    pub fn key_bytes<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c [u8]>
+    where
+        'a: 'c,
+    {
+        self.skip_ws();
+        let max = ctx.limits.syntax.max_string_bytes as usize;
+        let (scanned, end) = self.scan_in(max, &mut ctx.arena, self.pos)?;
+        self.pos = end;
+        self.expect(b':')?;
+        Ok(match scanned {
+            Scanned::Ascii(bytes) => bytes,
+            Scanned::Text(text) => text.as_bytes(),
+        })
+    }
+
     /// An object key and its colon, recorded as a key of the innermost object
     /// opened with `NativeContext::begin_object`. Decoders call this on a clone
     /// of the reader taken before `key`, because the key returned by `key`
@@ -321,11 +344,46 @@ impl<'a> Reader<'a> {
     where
         'a: 'c,
     {
+        match self.scan_in(max, arena, start)? {
+            (Scanned::Ascii(bytes), end) => Ok((core::str::from_utf8(bytes).map_err(|_| Fail)?, end)),
+            (Scanned::Text(text), end) => Ok((text, end)),
+        }
+    }
+
+    /// The decoded content of the string starting at `start`, and the offset just
+    /// past it. A short string of plain ASCII is found by an inline scan of at
+    /// most 32 bytes; anything else (an escape, a control or non-ASCII byte, a
+    /// longer string) takes the shared string scanner, with the same answers.
+    fn scan_in<'c>(
+        &self,
+        max: usize,
+        arena: &'c mut Vec<u8>,
+        start: usize,
+    ) -> NativeResult<(Scanned<'c>, usize)>
+    where
+        'a: 'c,
+    {
         let input: &'a [u8] = self.input;
         if input.get(start) != Some(&b'"') {
             return Err(Fail);
         }
         let content_start = start + 1;
+        let window = &input[content_start..];
+        let mut k = 0;
+        let reach = window.len().min(32);
+        while k < reach {
+            let byte = window[k];
+            if byte == b'"' {
+                if k > max {
+                    return Err(Fail);
+                }
+                return Ok((Scanned::Ascii(&window[..k]), content_start + k + 1));
+            }
+            if byte == b'\\' || byte < 0x20 || byte >= 0x80 {
+                break;
+            }
+            k += 1;
+        }
         let special = jmax_string::scan::first_special(&input[content_start..]).ok_or(Fail)?;
         let at = content_start + special;
         match input[at] {
@@ -334,7 +392,7 @@ impl<'a> Reader<'a> {
                 if content.len() > max {
                     return Err(Fail);
                 }
-                Ok((core::str::from_utf8(content).map_err(|_| Fail)?, at + 1))
+                Ok((Scanned::Text(core::str::from_utf8(content).map_err(|_| Fail)?), at + 1))
             }
             b'\\' => {
                 let opening = u32::try_from(start).map_err(|_| Fail)?;
@@ -349,7 +407,7 @@ impl<'a> Reader<'a> {
                     return Err(Fail);
                 }
                 let text = core::str::from_utf8(arena).map_err(|_| Fail)?;
-                Ok((text, scan.next_offset as usize))
+                Ok((Scanned::Text(text), scan.next_offset as usize))
             }
             _ => Err(Fail),
         }
