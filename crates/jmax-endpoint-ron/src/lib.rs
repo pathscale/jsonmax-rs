@@ -10,8 +10,10 @@ pub use jmax_endpoint_model::{EndpointField, EndpointModel, EndpointSchemaSpec, 
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 pub mod load;
+pub mod native;
 pub mod normalize;
 pub mod validate;
+pub use native::load_native_spec;
 pub mod version;
 
 pub const CONTRACT_VERSION: u16 = 1;
