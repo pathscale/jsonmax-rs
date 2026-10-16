@@ -270,8 +270,26 @@ impl<'a> BlockCursor<'a> {
         }
         Ok(())
     }
-    #[inline]
+    #[inline(always)]
     pub fn skip_whitespace(&mut self) -> Result<Option<u8>> {
+        // Common case, inlined at every consumer: no failure and the next
+        // non-whitespace byte lies in the active block. This is exactly the
+        // first iteration of `whitespace_inner`.
+        if self.failure.is_none() {
+            let position = self.offset();
+            if position >= self.cache.block_start && position < self.cache.block_end {
+                let remaining = (!self.cache.masks.whitespace_mask & self.cache.masks.valid_mask)
+                    >> (position - self.cache.block_start);
+                if remaining != 0 {
+                    self.cache.offset += remaining.trailing_zeros();
+                    return Ok(self.peek_byte());
+                }
+            }
+        }
+        self.skip_whitespace_general()
+    }
+    #[inline(never)]
+    fn skip_whitespace_general(&mut self) -> Result<Option<u8>> {
         self.check_failure()?;
         let result = self.whitespace_inner();
         self.retain(result)
@@ -294,8 +312,15 @@ impl<'a> BlockCursor<'a> {
         Ok(None)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn scan_string_meta(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
+        if let Some(meta) = self.ascii_string_in_block() {
+            return Ok(meta);
+        }
+        self.scan_string_meta_general(decoded)
+    }
+    #[inline(never)]
+    fn scan_string_meta_general(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = self.scan_string_inner(decoded, true);
@@ -303,6 +328,51 @@ impl<'a> BlockCursor<'a> {
             decoded.truncate(checkpoint);
         }
         self.retain(result)
+    }
+    /// The common string, inlined at every consumer: no failure, an opening
+    /// quote at the offset, and an unescaped ASCII body closed in the active
+    /// block within the length limit. This is exactly the single-iteration
+    /// accepting path of `scan_string_inner`; anything else (including every
+    /// error) returns None without side effects and takes the general path.
+    #[inline(always)]
+    fn ascii_string_in_block(&mut self) -> Option<StringMeta> {
+        let start = self.offset();
+        let content_start = start.wrapping_add(1);
+        if self.failure.is_some()
+            || self.peek_byte() != Some(b'"')
+            || content_start < self.cache.block_start
+            || content_start >= self.cache.block_end
+        {
+            return None;
+        }
+        let masks = &self.cache.masks;
+        let relative = content_start - self.cache.block_start;
+        let remaining = masks.valid_mask & (u64::MAX << relative);
+        let quotes = masks.delimiter_quotes() & remaining;
+        if quotes == 0 {
+            return None;
+        }
+        let end = quotes.trailing_zeros();
+        let content = remaining & low_bits(end);
+        if (masks.backslash_mask | masks.non_ascii_mask | masks.control_mask) & content != 0 {
+            return None;
+        }
+        let raw_content = Span32::new(content_start, end - relative);
+        if raw_content.len > self.limits.max_string_bytes {
+            return None;
+        }
+        self.cache.offset = self.cache.block_start + end + 1;
+        Some(StringMeta {
+            raw_content,
+            raw_token: Span32::new(start, raw_content.len + 2),
+            cooked: StrRef {
+                span: raw_content,
+                source: SpanSource::RawPayload,
+                scalar_len: raw_content.len,
+            },
+            is_unescaped: true,
+            is_ascii: true,
+        })
     }
     #[inline]
     fn scan_string_inner(&mut self, decoded: &mut Vec<u8>, capture: bool) -> Result<StringMeta> {
