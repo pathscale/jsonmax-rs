@@ -573,22 +573,29 @@ impl<'a> BlockCursor<'a> {
                     ));
                 }
             };
-            for &expected in spelling {
-                match self.peek_byte() {
-                    Some(byte) if byte == expected => self.advance(1),
-                    Some(_) => {
-                        return Err(lexical(
-                            ErrorCode::InvalidToken,
-                            self.offset(),
-                            "invalid literal or literal boundary",
-                        ));
-                    }
-                    None => {
-                        return Err(lexical(
-                            ErrorCode::UnexpectedEof,
-                            self.offset(),
-                            "incomplete literal",
-                        ));
+            let first = start as usize;
+            if self.input.get(first..first + spelling.len()) == Some(spelling) {
+                // Whole spelling present: the byte loop below would advance
+                // through it without error.
+                self.cache.offset = start + spelling.len() as u32;
+            } else {
+                for &expected in spelling {
+                    match self.peek_byte() {
+                        Some(byte) if byte == expected => self.advance(1),
+                        Some(_) => {
+                            return Err(lexical(
+                                ErrorCode::InvalidToken,
+                                self.offset(),
+                                "invalid literal or literal boundary",
+                            ));
+                        }
+                        None => {
+                            return Err(lexical(
+                                ErrorCode::UnexpectedEof,
+                                self.offset(),
+                                "incomplete literal",
+                            ));
+                        }
                     }
                 }
             }
@@ -925,12 +932,19 @@ impl<'a> BlockCursor<'a> {
             let mut key_ref = None;
             let mut key_hash = 0u64;
             let kind = match byte {
-                b'{' => TokenKind::LBrace,
-                b'}' => TokenKind::RBrace,
-                b'[' => TokenKind::LBracket,
-                b']' => TokenKind::RBracket,
-                b':' => TokenKind::Colon,
-                b',' => TokenKind::Comma,
+                // One-byte punctuation: `start` is inside the input, so this is
+                // `advance(1)` without its clamp.
+                b'{' | b'}' | b'[' | b']' | b':' | b',' => {
+                    self.cache.offset = start + 1;
+                    match byte {
+                        b'{' => TokenKind::LBrace,
+                        b'}' => TokenKind::RBrace,
+                        b'[' => TokenKind::LBracket,
+                        b']' => TokenKind::RBracket,
+                        b':' => TokenKind::Colon,
+                        _ => TokenKind::Comma,
+                    }
+                }
                 b'"' => {
                     let key = matches!(phase, FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd);
                     // The opening quote is known; this is expect_byte's success path.
@@ -955,7 +969,7 @@ impl<'a> BlockCursor<'a> {
                                 "cooked key reference outside arena",
                             )
                         })?;
-                        key_hash = KeyMeta::compute_fnv1a64(bytes);
+                        key_hash = discard_key_hash(bytes);
                         key_ref = Some(meta.cooked);
                     } else {
                         let meta = self.scan_string_body(start, decoded, false)?;
@@ -978,17 +992,6 @@ impl<'a> BlockCursor<'a> {
                     ));
                 }
             };
-            if matches!(
-                kind,
-                TokenKind::LBrace
-                    | TokenKind::RBrace
-                    | TokenKind::LBracket
-                    | TokenKind::RBracket
-                    | TokenKind::Colon
-                    | TokenKind::Comma
-            ) {
-                self.advance(1);
-            }
             match (phase, kind) {
                 (FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd, TokenKind::String) => {
                     let depth = self.frames.len();
@@ -1015,15 +1018,15 @@ impl<'a> BlockCursor<'a> {
                             .key_tables
                             .get_mut(depth - 1)
                             .ok_or_else(|| inconsistent_frame(start))?;
-                        if table.contains(key_hash, bytes, self.input, decoded, start)? {
+                        if table
+                            .insert_unique(key_hash, reference, bytes, self.input, decoded, start)?
+                        {
                             return Err(syntax_error(
                                 ErrorCode::DuplicateObjectKey,
                                 start,
                                 "duplicate decoded object key",
                             ));
                         }
-                        table.reserve_insert(start)?;
-                        table.insert_reserved(key_hash, reference);
                     }
                     frame.phase = FramePhase::ObjectColon;
                     frame.count = count;
@@ -1466,4 +1469,31 @@ fn reserve_one<T>(storage: &mut Vec<T>, offset: u32) -> Result<()> {
             "unable to reserve syntax frame storage",
         )
     })
+}
+
+/// Hash for the strict-discard duplicate tables only. Those tables are private
+/// to `strict_discard_loop`, reset per object, and always compare the cooked
+/// bytes on a hash match, so the hash affects probe length, never results.
+/// Word-at-a-time instead of FNV-1a's dependent multiply per byte.
+#[inline(always)]
+fn discard_key_hash(bytes: &[u8]) -> u64 {
+    const K: u64 = 0x9e37_79b9_7f4a_7c15;
+    let mut hash = (bytes.len() as u64).wrapping_mul(K);
+    let mut chunks = bytes.chunks_exact(8);
+    for chunk in &mut chunks {
+        let mut word = [0u8; 8];
+        word.copy_from_slice(chunk);
+        hash = (hash ^ u64::from_le_bytes(word)).wrapping_mul(K);
+        hash ^= hash >> 32;
+    }
+    let rest = chunks.remainder();
+    if !rest.is_empty() {
+        let mut word = 0u64;
+        for (index, &byte) in rest.iter().enumerate() {
+            word |= u64::from(byte) << (8 * index);
+        }
+        hash = (hash ^ word).wrapping_mul(K);
+        hash ^= hash >> 32;
+    }
+    hash
 }

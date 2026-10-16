@@ -141,6 +141,62 @@ impl KeyTable {
         };
         self.len += 1;
     }
+
+    /// `contains`, `reserve_insert` and `insert_reserved` fused for the
+    /// common case: one probe both rules out a duplicate and finds the slot
+    /// the reserved insert would use. Growth, when needed, happens only after
+    /// the duplicate check, exactly as in the separate calls. Returns true for
+    /// a duplicate, leaving the table unchanged.
+    #[inline]
+    pub(crate) fn insert_unique(
+        &mut self,
+        hash: u64,
+        reference: StrRef,
+        bytes: &[u8],
+        raw: &[u8],
+        decoded: &[u8],
+        offset: u32,
+    ) -> Result<bool> {
+        if !self.slots.is_empty() {
+            let mask = self.slots.len() - 1;
+            let mut index = hash as usize & mask;
+            loop {
+                let slot = self.slots[index];
+                if slot.generation != self.generation {
+                    if self.len < self.slots.len() / 2 {
+                        self.slots[index] = KeySlot {
+                            hash,
+                            reference,
+                            generation: self.generation,
+                        };
+                        self.len += 1;
+                        return Ok(false);
+                    }
+                    break;
+                }
+                if slot.hash == hash {
+                    let owner = match slot.reference.source {
+                        SpanSource::RawPayload => raw,
+                        SpanSource::DecodedArena => decoded,
+                    };
+                    let seen = slot.reference.span.slice(owner).ok_or_else(|| {
+                        syntax_error(
+                            ErrorCode::InternalError,
+                            offset,
+                            "duplicate key reference is out of bounds",
+                        )
+                    })?;
+                    if seen == bytes {
+                        return Ok(true);
+                    }
+                }
+                index = (index + 1) & mask;
+            }
+        }
+        self.reserve_insert(offset)?;
+        self.insert_reserved(hash, reference);
+        Ok(false)
+    }
 }
 
 /// Returns the innermost container phase, or the root phase without a frame.
