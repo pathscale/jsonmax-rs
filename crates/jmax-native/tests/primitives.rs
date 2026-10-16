@@ -470,3 +470,36 @@ fn reader_unknown_key_records_decoded_keys() {
         assert!(Reader::new(text).unknown_key(&mut ctx).is_err(), "{text:?}");
     }
 }
+
+#[test]
+fn match_key_hits_only_exact_unescaped_keys() {
+    let program = scalar_program(ScalarConstraints::new(ValueKind::Number));
+    let ctx = context(&program, VmLimits::default(), NumericPolicy::strict_default());
+    let hit = |input: &[u8], pattern: &[u8]| {
+        let mut reader = Reader::new(input);
+        let matched = reader.match_key(&ctx, pattern);
+        (matched, reader.pos())
+    };
+    assert_eq!(hit(b"\"a\":1", b"\"a\":"), (true, 4));
+    assert_eq!(hit(b" \n\"a\":1", b"\"a\":"), (true, 6));
+    // A miss consumes only whitespace.
+    assert_eq!(hit(b" \"b\":1", b"\"a\":"), (false, 1));
+    assert_eq!(hit(b"\"ab\":1", b"\"a\":"), (false, 0));
+    assert_eq!(hit(b"\"a\" :1", b"\"a\":"), (false, 0));
+    assert_eq!(hit(b"\"\\u0061\":1", b"\"a\":"), (false, 0));
+    assert_eq!(hit(b"\"a\"", b"\"a\":"), (false, 0));
+    assert_eq!(hit(b"", b"\"a\":"), (false, 0));
+    // Patterns that are not `"name":` never match.
+    for pattern in [&b""[..], b"a:", b"\"a\"", b"\"a:", b"\":"] {
+        assert!(!hit(b"\"a\":1", pattern).0, "{pattern:?}");
+    }
+    assert_eq!(hit(b"\"\":1", b"\"\":"), (true, 3));
+    // A name longer than max_string_bytes is left to `key`, which rejects it.
+    let mut limits = VmLimits::default();
+    limits.syntax.max_string_bytes = 3;
+    let small = context(&program, limits, NumericPolicy::strict_default());
+    let mut reader = Reader::new(b"\"abc\":1");
+    assert!(reader.match_key(&small, b"\"abc\":"));
+    let mut reader = Reader::new(b"\"abcd\":1");
+    assert!(!reader.match_key(&small, b"\"abcd\":"));
+}

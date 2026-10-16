@@ -247,6 +247,29 @@ impl<'a> Reader<'a> {
         Ok(key)
     }
 
+    /// Consume `pattern`, the exact bytes `"name":` of a key with no escapes, if it is next
+    /// (after whitespace). A miss consumes nothing but whitespace, so the caller falls through
+    /// to `key`. A pattern that `key` would reject (a name over the string limit) or that is
+    /// not of the form `"...":` never matches, so a hit is exactly a successful `key`.
+    #[inline(always)]
+    pub fn match_key(&mut self, ctx: &NativeContext, pattern: &[u8]) -> bool {
+        if pattern.len() < 3
+            || pattern[0] != b'"'
+            || pattern[pattern.len() - 2] != b'"'
+            || pattern[pattern.len() - 1] != b':'
+            || pattern.len() - 3 > ctx.limits.syntax.max_string_bytes as usize
+        {
+            return false;
+        }
+        self.skip_ws();
+        if self.input[self.pos..].starts_with(pattern) {
+            self.pos += pattern.len();
+            true
+        } else {
+            false
+        }
+    }
+
     /// An object key and its colon, recorded as a key of the innermost object
     /// opened with `NativeContext::begin_object`. Decoders call this on a clone
     /// of the reader taken before `key`, because the key returned by `key`

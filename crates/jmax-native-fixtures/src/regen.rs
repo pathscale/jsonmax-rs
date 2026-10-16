@@ -31,13 +31,15 @@ pub const SHAPES: Fixture = Fixture {
     roots: &["Shape"],
 };
 
-/// Generated module name, fixture, and whether the specification rejects
-/// unknown keys.
-pub const VARIANTS: &[(&str, Fixture, bool)] = &[
-    ("binance", BINANCE, true),
-    ("binance_open", BINANCE, false),
-    ("shapes", SHAPES, true),
-    ("shapes_open", SHAPES, false),
+/// Generated module name, fixture, whether the specification rejects unknown
+/// keys, and whether the module follows `predict_layout` (the `_plain` module
+/// is always generated without prediction, so both strategies are tested).
+pub const VARIANTS: &[(&str, Fixture, bool, bool)] = &[
+    ("binance", BINANCE, true, true),
+    ("binance_open", BINANCE, false, true),
+    ("binance_plain", BINANCE, true, false),
+    ("shapes", SHAPES, true, true),
+    ("shapes_open", SHAPES, false, true),
 ];
 
 pub fn model(fixture: &Fixture) -> EndpointModel {
@@ -67,12 +69,12 @@ pub fn native_options(predict_layout: bool) -> NativeOptions {
 /// Every checked-in file, with its path relative to `src/`.
 pub fn generate_all(predict_layout: bool) -> Vec<GeneratedArtifact> {
     let mut files = Vec::new();
-    for (module, fixture, reject_unknown) in VARIANTS {
+    for (module, fixture, reject_unknown, predicted) in VARIANTS {
         let generation = generate_with_native(
             &model(fixture),
             &spec(fixture, *reject_unknown),
             &options(module),
-            &native_options(predict_layout),
+            &native_options(predict_layout && *predicted),
         )
         .expect("generation succeeds");
         files.extend(generation.into_artifacts());

@@ -178,3 +178,24 @@ fn generation_is_deterministic_and_uses_the_configured_runtime_path() {
     assert_eq!(a.path, "generated/native.rs");
     assert!(!a.contents.contains("std::"));
 }
+
+#[test]
+fn layout_prediction_is_opt_in_and_only_touches_object_dispatch() {
+    let model = model(BINANCE);
+    let spec = spec(BINANCE_SPEC);
+    let plain = generate_native(&model, &spec, &options(), &NativeOptions::default()).unwrap();
+    let predicted = generate_native(
+        &model,
+        &spec,
+        &options(),
+        &NativeOptions { predict_layout: true, ..NativeOptions::default() },
+    )
+    .unwrap();
+    assert!(!plain.contents.contains("match_key"));
+    assert!(predicted.contents.contains("r.match_key(ctx, KEYS[next])"));
+    assert!(predicted.contents.contains("const KEYS: [&[u8]; 11] = [b\"\\\"e\\\":\", b\"\\\"E\\\":\""));
+    assert_ne!(plain.contents, predicted.contents);
+    // The embedded programs are the same bytes either way.
+    let programs = |text: &str| text.split("impl ").next().unwrap().to_owned();
+    assert_eq!(programs(&plain.contents), programs(&predicted.contents));
+}

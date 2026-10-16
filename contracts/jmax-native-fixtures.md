@@ -15,7 +15,9 @@ endpoints.rs, registries.rs, schema_tables.rs, compat.rs, native.rs) with emit_s
 off, written under src/<module>/ and never edited by hand. PREDICT_LAYOUT states whether the
 checked-in files were generated with layout prediction.
 
-`regen` holds the recipe: the Fixture constants, VARIANTS, and generate_all(predict_layout).
+`binance_plain` is the strict binance decoder generated without layout prediction, whatever PREDICT_LAYOUT says, so the differential suite covers both strategies (the other modules follow PREDICT_LAYOUT, which is true). The seeds include documents with keys out of declaration order and a space before a colon, so a predicted order misses.
+
+`regen` holds the recipe: the Fixture constants, VARIANTS (module, fixture, reject_unknown, follows PREDICT_LAYOUT), and generate_all(predict_layout).
 `cargo run -p jmax-native-fixtures --example regenerate` rewrites src/<module>/*.rs. The drift
 test regenerates in memory and compares byte for byte with the checked-in files.
 

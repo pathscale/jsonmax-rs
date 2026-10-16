@@ -46,6 +46,8 @@ struct Emitter<'r, 'a> {
     structs: Vec<StructInfo<'a>>,
     arrays: Vec<ArrayInfo>,
     decimals: bool,
+    /// Try each object's next field in declaration order before the general dispatch.
+    predict: bool,
 }
 
 impl<'r, 'a> Emitter<'r, 'a> {
@@ -211,12 +213,42 @@ impl<'r, 'a> Emitter<'r, 'a> {
             out.push_str("    let mark = ctx.begin_object();\n");
         }
         out.push_str(&format!("    let mut seen: {seen_type} = 0;\n    let mut fields = 0usize;\n"));
+        if self.predict {
+            // The full `"name":` bytes of each field; an empty pattern never matches
+            // (a name that needs escaping in JSON is left to the general dispatch).
+            let patterns: Vec<String> = info
+                .fields
+                .iter()
+                .map(|field| {
+                    let plain = field.name.bytes().all(|byte| byte >= 0x20 && byte != b'"' && byte != b'\\' && byte != 0x7f);
+                    if plain {
+                        byte_string(format!("\"{}\":", field.name).as_bytes())
+                    } else {
+                        String::from("b\"\"")
+                    }
+                })
+                .collect();
+            out.push_str(&format!(
+                "    const KEYS: [&[u8]; {count}] = [{}];\n    let mut next = 0usize;\n",
+                patterns.join(", ")
+            ));
+        }
         out.push_str("    if !r.eat(b'}') {\n        loop {\n");
         if open {
             out.push_str("            let at = r.clone();\n");
         }
-        out.push_str("            let key = r.key(ctx)?;\n            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
-        out.push_str(&self.dispatch(info, count_literal)?);
+        if self.predict {
+            out.push_str("            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
+            out.push_str("            let which: u32;\n            if r.match_key(ctx, KEYS[next]) {\n                which = next as u32;\n            } else {\n                let key = r.key(ctx)?;\n");
+            out.push_str(&self.dispatch(info, count_literal, "which =", "    ")?);
+            out.push_str("            }\n");
+            out.push_str(&format!(
+                "            if (which as usize) < {count_literal} {{\n                next = (which as usize + 1) % {count_literal};\n            }}\n"
+            ));
+        } else {
+            out.push_str("            let key = r.key(ctx)?;\n            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
+            out.push_str(&self.dispatch(info, count_literal, "let which: u32 =", "")?);
+        }
         out.push_str(&format!(
             "            if which < {count_literal} {{\n                let bit: {seen_type} = 1 << which;\n                if seen & bit != 0 && limits.reject_duplicate_keys {{\n                    return Err(__native::Fail);\n                }}\n                seen |= bit;\n            }}\n"
         ));
@@ -270,11 +302,12 @@ impl<'r, 'a> Emitter<'r, 'a> {
     }
 
     /// `let which: u32 = ...;` where an unknown key yields the field count.
-    fn dispatch(&self, info: &StructInfo<'a>, count: usize) -> Result<String> {
+    fn dispatch(&self, info: &StructInfo<'a>, count: usize, assign: &str, extra: &str) -> Result<String> {
         let mut lengths: Vec<usize> = info.fields.iter().map(|field| field.name.len()).collect();
         lengths.sort_unstable();
         lengths.dedup();
         let mut text = String::from("            let which: u32 = match key.len() {\n");
+
         for length in lengths {
             text.push_str(&format!("                {length} => "));
             let members: Vec<(usize, &EndpointField)> = info
@@ -307,7 +340,11 @@ impl<'r, 'a> Emitter<'r, 'a> {
             }
         }
         text.push_str(&format!("                _ => {count},\n            }};\n"));
-        Ok(text)
+        let text = text.replacen("let which: u32 =", assign, 1);
+        if extra.is_empty() {
+            return Ok(text);
+        }
+        Ok(text.lines().map(|line| format!("{extra}{line}\n")).collect())
     }
 
     fn emit_tuple(&self, out: &mut String, info: &StructInfo<'a>) -> Result<()> {
@@ -396,6 +433,7 @@ pub fn generate_native(
         structs: Vec::new(),
         arrays: Vec::new(),
         decimals: false,
+        predict: native.predict_layout,
     };
 
     // Lower, compile and emit each root's reference program first: the lowering

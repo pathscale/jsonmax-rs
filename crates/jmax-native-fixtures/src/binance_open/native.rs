@@ -436,31 +436,41 @@ fn __decode_agg_trade(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeCo
     let mark = ctx.begin_object();
     let mut seen: u16 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 11] = [b"\"e\":", b"\"E\":", b"\"s\":", b"\"a\":", b"\"p\":", b"\"q\":", b"\"f\":", b"\"l\":", b"\"T\":", b"\"m\":", b"\"M\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
             let at = r.clone();
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                1 => match key.as_bytes() {
-                    [b'e'] => 0,
-                    [b'E'] => 1,
-                    [b's'] => 2,
-                    [b'a'] => 3,
-                    [b'p'] => 4,
-                    [b'q'] => 5,
-                    [b'f'] => 6,
-                    [b'l'] => 7,
-                    [b'T'] => 8,
-                    [b'm'] => 9,
-                    [b'M'] => 10,
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    1 => match key.as_bytes() {
+                        [b'e'] => 0,
+                        [b'E'] => 1,
+                        [b's'] => 2,
+                        [b'a'] => 3,
+                        [b'p'] => 4,
+                        [b'q'] => 5,
+                        [b'f'] => 6,
+                        [b'l'] => 7,
+                        [b'T'] => 8,
+                        [b'm'] => 9,
+                        [b'M'] => 10,
+                        _ => 11,
+                    },
                     _ => 11,
-                },
-                _ => 11,
-            };
+                };
+            }
+            if (which as usize) < 11 {
+                next = (which as usize + 1) % 11;
+            }
             if which < 11 {
                 let bit: u16 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {
@@ -544,27 +554,37 @@ fn __decode_depth_update(r: &mut __native::Reader<'_>, ctx: &mut __native::Nativ
     let mark = ctx.begin_object();
     let mut seen: u8 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 7] = [b"\"e\":", b"\"E\":", b"\"s\":", b"\"U\":", b"\"u\":", b"\"b\":", b"\"a\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
             let at = r.clone();
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                1 => match key.as_bytes() {
-                    [b'e'] => 0,
-                    [b'E'] => 1,
-                    [b's'] => 2,
-                    [b'U'] => 3,
-                    [b'u'] => 4,
-                    [b'b'] => 5,
-                    [b'a'] => 6,
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    1 => match key.as_bytes() {
+                        [b'e'] => 0,
+                        [b'E'] => 1,
+                        [b's'] => 2,
+                        [b'U'] => 3,
+                        [b'u'] => 4,
+                        [b'b'] => 5,
+                        [b'a'] => 6,
+                        _ => 7,
+                    },
                     _ => 7,
-                },
-                _ => 7,
-            };
+                };
+            }
+            if (which as usize) < 7 {
+                next = (which as usize + 1) % 7;
+            }
             if which < 7 {
                 let bit: u8 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {
@@ -644,35 +664,45 @@ fn __decode_depth_snapshot(r: &mut __native::Reader<'_>, ctx: &mut __native::Nat
     let mark = ctx.begin_object();
     let mut seen: u8 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 3] = [b"\"lastUpdateId\":", b"\"bids\":", b"\"asks\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
             let at = r.clone();
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                4 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"bids" {
-                        1
-                    } else if bytes == b"asks" {
-                        2
-                    } else {
-                        3
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    4 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"bids" {
+                            1
+                        } else if bytes == b"asks" {
+                            2
+                        } else {
+                            3
+                        }
                     }
-                }
-                12 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"lastUpdateId" {
-                        0
-                    } else {
-                        3
+                    12 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"lastUpdateId" {
+                            0
+                        } else {
+                            3
+                        }
                     }
-                }
-                _ => 3,
-            };
+                    _ => 3,
+                };
+            }
+            if (which as usize) < 3 {
+                next = (which as usize + 1) % 3;
+            }
             if which < 3 {
                 let bit: u8 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {

@@ -370,80 +370,90 @@ fn __decode_shape(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
     r.expect(b'{')?;
     let mut seen: u32 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 17] = [b"\"id\":", b"\"delta\":", b"\"ratio\":", b"\"ok\":", b"\"type\":", b"\"origin\":", b"\"tags\":", b"\"names\":", b"\"grid\":", b"\"pairs\":", b"\"price\":", b"\"note\":", b"\"extra\":", b"\"pin\":", b"\"cost\":", b"\"flag\":", b"\"count\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                2 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"id" {
-                        0
-                    } else if bytes == b"ok" {
-                        3
-                    } else {
-                        17
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    2 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"id" {
+                            0
+                        } else if bytes == b"ok" {
+                            3
+                        } else {
+                            17
+                        }
                     }
-                }
-                3 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"pin" {
-                        13
-                    } else {
-                        17
+                    3 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"pin" {
+                            13
+                        } else {
+                            17
+                        }
                     }
-                }
-                4 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"type" {
-                        4
-                    } else if bytes == b"tags" {
-                        6
-                    } else if bytes == b"grid" {
-                        8
-                    } else if bytes == b"note" {
-                        11
-                    } else if bytes == b"cost" {
-                        14
-                    } else if bytes == b"flag" {
-                        15
-                    } else {
-                        17
+                    4 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"type" {
+                            4
+                        } else if bytes == b"tags" {
+                            6
+                        } else if bytes == b"grid" {
+                            8
+                        } else if bytes == b"note" {
+                            11
+                        } else if bytes == b"cost" {
+                            14
+                        } else if bytes == b"flag" {
+                            15
+                        } else {
+                            17
+                        }
                     }
-                }
-                5 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"delta" {
-                        1
-                    } else if bytes == b"ratio" {
-                        2
-                    } else if bytes == b"names" {
-                        7
-                    } else if bytes == b"pairs" {
-                        9
-                    } else if bytes == b"price" {
-                        10
-                    } else if bytes == b"extra" {
-                        12
-                    } else if bytes == b"count" {
-                        16
-                    } else {
-                        17
+                    5 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"delta" {
+                            1
+                        } else if bytes == b"ratio" {
+                            2
+                        } else if bytes == b"names" {
+                            7
+                        } else if bytes == b"pairs" {
+                            9
+                        } else if bytes == b"price" {
+                            10
+                        } else if bytes == b"extra" {
+                            12
+                        } else if bytes == b"count" {
+                            16
+                        } else {
+                            17
+                        }
                     }
-                }
-                6 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"origin" {
-                        5
-                    } else {
-                        17
+                    6 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"origin" {
+                            5
+                        } else {
+                            17
+                        }
                     }
-                }
-                _ => 17,
-            };
+                    _ => 17,
+                };
+            }
+            if (which as usize) < 17 {
+                next = (which as usize + 1) % 17;
+            }
             if which < 17 {
                 let bit: u32 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {
@@ -556,21 +566,31 @@ fn __decode_point(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContex
     r.expect(b'{')?;
     let mut seen: u8 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 2] = [b"\"x\":", b"\"y\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                1 => match key.as_bytes() {
-                    [b'x'] => 0,
-                    [b'y'] => 1,
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    1 => match key.as_bytes() {
+                        [b'x'] => 0,
+                        [b'y'] => 1,
+                        _ => 2,
+                    },
                     _ => 2,
-                },
-                _ => 2,
-            };
+                };
+            }
+            if (which as usize) < 2 {
+                next = (which as usize + 1) % 2;
+            }
             if which < 2 {
                 let bit: u8 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {
@@ -609,32 +629,42 @@ fn __decode_tag(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext,
     r.expect(b'{')?;
     let mut seen: u8 = 0;
     let mut fields = 0usize;
+    const KEYS: [&[u8]; 2] = [b"\"name\":", b"\"weight\":"];
+    let mut next = 0usize;
     if !r.eat(b'}') {
         loop {
-            let key = r.key(ctx)?;
             fields += 1;
             if fields > limits.max_fields_per_object as usize {
                 return Err(__native::Fail);
             }
-            let which: u32 = match key.len() {
-                4 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"name" {
-                        0
-                    } else {
-                        2
+            let which: u32;
+            if r.match_key(ctx, KEYS[next]) {
+                which = next as u32;
+            } else {
+                let key = r.key(ctx)?;
+                which = match key.len() {
+                    4 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"name" {
+                            0
+                        } else {
+                            2
+                        }
                     }
-                }
-                6 => {
-                    let bytes = key.as_bytes();
-                    if bytes == b"weight" {
-                        1
-                    } else {
-                        2
+                    6 => {
+                        let bytes = key.as_bytes();
+                        if bytes == b"weight" {
+                            1
+                        } else {
+                            2
+                        }
                     }
-                }
-                _ => 2,
-            };
+                    _ => 2,
+                };
+            }
+            if (which as usize) < 2 {
+                next = (which as usize + 1) % 2;
+            }
             if which < 2 {
                 let bit: u8 = 1 << which;
                 if seen & bit != 0 && limits.reject_duplicate_keys {

@@ -270,6 +270,7 @@ macro_rules! oracles {
 
 oracles!(binance, oracle_strict);
 oracles!(binance_open, oracle_open);
+oracles!(binance_plain, oracle_plain);
 
 /// The limit sets every input is checked under: the defaults and one change at
 /// a time that moves a boundary the decoders must honor.

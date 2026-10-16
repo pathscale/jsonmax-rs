@@ -10,7 +10,7 @@ fn main() {
         roots: &["TradeBatch"],
     };
     let generation =
-        generate_with_native(&model(&fixture), &spec(&fixture, true), &options("trades"), &native_options(false))
+        generate_with_native(&model(&fixture), &spec(&fixture, true), &options("trades"), &native_options(true))
             .expect("generation succeeds");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     for artifact in generation.into_artifacts() {

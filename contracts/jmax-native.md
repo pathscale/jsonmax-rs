@@ -63,6 +63,7 @@ impl<'a> Reader<'a> {
     pub fn key<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c str> where 'a: 'c;
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()>;
     pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()>;
+    pub fn match_key(&mut self, ctx: &NativeContext, pattern: &[u8]) -> bool;
 }
 ```
 
@@ -99,6 +100,8 @@ skip_value strictly validates and discards one value with jmax_syntax::skip_stri
 context's limits, effective numeric policy and a depth supplied by the caller (the number of
 enclosing containers). It accepts exactly what BlockCursor::skip_value(StrictValidate)
 accepts and Fails otherwise.
+
+match_key supports layout prediction. `pattern` is the exact bytes `"name":` of an unescaped key; after whitespace, a match consumes the pattern and returns true, and a miss consumes only the whitespace. A pattern that is not of that form, or whose name is longer than limits.syntax.max_string_bytes, never matches, so a hit is exactly a successful `key` returning that name and the caller may fall through to `key` on a miss with no rollback.
 
 unknown_key reads an object key and its colon exactly as key does and records the decoded key as an unknown key of the innermost object opened with begin_object. Generated code calls it on a clone of the reader taken before key, because the &str that key returns borrows the whole context and so cannot be passed to NativeContext::unknown_key.
 

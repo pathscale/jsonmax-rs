@@ -9,12 +9,14 @@ pub mod harness;
 pub mod regen;
 
 /// Whether the checked-in modules were generated with layout prediction.
-pub const PREDICT_LAYOUT: bool = false;
+pub const PREDICT_LAYOUT: bool = true;
 
 #[allow(clippy::all, dead_code, unused)]
 pub mod binance;
 #[allow(clippy::all, dead_code, unused)]
 pub mod binance_open;
+#[allow(clippy::all, dead_code, unused)]
+pub mod binance_plain;
 #[allow(clippy::all, dead_code, unused)]
 pub mod shapes;
 #[allow(clippy::all, dead_code, unused)]

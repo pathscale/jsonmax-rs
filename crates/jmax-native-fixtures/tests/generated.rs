@@ -2,7 +2,7 @@
 
 use jmax_native_fixtures::harness::*;
 use jmax_native_fixtures::regen::{BINANCE, SHAPES};
-use jmax_native_fixtures::{binance, binance_open, shapes, shapes_open};
+use jmax_native_fixtures::{binance, binance_open, binance_plain, shapes, shapes_open};
 
 fn trade_seeds(open: bool) -> Vec<Vec<u8>> {
     let valid = AGG_TRADE.as_bytes().to_vec();
@@ -17,6 +17,11 @@ fn trade_seeds(open: bool) -> Vec<Vec<u8>> {
         AGG_TRADE.replace("\"a\":12345", "\"a\":-0").into_bytes(),
         AGG_TRADE.replace("\"a\":12345", "\"a\":9223372036854775808").into_bytes(),
         AGG_TRADE.replace("\"a\":12345", "\"a\":1e2").into_bytes(),
+        // Keys out of declaration order, so a predicted key order misses.
+        r#"{"M":true,"m":true,"T":123456785,"l":105,"f":100,"q":"100.00000000","p":"0.00100000","a":12345,"s":"BNBBTC","E":123456789,"e":"aggTrade"}"#.as_bytes().to_vec(),
+        r#"{"E":123456789,"e":"aggTrade","s":"BNBBTC","a":12345,"q":"100.00000000","p":"0.00100000","f":100,"l":105,"T":123456785,"m":true}"#.as_bytes().to_vec(),
+        // A space between a key and its colon, and a key with a prefix of another.
+        AGG_TRADE.replace("\"s\":", "\"s\" :").into_bytes(),
     ];
     if open {
         seeds.push(AGG_TRADE.replace("\"m\"", "\"x\":[1,{\"y\":null,\"z\":\"\\u0041\"}],\"m\"").into_bytes());
@@ -30,6 +35,7 @@ fn trade_seeds(open: bool) -> Vec<Vec<u8>> {
 fn depth_seeds() -> Vec<Vec<u8>> {
     let mut seeds: Vec<Vec<u8>> = [0usize, 1, 2, 3, 4, 20, 1000].iter().map(|n| depth_document(*n)).collect();
     seeds.push(String::from_utf8(depth_document(2)).unwrap().replace("\"U\":157", "\"U\":999").into_bytes());
+    seeds.push(br#"{"a":[["1.00000000","2.00000000"]],"b":[],"u":160,"U":157,"s":"BNBBTC","E":123456789,"e":"depthUpdate"}"#.to_vec());
     seeds.push(String::from_utf8(depth_document(2)).unwrap().replace("\"b\"", "\"x\":[[1,2]],\"b\"").into_bytes());
     seeds
 }
@@ -50,6 +56,19 @@ fn report(name: &str, tally: Tally, accepted: u32) {
 fn strict_agg_trade() {
     let subject = Subject::<binance::models::AggTrade>::new(&BINANCE, "AggTrade", true, oracle_strict::trade);
     report("strict agg_trade", differential(&subject, &trade_seeds(false), 400, 1), 1_000);
+}
+
+// The same strict decoders generated without layout prediction.
+#[test]
+fn plain_agg_trade() {
+    let subject = Subject::<binance_plain::models::AggTrade>::new(&BINANCE, "AggTrade", true, oracle_plain::trade);
+    report("plain agg_trade", differential(&subject, &trade_seeds(false), 400, 1), 1_000);
+}
+
+#[test]
+fn plain_depth_update() {
+    let subject = Subject::<binance_plain::models::DepthUpdate>::new(&BINANCE, "DepthUpdate", true, oracle_plain::depth);
+    report("plain depth_update", differential(&subject, &depth_seeds(), 250, 2), 500);
 }
 
 #[test]
