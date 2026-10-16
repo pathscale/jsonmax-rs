@@ -618,6 +618,16 @@ impl<'a> BlockCursor<'a> {
                 }
                 return Ok(span);
             }
+            // Well-formed floats (and other accepted spellings) in one pass over
+            // the mask-bounded span; anything else gets the exact lexer path.
+            if excess.is_none()
+                && self
+                    .peek_byte()
+                    .is_none_or(jmax_number::is_number_delimiter)
+                && super::feed::number_accepted_fast(bytes, self.numeric)
+            {
+                return Ok(span);
+            }
             super::feed::validate_number_slice(self.input, span, self.numeric, excess)?;
             Ok(span)
         }

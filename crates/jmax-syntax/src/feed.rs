@@ -948,3 +948,111 @@ fn float_policy_cannot_fail(
     }
     true
 }
+
+/// Single pass over an atom span already bounded by the classifier masks:
+/// true only when `validate_number_slice` would accept it (the caller has
+/// also checked the following byte is a delimiter and the digit limit). It
+/// checks the JSON number grammar over the whole span, the exponent limit,
+/// lexical negative zero, and (for floats) the same magnitude bounds as
+/// `float_policy_cannot_fail`. Returns false for anything else, including
+/// every error, so the caller falls back to the exact lexer diagnostics.
+#[inline]
+pub(crate) fn number_accepted_fast(
+    bytes: &[u8],
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+) -> bool {
+    let (exponent_limit, reject_negative_zero, reject_non_finite) = match numeric {
+        Some(policy) => (
+            i64::from(policy.max_exponent_abs),
+            policy.reject_negative_zero,
+            policy.reject_non_finite_float,
+        ),
+        // Without a policy the syntax layer accepts any exponent magnitude.
+        None => (i64::MAX, false, false),
+    };
+    let negative = bytes.first() == Some(&b'-');
+    let mut rest = if negative { &bytes[1..] } else { bytes };
+    // Integer part: "0" or a nonzero digit followed by digits.
+    let integer_len = digit_run(rest);
+    if integer_len == 0 || (rest[0] == b'0' && integer_len > 1) {
+        return false;
+    }
+    let integer_digits = integer_len as i64;
+    let leading_nonzero = rest[0] != b'0';
+    rest = &rest[integer_len..];
+    let mut is_float = false;
+    // First nonzero fraction digit, for the underflow bound.
+    let mut first_nonzero_fraction = None;
+    if rest.first() == Some(&b'.') {
+        is_float = true;
+        rest = &rest[1..];
+        let fraction_len = digit_run(rest);
+        if fraction_len == 0 {
+            return false;
+        }
+        first_nonzero_fraction = rest[..fraction_len]
+            .iter()
+            .position(|&byte| byte != b'0')
+            .map(|position| position as i64);
+        rest = &rest[fraction_len..];
+    }
+    let mut exponent = 0i64;
+    if matches!(rest.first(), Some(b'e' | b'E')) {
+        is_float = true;
+        rest = &rest[1..];
+        let exponent_negative = rest.first() == Some(&b'-');
+        if matches!(rest.first(), Some(b'+' | b'-')) {
+            rest = &rest[1..];
+        }
+        let exponent_len = digit_run(rest);
+        // Long (zero-padded) exponents take the lexer path.
+        if exponent_len == 0 || exponent_len > 12 {
+            return false;
+        }
+        for &byte in &rest[..exponent_len] {
+            exponent = exponent * 10 + i64::from(byte - b'0');
+        }
+        if exponent > exponent_limit {
+            return false;
+        }
+        if exponent_negative {
+            exponent = -exponent;
+        }
+        rest = &rest[exponent_len..];
+    }
+    if !rest.is_empty() {
+        return false;
+    }
+    let nonzero = leading_nonzero || first_nonzero_fraction.is_some();
+    if negative && !nonzero && reject_negative_zero {
+        return false;
+    }
+    if is_float && numeric.is_some() {
+        if reject_non_finite && integer_digits + exponent > 308 {
+            return false;
+        }
+        if reject_negative_zero && negative {
+            let magnitude = if leading_nonzero {
+                integer_digits - 1 + exponent
+            } else {
+                match first_nonzero_fraction {
+                    Some(position) => exponent - (position + 1),
+                    None => return false,
+                }
+            };
+            if magnitude < -323 {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Length of the leading run of ASCII digits.
+#[inline(always)]
+fn digit_run(bytes: &[u8]) -> usize {
+    bytes
+        .iter()
+        .position(|&byte| byte.wrapping_sub(b'0') >= 10)
+        .unwrap_or(bytes.len())
+}
