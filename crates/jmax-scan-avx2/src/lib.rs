@@ -129,6 +129,7 @@ pub(crate) fn validate_carry(carry: &ScanCarry) -> Result<()> {
 impl RawMasks {
     /// Assemble an ABI block while masking away every padded byte.
     /// Callers supply quote masks calculated with the same real byte length.
+    #[inline(always)]
     pub(crate) fn finish(self, quotes: QuoteMasks, len: usize) -> Result<BlockMasks> {
         let valid = valid_mask(len)?;
         let c = self.classes;

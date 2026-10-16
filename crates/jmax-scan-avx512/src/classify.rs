@@ -56,7 +56,7 @@ fn finish_loaded(raw: RawMasks, len: usize, carry: &mut ScanCarry) -> Result<Blo
     finish_with_quotes(raw, len, carry, quotes::quote_masks)
 }
 
-#[inline]
+#[inline(always)]
 fn finish_with_quotes(
     raw: RawMasks,
     len: usize,

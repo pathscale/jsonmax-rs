@@ -16,7 +16,7 @@ pub fn quote_masks(
 
 // Called only by bindings created after the independent prefix feature gate.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline]
+#[inline(always)]
 pub(crate) fn quote_masks_cached<const ACCELERATED: bool>(
     quote_mask: u64,
     backslash_mask: u64,
@@ -32,7 +32,7 @@ pub(crate) fn quote_masks_cached<const ACCELERATED: bool>(
     )
 }
 
-#[inline]
+#[inline(always)]
 fn quote_masks_with_prefix(
     quote_mask: u64,
     backslash_mask: u64,
