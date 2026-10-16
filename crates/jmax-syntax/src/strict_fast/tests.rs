@@ -357,3 +357,66 @@ fn declined_inputs_do_not_disturb_the_arena() {
     }
     assert!(stats.declined > 0);
 }
+
+/// Runs two consecutive container skips through the cursor, with or without
+/// the fast path, and reports everything observable afterwards.
+fn cursor_run(
+    input: &[u8],
+    limits: Limits,
+    numeric: Option<NumericPolicy>,
+    depth: u16,
+    prefix: usize,
+    capacity: usize,
+    fast: bool,
+) -> (std::vec::Vec<(bool, u32)>, u32, Vec<u8>, usize) {
+    let mut decoded = make_decoded(prefix, capacity);
+    let mut steps = vec![];
+    let mut discarded = 0;
+    if let Ok(mut cursor) = BlockCursor::new(input, limits, numeric, DuplicatePolicyOwner::Syntax) {
+        for _ in 0..2 {
+            let result = if fast {
+                cursor.skip_value(&mut decoded, depth, SkipMode::StrictValidate).map(|_| ())
+            } else {
+                cursor
+                    .skip_whitespace()
+                    .and_then(|_| cursor.skip_strict_exact_for_test(&mut decoded, depth))
+            };
+            steps.push((result.is_ok(), cursor.offset()));
+            if result.is_err() {
+                break;
+            }
+        }
+        discarded = cursor.discarded_decoded();
+    }
+    let capacity = decoded.capacity();
+    (steps, discarded, decoded, capacity)
+}
+
+#[test]
+fn cursor_fast_skip_matches_exact_offsets_totals_and_capacity() {
+    let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+    let mut fast_steps = 0usize;
+    for (limits, numeric) in limit_variants() {
+        for round in 0..900 {
+            let a = SEEDS[round % SEEDS.len()].trim();
+            let b = SEEDS[(round * 7 + 3) % SEEDS.len()].trim();
+            let pad = " ".repeat(round % 131);
+            let mut input = format!("{pad}{a}{}{b}", ["", " ", "\n\n"][round % 3]).into_bytes();
+            mutate(&mut rng, &mut input, round % 3);
+            for depth in [0u16, 1, 3] {
+                for &(prefix, capacity) in ALL_VARIANTS {
+                    let exact = cursor_run(&input, limits, numeric, depth, prefix, capacity, false);
+                    let fast = cursor_run(&input, limits, numeric, depth, prefix, capacity, true);
+                    assert_eq!(
+                        fast,
+                        exact,
+                        "input {:?} limits {limits:?} depth {depth} prefix {prefix} capacity {capacity}",
+                        String::from_utf8_lossy(&input)
+                    );
+                    fast_steps += exact.0.iter().filter(|s| s.0).count();
+                }
+            }
+        }
+    }
+    assert!(fast_steps > 5000, "too few accepted skips: {fast_steps}");
+}

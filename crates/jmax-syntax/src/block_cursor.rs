@@ -1045,6 +1045,78 @@ impl<'a> BlockCursor<'a> {
                 "container depth exceeds its limit",
             ));
         }
+        if self.fast_skip(decoded, current_depth) {
+            return Ok(());
+        }
+        self.skip_strict_exact(decoded, current_depth)
+    }
+
+    /// Conservative one-pass acceptance of a container value at the offset
+    /// (see `strict_fast`). True only when `skip_strict_exact` would have
+    /// accepted it, leaving the same offset, discarded total and `decoded`
+    /// contents and capacity. On false nothing has changed.
+    #[inline(always)]
+    fn fast_skip(&mut self, decoded: &mut Vec<u8>, current_depth: u16) -> bool {
+        let start = self.cache.offset;
+        let Some(&first) = self.input.get(start as usize) else {
+            return false;
+        };
+        if !matches!(first, b'{' | b'[')
+            || start < self.cache.block_start
+            || start >= self.cache.block_end
+        {
+            return false;
+        }
+        let params = super::strict_fast::Params {
+            limits: self.limits,
+            numeric: self.numeric,
+            max_depth: usize::from(self.limits.max_depth - current_depth),
+            masker: self.cache.escape_masker,
+            whole_input: false,
+        };
+        let Some((end, discarded)) = super::strict_fast::accept(
+            self.input,
+            start as usize,
+            &params,
+            self.cache.discarded_decoded,
+            decoded,
+            &mut self.discard.fast,
+        ) else {
+            return false;
+        };
+        // A complete container ends after an ASCII `}` or `]` outside any
+        // string, so the scanner carry restarts from its default there.
+        self.cache.discarded_decoded = discarded;
+        let end = end as u32;
+        if end < self.cache.block_end {
+            self.cache.offset = end;
+        } else {
+            self.cache.block_start = end;
+            self.cache.block_end = end;
+            self.cache.carry = ScanCarry::default();
+            self.cache.offset = end;
+        }
+        true
+    }
+
+    /// Test hook: the exact loop alone, for differential comparison.
+    #[cfg(test)]
+    pub(crate) fn skip_strict_exact_for_test(
+        &mut self,
+        decoded: &mut Vec<u8>,
+        current_depth: u16,
+    ) -> Result<()> {
+        self.skip_strict_exact(decoded, current_depth)
+    }
+
+    fn skip_strict_exact(&mut self, decoded: &mut Vec<u8>, current_depth: u16) -> Result<()> {
+        if current_depth > self.limits.max_depth {
+            return Err(syntax_error(
+                ErrorCode::DepthLimitExceeded,
+                self.offset(),
+                "container depth exceeds its limit",
+            ));
+        }
         // Reusable frames share the scanner/cache and decoded arena. They never
         // build nodes or captures, and retain capacities across skipped values.
         let saved_frames =
