@@ -47,22 +47,8 @@ pub fn classify_block(input: &[u8; BLOCK_BYTES], carry: &mut ScanCarry) -> Resul
 /// Bit `i` describes byte `i` regardless of host endianness. Punctuation and
 /// other byte classes are raw, including occurrences within strings.
 pub fn classify_raw(input: &[u8; BLOCK_BYTES]) -> RawMasks {
-    let mut quote_mask = 0;
-    let mut backslash_mask = 0;
-    for (index, &byte) in input.iter().enumerate() {
-        let bit = 1u64 << index;
-        match byte {
-            b'"' => quote_mask |= bit,
-            b'\\' => backslash_mask |= bit,
-            _ => {}
-        }
-    }
-    RawMasks {
-        quote_mask,
-        backslash_mask,
-        classes: structural::classify_structural(input),
-        backend: BackendId::Scalar,
-    }
+    // Identical to tails::classify_scalar_raw, eight bytes per step.
+    structural::classify_swar(input)
 }
 
 // Both callers validate quote carry and supply a length in 0..=64. Keep the
