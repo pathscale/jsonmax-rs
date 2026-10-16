@@ -9,6 +9,7 @@ use super::*;
 
 /// Returns the complete original value, including string quotes and container
 /// delimiters. Whitespace inside a container remains part of its raw value.
+#[inline]
 pub fn raw<'a>(node: Node<'a>) -> Result<&'a [u8]> {
     let span = stored_span(node)?;
     span.slice(node.document.raw()).ok_or_else(|| {
@@ -22,6 +23,7 @@ pub fn raw<'a>(node: Node<'a>) -> Result<&'a [u8]> {
 
 /// Returns a scalar view: strings are cooked UTF-8, while numbers retain their
 /// exact lexical bytes. Arrays and objects return `TypeMismatch`.
+#[inline]
 pub fn value<'a>(node: Node<'a>) -> Result<Scalar<'a>> {
     match tag(node)? {
         TAG_NULL => Ok(Scalar::Null),
@@ -39,6 +41,7 @@ pub fn value<'a>(node: Node<'a>) -> Result<Scalar<'a>> {
 
 /// Borrows a string's cooked contents from the payload or decoded arena.
 /// This operation performs no allocation or unescaping.
+#[inline]
 pub fn string<'a>(node: Node<'a>) -> Result<&'a str> {
     require_tag(node, TAG_STRING, "DOM string access requires a string")?;
     let reference = navigate::string_ref(node).ok_or_else(|| {
@@ -52,6 +55,7 @@ pub fn string<'a>(node: Node<'a>) -> Result<&'a str> {
 }
 
 /// Reads the boolean encoded in a true or false node's tag.
+#[inline]
 pub fn boolean(node: Node<'_>) -> Result<bool> {
     match tag(node)? {
         TAG_FALSE => Ok(false),
@@ -67,6 +71,7 @@ pub fn boolean(node: Node<'_>) -> Result<bool> {
 /// Converts an integer spelling to `u64` with checked range handling.
 /// Decimal/exponent spellings return `InvalidNumber`; a minus sign, including
 /// `-0`, returns `ConstraintViolation`. Strings are never coerced to numbers.
+#[inline]
 pub fn u64(node: Node<'_>) -> Result<u64> {
     let text = integer_text(node)?;
     unsigned(node, text)
@@ -74,6 +79,7 @@ pub fn u64(node: Node<'_>) -> Result<u64> {
 
 /// Converts an integer spelling to `i64`, accepting `-0` as signed zero.
 /// Decimal/exponent spellings return `InvalidNumber`, even for integral values.
+#[inline]
 pub fn i64(node: Node<'_>) -> Result<i64> {
     let text = integer_text(node)?;
     signed(node, text)
@@ -82,6 +88,7 @@ pub fn i64(node: Node<'_>) -> Result<i64> {
 /// Converts the complete number spelling to correctly rounded binary64 using
 /// round-to-nearest, ties-to-even. Signed zero and finite underflow are valid;
 /// a nonfinite result returns `NumberOverflow`.
+#[inline]
 pub fn f64(node: Node<'_>) -> Result<f64> {
     let text = number_text(node)?;
     floating(node, text)
@@ -90,6 +97,7 @@ pub fn f64(node: Node<'_>) -> Result<f64> {
 /// Chooses `U64` for unsigned integer spellings, `I64` for minus integer
 /// spellings, and `F64Bits` for decimal/exponent spellings. Integer overflow
 /// never falls back to floating point. No decimal policy is inferred.
+#[inline]
 pub fn converted(node: Node<'_>) -> Result<ConvertedNumber> {
     let text = number_text(node)?;
     if has_fraction_or_exponent(text) {

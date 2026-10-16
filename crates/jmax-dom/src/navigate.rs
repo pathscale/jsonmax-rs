@@ -1,6 +1,7 @@
 //! Navigation over variable-width tape records. Sibling jumps never walk a subtree.
 use super::*;
 
+#[inline]
 pub fn root(document: &(impl TapeSource + ?Sized)) -> Node<'_> {
     Node {
         document: document.as_tape(),
@@ -12,9 +13,11 @@ pub fn root(document: &(impl TapeSource + ?Sized)) -> Node<'_> {
 /// Membership checking walks record headers; handle-based navigation is O(1).
 /// The frozen tape has no per-word header bitmap, so arbitrary-ID membership
 /// cannot in general be decided from one candidate word alone.
+#[inline]
 pub fn node(document: &(impl TapeSource + ?Sized), id: NodeId) -> Option<Node<'_>> {
     node_in_view(document.as_tape(), id)
 }
+#[inline]
 pub(crate) fn node_in_view(document: TapeView<'_>, id: NodeId) -> Option<Node<'_>> {
     let mut cursor = 0usize;
     let target = id.0 as usize;
@@ -31,6 +34,7 @@ pub(crate) fn node_in_view(document: TapeView<'_>, id: NodeId) -> Option<Node<'_
     None
 }
 
+#[inline]
 pub fn kind(node: Node<'_>) -> NodeKind {
     // Genuine handles are only created at value record boundaries.
     match node.document.tape()[node.id.0 as usize].tag() {
@@ -43,9 +47,11 @@ pub fn kind(node: Node<'_>) -> NodeKind {
     }
 }
 
+#[inline]
 pub fn raw_span(node: Node<'_>) -> Span32 {
     record_span(node.document, node.id.0 as usize)
 }
+#[inline]
 pub(crate) fn record_span(view: TapeView<'_>, index: usize) -> Span32 {
     let word = view.tape()[index];
     let offset = word.raw_offset();
@@ -62,6 +68,7 @@ pub(crate) fn record_span(view: TapeView<'_>, index: usize) -> Span32 {
     Span32::new(offset, len)
 }
 
+#[inline]
 pub fn parent(node: Node<'_>) -> Option<Node<'_>> {
     let index = node.document.tape()[node.id.0 as usize + 1].low32();
     (index != NO_NODE).then_some(Node {
@@ -69,9 +76,11 @@ pub fn parent(node: Node<'_>) -> Option<Node<'_>> {
         id: NodeId(index),
     })
 }
+#[inline]
 pub fn subtree_end(node: Node<'_>) -> u32 {
     node.document.tape()[node.id.0 as usize + 1].high32()
 }
+#[inline]
 pub fn children(node: Node<'_>) -> Result<Children<'_>> {
     match kind(node) {
         NodeKind::Array | NodeKind::Object => Ok(container_children(node)),
@@ -82,6 +91,7 @@ pub fn children(node: Node<'_>) -> Result<Children<'_>> {
         )),
     }
 }
+#[inline]
 pub fn object(node: Node<'_>) -> Result<Object<'_>> {
     if kind(node) == NodeKind::Object {
         Ok(Object { node })
@@ -93,6 +103,7 @@ pub fn object(node: Node<'_>) -> Result<Object<'_>> {
         ))
     }
 }
+#[inline]
 pub fn array(node: Node<'_>) -> Result<Array<'_>> {
     if kind(node) == NodeKind::Array {
         Ok(Array { node })
@@ -128,9 +139,11 @@ fn container_children(node: Node<'_>) -> Children<'_> {
     }
 }
 
+#[inline]
 pub fn string_ref(node: Node<'_>) -> Option<StrRef> {
     (kind(node) == NodeKind::String).then(|| record_string_ref(node.document, node.id.0 as usize))
 }
+#[inline]
 pub(crate) fn record_string_ref(view: TapeView<'_>, index: usize) -> StrRef {
     let header = view.tape()[index];
     if header.has_flag(TAPE_FLAG_EXTENDED) {
@@ -173,20 +186,24 @@ fn key_index(node: Node<'_>) -> Option<usize> {
             },
     )
 }
+#[inline]
 pub fn key_ref(node: Node<'_>) -> Option<StrRef> {
     Some(record_string_ref(node.document, key_index(node)?))
 }
+#[inline]
 pub fn key_span(node: Node<'_>) -> Option<Span32> {
     Some(record_span(node.document, key_index(node)?))
 }
 /// Validated, already quoted member key, when its source has no escapes.
 /// This borrows the original token, including quotes, without scanning bytes.
 #[inline(always)]
+#[inline]
 pub fn unescaped_key_token<'a>(node: Node<'a>) -> Option<&'a [u8]> {
     unescaped_token(node.document, key_index(node)?)
 }
 /// Validated, already quoted string value, when its source has no escapes.
 #[inline(always)]
+#[inline]
 pub fn unescaped_string_token<'a>(node: Node<'a>) -> Option<&'a [u8]> {
     if node.header().tag() != TAG_STRING {
         return None;
@@ -202,9 +219,11 @@ fn unescaped_token<'a>(view: TapeView<'a>, index: usize) -> Option<&'a [u8]> {
     let start = span.offset as usize;
     Some(&view.raw()[start..start + span.len as usize])
 }
+#[inline]
 pub fn node_key_ref(document: &(impl TapeSource + ?Sized), id: NodeId) -> Option<StrRef> {
     node(document, id).and_then(key_ref)
 }
+#[inline]
 pub fn node_key_span(document: &(impl TapeSource + ?Sized), id: NodeId) -> Option<Span32> {
     node(document, id).and_then(key_span)
 }
@@ -249,6 +268,7 @@ impl<'a> Array<'a> {
 }
 impl<'a> Iterator for Children<'a> {
     type Item = Node<'a>;
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let id = self.next?;
         self.remaining -= 1;
@@ -275,6 +295,7 @@ impl ExactSizeIterator for Children<'_> {}
 impl core::iter::FusedIterator for Children<'_> {}
 impl<'a> Iterator for Members<'a> {
     type Item = Member<'a>;
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.children.next()?;
         let reference = key_ref(value)?;
