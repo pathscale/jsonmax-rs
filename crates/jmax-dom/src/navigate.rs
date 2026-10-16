@@ -197,13 +197,11 @@ pub fn key_span(node: Node<'_>) -> Option<Span32> {
 /// Validated, already quoted member key, when its source has no escapes.
 /// This borrows the original token, including quotes, without scanning bytes.
 #[inline(always)]
-#[inline]
 pub fn unescaped_key_token<'a>(node: Node<'a>) -> Option<&'a [u8]> {
     unescaped_token(node.document, key_index(node)?)
 }
 /// Validated, already quoted string value, when its source has no escapes.
 #[inline(always)]
-#[inline]
 pub fn unescaped_string_token<'a>(node: Node<'a>) -> Option<&'a [u8]> {
     if node.header().tag() != TAG_STRING {
         return None;

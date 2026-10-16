@@ -915,6 +915,7 @@ fn next_complete(state: &mut SyntaxState) -> Result<ScanStep> {
 /// - Underflow to negative zero: the magnitude is at least 10^m, where m comes
 ///   from the first nonzero significand digit; m >= -323 gives at least 1e-323,
 ///   above half the smallest subnormal, so it cannot round to zero.
+///
 /// The lexer has already enforced the exponent limit and rejected lexical
 /// negative zero, and every lexed spelling parses as a decimal float.
 #[inline]
