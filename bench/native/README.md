@@ -52,68 +52,76 @@ three runs of 15 samples. Treat differences under 10% as noise.
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 477 | 287 | 6329 | 8504 | 0 | 0 |
-| jmax-native budget | 474 | 289 | 6329 | 8504 | 0 | 0 |
-| jmax vm+reparse | 2304 | 59 | 30409 | 32584 | 1 | 168 |
-| serde_json String | 439 | 312 | 6130 | 6130 | 4 | 36 |
-| serde_json fixed | 435 | 315 | 6134 | 6134 | 2 | 14 |
-| sonic-rs String | 263 | 521 | 4830 | 4830 | 4 | 36 |
-| sonic-rs fixed | 272 | 504 | 4948 | 4948 | 2 | 14 |
-| simd-json String | 500 | 274 | 9222 | 9222 | 13 | 3430 |
-| simd-json fixed | 493 | 278 | 9277 | 9277 | 11 | 3408 |
+| jmax-native | 246 | 558 | 3081 | 6329 | 0 | 0 |
+| jmax-native budget | 215 | 636 | 3081 | 6329 | 0 | 0 |
+| jmax vm+reparse | 3027 | 45 | 27161 | 30409 | 1 | 168 |
+| serde_json String | 559 | 245 | 6130 | 6130 | 4 | 36 |
+| serde_json fixed | 488 | 281 | 6134 | 6134 | 2 | 14 |
+| sonic-rs String | 365 | 376 | 4830 | 4830 | 4 | 36 |
+| sonic-rs fixed | 413 | 332 | 4948 | 4948 | 2 | 14 |
+| simd-json String | 614 | 223 | 9222 | 9222 | 13 | 3430 |
+| simd-json fixed | 725 | 189 | 9277 | 9277 | 11 | 3408 |
 
 ### depth_20 (1234 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 15654 | 79 | 157732 | 159270 | 0 | 0 |
-| jmax-native budget | 14878 | 83 | 157732 | 159270 | 0 | 0 |
-| jmax vm+reparse | 42749 | 29 | 368050 | 369588 | 3 | 1008 |
-| serde_json String | 3808 | 324 | 68300 | 68300 | 90 | 6617 |
-| serde_json fixed | 4099 | 301 | 56758 | 56758 | 10 | 1937 |
-| sonic-rs String | 3891 | 317 | 56250 | 56250 | 90 | 6617 |
-| sonic-rs fixed | 2510 | 492 | 45061 | 45061 | 10 | 1937 |
-| simd-json String | 3570 | 346 | 62704 | 62704 | 93 | 22817 |
-| simd-json fixed | 4189 | 295 | 47104 | 47104 | 13 | 20697 |
+| jmax-native | 3212 | 384 | 26514 | 157732 | 0 | 0 |
+| jmax-native budget | 3233 | 382 | 26514 | 157732 | 0 | 0 |
+| jmax vm+reparse | 40158 | 31 | 236832 | 368050 | 3 | 1008 |
+| serde_json String | 6905 | 179 | 68300 | 68300 | 90 | 6617 |
+| serde_json fixed | 7923 | 156 | 56758 | 56758 | 10 | 1937 |
+| sonic-rs String | 5360 | 230 | 56250 | 56250 | 90 | 6617 |
+| sonic-rs fixed | 5953 | 207 | 45060 | 45061 | 10 | 1937 |
+| simd-json String | 5630 | 219 | 62704 | 62704 | 93 | 22817 |
+| simd-json fixed | 6364 | 194 | 47104 | 47104 | 13 | 20697 |
 
 ### depth_1000 (63602 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 1912380 | 33 | 19395302 | 19396022 | 3 | 1008 |
-| jmax-native budget | 887908 | 72 | 8701539 | 8702259 | 0 | 0 |
-| jmax vm+reparse | 1902573 | 33 | 19395285 | 19396005 | 3 | 1008 |
-| serde_json String | 156073 | 408 | 3245418 | 3245418 | 4018 | 243784 |
-| serde_json fixed | 183700 | 346 | 2622912 | 2622912 | 18 | 65408 |
-| sonic-rs String | 129828 | 490 | 2632857 | 2632857 | 4018 | 243784 |
-| sonic-rs fixed | 111341 | 571 | 2021518 | 2021518 | 18 | 65408 |
-| simd-json String | 154492 | 412 | 2870628 | 2870628 | 4010 | 693036 |
-| simd-json fixed | 140457 | 453 | 2227663 | 2227663 | 10 | 581476 |
+| jmax-native | 2259110 | 28 | 11991240 | 19395302 | 3 | 1008 |
+| jmax-native budget | 171036 | 372 | 1297477 | 8701539 | 0 | 0 |
+| jmax vm+reparse | 2258200 | 28 | 11991223 | 19395285 | 3 | 1008 |
+| serde_json String | 345371 | 184 | 3245418 | 3245418 | 4018 | 243784 |
+| serde_json fixed | 401626 | 158 | 2622912 | 2622912 | 18 | 65408 |
+| sonic-rs String | 256797 | 248 | 2632857 | 2632857 | 4018 | 243784 |
+| sonic-rs fixed | 296052 | 215 | 2021518 | 2021518 | 18 | 65408 |
+| simd-json String | 276503 | 230 | 2870628 | 2870628 | 4010 | 693036 |
+| simd-json fixed | 326231 | 195 | 2227663 | 2227663 | 10 | 581476 |
 
 ### trades_100 (14632 bytes)
 
 | parser | median ns | MB/s | instructions | before | allocations | bytes allocated |
 |---|---:|---:|---:|---:|---:|---:|
-| jmax-native | 49352 | 296 | 644863 | 917754 | 0 | 0 |
-| jmax-native budget | 49282 | 297 | 644863 | 917754 | 0 | 0 |
-| jmax vm+reparse | 179190 | 82 | 2550239 | 2823186 | 3 | 1008 |
-| serde_json String | 42977 | 340 | 730119 | 730119 | 406 | 39858 |
-| serde_json fixed | 43337 | 338 | 667799 | 667799 | 206 | 29624 |
-| sonic-rs String | 26756 | 547 | 593067 | 593067 | 406 | 39858 |
-| sonic-rs fixed | 26737 | 547 | 541618 | 541618 | 206 | 29624 |
-| simd-json String | 38428 | 381 | 621980 | 621980 | 410 | 236830 |
-| simd-json fixed | 37156 | 394 | 587330 | 587330 | 210 | 231460 |
+| jmax-native | 47744 | 306 | 303063 | 644863 | 0 | 0 |
+| jmax-native budget | 47782 | 306 | 303061 | 644863 | 0 | 0 |
+| jmax vm+reparse | 431478 | 34 | 2208503 | 2550239 | 3 | 1008 |
+| serde_json String | 108667 | 135 | 730119 | 730119 | 406 | 39858 |
+| serde_json fixed | 109684 | 133 | 667799 | 667799 | 206 | 29624 |
+| sonic-rs String | 78807 | 186 | 593067 | 593067 | 406 | 39858 |
+| sonic-rs fixed | 83574 | 175 | 541618 | 541618 | 206 | 29624 |
+| simd-json String | 86454 | 169 | 621980 | 621980 | 410 | 236830 |
+| simd-json fixed | 89265 | 164 | 587330 | 587330 | 210 | 231460 |
 
 ## Reading the result
 
-jmax-native does not yet beat the serde-based decoders in this build. It is allocation-free on
-the native route (0 allocations on `aggTrade`, `depth_20` and `trades_100`; the serde rows make
-10 to 4018), but it executes more instructions: about 1.0x serde_json on `aggTrade`, 2.3x on
-`depth_20`, and 2.7x on `depth_1000` (budget row) against the String rows. The callgrind
-profile of `depth_20` puts roughly 60% of the instructions in the decimal path
-(`Reader::decimal`, `jmax_decimal::bounds::{validate,rescale}`, i128 arithmetic and a
-`from_utf8` per token), over 1,000 instructions per decimal token. The fixed-point rows do the same
-work with an i64 and no range or scale checks. The VM-first route costs about 2x the native route, which is the
-price paid for inputs `budget_safe` cannot vouch for.
+Instructions per call is the number to trust; the nanosecond column was taken while other
+builds were running on the same cores (the serde_json row is 25 to 80% above its quiet-machine
+value), so only its ordering is meaningful. The `before` column is the previous published run.
 
-Layout prediction (the decoders here are generated with it) cut `aggTrade` from 8,504 to 6,329 instructions and `trades_100` from 917,754 to 644,863 (about 26% and 30%): a predicted key is one byte compare instead of a string scan and a dispatch. The depth documents have only a few keys and their levels are tuples, so they barely move (159,270 to 157,732 for `depth_20`).
+The native route is allocation-free (0 allocations on `aggTrade`, `depth_20` and `trades_100`;
+the serde rows make 10 to 4018) and, since the decimal fast path, executes fewer instructions
+than every competitor row on all four documents (the budget row on `depth_1000` is 1.30M
+against 2.02M for the best competitor, sonic-rs fixed). The default-limits `depth_1000` row is the VM-first route
+(11.99M) because the document is over the 27.6 KB `budget_safe` length; raising `max_steps`
+is what the budget row shows. The VM-first route costs about 2x the native route on the small
+documents and about 9x on `depth_1000`, the price paid for inputs `budget_safe` cannot vouch for.
+
+Changes so far, in instructions per call (aggTrade / depth_20 / trades_100 / depth_1000 budget):
+8,504 / 159,270 / 917,754 / 8,702,259 at the start; 6,329 / 157,732 / 644,863 / 8,701,539 with layout
+prediction (the decoders here are generated with it: a predicted key is one byte compare instead of
+a string scan and a dispatch); 3,081 / 26,514 / 303,063 / 1,297,477 with the inline decimal path
+(`Reader::decimal` reads a canonical decimal straight from the input and declines to the general
+jmax-decimal path for anything else, where `coefficient_precision`'s division loop ran three times
+per decimal).

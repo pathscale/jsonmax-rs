@@ -214,7 +214,25 @@ impl<'a> Reader<'a> {
     }
 
     /// A JSON string holding a fixed-point decimal, as `jmax-decimal` computes it.
+    ///
+    /// Canonical short decimals take an inline path (`fast_decimal`) that never
+    /// answers differently from the general one; everything else, including every
+    /// rejection, goes to the general path.
+    #[inline]
     pub fn decimal(&mut self, ctx: &mut NativeContext, policy: &DecimalPolicy) -> NativeResult<Decimal128> {
+        self.skip_ws();
+        let digits_limit = usize::from(ctx.limits.syntax.max_number_digits);
+        let max_string = ctx.limits.syntax.max_string_bytes as usize;
+        if let Some((value, end)) = fast_decimal(self.input, self.pos, policy, digits_limit, max_string) {
+            self.pos = end;
+            return Ok(value);
+        }
+        self.decimal_slow(ctx, policy)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn decimal_slow(&mut self, ctx: &mut NativeContext, policy: &DecimalPolicy) -> NativeResult<Decimal128> {
         self.skip_ws();
         let start = self.pos;
         let numeric = ctx.schema_numeric;
@@ -377,6 +395,101 @@ fn convert(token: &NumberToken<'_>, digits_limit: u32) -> NativeResult<i128> {
     }
 }
 
+const POW10: [u128; 39] = {
+    let mut table = [1u128; 39];
+    let mut i = 1;
+    while i < 39 {
+        table[i] = table[i - 1] * 10;
+        i += 1;
+    }
+    table
+};
+
+/// The common decimal, read straight from the input: `"`, an optional `-`,
+/// `0` or a digit run not starting with `0`, an optional `.` and at least one
+/// digit, `"`, with at most 18 digits in all. `pos` is the opening quote.
+///
+/// Returns `Some` only when the general path (`parse_decimal` on the content
+/// of the string) would return exactly the same value: no exponent, escape or
+/// negative zero, no downward rescale (so no inexactness), a coefficient that
+/// fits the precision and tick of the policy, and a policy `validate_policy`
+/// accepts. In every other case, including each case where the general path
+/// rejects, it returns `None` and the caller defers to the general path.
+#[inline(always)]
+fn fast_decimal(
+    input: &[u8],
+    pos: usize,
+    policy: &DecimalPolicy,
+    digits_limit: usize,
+    max_string: usize,
+) -> Option<(Decimal128, usize)> {
+    if policy.max_precision == 0 || policy.max_precision > 39 || policy.tick_step < 0 {
+        return None;
+    }
+    if *input.get(pos)? != b'"' {
+        return None;
+    }
+    let start = pos + 1;
+    let mut i = start;
+    let negative = *input.get(i)? == b'-';
+    i += usize::from(negative);
+    let mut magnitude: u64 = 0;
+    let mut digits = 0usize;
+    match *input.get(i)? {
+        b'0' => {
+            i += 1;
+            digits = 1;
+        }
+        b'1'..=b'9' => {
+            while let Some(&digit @ b'0'..=b'9') = input.get(i) {
+                if digits == 18 {
+                    return None;
+                }
+                magnitude = magnitude * 10 + u64::from(digit - b'0');
+                digits += 1;
+                i += 1;
+            }
+        }
+        _ => return None,
+    }
+    let mut fraction = 0usize;
+    if input.get(i) == Some(&b'.') {
+        i += 1;
+        while let Some(&digit @ b'0'..=b'9') = input.get(i) {
+            if digits == 18 {
+                return None;
+            }
+            magnitude = magnitude * 10 + u64::from(digit - b'0');
+            digits += 1;
+            fraction += 1;
+            i += 1;
+        }
+        if fraction == 0 {
+            return None;
+        }
+    }
+    if *input.get(i)? != b'"' {
+        return None;
+    }
+    if digits > digits_limit || i - start > max_string || (negative && magnitude == 0) {
+        return None;
+    }
+    let scale = usize::from(policy.target_scale);
+    if fraction > scale || digits + (scale - fraction) > 38 {
+        return None;
+    }
+    let coefficient = u128::from(magnitude) * POW10[scale - fraction];
+    if policy.max_precision < 39 && coefficient >= POW10[usize::from(policy.max_precision)] {
+        return None;
+    }
+    let coefficient = coefficient as i128;
+    if policy.tick_step > 1 && coefficient % policy.tick_step != 0 {
+        return None;
+    }
+    let coefficient = if negative { -coefficient } else { coefficient };
+    Some((Decimal128::new(coefficient, policy.target_scale), i + 1))
+}
+
 /// The VM's decimal path: JSON number grammar under the program's numeric
 /// policy, exact coefficient accumulation, then jmax-decimal rescale/validate.
 fn parse_decimal(
@@ -470,4 +583,160 @@ fn parse_decimal(
     jmax_decimal::bounds::validate(value, policy, jmax_decimal::DecimalBounds::default(), 0)
         .map_err(|_| Fail)?;
     Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use super::*;
+    use jmax_abi::number::NumericPolicy;
+    use std::{format, string::String, vec::Vec};
+
+    /// If `fast_decimal` answers, the general path answers the same value.
+    fn agree(text: &str, policy: &DecimalPolicy, digits_limit: usize, max_string: usize) -> bool {
+        let quoted = format!("\"{text}\"");
+        let Some((value, end)) = fast_decimal(quoted.as_bytes(), 0, policy, digits_limit, max_string) else {
+            return false;
+        };
+        assert_eq!(end, quoted.len(), "{text}");
+        for reject_negative_zero in [true, false] {
+            let numeric = NumericPolicy { reject_negative_zero, ..NumericPolicy::strict_default() };
+            let slow = parse_decimal(text.as_bytes(), policy, &numeric, digits_limit);
+            assert_eq!(slow, Ok(value), "{text} {policy:?} {digits_limit} {max_string} {reject_negative_zero}");
+        }
+        assert!(text.len() <= max_string, "{text}");
+        true
+    }
+
+    fn policies() -> Vec<DecimalPolicy> {
+        let mut all = Vec::new();
+        for target_scale in [0u8, 1, 2, 8, 17, 18, 30, 38, 40] {
+            for max_precision in [0u8, 1, 2, 9, 10, 18, 19, 38, 39, 40] {
+                for tick_step in [-1i128, 0, 1, 2, 5, 7, 10, 100_000_000] {
+                    for reject_inexact_rescale in [true, false] {
+                        for allow_exponent in [true, false] {
+                            all.push(DecimalPolicy {
+                                max_precision,
+                                target_scale,
+                                allow_exponent,
+                                reject_inexact_rescale,
+                                tick_step,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        all
+    }
+
+    #[test]
+    fn exhaustive_fast_decimal_matches_slow() {
+        let spot = DecimalPolicy::spot_8();
+        let tick = DecimalPolicy { tick_step: 5, max_precision: 9, ..spot };
+        let wide = DecimalPolicy { target_scale: 2, max_precision: 39, ..spot };
+        let zero = DecimalPolicy { target_scale: 0, ..spot };
+        let alphabet = *b"-0159.";
+        let mut taken = 0usize;
+        let mut buffer = Vec::new();
+        for length in 1..=7usize {
+            let mut counter = std::vec![0usize; length];
+            loop {
+                buffer.clear();
+                buffer.extend(counter.iter().map(|&i| alphabet[i]));
+                let text = core::str::from_utf8(&buffer).unwrap();
+                for policy in [&spot, &tick, &wide, &zero] {
+                    taken += usize::from(agree(text, policy, 18, 1 << 20));
+                }
+                taken += usize::from(agree(text, &spot, 3, 6));
+                let mut at = 0;
+                loop {
+                    counter[at] += 1;
+                    if counter[at] < alphabet.len() {
+                        break;
+                    }
+                    counter[at] = 0;
+                    at += 1;
+                    if at == length {
+                        break;
+                    }
+                }
+                if at == length {
+                    break;
+                }
+            }
+        }
+        assert!(taken > 10_000, "{taken}");
+    }
+
+    #[test]
+    fn structured_fast_decimal_sweep_matches_slow() {
+        let policies = policies();
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut taken = 0usize;
+        for sign in ["", "-"] {
+            for integer in 0..=19usize {
+                for fraction in 0..=20usize {
+                    for pattern in 0..4 {
+                        let digits = |count: usize, first: bool, state: &mut u64| -> String {
+                            (0..count)
+                                .map(|k| match pattern {
+                                    0 => '9',
+                                    1 => if k == 0 && first { '1' } else { '0' },
+                                    2 => '0',
+                                    _ => {
+                                        *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                                        char::from(b'0' + (*state >> 33) as u8 % 10)
+                                    }
+                                })
+                                .collect()
+                        };
+                        let mut whole = digits(integer, true, &mut state);
+                        if integer == 0 {
+                            whole = String::from("0");
+                        } else if whole.starts_with('0') && integer > 1 {
+                            whole.replace_range(0..1, "7");
+                        }
+                        let mut text = format!("{sign}{whole}");
+                        if fraction > 0 {
+                            text.push('.');
+                            text.push_str(&digits(fraction, false, &mut state));
+                        }
+                        // A sample of the policy product per token keeps the debug run short.
+                        let offset = (state >> 20) as usize;
+                        for step in 0..120 {
+                            let policy = &policies[(offset + step * 97) % policies.len()];
+                            for (limit, max_string) in [(3usize, 6usize), (18, 1 << 20), (64, 1 << 20)] {
+                                taken += usize::from(agree(&text, policy, limit, max_string));
+                            }
+                        }
+                        taken += usize::from(agree(&text, &DecimalPolicy::spot_8(), 18, 1 << 20));
+                    }
+                }
+            }
+        }
+        assert!(taken > 5_000, "{taken}");
+    }
+
+    #[test]
+    fn fast_path_is_taken_for_canonical_tokens() {
+        let spot = DecimalPolicy::spot_8();
+        for (text, coefficient) in [
+            ("0.0024", 240_000i128),
+            ("10.5", 1_050_000_000),
+            ("20039.14430000", 2_003_914_430_000),
+            ("-1.5", -150_000_000),
+            ("0.00000001", 1),
+            ("0", 0),
+            ("123456789012345678", 12_345_678_901_234_567_800_000_000),
+        ] {
+            let quoted = format!("\"{text}\"");
+            let got = fast_decimal(quoted.as_bytes(), 0, &spot, 18, 1 << 20);
+            assert_eq!(got, Some((Decimal128::new(coefficient, 8), quoted.len())), "{text}");
+        }
+        for text in ["-0", "-0.0", "01", "1.", ".5", "1e2", "+1", "1.123456789", " 1", "1 ", "\\u0031", "1234567890123456789"] {
+            let quoted = format!("\"{text}\"");
+            assert_eq!(fast_decimal(quoted.as_bytes(), 0, &spot, 18, 1 << 20), None, "{text}");
+        }
+    }
 }

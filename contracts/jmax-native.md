@@ -89,6 +89,8 @@ jmax-decimal produces for the same policy, using an inline coefficient accumulat
 when the token has at most 18 significant digits and otherwise the shared jmax-decimal
 routines. Any policy bound, rescale or tick rule the shared routines would reject is a Fail.
 
+The inline path is a pure shortcut: it reads the string straight from the input (`"`, optional `-`, `0` or a digit run not starting with `0`, optional `.` and one or more digits, `"`; at most 18 digits, no exponent, escape, whitespace or negative zero), and answers only when the value needs no downward rescale, `digits + (target_scale - fraction)` is at most 38, the coefficient is below 10^max_precision and a multiple of tick_step, the policy is one `validate_policy` accepts, and the digit and string-length limits hold. In every other case, including every rejection, it declines and the shared routines decide. A unit test checks, exhaustively over short strings and by a structured sweep over policies, that whenever it answers the shared routines return the same value.
+
 string accepts exactly the strings BlockCursor scans: closing quote after an even run of
 backslashes, no control byte below 0x20, valid UTF-8, strict escapes with paired surrogates,
 and decoded length within limits.syntax.max_string_bytes. A string without escapes borrows
