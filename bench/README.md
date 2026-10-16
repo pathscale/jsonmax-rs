@@ -8,6 +8,7 @@ workspace) and the crates in `../crates`.
 | path | what |
 |---|---|
 | `harness/` | `jmax-harness`: per-corpus, per-op timing (median ns per call, one TSV line each) and a mutation differential (`DIFF=N`) |
+| `native/` | `jmax-native-bench`: generated native decoders vs serde_json, sonic-rs and simd-json on Binance documents; timings, callgrind instruction counts, allocations |
 | `dcheck/` | prints which scan backend `jmax-dispatch` picks per input size and the detected CPU capabilities |
 | `data/` | corpora (see below) |
 

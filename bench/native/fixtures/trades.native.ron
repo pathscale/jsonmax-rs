@@ -1,0 +1,17 @@
+NativeSpec(
+    roots: ["TradeBatch"],
+    reject_unknown: true,
+    idents: [
+        Ident("AggTrade", "e", "event_type"),
+        Ident("AggTrade", "E", "event_time_ms"),
+        Ident("AggTrade", "s", "symbol"),
+        Ident("AggTrade", "a", "aggregate_trade_id"),
+        Ident("AggTrade", "p", "price"),
+        Ident("AggTrade", "q", "quantity"),
+        Ident("AggTrade", "f", "first_trade_id"),
+        Ident("AggTrade", "l", "last_trade_id"),
+        Ident("AggTrade", "T", "trade_time_ms"),
+        Ident("AggTrade", "m", "buyer_is_maker"),
+        Ident("AggTrade", "M", "best_match"),
+    ],
+)
