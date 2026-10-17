@@ -112,3 +112,15 @@ Classes and what jmax's 1.0 baseline row is:
   struct's `Deserialize`. Field counts are the same.
 - **jiter** is a pull parser: its `validate` row is skip-only and its DOM is the generic
   `JsonValue` (borrowed strings; the `into_static` row copies them).
+
+On Darwin, comparison TSVs append retired instructions per call, cycles per call,
+and process lifetime peak physical footprint in bytes. `native/icount.sh` uses
+`proc_pid_rusage(RUSAGE_INFO_V4)` instead of Valgrind, and appends counted ns,
+cycles and peak footprint after its allocation columns. Counters are process-wide;
+loop and snapshot overhead remain in the deltas. Unavailable counters print `n/a`.
+The native count binary counts allocation/reallocation requests and requested
+bytes; peak footprint is a process lifetime high-water mark, not a per-call delta.
+
+Fleet builds run under the memory cap, serialized with `-j 4`, as enforced by the
+comparison and instruction-count scripts. Workspace artifact tests on macOS need
+`TMPDIR=/private/tmp` because the system `/var` temp path contains a symlink.

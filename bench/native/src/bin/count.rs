@@ -43,13 +43,22 @@ fn main() -> R<()> {
         for _ in 0..3 {
             op()?;
         }
+        let usage0 = jmax_native_bench::metrics::snapshot();
+        let start = std::time::Instant::now();
         let (c0, b0) = (CALLS.load(Relaxed), BYTES.load(Relaxed));
         for _ in 0..iters {
             op()?;
         }
+        let ns = start.elapsed().as_nanos() as f64 / iters.max(1) as f64;
+        let usage1 = jmax_native_bench::metrics::snapshot();
         let (c1, b1) = (CALLS.load(Relaxed), BYTES.load(Relaxed));
         if iters > 0 {
-            println!("{}\t{}", (c1 - c0) as f64 / iters as f64, (b1 - b0) as f64 / iters as f64);
+            if std::env::var_os("HARDWARE").is_some() {
+                let (instructions, cycles, peak) = jmax_native_bench::metrics::per_call(usage0, usage1, iters as usize);
+                println!("{instructions}\t{}\t{}\t{ns:.1}\t{cycles}\t{peak}", (c1 - c0) as f64 / iters as f64, (b1 - b0) as f64 / iters as f64);
+            } else {
+                println!("{}\t{}", (c1 - c0) as f64 / iters as f64, (b1 - b0) as f64 / iters as f64);
+            }
         }
         Ok(())
     })

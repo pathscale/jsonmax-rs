@@ -1,6 +1,6 @@
 //! Cross-parser comparison. Competitors are dev-dependencies of this crate only.
 //!
-//! Prints one TSV line per job: `corpus  class  parser  bytes  median_ns`. `bench/compare.sh`
+//! Prints one TSV line per job: `corpus class parser bytes median_ns instructions/call cycles/call peak_bytes`. `bench/compare.sh`
 //! runs several interleaved rounds of this binary and aggregates them into MB/s tables.
 //!
 //! Classes (jmax's own row of the same class is the 1.0 baseline):
@@ -14,6 +14,8 @@ static GLOBAL: rusty_alloc::RustyAlloc = rusty_alloc::RustyAlloc;
 
 #[path = "../src/common.rs"]
 mod common;
+#[path = "../../metrics.rs"]
+mod metrics;
 use common::*;
 use serde::de::{DeserializeOwned, IgnoredAny};
 use std::{fmt::Debug, fs, hint::black_box, io::Write, time::Instant};
@@ -202,7 +204,11 @@ fn main() -> R<()> {
     for job in &mut jobs {
         job.samples.sort_by(f64::total_cmp);
         let med = job.samples[(job.samples.len() - 1) / 2];
-        writeln!(out, "{}\t{}\t{}\t{}\t{:.1}", job.corpus, job.class, job.parser, job.bytes, med)?;
+        let usage0 = metrics::snapshot();
+        for _ in 0..job.reps { (job.run)()?; }
+        let usage1 = metrics::snapshot();
+        let (instructions, cycles, peak) = metrics::per_call(usage0, usage1, job.reps);
+        writeln!(out, "{}\t{}\t{}\t{}\t{:.1}\t{instructions}\t{cycles}\t{peak}", job.corpus, job.class, job.parser, job.bytes, med)?;
     }
     Ok(())
 }

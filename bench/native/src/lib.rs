@@ -10,6 +10,8 @@
 
 #![allow(non_snake_case)]
 extern crate alloc;
+#[path = "../../metrics.rs"]
+pub mod metrics;
 #[allow(clippy::all, dead_code, unused)]
 pub mod trades;
 
