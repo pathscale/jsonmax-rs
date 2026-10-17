@@ -75,10 +75,15 @@ pub struct TypedPayload {
 }
 
 pub fn options() -> ParseOptions {
-    let mut o = ParseOptions::default();
-    o.limits.reject_unknown_keys = false;
-    if std::env::var_os("NODUP").is_some() { o.limits.reject_duplicate_keys = false; }
-    o
+    static OPTIONS: std::sync::OnceLock<ParseOptions> = std::sync::OnceLock::new();
+    *OPTIONS.get_or_init(|| {
+        let mut o = ParseOptions::default();
+        o.limits.reject_unknown_keys = false;
+        if std::env::var_os("NODUP").is_some() {
+            o.limits.reject_duplicate_keys = false;
+        }
+        o
+    })
 }
 pub fn string(slots: &ValidatedSlots, n: usize) -> String {
     let SlotValue::Str(s) = slots.slots[n] else {
@@ -239,46 +244,61 @@ pub fn extract(b: &[u8], p: &Plan) -> R<ValidatedSlots> {
     )?)
 }
 pub fn jmax_twitter(b: &[u8], p: &Plan) -> R<Twitter> {
-    let s = extract(b, p)?;
+    jmax_twitter_with_scratch(b, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+pub fn jmax_twitter_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Twitter> {
+    let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, b, options(), scratch)?;
     Ok(Twitter {
         search_metadata: SearchMetadata {
-            query: string(&s, 0),
-            count: integer(&s, 1),
-            max_id: integer(&s, 2),
+            query: borrowed_string(s.slots, s.raw, s.decoded, 0),
+            count: borrowed_integer(s.slots, 1),
+            max_id: borrowed_integer(s.slots, 2),
         },
     })
 }
 pub fn jmax_citm(b: &[u8], p: &Plan) -> R<Citm> {
-    let s = extract(b, p)?;
+    jmax_citm_with_scratch(b, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+pub fn jmax_citm_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Citm> {
+    let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, b, options(), scratch)?;
     Ok(Citm {
         venueNames: Venues {
-            PLEYEL_PLEYEL: string(&s, 0),
+            PLEYEL_PLEYEL: borrowed_string(s.slots, s.raw, s.decoded, 0),
         },
     })
 }
 pub fn jmax_canada(b: &[u8], p: &Plan) -> R<Canada> {
-    let s = extract(b, p)?;
+    jmax_canada_with_scratch(b, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+pub fn jmax_canada_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Canada> {
+    let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, b, options(), scratch)?;
     Ok(Canada {
-        r#type: string(&s, 0),
+        r#type: borrowed_string(s.slots, s.raw, s.decoded, 0),
     })
 }
 pub fn jmax_apache(b: &[u8], p: &Plan) -> R<Apache> {
-    let s = extract(b, p)?;
+    jmax_apache_with_scratch(b, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+pub fn jmax_apache_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Apache> {
+    let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, b, options(), scratch)?;
     Ok(Apache {
-        mode: string(&s, 0),
-        nodeName: string(&s, 1),
-        numExecutors: integer(&s, 2),
-        quietingDown: boolean(&s, 3),
+        mode: borrowed_string(s.slots, s.raw, s.decoded, 0),
+        nodeName: borrowed_string(s.slots, s.raw, s.decoded, 1),
+        numExecutors: borrowed_integer(s.slots, 2),
+        quietingDown: borrowed_boolean(s.slots, 3),
     })
 }
 pub fn jmax_endpoint(b: &[u8], p: &Plan) -> R<TypedPayload> {
-    let s = extract(b, p)?;
+    jmax_endpoint_with_scratch(b, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+pub fn jmax_endpoint_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<TypedPayload> {
+    let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, b, options(), scratch)?;
     Ok(TypedPayload {
-        batch_id: string(&s, 0),
-        tenant: string(&s, 1),
-        schema_version: integer(&s, 2),
-        request_count: integer(&s, 3),
-        accepted: boolean(&s, 4),
+        batch_id: borrowed_string(s.slots, s.raw, s.decoded, 0),
+        tenant: borrowed_string(s.slots, s.raw, s.decoded, 1),
+        schema_version: borrowed_integer(s.slots, 2),
+        request_count: borrowed_integer(s.slots, 3),
+        accepted: borrowed_boolean(s.slots, 4),
     })
 }
 // The VM exposes fixed slots rather than a repeated-row collection. Split the
@@ -286,17 +306,43 @@ pub fn jmax_endpoint(b: &[u8], p: &Plan) -> R<TypedPayload> {
 // precompiled event plan. Both passes and all owned Strings are timed.
 pub fn jmax_github(b: &[u8], p: &Plan) -> R<Vec<Github>> {
     let doc = jsonmax::parse::parse_borrowed(b, options())?;
+    jmax_github_rows(&doc, p, &mut jsonmax::endpoint::ValidationScratch::default())
+}
+fn jmax_github_rows(doc: &jmax_dom::BorrowedDocument<'_>, p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Vec<Github>> {
     let mut rows = doc.root_node().array()?.iter();
     let mut out = Vec::new();
+    let options = options();
     while let Some(row) = rows.next() {
-        let s = extract(row.raw()?, p)?;
+        let s = jsonmax::endpoint::extract_borrowed_with_scratch(&p.schema, &p.selection, row.raw()?, options, scratch)?;
         out.push(Github {
-            id: string(&s, 0),
-            r#type: string(&s, 1),
-            public: boolean(&s, 2),
+            id: borrowed_string(s.slots, s.raw, s.decoded, 0),
+            r#type: borrowed_string(s.slots, s.raw, s.decoded, 1),
+            public: borrowed_boolean(s.slots, 2),
         });
     }
     Ok(out)
+}
+pub fn jmax_github_with_scratch(b: &[u8], p: &Plan, scratch: &mut jsonmax::endpoint::ValidationScratch) -> R<Vec<Github>> {
+    let doc = jsonmax::parse::parse_borrowed(b, options())?;
+    jmax_github_rows(&doc, p, scratch)
+}
+fn borrowed_string(slots: &[SlotValue], raw: &[u8], decoded: &[u8], n: usize) -> String {
+    let SlotValue::Str(s) = slots[n] else { panic!("wrong string slot") };
+    let b = match s.source {
+        jmax_abi::span::SpanSource::RawPayload => raw,
+        jmax_abi::span::SpanSource::DecodedArena => decoded,
+    };
+    std::str::from_utf8(s.span.slice(b).unwrap()).unwrap().to_owned()
+}
+fn borrowed_integer(slots: &[SlotValue], n: usize) -> i64 {
+    match slots[n] {
+        SlotValue::I64(x) => x,
+        SlotValue::U64(x) => i64::try_from(x).unwrap(),
+        _ => panic!("wrong int slot"),
+    }
+}
+fn borrowed_boolean(slots: &[SlotValue], n: usize) -> bool {
+    match slots[n] { SlotValue::Bool(x) => x, _ => panic!("wrong bool slot") }
 }
 pub fn walk(b: &[u8]) -> R<usize> {
     jsonmax::parse::validate_syntax(b, options())?;

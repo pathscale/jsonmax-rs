@@ -14,11 +14,12 @@ fn add<'a, T: 'a>(jobs: &mut Vec<Job<'a>>, name: String, mut f: impl FnMut() -> 
     jobs.push(Job { name, run: Box::new(move || { black_box(f()?); Ok(()) }), reps: 1, samples: vec![] });
 }
 fn typed<'a, T: PartialEq + std::fmt::Debug + serde::de::DeserializeOwned + 'a>(
-    jobs: &mut Vec<Job<'a>>, name: &str, b: &'a [u8], p: &'a Plan, f: fn(&[u8], &Plan) -> R<T>, serde: bool,
+    jobs: &mut Vec<Job<'a>>, name: &str, b: &'a [u8], p: &'a Plan, f: fn(&[u8], &Plan, &mut jsonmax::endpoint::ValidationScratch) -> R<T>, serde: bool,
 ) -> R<()> {
     let expected: T = serde_json::from_slice(b)?;
-    assert_eq!(expected, f(b, p)?);
-    add(jobs, format!("{name}\ttyped"), move || f(black_box(b), p));
+    let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    assert_eq!(expected, f(b, p, &mut scratch)?);
+    add(jobs, format!("{name}\ttyped"), move || f(black_box(b), p, &mut scratch));
     if serde {
         add(jobs, format!("{name}\tserde-typed"), move || Ok(serde_json::from_slice::<T>(black_box(b))?));
     }
@@ -78,12 +79,12 @@ fn main() -> R<()> {
         add(&mut jobs, format!("{name}\tdom-borrowed"), move || Ok(jsonmax::parse::parse_borrowed(black_box(b), options())?));
         add(&mut jobs, format!("{name}\tdom-owned"), move || Ok(jsonmax::parse::parse_slice(black_box(b), options())?));
         match *name {
-            "twitter" => typed(&mut jobs, name, b, p, jmax_twitter, serde)?,
-            "citm_catalog" => typed(&mut jobs, name, b, p, jmax_citm, serde)?,
-            "canada" => typed(&mut jobs, name, b, p, jmax_canada, serde)?,
-            "github_events" => typed(&mut jobs, name, b, p, jmax_github, serde)?,
-            "apache_builds" => typed(&mut jobs, name, b, p, jmax_apache, serde)?,
-            _ => typed(&mut jobs, name, b, p, jmax_endpoint, serde)?,
+            "twitter" => typed(&mut jobs, name, b, p, jmax_twitter_with_scratch, serde)?,
+            "citm_catalog" => typed(&mut jobs, name, b, p, jmax_citm_with_scratch, serde)?,
+            "canada" => typed(&mut jobs, name, b, p, jmax_canada_with_scratch, serde)?,
+            "github_events" => typed(&mut jobs, name, b, p, jmax_github_with_scratch, serde)?,
+            "apache_builds" => typed(&mut jobs, name, b, p, jmax_apache_with_scratch, serde)?,
+            _ => typed(&mut jobs, name, b, p, jmax_endpoint_with_scratch, serde)?,
         }
         add(&mut jobs, format!("{name}\tserialize"), move || {
             let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);

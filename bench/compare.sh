@@ -10,7 +10,8 @@ rounds=${1:-5}
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here/harness"
 artifacts=$(mktemp)
-trap 'rm -f "$artifacts"' EXIT HUP INT TERM
+raw=$(mktemp)
+trap 'rm -f "$artifacts" "$raw"' EXIT HUP INT TERM
 bun /Users/revenge/code/lanes/bin/mem-cap.ts --rss 8G --name jsonmax -- cargo bench --bench compare --no-run --message-format=json -j 4 > "$artifacts"
 exe=$(bun -e 'for (const line of (await Bun.stdin.text()).split("\n")) { try { const a = JSON.parse(line); if (a.reason === "compiler-artifact" && a.target.name === "compare" && a.executable) console.log(a.executable); } catch {} }' < "$artifacts")
 [ -x "$exe" ] || { echo "cannot find bench executable" >&2; exit 1; }
@@ -19,7 +20,8 @@ out=${OUT:-"$here/harness/target/compare-rounds.tsv"}
 r=1
 while [ "$r" -le "$rounds" ]; do
   echo "round $r/$rounds" >&2
-  "$exe" | awk -v r="$r" '{ print r "\t" $0 }' >> "$out"
+  "$exe" > "$raw"
+  awk -v r="$r" '{ print r "\t" $0 }' "$raw" >> "$out"
   r=$((r + 1))
 done
 awk -F'\t' '

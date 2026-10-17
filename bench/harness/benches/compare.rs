@@ -44,14 +44,17 @@ fn err<E: std::fmt::Display>(e: E) -> Box<dyn std::error::Error> {
 }
 
 fn typed<'a, T: PartialEq + Debug + DeserializeOwned + 'a>(
-    j: &mut Jobs<'a>, b: &'a [u8], p: &'a Plan, f: fn(&[u8], &Plan) -> R<T>,
+    j: &mut Jobs<'a>, b: &'a [u8], p: &'a Plan,
+    f: fn(&[u8], &Plan, &mut jsonmax::endpoint::ValidationScratch) -> R<T>,
 ) -> R<()> {
     let expected: T = serde_json::from_slice(b)?;
-    assert_eq!(expected, f(b, p)?, "jmax typed {}", j.corpus);
+    let mut check_scratch = jsonmax::endpoint::ValidationScratch::default();
+    assert_eq!(expected, f(b, p, &mut check_scratch)?, "jmax typed {}", j.corpus);
     let mut buf = b.to_vec();
     assert_eq!(expected, simd_json::serde::from_slice::<T>(&mut buf).map_err(err)?, "simd-json typed {}", j.corpus);
     assert_eq!(expected, sonic_rs::from_slice::<T>(b).map_err(err)?, "sonic-rs typed {}", j.corpus);
-    j.add("typed", "jmax", move || { black_box(f(black_box(b), p)?); Ok(()) });
+    let mut scratch = jsonmax::endpoint::ValidationScratch::default();
+    j.add("typed", "jmax", move || { black_box(f(black_box(b), p, &mut scratch)?); Ok(()) });
     j.add("typed", "serde_json", move || { black_box(serde_json::from_slice::<T>(black_box(b))?); Ok(()) });
     let mut buf = b.to_vec();
     j.add("typed", "simd-json", move || {
@@ -151,12 +154,12 @@ fn main() -> R<()> {
 
         // typed
         match *name {
-            "twitter" => typed(&mut j, b, p, jmax_twitter)?,
-            "citm_catalog" => typed(&mut j, b, p, jmax_citm)?,
-            "canada" => typed(&mut j, b, p, jmax_canada)?,
-            "github_events" => typed(&mut j, b, p, jmax_github)?,
-            "apache_builds" => typed(&mut j, b, p, jmax_apache)?,
-            _ => typed(&mut j, b, p, jmax_endpoint)?,
+            "twitter" => typed(&mut j, b, p, jmax_twitter_with_scratch)?,
+            "citm_catalog" => typed(&mut j, b, p, jmax_citm_with_scratch)?,
+            "canada" => typed(&mut j, b, p, jmax_canada_with_scratch)?,
+            "github_events" => typed(&mut j, b, p, jmax_github_with_scratch)?,
+            "apache_builds" => typed(&mut j, b, p, jmax_apache_with_scratch)?,
+            _ => typed(&mut j, b, p, jmax_endpoint_with_scratch)?,
         }
 
         // serialize
