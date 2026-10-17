@@ -123,15 +123,15 @@ fn wide_schema(keys: u32) -> Schema {
         });
     }
     let list = TypeId(nodes.len() as u32);
-    nodes.push(TypeNode::Array(ArrayShape { items: TypeId(0), min_items: None, max_items: None }));
+    nodes.push(TypeNode::Array(ArrayShape { nullable: false, items: TypeId(0), min_items: None, max_items: None }));
     properties.push(Property {
         field_id: jmax_abi::schema::FieldId(keys + 1), name: "list".into(), ty: list, required: false, slot: None,
     });
-    nodes[0] = TypeNode::Object(ObjectShape { properties, reject_unknown: true, min_properties: None, max_properties: None });
+    nodes[0] = TypeNode::Object(ObjectShape { nullable: false, properties, reject_unknown: true, min_properties: None, max_properties: None });
     // The array items must be a real type: point them at a number scalar.
     let number = TypeId(nodes.len() as u32);
     nodes.push(TypeNode::Scalar(ScalarConstraints::new(ValueKind::Number)));
-    nodes[list.0 as usize] = TypeNode::Array(ArrayShape { items: number, min_items: None, max_items: None });
+    nodes[list.0 as usize] = TypeNode::Array(ArrayShape { nullable: false, items: number, min_items: None, max_items: None });
     Schema { name: format!("wide{keys}"), schema_id: SchemaId(9000 + keys), root: TypeId(0), nodes, definitions: vec![] }
 }
 

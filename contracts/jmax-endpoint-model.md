@@ -251,6 +251,7 @@ pub struct NativeSpec {
     pub reject_unknown: bool,
     pub idents: Vec<NativeIdent>,
     pub nanoid_alphabet: NanoIdAlphabet,
+    pub nullable_optionals: bool,
     pub nanoid_fields: Vec<NativeNanoIdField>,
 }
 pub enum NanoIdAlphabet { Url, Base62 }   // Default: Url
@@ -291,6 +292,8 @@ String with min_length = max_length = len and format nanoid-chars (Url, `A-Z a-z
 the alphabet being `alphabet_for` the field being lowered (nanoid_alphabet, or the entry of nanoid_fields for that
 field, which also applies to NanoIds nested in it); Bytea with format base64. Recursion, Enum, EnumRef, Object,
 Unit and heterogeneous tuples return UnsupportedSchemaFeature (a zero NanoId length is a ConstraintViolation).
-validate_native_spec also requires every nanoid_fields entry to name an existing field of a struct and no field twice. Traversal
+nullable_optionals (default false) makes the node lowered for every Optional field of a struct nullable (Scalar, Object
+or Array flag), so an explicit JSON null is accepted for the field and means it is absent, as serde does for Option
+fields; without it null stays a type error. validate_native_spec also requires every nanoid_fields entry to name an existing field of a struct and no field twice. Traversal
 is bounded by MAX_REFERENCE_DEPTH (DepthLimitExceeded). The result contains no pattern and no
 definitions or references; each nested object is its own node, so the graph is a tree.

@@ -54,8 +54,11 @@ fn check_scalar_inner(
         }
         None => None,
     };
+    // A nullable state takes a JSON null whatever its kind.
+    let null_here = value.kind == ScalarKind::Null && current.is_some_and(|current| current.constraints.nullable);
     let kind = match current.map(|current| &current.kind) {
         None | Some(StateKind::Any) => None,
+        _ if null_here => Some(ValueKind::Null),
         Some(StateKind::Scalar(kind)) => Some(*kind),
         Some(StateKind::Object { .. } | StateKind::Array { .. }) => return Err(type_error(offset)),
     };

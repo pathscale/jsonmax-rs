@@ -74,7 +74,7 @@ pub fn normalize(ir: &SchemaIr) -> Result<Schema> {
     }
     // Capacity includes the root; inserting it cannot allocate. Child IDs
     // already account for this shift and are never exposed before validation.
-    nodes.insert(0, TypeNode::Object(ObjectShape {
+    nodes.insert(0, TypeNode::Object(ObjectShape { nullable: false,
         properties,
         reject_unknown: ir.reject_unknown,
         min_properties: None,
@@ -115,6 +115,7 @@ fn normalize_field(field: &SchemaFieldIr, schema: SchemaId) -> Result<TypeNode> 
         pattern: None,
         format: field.format.as_deref()
             .map(|value| copy_string(value, schema, Some(field.field_id))).transpose()?,
+        nullable: false,
     };
     validate_scalar(&constraints, schema, Some(field.field_id))?;
     Ok(TypeNode::Scalar(constraints))

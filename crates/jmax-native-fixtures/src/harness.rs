@@ -470,7 +470,7 @@ impl Json {
 
 /// Oracle decoder for the `Shape` fixture onto the types of one generated module.
 macro_rules! shape_oracles {
-    ($module:ident, $name:ident) => {
+    ($module:ident, $name:ident, $nullable:expr) => {
         pub mod $name {
             use super::*;
             use crate::$module::models::{Pair, Point, Shape, Tag};
@@ -480,6 +480,7 @@ macro_rules! shape_oracles {
                     name: value.get("name")?.string()?.to_owned(),
                     weight: match value.get("weight") {
                         None => None,
+                        Some(Json::Null) if $nullable => None,
                         Some(weight) => Some(weight.float()?),
                     },
                 })
@@ -488,6 +489,7 @@ macro_rules! shape_oracles {
             fn optional<T>(value: Option<&Json>, read: impl Fn(&Json) -> Option<T>) -> Option<Option<T>> {
                 match value {
                     None => Some(None),
+                    Some(Json::Null) if $nullable => Some(None),
                     Some(value) => Some(Some(read(value)?)),
                 }
             }
@@ -540,8 +542,10 @@ macro_rules! shape_oracles {
     };
 }
 
-shape_oracles!(shapes, shape_strict);
-shape_oracles!(shapes_open, shape_open);
+shape_oracles!(shapes, shape_strict, false);
+shape_oracles!(shapes_open, shape_open, false);
+shape_oracles!(shapes_null, shape_null, true);
+shape_oracles!(shapes_null_open, shape_null_open, true);
 
 /// A valid document of the `formats` fixture.
 pub const FORMATS_DOC: &str = r#"{"id":"abc_DEF-12345678","tag":"V1StGXR8_Z5jdHi6B-myT","sess":"Ab12Cd34Ef56Gh78","uid":"123e4567-e89b-12d3-a456-426614174000","ip":"192.168.0.1","blob":"Zm9vYmE=","addr":"0x00112233445566778899aabbccddeeff00112233","tx":"0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","many":["aaaaaaaaaaaaaaaa","bbbb_bbb-bbbbbbb"],"sessions":["Zz09Aa12Bb34Cc56"],"names":["x"],"items":[{"ref":"abcd1234","uid":"00000000-0000-0000-0000-000000000000"}],"nick":"nick_ok1","extra":"AQID","peer":"::1"}"#;

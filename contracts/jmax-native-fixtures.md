@@ -17,6 +17,8 @@ checked-in files were generated with layout prediction.
 
 `formats` and `formats_open` are generated from fixtures/native/formats.ron (UUID, IP, Bytea, address and hash fields, NanoIds of lengths 8, 16 and 21, `sess` and `sessions` in Base62) with formats.native.ron; their oracle decodes base64 independently of the runtime.
 
+`shapes_null` and `shapes_null_open` use the same model with shapes_null.native.ron (`nullable_optionals: true`): every optional field accepts an explicit null, and the oracle reads null as absent.
+
 `binance_plain` is the strict binance decoder generated without layout prediction, whatever PREDICT_LAYOUT says, so the differential suite covers both strategies (the other modules follow PREDICT_LAYOUT, which is true). The seeds include documents with keys out of declaration order and a space before a colon, so a predicted order misses.
 
 `regen` holds the recipe: the Fixture constants, VARIANTS (module, fixture, reject_unknown, follows PREDICT_LAYOUT), and generate_all(predict_layout).
@@ -39,7 +41,7 @@ Tests: tests/drift.rs, tests/generated.rs (the differential suite), tests/steady
 
 ## Fuzz target native_vs_vm
 
-`fuzzing::native_vs_vm(data)` is the target: `data[0]` selects one of the twelve decoders in
+`fuzzing::native_vs_vm(data)` is the target: `data[0]` selects one of the fourteen decoders in
 `fuzzing::SUBJECTS` (modulo their number), `data[1]` a limit set from `harness::limit_variants`
 (modulo their number), and the rest is the input. It runs `harness::check_one`, so any
 disagreement between the core, the public result, the VM and the value oracle panics, which is

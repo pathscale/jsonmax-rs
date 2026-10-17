@@ -23,6 +23,10 @@ pub mod shapes;
 #[allow(clippy::all, dead_code, unused)]
 pub mod shapes_open;
 #[allow(clippy::all, dead_code, unused)]
+pub mod shapes_null;
+#[allow(clippy::all, dead_code, unused)]
+pub mod shapes_null_open;
+#[allow(clippy::all, dead_code, unused)]
 pub mod formats;
 #[allow(clippy::all, dead_code, unused)]
 pub mod formats_open;

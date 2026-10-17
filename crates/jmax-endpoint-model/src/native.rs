@@ -56,6 +56,9 @@ pub struct NativeSpec {
     pub idents: Vec<NativeIdent>,
     /// The alphabet of every NanoId not named in `nanoid_fields`.
     pub nanoid_alphabet: NanoIdAlphabet,
+    /// A JSON null is accepted for an optional field and means the field is absent
+    /// (what serde does for `Option` fields). Off by default: null is then rejected.
+    pub nullable_optionals: bool,
     /// Per-field alphabets, which also apply to NanoIds nested in that field (arrays).
     pub nanoid_fields: Vec<NativeNanoIdField>,
 }
@@ -79,6 +82,7 @@ impl Default for NativeSpec {
             reject_unknown: true,
             idents: Vec::new(),
             nanoid_alphabet: NanoIdAlphabet::Url,
+            nullable_optionals: false,
             nanoid_fields: Vec::new(),
         }
     }
@@ -295,7 +299,7 @@ impl<'r, 'a> Lowering<'r, 'a> {
                 if matches!(inner.as_ref(), EndpointType::Optional(_)) {
                     return Err(unsupported("optional array elements have no native form"));
                 }
-                let array = self.push(TypeNode::Array(ArrayShape {
+                let array = self.push(TypeNode::Array(ArrayShape { nullable: false,
                     items: TypeId(0),
                     min_items: None,
                     max_items: None,
@@ -342,7 +346,7 @@ impl<'r, 'a> Lowering<'r, 'a> {
     }
 
     fn lower_object(&mut self, name: &'a str, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
-        let object = self.push(TypeNode::Object(ObjectShape {
+        let object = self.push(TypeNode::Object(ObjectShape { nullable: false,
             properties: Vec::new(),
             reject_unknown: self.spec.reject_unknown,
             min_properties: None,
@@ -367,6 +371,9 @@ impl<'r, 'a> Lowering<'r, 'a> {
             let ty = self.lower(ty, depth + 1);
             self.alphabet = saved;
             let ty = ty?;
+            if !required && self.spec.nullable_optionals {
+                self.make_nullable(ty)?;
+            }
             properties.push(Property {
                 field_id,
                 name: field.name.clone(),
@@ -381,13 +388,24 @@ impl<'r, 'a> Lowering<'r, 'a> {
         Ok(object)
     }
 
+    /// The node `ty` also accepts a JSON null.
+    fn make_nullable(&mut self, ty: TypeId) -> Result<()> {
+        match self.nodes.get_mut(ty.0 as usize) {
+            Some(TypeNode::Scalar(constraints)) => constraints.nullable = true,
+            Some(TypeNode::Object(shape)) => shape.nullable = true,
+            Some(TypeNode::Array(shape)) => shape.nullable = true,
+            _ => return Err(invalid("a nullable optional field needs a scalar, object or array")),
+        }
+        Ok(())
+    }
+
     fn lower_tuple(&mut self, name: &'a str, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
         let count = u32::try_from(fields.len())
             .map_err(|_| model_error(ErrorCode::BudgetExhausted, "tuple length exceeds u32"))?;
         if count == 0 {
             return Err(unsupported("empty tuple has no native form"));
         }
-        let array = self.push(TypeNode::Array(ArrayShape {
+        let array = self.push(TypeNode::Array(ArrayShape { nullable: false,
             items: TypeId(0),
             min_items: Some(count),
             max_items: Some(count),

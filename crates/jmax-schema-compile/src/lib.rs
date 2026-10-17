@@ -81,6 +81,8 @@ pub struct ConstraintSet {
     pub max_count: Option<u32>,
     pub pattern: Option<u32>,
     pub format: Option<FormatId>,
+    /// A JSON `null` is accepted in place of a value of this state's kind.
+    pub nullable: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

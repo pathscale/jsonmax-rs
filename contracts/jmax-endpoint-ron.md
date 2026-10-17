@@ -281,7 +281,7 @@ a record (optionally wrapped as `NativeSpec(...)` or `Native(...)`) with keys `r
 allow_exponent, reject_inexact_rescale, tick_step)`, default DecimalPolicy::spot_8),
 `reject_unknown` (boolean, default true), `idents` (sequence of `Ident(type, wire, ident)`
 tuples or `(type: .., wire: .., ident: ..)` records), `nanoid_alphabet` (the identifier `Url` or `Base62`, default Url)
-and `nanoid_fields` (sequence of `NanoIdField(type, wire, alphabet)` tuples or `(type: .., wire: .., alphabet: ..)` records). Unknown keys are UnknownObjectKey,
+`nullable_optionals` (boolean, default false), and `nanoid_fields` (sequence of `NanoIdField(type, wire, alphabet)` tuples or `(type: .., wire: .., alphabet: ..)` records). Unknown keys are UnknownObjectKey,
 duplicate keys DuplicateObjectKey, wrong value kinds TypeMismatch, integer overflow
 NumberOverflow, an unfinished document UnexpectedEof, all with the offending node offset and
 SchemaCompile source. No name is resolved here: model-dependent validation is

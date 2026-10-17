@@ -447,7 +447,7 @@ fn native_workload_schema(
         .try_reserve_exact(68)
         .map_err(|_| budget_error("native schema allocation failed"))?;
     let array = |items, count| {
-        TypeNode::Array(ArrayShape {
+        TypeNode::Array(ArrayShape { nullable: false,
             items: TypeId(items),
             min_items: Some(count),
             max_items: Some(count),
@@ -462,7 +462,7 @@ fn native_workload_schema(
         slot: Some(slot),
     };
     let object = |properties| {
-        TypeNode::Object(ObjectShape {
+        TypeNode::Object(ObjectShape { nullable: false,
             properties,
             reject_unknown: true,
             min_properties: None,
@@ -1125,14 +1125,14 @@ pub mod followup {
         TypeNode::Scalar(ScalarConstraints::new(kind))
     }
     fn array(ty: u32, count: u32) -> TypeNode {
-        TypeNode::Array(ArrayShape {
+        TypeNode::Array(ArrayShape { nullable: false,
             items: TypeId(ty),
             min_items: Some(count),
             max_items: Some(count),
         })
     }
     fn object(fields: &[(&str, u32)], capture: bool) -> TypeNode {
-        TypeNode::Object(ObjectShape {
+        TypeNode::Object(ObjectShape { nullable: false,
             properties: fields
                 .iter()
                 .enumerate()

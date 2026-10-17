@@ -30,7 +30,7 @@ fn program() -> Result<ValidatedProgram> {
         root: TypeId(0),
         definitions: vec![],
         nodes: vec![
-            TypeNode::Object(ObjectShape {
+            TypeNode::Object(ObjectShape { nullable: false,
                 properties: vec![
                     property(1, "n", 1, Some(0), true),
                     property(2, "s", 2, Some(1), false),
@@ -44,7 +44,7 @@ fn program() -> Result<ValidatedProgram> {
             TypeNode::Scalar(integer),
             TypeNode::Scalar(string),
             TypeNode::Any,
-            TypeNode::Array(ArrayShape {
+            TypeNode::Array(ArrayShape { nullable: false,
                 items: TypeId(2),
                 min_items: Some(1),
                 max_items: Some(2),

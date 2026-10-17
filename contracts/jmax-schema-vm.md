@@ -284,6 +284,14 @@ pub(crate) fn vm_error(code: ErrorCode, offset: u32, detail: &'static str) -> Er
 }
 ```
 
+## Nullable states
+
+A state whose constraints have `nullable` set accepts a JSON null token (a complete `null` literal) in addition to its
+own kind: a nullable Integer, String, Decimal, Boolean or Number takes null, and so do a nullable Object and Array
+(which never open a frame for it). Every other token keeps its normal outcome; a non-nullable state still rejects
+null with TypeMismatch. A captured null is a raw span, as for a Null-kind scalar. Both executors (the direct
+cursor and the event executor) apply the rule through the same constraint check and dispatch mask.
+
 ## budget_safe
 
 ```rust

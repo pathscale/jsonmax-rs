@@ -191,7 +191,8 @@ impl Writer<'_> {
         self.optional(value.min_count.as_ref(), |w, n| w.u32(*n))?;
         self.optional(value.max_count.as_ref(), |w, n| w.u32(*n))?;
         self.optional(value.pattern.as_ref(), |w, n| w.u32(*n))?;
-        self.optional(value.format.as_ref(), |w, n| w.u16(*n as u16))
+        self.optional(value.format.as_ref(), |w, n| w.u16(*n as u16))?;
+        self.boolean(value.nullable)
     }
 
     fn state(&mut self, state: &ProgramState) -> Result<()> {
@@ -699,6 +700,7 @@ impl<'a> Reader<'a> {
             max_count: self.optional(Self::u32)?,
             pattern: self.optional(Self::u32)?,
             format: self.optional(Self::format_id)?,
+            nullable: self.boolean()?,
         })
     }
 
@@ -921,7 +923,7 @@ pub fn decode(bytes: &[u8], options: &CompilerOptions) -> Result<ValidatedProgra
     validate(program, options)
 }
 
-fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions) -> Result<ScalarConstraints> {
+fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions, nullable: bool) -> Result<ScalarConstraints> {
     Ok(ScalarConstraints {
         kind: reader.value_kind()?,
         min_i64: reader.optional(Reader::i64)?,
@@ -931,6 +933,7 @@ fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions) -> Result<Sca
         max_length: reader.optional(Reader::u32)?,
         pattern: reader.optional(|r| r.string(options.policy.max_pattern_bytes))?,
         format: reader.optional(|r| r.string(options.max_image_bytes))?,
+        nullable,
     })
 }
 
@@ -953,10 +956,12 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
     let mut remaining_keys = options.limits.max_keys;
     let nodes = reader.vector(1, options.limits.max_states, |r| {
         let position = r.position;
-        match r.u8()? {
+        let tag = r.u8()?;
+        match tag {
             0 => Ok(TypeNode::Any),
-            1 => Ok(TypeNode::Scalar(read_scalar(r, options)?)),
-            2 => {
+            1 | 4 => Ok(TypeNode::Scalar(read_scalar(r, options, tag == 4)?)),
+            2 | 5 => {
+                let nullable = tag == 5;
                 let reject_unknown = r.boolean()?;
                 let min_properties = r.optional(Reader::u32)?;
                 let max_properties = r.optional(Reader::u32)?;
@@ -977,13 +982,15 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
                     .checked_sub(count(properties.len())?)
                     .ok_or_else(budget)?;
                 Ok(TypeNode::Object(ObjectShape {
+                    nullable,
                     properties,
                     reject_unknown,
                     min_properties,
                     max_properties,
                 }))
             }
-            3 => Ok(TypeNode::Array(ArrayShape {
+            3 | 6 => Ok(TypeNode::Array(ArrayShape {
+                nullable: tag == 6,
                 items: TypeId(r.u32()?),
                 min_items: r.optional(Reader::u32)?,
                 max_items: r.optional(Reader::u32)?,
@@ -1358,7 +1365,7 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
             StateKind::Scalar(ValueKind::Number) => bit(S::Number),
             StateKind::Scalar(ValueKind::Decimal | ValueKind::String) => bit(S::String),
             StateKind::Object { .. } | StateKind::Array { .. } => 0,
-        };
+        } | if state.constraints.nullable { bit(S::Null) } else { 0 };
         let has_constraints =
             state.kind != StateKind::Any || state.constraints != ConstraintSet::default();
         dispatch.push(CompiledStateDispatch {

@@ -15,11 +15,13 @@ use crate::harness::{
     depth_document, limit_variants, check_one, snapshot_document, Subject, Tally, AGG_TRADE, SHAPE,
 };
 use crate::harness::{
-    formats_open_oracle, formats_strict, oracle_open, oracle_plain, oracle_strict, shape_open, shape_strict,
-    FORMATS_DOC,
+    formats_open_oracle, formats_strict, oracle_open, oracle_plain, oracle_strict, shape_null, shape_null_open,
+    shape_open, shape_strict, FORMATS_DOC,
 };
-use crate::regen::{BINANCE, FORMATS, SHAPES};
-use crate::{binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_open};
+use crate::regen::{BINANCE, FORMATS, SHAPES, SHAPES_NULL};
+use crate::{
+    binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_null, shapes_null_open, shapes_open,
+};
 use jmax_abi::number::NumericPolicy;
 use jmax_native::{NativeContext, NativeDecode, VmLimits};
 use std::cell::RefCell;
@@ -38,6 +40,8 @@ pub const SUBJECTS: &[&str] = &[
     "open Shape",
     "strict Ids",
     "open Ids",
+    "null Shape",
+    "open null Shape",
 ];
 
 struct Runner {
@@ -77,6 +81,8 @@ fn runners() -> Vec<Runner> {
         runner(Subject::<shapes_open::models::Shape>::new(&SHAPES, "Shape", false, shape_open::shape)),
         runner(Subject::<formats::models::Ids>::new(&FORMATS, "Ids", true, formats_strict::ids)),
         runner(Subject::<formats_open::models::Ids>::new(&FORMATS, "Ids", false, formats_open_oracle::ids)),
+        runner(Subject::<shapes_null::models::Shape>::new(&SHAPES_NULL, "Shape", true, shape_null::shape)),
+        runner(Subject::<shapes_null_open::models::Shape>::new(&SHAPES_NULL, "Shape", false, shape_null_open::shape)),
     ]
 }
 
@@ -117,6 +123,8 @@ pub fn seed_corpus() -> Vec<Vec<u8>> {
         (9, SHAPE.replace("\"ok\"", "\"u\":[1,{\"k\":[null,true]}],\"ok\"").into_bytes()),
         (10, FORMATS_DOC.as_bytes().to_vec()),
         (10, FORMATS_DOC.replace("Zm9vYmE=", "Zm9vYmE").into_bytes()),
+        (12, SHAPE.replace("\"note\":\"hi\"", "\"note\":null").into_bytes()),
+        (13, SHAPE.replace("\"flag\":false", "\"flag\":null").into_bytes()),
         (11, FORMATS_DOC.as_bytes().to_vec()),
         (11, FORMATS_DOC.replace("\"names\"", "\"x\":[1],\"names\"").into_bytes()),
     ];

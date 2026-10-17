@@ -31,6 +31,14 @@ pub const SHAPES: Fixture = Fixture {
     roots: &["Shape"],
 };
 
+/// The shapes model with a specification whose optional fields accept null.
+pub const SHAPES_NULL: Fixture = Fixture {
+    name: "shapes_null",
+    model: include_str!("../../../fixtures/native/shapes.ron"),
+    spec: include_str!("../../../fixtures/native/shapes_null.native.ron"),
+    roots: &["Shape"],
+};
+
 pub const FORMATS: Fixture = Fixture {
     name: "formats",
     model: include_str!("../../../fixtures/native/formats.ron"),
@@ -47,6 +55,8 @@ pub const VARIANTS: &[(&str, Fixture, bool, bool)] = &[
     ("binance_plain", BINANCE, true, false),
     ("shapes", SHAPES, true, true),
     ("shapes_open", SHAPES, false, true),
+    ("shapes_null", SHAPES_NULL, true, true),
+    ("shapes_null_open", SHAPES_NULL, false, true),
     ("formats", FORMATS, true, true),
     ("formats_open", FORMATS, false, true),
 ];

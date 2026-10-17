@@ -327,6 +327,11 @@ impl<'r, 'a> Emitter<'r, 'a> {
             let place = format!("out.{member}");
             match &field.ty {
                 EndpointType::Optional(inner) => {
+                    // With nullable optionals an explicit null is the same as absence.
+                    let nullable = self.spec.nullable_optionals;
+                    if nullable {
+                        out.push_str(&format!("                    if r.null() {{\n                        {place} = None;\n                    }} else {{\n"));
+                    }
                     if let Some(expr) = self.scalar_expr(inner) {
                         out.push_str(&format!("                    {place} = Some({expr});\n"));
                     } else {
@@ -334,6 +339,9 @@ impl<'r, 'a> Emitter<'r, 'a> {
                             "                    let slot = {place}.get_or_insert_with(::core::default::Default::default);\n"
                         ));
                         out.push_str(&self.value(inner, "(*slot)", "                    ")?);
+                    }
+                    if nullable {
+                        out.push_str("                    }\n");
                     }
                 }
                 ty => out.push_str(&self.value(ty, &place, "                    ")?),

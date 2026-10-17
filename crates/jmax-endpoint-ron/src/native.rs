@@ -19,6 +19,7 @@ pub fn load_native_spec(source: &str, limits: &ConfigLimits) -> Result<NativeSpe
 fn normalize_native_spec(node: &ConfigNode) -> Result<NativeSpec> {
     let record = record(node, &["NativeSpec", "Native"], &[
         "roots", "tuples", "decimal", "reject_unknown", "idents", "nanoid_alphabet", "nanoid_fields",
+        "nullable_optionals",
     ])?;
     let defaults = NativeSpec::default();
     Ok(NativeSpec {
@@ -32,6 +33,8 @@ fn normalize_native_spec(node: &ConfigNode) -> Result<NativeSpec> {
         nanoid_alphabet: record.get("nanoid_alphabet").map(alphabet).transpose()?
             .unwrap_or(defaults.nanoid_alphabet),
         nanoid_fields: list(record.get("nanoid_fields"), nanoid_field)?,
+        nullable_optionals: record.get("nullable_optionals").map(boolean).transpose()?
+            .unwrap_or(defaults.nullable_optionals),
     })
 }
 

@@ -278,6 +278,19 @@ impl<'a> Reader<'a> {
         Ok(value)
     }
 
+    /// Consume a JSON `null` literal, if one is next; otherwise nothing but whitespace.
+    #[inline]
+    pub fn null(&mut self) -> bool {
+        self.skip_ws();
+        let rest = &self.input[self.pos..];
+        if rest.starts_with(b"null") && is_delim(rest.get(4).copied()) {
+            self.pos += 4;
+            true
+        } else {
+            false
+        }
+    }
+
     /// A string that must pass the named format, and, when `exact` is given, must be
     /// exactly that many characters long (a schema's min_length = max_length).
     /// The format is checked by `jmax_format::registry::validate` with the

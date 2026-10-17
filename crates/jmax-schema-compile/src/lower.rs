@@ -267,6 +267,7 @@ fn scalar_constraints(source: &ScalarConstraints, patterns: &[(&str, u32)]) -> R
         max_count: source.max_length,
         pattern,
         format,
+        nullable: source.nullable,
     })
 }
 
@@ -411,6 +412,7 @@ fn lower_inner(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<Com
             TypeNode::Object(shape) => {
                 constraints.min_count = shape.min_properties;
                 constraints.max_count = shape.max_properties;
+                constraints.nullable = shape.nullable;
                 let (table, required_count, match_opcode) = append_keys(&mut program, plan, options)?;
                 emit(&mut program.image.insns, options, Opcode::EnterObject, 0, id.0, u64::from(table))?;
                 emit(&mut program.image.insns, options, match_opcode, 0, table, 0)?;
@@ -431,6 +433,7 @@ fn lower_inner(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<Com
             TypeNode::Array(shape) => {
                 constraints.min_count = shape.min_items;
                 constraints.max_count = shape.max_items;
+                constraints.nullable = shape.nullable;
                 let items = *plan.children.first().ok_or_else(|| invalid("array has no item state"))?;
                 emit(&mut program.image.insns, options, Opcode::EnterArray, 0, id.0, u64::from(items.0))?;
                 emit(&mut program.image.insns, options, Opcode::LeaveArray, 0, id.0, 0)?;

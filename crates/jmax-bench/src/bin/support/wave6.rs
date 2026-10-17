@@ -85,7 +85,7 @@ fn stress() -> R<Vec<Workload>> {
             root: TypeId(0),
             definitions: vec![],
             nodes: vec![
-                TypeNode::Object(ObjectShape {
+                TypeNode::Object(ObjectShape { nullable: false,
                     properties: vec![Property {
                         name: key.into(),
                         ty: TypeId(1),

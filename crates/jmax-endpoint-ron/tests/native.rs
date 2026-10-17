@@ -138,3 +138,27 @@ fn nanoid_alphabets_load_and_lower_to_length_bounded_formats() {
     unknown.nanoid_fields[0].wire = "nope".into();
     assert!(validate_native_spec(&registry, &unknown).is_err());
 }
+
+#[test]
+fn nullable_optionals_load_and_mark_optional_nodes_nullable() {
+    use jmax_schema_ir::TypeNode;
+    let default = spec("NativeSpec(roots: [\"Ids\"])");
+    assert!(!default.nullable_optionals);
+    let spec = load_native_spec("NativeSpec(roots: [\"Ids\"], nullable_optionals: true)", &ConfigLimits::default()).unwrap();
+    assert!(spec.nullable_optionals);
+    assert!(load_native_spec("NativeSpec(roots: [\"Ids\"], nullable_optionals: 1)", &ConfigLimits::default()).is_err());
+    let model = model(FORMATS);
+    let registry = build_registry(&model).unwrap();
+    let count = |spec: &NativeSpec| {
+        let schema = schema_graph_for(&registry, spec, "Ids", SchemaId(5000)).unwrap();
+        schema.nodes.iter().filter(|node| match node {
+            TypeNode::Scalar(c) => c.nullable,
+            TypeNode::Object(o) => o.nullable,
+            TypeNode::Array(a) => a.nullable,
+            _ => false,
+        }).count()
+    };
+    // The optional fields of the fixture: nick (NanoId), extra (Bytea) and peer (IpAddr).
+    assert_eq!(count(&default), 0);
+    assert_eq!(count(&spec), 3);
+}

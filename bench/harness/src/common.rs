@@ -110,7 +110,7 @@ pub struct Plan {
     pub selection: Selection,
 }
 pub fn make_plan(name: &str, fields: &[(&[&str], ValueKind)]) -> R<Plan> {
-    let mut nodes = vec![TypeNode::Object(ObjectShape {
+    let mut nodes = vec![TypeNode::Object(ObjectShape { nullable: false,
         properties: vec![],
         reject_unknown: false,
         min_properties: None,
@@ -136,7 +136,7 @@ pub fn make_plan(name: &str, fields: &[(&[&str], ValueKind)]) -> R<Plan> {
             nodes.push(if last {
                 TypeNode::Scalar(ScalarConstraints::new(*kind))
             } else {
-                TypeNode::Object(ObjectShape {
+                TypeNode::Object(ObjectShape { nullable: false,
                     properties: vec![],
                     reject_unknown: false,
                     min_properties: None,

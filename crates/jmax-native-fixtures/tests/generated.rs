@@ -1,8 +1,8 @@
 //! Generated decoders against the schema VM and the tree oracle.
 
 use jmax_native_fixtures::harness::*;
-use jmax_native_fixtures::regen::{BINANCE, FORMATS, SHAPES};
-use jmax_native_fixtures::{binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_open};
+use jmax_native_fixtures::regen::{BINANCE, FORMATS, SHAPES, SHAPES_NULL};
+use jmax_native_fixtures::{binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_null, shapes_null_open, shapes_open};
 
 fn trade_seeds(open: bool) -> Vec<Vec<u8>> {
     let valid = AGG_TRADE.as_bytes().to_vec();
@@ -298,4 +298,74 @@ fn formats_seed_decodes_to_the_expected_value() {
     // An absent optional is reset by the next document.
     decode_into(&mut ctx, FORMATS_DOC.replace(",\"extra\":\"AQID\"", "").as_bytes(), &mut ids).unwrap();
     assert_eq!(ids.extra, None);
+}
+
+fn null_shape_seeds(open: bool) -> Vec<Vec<u8>> {
+    let mut seeds = shape_seeds(open);
+    let null_for = |key: &str, value: &str| {
+        let mut texts = Vec::new();
+        for from in [value] {
+            texts.push(SHAPE.replace(&format!("\"{key}\":{from}"), &format!("\"{key}\":null")).into_bytes());
+        }
+        texts
+    };
+    for (key, value) in [
+        ("note", "\"hi\""),
+        ("extra", "[1,-2]"),
+        ("pin", "{\"name\":\"p\"}"),
+        ("cost", "\"0.00000001\""),
+        ("flag", "false"),
+        ("count", "9"),
+        // Required fields do not take null.
+        ("id", "7"),
+        ("origin", "{\"x\":1,\"y\":-2}"),
+        ("tags", "[{\"name\":\"a\",\"weight\":0.5},{\"name\":\"b\"}]"),
+        ("price", "\"12.50000000\""),
+        ("ok", "true"),
+    ] {
+        seeds.extend(null_for(key, value));
+    }
+    // The optional weight inside a tag, nulls in arrays, spellings of null.
+    seeds.push(SHAPE.replace("\"weight\":0.5", "\"weight\":null").into_bytes());
+    seeds.push(SHAPE.replace("\"names\":[\"u\",\"v\\n\"]", "\"names\":[null]").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\":nul").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\":nullx").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\":Null").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\": null ").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\":null,\"note\":\"x\"").into_bytes());
+    seeds.push(SHAPE.replace("\"note\":\"hi\"", "\"note\":\"x\",\"note\":null").into_bytes());
+    seeds.push(SHAPE.replace(",\"note\":\"hi\"", "").replace("\"id\":7", "\"id\":7,\"note\":null").into_bytes());
+    seeds
+}
+
+#[test]
+fn strict_null_shape() {
+    let subject = Subject::<shapes_null::models::Shape>::new(&SHAPES_NULL, "Shape", true, shape_null::shape);
+    report("strict null shape", differential(&subject, &null_shape_seeds(false), 600, 11), 1_000);
+}
+
+#[test]
+fn open_null_shape() {
+    let subject = Subject::<shapes_null_open::models::Shape>::new(&SHAPES_NULL, "Shape", false, shape_null_open::shape);
+    report("open null shape", differential(&subject, &null_shape_seeds(true), 600, 12), 1_000);
+}
+
+#[test]
+fn null_optionals_decode_as_absent_and_reset_the_output() {
+    use jmax_abi::number::NumericPolicy;
+    use jmax_native::{decode_into, NativeContext, VmLimits};
+    let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
+    let mut shape = shapes_null::models::Shape::default();
+    decode_into(&mut ctx, SHAPE.as_bytes(), &mut shape).unwrap();
+    assert_eq!(shape.note.as_deref(), Some("hi"));
+    let nulled = SHAPE.replace("\"note\":\"hi\"", "\"note\":null").replace("\"count\":9", "\"count\":null");
+    decode_into(&mut ctx, nulled.as_bytes(), &mut shape).unwrap();
+    assert_eq!((shape.note.clone(), shape.count), (None, None));
+    assert_eq!(shape.flag, Some(false));
+    // The strict specification still rejects the same document.
+    let mut strict = shapes::models::Shape::default();
+    assert!(decode_into(&mut ctx, nulled.as_bytes(), &mut strict).is_err());
+    // A required field never takes null.
+    let bad = SHAPE.replace("\"id\":7", "\"id\":null");
+    assert!(decode_into(&mut ctx, bad.as_bytes(), &mut shape).is_err());
 }

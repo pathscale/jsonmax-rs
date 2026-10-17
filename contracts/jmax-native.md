@@ -64,6 +64,7 @@ impl<'a> Reader<'a> {
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()>;
     pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()>;
     pub fn match_key(&mut self, ctx: &NativeContext, pattern: &[u8]) -> bool;
+    pub fn null(&mut self) -> bool;
     pub fn format<'c>(&mut self, ctx: &'c mut NativeContext, id: FormatId, exact: Option<u32>) -> NativeResult<&'c str>;
     pub fn bytea(&mut self, ctx: &mut NativeContext, out: &mut Vec<u8>) -> NativeResult<()>;
     pub fn key_bytes<'c>(&mut self, ctx: &'c mut NativeContext) -> NativeResult<&'c [u8]>;
@@ -117,6 +118,10 @@ standard-alphabet, padded, canonical text into `out`, which is cleared first. A 
 accept set with the VM for all twelve formats, with no length bound and with exact lengths 16 and 21, over
 random, escaped and boundary strings under several limit sets; the decoders of the `formats` fixture are held to
 the VM by the generated differential suite.
+
+null consumes a complete `null` literal if one is next (after whitespace) and returns true; otherwise it consumes
+only whitespace. Generated decoders of a specification with nullable optionals call it before reading an optional
+field, so a null sets the field to None, as absence does.
 
 match_key supports layout prediction. `pattern` is the exact bytes `"name":` of an unescaped key; after whitespace, a match consumes the pattern and returns true, and a miss consumes only the whitespace. A pattern that is not of that form, or whose name is longer than limits.syntax.max_string_bytes, never matches, so a hit is exactly a successful `key` returning that name and the caller may fall through to `key` on a miss with no rollback.
 
