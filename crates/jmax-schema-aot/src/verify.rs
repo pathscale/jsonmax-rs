@@ -95,7 +95,12 @@ pub fn verify_structure(image: StaticSchemaImage<'_>) -> Result<()> {
             return Err(invalid_key("key target state is out of bounds"));
         }
     }
-    if usize::try_from(byte_end).ok() != Some(image.key_bytes.len()) {
+    // Key spans address only names. A compiled program appends its canonical
+    // schema after them as a capsule (bytes, their length as u32 LE, magic); that
+    // is the only suffix allowed.
+    let owned = usize::try_from(byte_end).map_err(|_| invalid("key bytes contain an unowned suffix"))?;
+    let tail = image.key_bytes.get(owned..).ok_or_else(|| invalid("key bytes contain an unowned suffix"))?;
+    if !tail.is_empty() && !is_schema_capsule(tail) {
         return Err(invalid("key bytes contain an unowned suffix"));
     }
 
@@ -247,6 +252,21 @@ impl Instructions<'_> {
         }
         Ok(())
     }
+}
+
+/// Magic that ends a schema capsule; it must equal jmax-schema-compile's.
+const CAPSULE_MAGIC: &[u8; 8] = b"JMXSCM02";
+const CAPSULE_FOOTER: usize = 12;
+
+/// Whether `tail` is exactly one capsule: canonical bytes, their length, the magic.
+fn is_schema_capsule(tail: &[u8]) -> bool {
+    let Some(footer) = tail.len().checked_sub(CAPSULE_FOOTER) else { return false };
+    if tail[footer + 4..] != CAPSULE_MAGIC[..] {
+        return false;
+    }
+    let mut length = [0u8; 4];
+    length.copy_from_slice(&tail[footer..footer + 4]);
+    usize::try_from(u32::from_le_bytes(length)).ok() == Some(footer)
 }
 
 fn verify_templates(image: StaticSchemaImage<'_>) -> Result<u32> {

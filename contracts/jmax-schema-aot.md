@@ -207,7 +207,7 @@ verify_structure validates only the ABI projection: compiler magic/version/flags
 header counts versus arrays without usize truncation, nonempty instructions,
 known opcode bytes via compiler::decode_opcode, zero instruction flags, valid key
 byte spans/UTF-8/swar heads, globally unique key FieldIds, and exact sequential
-key-byte coverage with no unowned trailing bytes. Root/state references are
+key-byte coverage with no unowned trailing bytes, except that one schema capsule (the canonical schema bytes, their length as u32 little endian and the magic `JMXSCM02`, as jmax-schema-compile appends it to every compiled program) may follow the key names. Root/state references are
 state ids. Derive the dense state count and instruction boundaries from the
 compiler's exact start/end instruction templates in
 contracts/jmax-schema-compile.md; reject malformed templates and bad state

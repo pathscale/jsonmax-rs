@@ -200,3 +200,17 @@ fn layout_prediction_is_opt_in_and_only_touches_object_dispatch() {
     let programs = |text: &str| text.split("impl ").next().unwrap().to_owned();
     assert_eq!(programs(&plain.contents), programs(&predicted.contents));
 }
+
+#[test]
+fn schema_tables_are_emitted_for_struct_models() {
+    // Regression: every compiled program carries a schema capsule after its key
+    // names, which the structure verifier used to reject as an unowned suffix, so
+    // generate() with its default options failed on any model with a struct.
+    let source = r#"Config(version: "1.0.0", definitions: [
+        Definition(name: "Quote", ty: Struct(name: "Quote", fields: [
+            Field(name: "symbol", ty: String), Field(name: "bid", ty: Int64), Field(name: "ask", ty: Int64)]))])"#;
+    let model = model(source);
+    let generation = generate(&model, &CodegenOptions::default()).unwrap();
+    let tables = generation.artifacts().iter().find(|a| a.kind == ArtifactKind::SchemaTables).unwrap();
+    assert!(tables.contents.contains("SCHEMA_COUNT: usize = 1"), "{}", &tables.contents[..200.min(tables.contents.len())]);
+}

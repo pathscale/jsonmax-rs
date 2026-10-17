@@ -189,16 +189,16 @@ fn the_library_plan_is_sorted_and_deterministic() {
 #[test]
 fn without_native_nothing_changes() {
     let workspace = Workspace::new("plain", FLAT, FLAT_SPEC);
-    // The flat Rust schema tables cannot be emitted for a struct model today
-    // (SchemaImageInvalid from jmax-schema-aot), with or without --native, so
-    // the plain run covers the other formats.
-    let others = ["-f", "services", "-f", "json-schema", "-f", "openapi", "-f", "asyncapi", "-f", "markdown"];
-    let (code, plain_manifest, stderr) = workspace.run(&others);
+    // Plain Rust generation of a struct model (with its flat schema tables) works.
+    let (code, plain_manifest, stderr) = workspace.run(&[]);
     assert_eq!((code, stderr.as_str()), (0, ""));
-    assert!(!plain_manifest.contains("rust/"));
-    assert!(!workspace.output().join("rust").exists());
+    let plain_rust: Vec<&str> = plain_manifest.lines().filter(|row| row.starts_with("rust/")).collect();
+    assert_eq!(plain_rust.len(), 4, "{plain_manifest}");
+    assert!(!workspace.output().join("rust/native.rs").exists());
+    let tables = std::fs::read_to_string(workspace.output().join("rust/schema_tables.rs")).unwrap();
+    assert!(tables.contains("SCHEMA_COUNT: usize = 1"), "{tables}");
 
-    // Adding the Rust format with a native specification leaves every other artifact identical.
+    // Adding a native specification adds rust/native.rs and leaves every non-Rust artifact identical.
     let (code, native_manifest, stderr) = run_native(&workspace, &[]);
     assert_eq!((code, stderr.as_str()), (0, ""));
     let non_rust = |text: &str| -> Vec<String> {
