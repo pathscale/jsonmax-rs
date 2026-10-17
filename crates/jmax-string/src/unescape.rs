@@ -153,7 +153,7 @@ fn read_code_unit(tail: &[u8], offset: u32, end: u32) -> Result<u16> {
     Ok(value)
 }
 
-fn measure_content(bytes: &[u8], base: u32, end: u32) -> Result<StringLengths> {
+pub(crate) fn measure_content(bytes: &[u8], base: u32, end: u32) -> Result<StringLengths> {
     let mut lengths = StringLengths::default();
     let mut cursor = 0;
     let mut finder = super::masks::EscapeMaskCursor::new(bytes);
@@ -192,9 +192,11 @@ fn measure_content(bytes: &[u8], base: u32, end: u32) -> Result<StringLengths> {
                             "string content contains invalid UTF-8",
                         )
                     })?;
-                for (relative, scalar) in text.char_indices() {
-                    add_scalar(&mut lengths, scalar, offset + relative as u32)?;
-                }
+                // Decoding never expands an ordinary run and each escape
+                // consumes at least its decoded length. The checked raw length
+                // therefore bounds both cumulative counters by u32::MAX.
+                lengths.byte_len += run_len as u32;
+                lengths.scalar_len += jmax_utf8::count_scalars_trusted_utf8(text.as_bytes());
                 cursor += run_len;
             }
         }
@@ -221,15 +223,16 @@ fn add_scalar(lengths: &mut StringLengths, scalar: char, offset: u32) -> Result<
     }
 }
 
-/// Decode one complete raw content slice in a single transactional traversal.
+/// Cook one complete raw content slice in a single transactional traversal.
 ///
 /// `raw_content` excludes wrapper quotes. Ordinary UTF-8 runs are validated and
 /// counted in bulk, then appended once; only escapes are decoded individually.
+/// Decoded byte and scalar lengths are accumulated inline while cooking.
 /// `max_string_bytes` bounds decoded bytes for this string, independently of
 /// the arena's total limit. The caller enforces any separate raw-token limit.
 /// Every error restores the arena's original logical length and bytes (retained
 /// capacity may grow). Returned offsets refer to the supplied absolute base.
-pub fn decode_escaped_slice_into(
+pub fn cook_into(
     raw_content: &[u8],
     raw_content_offset: u32,
     arena: &mut jmax_buffer::DecodedArena,
@@ -262,7 +265,11 @@ pub fn decode_escaped_slice_into(
             let run_len = finder.next_special(cursor) - cursor;
             if run_len != 0 {
                 let run = &tail[..run_len];
-                let validated = jmax_utf8::validate_and_count_scalars(run, offset);
+                let validated = if run.is_ascii() {
+                    Ok(run_len as u32)
+                } else {
+                    jmax_utf8::validate_and_count_scalars(run, offset)
+                };
                 let remaining = max_string_bytes.saturating_sub(lengths.byte_len) as usize;
                 let arena_remaining = arena.limit().saturating_sub(arena.len() as u32) as usize;
                 let first_limit = remaining.min(arena_remaining);
@@ -351,6 +358,16 @@ pub fn decode_escaped_slice_into(
         arena.truncate(checkpoint)?;
     }
     result
+}
+
+/// Compatibility name for [`cook_into`].
+pub fn decode_escaped_slice_into(
+    raw_content: &[u8],
+    raw_content_offset: u32,
+    arena: &mut jmax_buffer::DecodedArena,
+    max_string_bytes: u32,
+) -> Result<jmax_abi::span::StrRef> {
+    cook_into(raw_content, raw_content_offset, arena, max_string_bytes)
 }
 
 fn string_byte_limit(offset: u32) -> Error {

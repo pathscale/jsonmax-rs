@@ -14,7 +14,7 @@ pub use masks::{
     EscapeMaskCursor, EscapeMasker, EscapeMasks, escape_mask_64, escape_masks_64,
     escape_or_control_mask_64, first_escape_or_control,
 };
-pub use unescape::decode_escaped_slice_into;
+pub use unescape::{cook_into, decode_escaped_slice_into};
 
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::span::{Span32, SpanSource, StrRef};
