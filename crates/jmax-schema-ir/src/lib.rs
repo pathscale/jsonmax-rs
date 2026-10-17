@@ -85,12 +85,27 @@ pub struct ArrayShape {
     pub max_items: Option<u32>,
 }
 
+/// One declared enum variant and the exact JSON integer accepted for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnumVariant {
+    pub name: String,
+    pub discriminant: i64,
+}
+
+/// A closed enum accepting a declared name or its integer discriminant.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnumShape {
+    pub variants: Vec<EnumVariant>,
+    pub nullable: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeNode {
     Any,
     Scalar(ScalarConstraints),
     Object(ObjectShape),
     Array(ArrayShape),
+    Enum(EnumShape),
     Ref(String),
 }
 

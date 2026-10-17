@@ -76,6 +76,9 @@ pub fn budget_bound_counted(
                     return None;
                 }
             }
+            // Enum membership cost depends on its declared table. Keep the
+            // native budget shortcut conservative until it has an enum bound.
+            StateKind::Enum => return None,
             StateKind::Scalar(ValueKind::Decimal) => decimal = true,
             StateKind::Scalar(_) | StateKind::Array { .. } => {}
         }

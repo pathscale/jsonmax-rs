@@ -36,6 +36,7 @@ pub enum Opcode {
     ExecFormat,
     EmitSlot,
     RejectUnknown,
+    CheckEnum,
 }
 
 /// Fixed-width instruction record. Validate the opcode before interpreting it.

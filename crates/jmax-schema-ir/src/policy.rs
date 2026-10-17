@@ -135,6 +135,7 @@ pub fn validate_schema(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result
             TypeNode::Array(array) => {
                 enqueue(schema, array.items, field, &mut seen, &mut queue)?;
             }
+            TypeNode::Enum(_) => {}
             TypeNode::Ref(_) => {
                 return Err(error(schema, field, ErrorCode::ConstraintViolation,
                     "resolved target must not be a reference"));

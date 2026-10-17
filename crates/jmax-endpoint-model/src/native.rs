@@ -7,14 +7,14 @@
 //! is exactly the document the native decoder promises to decide.
 
 use super::{
-    model_error, registry, EndpointField, EndpointType, Error, ErrorCode, FieldId, Registry,
-    Result, SchemaId, MAX_REFERENCE_DEPTH,
+    model_error, registry, EndpointField, EndpointType, EnumVariantSpec, Error, ErrorCode,
+    FieldId, Registry, Result, SchemaId, MAX_REFERENCE_DEPTH,
 };
 use alloc::{string::String, vec::Vec};
 use jmax_abi::number::DecimalPolicy;
 use jmax_schema_ir::{
-    ArrayShape, DecimalConstraints, ObjectShape, Property, ScalarConstraints, Schema, TypeId,
-    TypeNode, ValueKind,
+    ArrayShape, DecimalConstraints, EnumShape, EnumVariant, ObjectShape, Property,
+    ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
 };
 
 /// Rust field identifier chosen for one wire field of one nominal struct.
@@ -135,7 +135,11 @@ pub fn validate_native_spec(registry: &Registry<'_>, spec: &NativeSpec) -> Resul
         if spec.tuples.contains(root) {
             return Err(invalid("a native root cannot also be a tuple"));
         }
-        struct_fields(registry, root)?;
+        let definition = registry::definition_by_name(registry, root)
+            .ok_or_else(|| invalid("native specification names an unknown definition"))?;
+        if !matches!(registry::resolve_type(registry, &definition.ty)?, EndpointType::Struct { .. } | EndpointType::Enum { .. }) {
+            return Err(invalid("native root must be a struct or enum definition"));
+        }
     }
     for tuple in &spec.tuples {
         if struct_fields(registry, tuple)?.is_empty() {
@@ -319,10 +323,12 @@ impl<'r, 'a> Lowering<'r, 'a> {
             }
             EndpointType::Optional(_) => Err(unsupported("nested optional has no native form")),
             EndpointType::Object => Err(unsupported("untyped Object has no native form")),
-            EndpointType::Enum { .. } | EndpointType::EnumRef { .. } => {
-                Err(unsupported("enums have no native form"))
-            }
-            EndpointType::Unit => Err(unsupported("unit has no native form")),
+            EndpointType::Enum { variants, .. } => self.lower_enum(variants),
+            EndpointType::EnumRef { .. } => match registry::resolve_type(self.registry, ty)? {
+                EndpointType::Enum { variants, .. } => self.lower_enum(variants),
+                _ => Err(invalid("enum reference does not resolve to an enum")),
+            },
+            EndpointType::Unit => self.scalar(ValueKind::Null),
         }
     }
 
@@ -343,6 +349,19 @@ impl<'r, 'a> Lowering<'r, 'a> {
         };
         self.active.pop();
         result
+    }
+
+    fn lower_enum(&mut self, variants: &[EnumVariantSpec]) -> Result<TypeId> {
+        let mut lowered = Vec::new();
+        lowered.try_reserve_exact(variants.len())
+            .map_err(|_| model_error(ErrorCode::BudgetExhausted, "schema allocation failed"))?;
+        for variant in variants {
+            lowered.push(EnumVariant {
+                name: variant.name.clone(),
+                discriminant: i64::from(variant.value),
+            });
+        }
+        self.push(TypeNode::Enum(EnumShape { variants: lowered, nullable: false }))
     }
 
     fn lower_object(&mut self, name: &'a str, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
@@ -391,9 +410,11 @@ impl<'r, 'a> Lowering<'r, 'a> {
     /// The node `ty` also accepts a JSON null.
     fn make_nullable(&mut self, ty: TypeId) -> Result<()> {
         match self.nodes.get_mut(ty.0 as usize) {
+            Some(TypeNode::Scalar(constraints)) if constraints.kind == ValueKind::Null => {}
             Some(TypeNode::Scalar(constraints)) => constraints.nullable = true,
             Some(TypeNode::Object(shape)) => shape.nullable = true,
             Some(TypeNode::Array(shape)) => shape.nullable = true,
+            Some(TypeNode::Enum(shape)) => shape.nullable = true,
             _ => return Err(invalid("a nullable optional field needs a scalar, object or array")),
         }
         Ok(())
@@ -444,6 +465,7 @@ impl<'r, 'a> Lowering<'r, 'a> {
     fn same(&self, left: TypeId, right: TypeId) -> bool {
         match (&self.nodes[left.0 as usize], &self.nodes[right.0 as usize]) {
             (TypeNode::Scalar(a), TypeNode::Scalar(b)) => a == b,
+            (TypeNode::Enum(a), TypeNode::Enum(b)) => a == b,
             (TypeNode::Array(a), TypeNode::Array(b)) => {
                 a.min_items == b.min_items
                     && a.max_items == b.max_items

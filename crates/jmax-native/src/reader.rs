@@ -291,6 +291,26 @@ impl<'a> Reader<'a> {
         }
     }
 
+    /// Consume an empty JSON object, preserving the position on failure.
+    #[inline]
+    pub fn empty_object(&mut self) -> NativeResult<()> {
+        let start = self.pos;
+        self.skip_ws();
+        if self.input.get(self.pos) != Some(&b'{') {
+            self.pos = start;
+            return Err(Fail);
+        }
+        self.pos += 1;
+        self.skip_ws();
+        if self.input.get(self.pos) == Some(&b'}') {
+            self.pos += 1;
+            Ok(())
+        } else {
+            self.pos = start;
+            Err(Fail)
+        }
+    }
+
     /// A string that must pass the named format, and, when `exact` is given, must be
     /// exactly that many characters long (a schema's min_length = max_length).
     /// The format is checked by `jmax_format::registry::validate` with the
@@ -730,6 +750,22 @@ mod tests {
     use super::*;
     use jmax_abi::number::NumericPolicy;
     use std::{format, string::String, vec::Vec};
+
+    #[test]
+    fn empty_object_accepts_only_empty_objects_and_rewinds_on_failure() {
+        let mut reader = Reader::new(b" { \n } ");
+        assert_eq!(reader.empty_object(), Ok(()));
+        assert_eq!(reader.pos(), 6);
+
+        for input in [b"{}".as_slice(), b"{ \n\t}"] {
+            assert_eq!(Reader::new(input).empty_object(), Ok(()));
+        }
+        for input in [b"null".as_slice(), b"{\"x\":0}", b"["] {
+            let mut reader = Reader::new(input);
+            assert_eq!(reader.empty_object(), Err(Fail));
+            assert_eq!(reader.pos(), 0);
+        }
+    }
 
     /// If `fast_decimal` answers, the general path answers the same value.
     fn agree(text: &str, policy: &DecimalPolicy, digits_limit: usize, max_string: usize) -> bool {

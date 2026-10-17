@@ -1,0 +1,1 @@
+NativeSpec(roots: ["Envelope", "Empty", "Side"], reject_unknown: true)

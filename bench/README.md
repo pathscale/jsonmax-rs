@@ -122,5 +122,5 @@ The native count binary counts allocation/reallocation requests and requested
 bytes; peak footprint is a process lifetime high-water mark, not a per-call delta.
 
 Fleet builds run under the memory cap, serialized with `-j 4`, as enforced by the
-comparison and instruction-count scripts. Workspace artifact tests on macOS need
-`TMPDIR=/private/tmp` because the system `/var` temp path contains a symlink.
+comparison and instruction-count scripts. Workspace artifact tests canonicalize
+the temporary directory so the macOS `/var` symlink passes output-path checks.

@@ -48,11 +48,18 @@ struct ArrayInfo<'a> {
     alphabet: NanoIdAlphabet,
 }
 
+struct EnumInfo<'a> {
+    source: &'a str,
+    name: String,
+    variants: &'a [crate::EnumVariantSpec],
+}
+
 struct Emitter<'r, 'a> {
     registry: &'r Registry<'a>,
     spec: &'r NativeSpec,
     options: &'r CodegenOptions,
     structs: Vec<StructInfo<'a>>,
+    enums: Vec<EnumInfo<'a>>,
     arrays: Vec<ArrayInfo<'a>>,
     /// The NanoId alphabet of the field being visited or emitted.
     alphabet: Cell<NanoIdAlphabet>,
@@ -79,6 +86,10 @@ impl<'r, 'a> Emitter<'r, 'a> {
 
     fn struct_fn(&self, name: &str) -> Result<String> {
         Ok(format!("__decode_{}", snake(&models::pascal_name(name)?)?))
+    }
+
+    fn enum_fn(&self, name: &str) -> Result<String> {
+        Ok(format!("__decode_enum_{}", snake(&models::pascal_name(name)?)?))
     }
 
     /// Identifies an array decoder: the Rust type plus what its elements must satisfy.
@@ -155,9 +166,6 @@ impl<'r, 'a> Emitter<'r, 'a> {
                 if self.structs.iter().any(|info| info.name == pascal) {
                     return Ok(());
                 }
-                if fields.is_empty() {
-                    return Err(unsupported("empty structs have no native decoder"));
-                }
                 if fields.len() > 128 {
                     return Err(unsupported("native objects support at most 128 fields"));
                 }
@@ -179,9 +187,17 @@ impl<'r, 'a> Emitter<'r, 'a> {
             EndpointType::Optional(_) => Err(unsupported("nested optional has no native form")),
             EndpointType::Object => Err(unsupported("untyped Object has no native form")),
             EndpointType::Enum { .. } | EndpointType::EnumRef { .. } => {
-                Err(unsupported("enums have no native form"))
+                let resolved = jmax_endpoint_model::registry::resolve_type(self.registry, ty)?;
+                let EndpointType::Enum { name, variants } = resolved else {
+                    return Err(constraint("enum reference does not resolve to an enum"));
+                };
+                let pascal = models::pascal_name(name)?;
+                if !self.enums.iter().any(|info| info.name == pascal) {
+                    self.enums.push(EnumInfo { source: name, name: pascal, variants });
+                }
+                Ok(())
             }
-            EndpointType::Unit => Err(unsupported("unit has no native form")),
+            EndpointType::Unit => Ok(()),
         }
     }
 
@@ -234,6 +250,14 @@ impl<'r, 'a> Emitter<'r, 'a> {
                 let (name, _) = self.resolve(ty)?;
                 format!("{indent}{}(r, ctx, &mut *{place}, depth + 1)?;\n", self.struct_fn(name)?)
             }
+            EndpointType::Enum { .. } | EndpointType::EnumRef { .. } => {
+                let resolved = jmax_endpoint_model::registry::resolve_type(self.registry, ty)?;
+                let EndpointType::Enum { name, .. } = resolved else {
+                    return Err(constraint("enum reference does not resolve to an enum"));
+                };
+                format!("{indent}{}(r, ctx, &mut {place})?;\n", self.enum_fn(name)?)
+            }
+            EndpointType::Unit => format!("{indent}if !r.null() {{ return Err(__native::Fail); }}\n{indent}{place} = ();\n"),
             _ => return Err(unsupported("type has no native decoder")),
         })
     }
@@ -250,6 +274,36 @@ impl<'r, 'a> Emitter<'r, 'a> {
             ));
         }
         out.push_str("        }\n    }\n}\n");
+        Ok(())
+    }
+
+    fn emit_enum_decoder(&self, out: &mut String, info: &EnumInfo<'a>) -> Result<()> {
+        let fname = self.enum_fn(info.source)?;
+        let first = info.variants.first().ok_or_else(|| unsupported("empty enum has no native decoder"))?;
+        let first_variant = models::enum_variant_ident(&first.name)?;
+        out.push_str(&format!(
+            "impl ::core::default::Default for super::models::{} {{\n    fn default() -> Self {{ Self::{} }}\n}}\n",
+            info.name, first_variant
+        ));
+        out.push_str(&format!(
+            "#[inline]\nfn {fname}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut super::models::{}) -> __native::NativeResult<()> {{\n",
+            info.name
+        ));
+        out.push_str("    if r.peek() == Some(b'\"') {\n        *out = match r.string(ctx)? {\n");
+        for variant in info.variants {
+            out.push_str(&format!(
+                "            {} => super::models::{}::{},\n",
+                rust_string_literal(&variant.name), info.name, models::enum_variant_ident(&variant.name)?
+            ));
+        }
+        out.push_str("            _ => return Err(__native::Fail),\n        };\n    } else {\n        *out = match r.int(ctx, i32::MIN as i64, i32::MAX as i64)? as i32 {\n");
+        for variant in info.variants {
+            out.push_str(&format!(
+                "            {} => super::models::{}::{},\n",
+                variant.value, info.name, models::enum_variant_ident(&variant.name)?
+            ));
+        }
+        out.push_str("            _ => return Err(__native::Fail),\n        };\n    }\n    Ok(())\n}\n");
         Ok(())
     }
 
@@ -280,7 +334,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
             out.push_str("    let mark = ctx.begin_object();\n");
         }
         out.push_str(&format!("    let mut seen: {seen_type} = 0;\n    let mut fields = 0usize;\n"));
-        if self.predict {
+        if self.predict && count > 0 {
             // The full `"name":` bytes of each field; an empty pattern never matches
             // (a name that needs escaping in JSON is left to the general dispatch).
             let patterns: Vec<String> = info
@@ -304,7 +358,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
         if open {
             out.push_str("            let at = r.clone();\n");
         }
-        if self.predict {
+        if self.predict && count > 0 {
             out.push_str("            fields += 1;\n            if fields > limits.max_fields_per_object as usize {\n                return Err(__native::Fail);\n            }\n");
             out.push_str("            let which: u32;\n            if r.match_key(ctx, KEYS[next]) {\n                which = next as u32;\n            } else {\n                let key = r.key_bytes(ctx)?;\n");
             out.push_str(&self.dispatch(info, count_literal, "which =", "    ")?);
@@ -510,6 +564,7 @@ pub fn generate_native(
         spec,
         options: &merged,
         structs: Vec::new(),
+        enums: Vec::new(),
         arrays: Vec::new(),
         alphabet: Cell::new(spec.nanoid_alphabet),
         decimals: false,
@@ -520,7 +575,7 @@ pub fn generate_native(
     // rejects whatever has no native form, with its own diagnostics.
     let mut tables = String::new();
     let mut root_names = BTreeSet::new();
-    let mut roots: Vec<(String, String)> = Vec::new();
+    let mut roots: Vec<(String, String, bool)> = Vec::new();
     for (index, root) in spec.roots.iter().enumerate() {
         let pascal = models::pascal_name(root)?;
         let symbol = format!("NATIVE_{}", snake(&pascal)?.to_ascii_uppercase());
@@ -544,13 +599,19 @@ pub fn generate_native(
         let definition = registry::definition_by_name(&registry, root)
             .ok_or_else(|| constraint("native root is not a definition"))?;
         emitter.visit(&definition.ty, 0)?;
-        roots.push((pascal, symbol));
+        let is_enum = matches!(registry::resolve_type(&registry, &definition.ty)?, EndpointType::Enum { .. });
+        roots.push((pascal, symbol, is_enum));
     }
 
     // Unique helper names.
     let mut names = BTreeSet::new();
     for info in &emitter.structs {
         if !names.insert(emitter.struct_fn(&info.name)?) {
+            return Err(constraint("native decoder function names collide"));
+        }
+    }
+    for info in &emitter.enums {
+        if !names.insert(emitter.enum_fn(info.source)?) {
             return Err(constraint("native decoder function names collide"));
         }
     }
@@ -575,13 +636,18 @@ pub fn generate_native(
     for info in &emitter.structs {
         emitter.emit_default(&mut out, info, &merged)?;
     }
+    for info in &emitter.enums {
+        emitter.emit_enum_decoder(&mut out, info)?;
+    }
     let any_open = !spec.reject_unknown;
-    for (pascal, symbol) in &roots {
-        let fname = emitter.struct_fn(pascal)?;
+    for (pascal, symbol, is_enum) in &roots {
+        let fname = if *is_enum { emitter.enum_fn(pascal)? } else { emitter.struct_fn(pascal)? };
         out.push_str(&format!(
             "impl __native::NativeDecode for super::models::{pascal} {{\n    fn build_program() -> __native::Result<__native::ValidatedProgram> {{\n        __jmax_aot::load_program({symbol}_PROGRAM)\n    }}\n\n    fn decode_core(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut Self) -> __native::NativeResult<()> {{\n"
         ));
-        if any_open {
+        if *is_enum {
+            out.push_str(&format!("        {fname}(r, ctx, out)\n"));
+        } else if any_open {
             out.push_str(&format!(
                 "        let mark = ctx.begin_object();\n        let result = {fname}(r, ctx, out, 1);\n        if result.is_err() {{\n            let _ = ctx.end_object(mark);\n        }}\n        result\n"
             ));

@@ -235,6 +235,15 @@ pub fn canonicalize(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<Ca
                 encoder.option(array.min_items, Encoder::u32)?;
                 encoder.option(array.max_items, Encoder::u32)?;
             }
+            TypeNode::Enum(shape) => {
+                encoder.byte(7)?;
+                encoder.boolean(shape.nullable)?;
+                encoder.u32(count(shape.variants.len(), stored.schema_id, None)?)?;
+                for variant in &shape.variants {
+                    encoder.string(&variant.name)?;
+                    encoder.i64(variant.discriminant)?;
+                }
+            }
             TypeNode::Ref(_) => {
                 return Err(error(stored.schema_id, None, ErrorCode::ConstraintViolation,
                     "canonical target must not be a reference"));

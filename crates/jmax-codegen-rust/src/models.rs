@@ -29,6 +29,10 @@ fn pascal(name: &str) -> Result<String> {
     Ok(name)
 }
 
+pub(crate) fn enum_variant_ident(name: &str) -> Result<String> {
+    pascal(name)
+}
+
 /// The generated type name of a model name.
 pub(crate) fn pascal_name(name: &str) -> Result<String> {
     pascal(name)
@@ -417,7 +421,7 @@ fn emit_enum(out: &mut String, original: &str, variants: &[EnumVariantSpec], opt
     let name = pascal(original)?;
     out.push_str(&format!("#[derive(Clone, Copy, Debug, PartialEq, Eq)]\n#[repr(i32)]\npub enum {name} {{\n"));
     for variant in variants {
-        out.push_str(&format!("    {} = {},\n", pascal(&variant.name)?, variant.value));
+        out.push_str(&format!("    {} = {},\n", enum_variant_ident(&variant.name)?, variant.value));
     }
     out.push_str(&format!("}}\nimpl {name} {{\n    pub(super) fn __jmax_encode(&self, sink: &mut dyn __jmax_abi::ByteSink, _depth: usize) -> __jmax_abi::Result<()> {{\n        __jmax_aot::encode::write_i64(i64::from(*self as i32), sink)\n    }}\n"));
     if options.compatibility.emit_definition_variants {

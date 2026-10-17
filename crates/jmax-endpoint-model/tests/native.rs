@@ -128,20 +128,11 @@ fn unsupported_shapes_are_refused() {
     use EndpointType::*;
     let cases: std::vec::Vec<(&str, std::vec::Vec<EndpointField>, ErrorCode)> = vec![
         ("object", vec![field("x", Object)], ErrorCode::UnsupportedSchemaFeature),
-        ("unit", vec![field("x", Unit)], ErrorCode::UnsupportedSchemaFeature),
-        ("enum", vec![field("x", EnumRef { name: "E".into(), prefixed_name: false })], ErrorCode::UnsupportedSchemaFeature),
         ("optional element", vec![field("x", Vec(Box::new(Optional(Box::new(Boolean)))))], ErrorCode::UnsupportedSchemaFeature),
         ("recursion", vec![field("x", Vec(Box::new(StructRef("Root".into()))))], ErrorCode::UnsupportedSchemaFeature),
     ];
     for (label, fields, expected) in cases {
-        let mut definitions = vec![strukt("Root", fields)];
-        if label == "enum" {
-            definitions.push(TypeDefinition {
-                name: "E".into(),
-                ty: Enum { name: "E".into(), variants: vec![jmax_endpoint_model::EnumVariantSpec {
-                    name: "A".into(), value: 1, description: std::string::String::new() }] },
-            });
-        }
+        let definitions = vec![strukt("Root", fields)];
         let model = model(definitions);
         let registry = build_registry(&model).unwrap();
         let spec = NativeSpec { roots: vec!["Root".into()], ..NativeSpec::default() };

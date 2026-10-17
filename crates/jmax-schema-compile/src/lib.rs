@@ -12,7 +12,7 @@ pub use jmax_abi::schema::{
 pub use jmax_abi::span::Span32;
 pub use jmax_format::{FormatId, FormatOptions};
 pub use jmax_schema_ir::{
-    DecimalConstraints, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId, ValueKind,
+    DecimalConstraints, EnumVariant, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId, ValueKind,
 };
 
 pub mod image;
@@ -23,7 +23,8 @@ pub mod patterns;
 pub use lower::compile;
 
 pub const IMAGE_MAGIC: u32 = 0x58414d4a;
-/// Version two adds the standalone canonical capsule and two-level key tables.
+/// Version two includes capsules and key tables. Enum states add a new tagged
+/// payload; existing state encodings remain byte-identical.
 pub const IMAGE_VERSION: u16 = 2;
 pub const IMAGE_FLAGS: u16 = 0;
 pub const NO_REQUIRED_BIT: u16 = u16::MAX;
@@ -61,6 +62,7 @@ impl Default for CompilerOptions {
 pub enum StateKind {
     Any,
     Scalar(ValueKind),
+    Enum,
     Object {
         key_table: u32,
         required_count: u16,
@@ -83,6 +85,8 @@ pub struct ConstraintSet {
     pub format: Option<FormatId>,
     /// A JSON `null` is accepted in place of a value of this state's kind.
     pub nullable: bool,
+    /// Exact declared enum name/discriminant pairs.
+    pub enum_variants: Vec<EnumVariant>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -312,6 +316,7 @@ pub const fn opcode_byte(opcode: Opcode) -> u8 {
         Opcode::ExecFormat => 12,
         Opcode::EmitSlot => 13,
         Opcode::RejectUnknown => 14,
+        Opcode::CheckEnum => 15,
     }
 }
 
@@ -331,6 +336,7 @@ pub const fn decode_opcode(byte: u8) -> Option<Opcode> {
         12 => Some(Opcode::ExecFormat),
         13 => Some(Opcode::EmitSlot),
         14 => Some(Opcode::RejectUnknown),
+        15 => Some(Opcode::CheckEnum),
         _ => None,
     }
 }

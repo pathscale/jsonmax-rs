@@ -163,10 +163,8 @@ fn shapes_without_a_native_form_are_unsupported() {
     let spec = "NativeSpec(roots: [\"Root\"], reject_unknown: true)";
     for ty in [
         "Object",
-        "Unit",
         "Vec(Optional(Boolean))",
         "Optional(Optional(Boolean))",
-        "Enum(name: \"E\", variants: [EnumVariant(name: \"A\", value: 1)])",
     ] {
         assert_eq!(unsupported(&wrap(ty), spec), ErrorCode::UnsupportedSchemaFeature, "{ty}");
     }

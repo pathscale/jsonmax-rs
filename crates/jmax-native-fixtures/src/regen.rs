@@ -46,6 +46,20 @@ pub const FORMATS: Fixture = Fixture {
     roots: &["Ids"],
 };
 
+pub const ENUM_UNIT: Fixture = Fixture {
+    name: "enum_unit",
+    model: include_str!("../../../fixtures/native/enum_unit.ron"),
+    spec: include_str!("../../../fixtures/native/enum_unit.native.ron"),
+    roots: &["Envelope", "Empty", "Side"],
+};
+
+pub const ENUM_UNIT_NULL: Fixture = Fixture {
+    name: "enum_unit_null",
+    model: include_str!("../../../fixtures/native/enum_unit.ron"),
+    spec: include_str!("../../../fixtures/native/enum_unit_null.native.ron"),
+    roots: &["Envelope", "Empty", "Side"],
+};
+
 /// Generated module name, fixture, whether the specification rejects unknown
 /// keys, and whether the module follows `predict_layout` (the `_plain` module
 /// is always generated without prediction, so both strategies are tested).
@@ -59,6 +73,8 @@ pub const VARIANTS: &[(&str, Fixture, bool, bool)] = &[
     ("shapes_null_open", SHAPES_NULL, false, true),
     ("formats", FORMATS, true, true),
     ("formats_open", FORMATS, false, true),
+    ("enum_unit", ENUM_UNIT, true, true),
+    ("enum_unit_null", ENUM_UNIT_NULL, true, true),
 ];
 
 pub fn model(fixture: &Fixture) -> EndpointModel {

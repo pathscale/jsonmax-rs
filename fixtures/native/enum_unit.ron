@@ -1,0 +1,19 @@
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "Side", ty: Enum(name: "Side", variants: [
+            EnumVariant(name: "Bid", value: -2, description: ""),
+            EnumVariant(name: "Ask", value: 7, description: ""),
+        ])),
+        Definition(name: "Empty", ty: Struct(name: "Empty", fields: [])),
+        Definition(name: "Envelope", ty: Struct(name: "Envelope", fields: [
+            Field(name: "side", ty: EnumRef(name: "Side", prefixed_name: false)),
+            Field(name: "unit", ty: Unit),
+            Field(name: "empty", ty: StructRef("Empty")),
+            Field(name: "maybe_side", ty: Optional(EnumRef(name: "Side", prefixed_name: false))),
+            Field(name: "maybe_unit", ty: Optional(Unit)),
+            Field(name: "sides", ty: Vec(EnumRef(name: "Side", prefixed_name: false))),
+            Field(name: "units", ty: Vec(Unit)),
+        ])),
+    ],
+)

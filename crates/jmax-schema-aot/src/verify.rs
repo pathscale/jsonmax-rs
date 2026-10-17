@@ -280,6 +280,9 @@ fn verify_templates(image: StaticSchemaImage<'_>) -> Result<u32> {
         }
         match decode_opcode(first.opcode) {
             Some(Opcode::CheckScalarKind) => cursor.scalar(states, first.arg1)?,
+            Some(Opcode::CheckEnum) if first.arg1 == 0 => {}
+            Some(Opcode::CheckEnum) => return Err(projection_error(image, first.field_id,
+                "invalid enum check instruction")),
             Some(Opcode::EnterArray) => cursor.exact(Opcode::LeaveArray, states, 0)?,
             Some(Opcode::EnterObject) => {
                 if first.arg1 != u64::from(objects) {

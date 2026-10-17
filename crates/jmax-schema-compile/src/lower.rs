@@ -149,7 +149,7 @@ fn plan_graph<'a>(schema: &'a ResolvedSchema, options: &CompilerOptions) -> Resu
                 let child = discover(schema, shape.items, &mut numbers, &mut order, options)?;
                 push(&mut children, child)?;
             }
-            TypeNode::Any | TypeNode::Scalar(_) => {}
+            TypeNode::Any | TypeNode::Scalar(_) | TypeNode::Enum(_) => {}
             TypeNode::Ref(_) => return Err(invalid("resolved graph contains an uncollapsed alias")),
         }
         push(&mut plans, NodePlan { node, properties, children })?;
@@ -268,6 +268,7 @@ fn scalar_constraints(source: &ScalarConstraints, patterns: &[(&str, u32)]) -> R
         pattern,
         format,
         nullable: source.nullable,
+        enum_variants: Vec::new(),
     })
 }
 
@@ -408,6 +409,21 @@ fn lower_inner(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<Com
                     emit(&mut program.image.insns, options, Opcode::ExecFormat, 0, id.0, u64::from(format as u16))?;
                 }
                 StateKind::Scalar(source.kind)
+            }
+            TypeNode::Enum(shape) => {
+                constraints.nullable = shape.nullable;
+                constraints.enum_variants.try_reserve_exact(shape.variants.len())
+                    .map_err(|_| budget())?;
+                for variant in &shape.variants {
+                    let mut name = String::new();
+                    name.try_reserve_exact(variant.name.len()).map_err(|_| budget())?;
+                    name.push_str(&variant.name);
+                    constraints.enum_variants.push(jmax_schema_ir::EnumVariant {
+                        name, discriminant: variant.discriminant,
+                    });
+                }
+                emit(&mut program.image.insns, options, Opcode::CheckEnum, 0, id.0, 0)?;
+                StateKind::Enum
             }
             TypeNode::Object(shape) => {
                 constraints.min_count = shape.min_properties;
