@@ -115,6 +115,7 @@ impl<'a> BlockCursor<'a> {
     ) -> Result<Self> {
         let mut cursor = Self::new(input, limits, numeric, dup_owner)?;
         cursor.discard = core::mem::take(scratch);
+        cursor.discard.fast.new_input();
         cursor.scratch = Some(scratch);
         Ok(cursor)
     }
@@ -1816,6 +1817,7 @@ pub fn skip_strict(
         && current_depth <= limits.max_depth
         && start as usize <= input.len()
     {
+        scratch.fast.new_input();
         let params = super::strict_fast::Params {
             limits,
             numeric,

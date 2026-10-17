@@ -441,3 +441,245 @@ fn constant_work_key_hash_keeps_duplicate_semantics() {
         assert!(!accepts(format!(r#"{{"{a}":1,"{a}":2}}"#)));
     }
 }
+
+fn shaped_array(keys: &[&str], last: &str, repeats: usize) -> String {
+    let object = |keys: &[&str]| {
+        let mut s = String::from("{");
+        for (i, k) in keys.iter().enumerate() {
+            if i > 0 {
+                s.push(',');
+            }
+            s.push_str(&format!("\"{k}\":{i}"));
+        }
+        s.push('}');
+        s
+    };
+    let mut s = String::from("[");
+    for _ in 0..repeats {
+        s.push_str(&object(keys));
+        s.push(',');
+    }
+    s.push_str(last);
+    s.push(']');
+    s
+}
+
+#[test]
+fn shape_memo_keeps_duplicate_semantics_at_every_key_position() {
+    let mut stats = Stats::default();
+    let keys = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta"];
+    let long_a = "aaaaaaaaaaaaaaaaaaXaaaaaaaaaaaaaaaaaaa";
+    let long_b = "aaaaaaaaaaaaaaaaaaYaaaaaaaaaaaaaaaaaaa";
+    let long_keys = [long_a, "x", long_b, "y"];
+    for (limits, numeric) in limit_variants() {
+        for repeats in [1usize, 2, 3] {
+            for dup in 0..keys.len() {
+                for at in 0..keys.len() {
+                    // Object that repeats keys[dup] at position `at` (a duplicate when at != dup).
+                    let mut ks = keys.to_vec();
+                    ks[at] = keys[dup];
+                    let last = format!(
+                        "{{{}}}",
+                        ks.iter().enumerate().map(|(i, k)| format!("\"{k}\":{i}")).collect::<std::vec::Vec<_>>().join(",")
+                    );
+                    check(shaped_array(&keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+                }
+            }
+            for last in [
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"delta":5}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6,"eta":7}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6,"alpha":7}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6,"alpha":7}"#,
+                r#"{"alpha":1,"beta":2}"#,
+                r#"{"alpha":1}"#,
+                r#"{"alpha":1,"beta":2,"gamm":3}"#,
+                r#"{"alpha":1,"beta":2,"gammaa":3}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zet":6}"#,
+                r#"{"alpha":1,"beta":2,"beta":3}"#,
+                r#"{"alpha":1,"alpha":2}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6}"#,
+                r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6}"#,
+                "{\"alpha\":1,\"beta\":2,\"gamma\":3,\"delta\":4,\"epsilon\":5,\"z\u{e9}ta\":6}",
+            ] {
+                check(shaped_array(&keys, last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            }
+            // Distinct keys with equal fingerprints (same length, head and tail words).
+            let last = format!("{{\"{long_a}\":1,\"x\":2,\"{long_b}\":3,\"y\":4}}");
+            check(shaped_array(&long_keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            let last = format!("{{\"{long_a}\":1,\"x\":2,\"{long_a}\":3,\"y\":4}}");
+            check(shaped_array(&long_keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            // Nested repeated objects at two depths with a duplicate deep inside.
+            let inner = r#"{"p":1,"q":2,"r":{"s":1,"t":2}}"#;
+            let bad = r#"{"p":1,"q":2,"r":{"s":1,"s":2}}"#;
+            let mut nested = String::from("[");
+            for _ in 0..repeats + 2 {
+                nested.push_str(inner);
+                nested.push(',');
+            }
+            nested.push_str(bad);
+            nested.push(']');
+            check(nested.as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        }
+    }
+    assert!(stats.fast > 100);
+    assert!(stats.declined > 100);
+}
+
+#[test]
+fn shape_memo_does_not_leak_across_inputs() {
+    let a = "a".repeat(130);
+    let b = "b".repeat(130);
+    let first = format!("[{{\"{a}\":1,\"{b}\":2}},{{\"{a}\":3,\"{b}\":4}}]").into_bytes();
+    // Same length and offsets, different second key: a stale memo would accept the duplicate.
+    let second = format!("[{{\"{a}\":1,\"{b}\":2}},{{\"{a}\":3,\"{a}\":4}}]").into_bytes();
+    let limits = Limits::strict_default();
+    let params = Params {
+        limits,
+        numeric: Some(NumericPolicy::strict_default()),
+        max_depth: usize::from(limits.max_depth),
+        masker: jmax_string::EscapeMasker::new(),
+        whole_input: true,
+    };
+    let mut scratch = FastScratch::default();
+    let mut buffer = first.clone();
+    let mut decoded = vec![];
+    assert!(accept(&buffer, 0, &params, 0, &mut decoded, &mut scratch).is_some());
+    // The same allocation with new content.
+    buffer.copy_from_slice(&second);
+    scratch.new_input();
+    assert!(accept(&buffer, 0, &params, 0, &mut decoded, &mut scratch).is_none());
+    buffer.copy_from_slice(&first);
+    scratch.new_input();
+    assert!(accept(&buffer, 0, &params, 0, &mut decoded, &mut scratch).is_some());
+}
+
+#[test]
+fn shape_memo_survives_slot_collisions_between_nested_objects() {
+    // Many small key vocabularies force direct-mapped slot collisions between a
+    // parent still matching its memo and the children closing inside it.
+    let mut rng = Rng(0xfeed_beef_1234_5678);
+    let mut stats = Stats::default();
+    fn object(rng: &mut Rng, depth: usize, out: &mut String) {
+        out.push('{');
+        let n = 2 + rng.below(4);
+        let mut used = std::vec::Vec::new();
+        for i in 0..n {
+            let mut k = rng.below(6);
+            if rng.below(40) != 0 {
+                while used.contains(&k) {
+                    k = rng.below(6);
+                }
+            }
+            used.push(k);
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&format!("\"key{k}\":"));
+            if depth < 3 && rng.below(2) == 0 {
+                object(rng, depth + 1, out);
+            } else {
+                out.push('1');
+            }
+        }
+        out.push('}');
+    }
+    let (limits, numeric) = limit_variants().remove(0);
+    for _ in 0..3000 {
+        let mut s = String::from("[");
+        for i in 0..2 + rng.below(8) {
+            if i > 0 {
+                s.push(',');
+            }
+            object(&mut rng, 0, &mut s);
+        }
+        s.push(']');
+        check(s.as_bytes(), limits, numeric, &[(0, 0)], &mut stats);
+    }
+    assert!(stats.fast > 1000, "{}", stats.fast);
+}
+
+#[test]
+fn shape_memo_covers_table_sized_objects() {
+    let mut stats = Stats::default();
+    let names: std::vec::Vec<String> = (0..40).map(|i| format!("field{i}")).collect();
+    let keys: std::vec::Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+    let body = |ks: &[&str]| {
+        format!(
+            "{{{}}}",
+            ks.iter().enumerate().map(|(i, k)| format!("\"{k}\":{i}")).collect::<std::vec::Vec<_>>().join(",")
+        )
+    };
+    let (limits, numeric) = limit_variants().remove(0);
+    for repeats in [1usize, 2, 3] {
+        check(shaped_array(&keys, &body(&keys), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        for dup in [0usize, 1, 31, 32, 33, 39] {
+            for at in [1usize, 2, 30, 31, 32, 33, 34, 39] {
+                let mut ks = keys.clone();
+                ks[at] = keys[dup];
+                check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            }
+        }
+        // Extra key after the memo, escaped twin of the last key, shorter object.
+        let mut ks = keys.clone();
+        ks.push("extra");
+        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        ks.push("field39");
+        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        ks.pop();
+        ks.pop();
+        ks[39] = "field3\\u0039";
+        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        check(shaped_array(&keys, &body(&keys[..35]), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+    }
+    assert!(stats.fast > 10);
+    assert!(stats.declined > 100);
+}
+
+#[test]
+fn shape_memo_skips_short_slices_and_single_objects() {
+    let limits = Limits::strict_default();
+    let params = Params {
+        limits,
+        numeric: Some(NumericPolicy::strict_default()),
+        max_depth: usize::from(limits.max_depth),
+        masker: jmax_string::EscapeMasker::new(),
+        whole_input: true,
+    };
+    let mut decoded = Vec::new();
+    let mut scratch = FastScratch::default();
+
+    // Even repeated objects do not pay for shape setup on a short remaining slice.
+    let short = br#"[{"alpha":1,"beta":2},{"alpha":3,"beta":4}]"#;
+    assert!(accept(short, 0, &params, 0, &mut decoded, &mut scratch).is_some());
+    assert!(scratch.shapes.is_empty());
+
+    // A lone large object only records a first-seen mark; it does not allocate
+    // or retain a shape that cannot be looked up by another object.
+    scratch.new_input();
+    let singleton = format!("{{\"{}\":1,\"beta\":2}}", "a".repeat(300));
+    assert!(accept(singleton.as_bytes(), 0, &params, 0, &mut decoded, &mut scratch).is_some());
+    assert!(scratch.shapes.is_empty());
+    assert!(scratch.seen_objects != 0);
+}
+
+#[test]
+fn shape_memo_still_records_repeated_long_objects() {
+    let limits = Limits::strict_default();
+    let params = Params {
+        limits,
+        numeric: Some(NumericPolicy::strict_default()),
+        max_depth: usize::from(limits.max_depth),
+        masker: jmax_string::EscapeMasker::new(),
+        whole_input: true,
+    };
+    let obj = format!("{{\"{}\":1,\"beta\":2}}", "a".repeat(120));
+    let input = format!("[{obj},{obj},{obj}]");
+    let mut decoded = Vec::new();
+    let mut scratch = FastScratch::default();
+    assert!(accept(input.as_bytes(), 0, &params, 0, &mut decoded, &mut scratch).is_some());
+    assert!(scratch
+        .shapes
+        .iter()
+        .any(|shape| shape.generation == scratch.generation && shape.keys.len() == 2));
+}
