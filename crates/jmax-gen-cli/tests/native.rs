@@ -34,7 +34,7 @@ struct Workspace(PathBuf);
 
 impl Workspace {
     fn new(name: &str, model: &str, spec: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("jmax-gen-native-{}-{name}", std::process::id()));
+        let root = std::env::temp_dir().canonicalize().expect("canonical temporary directory").join(format!("jmax-gen-native-{}-{name}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("in")).unwrap();
         fs::write(root.join("in/services.ron"), model).unwrap();

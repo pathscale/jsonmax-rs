@@ -288,6 +288,7 @@ pub struct VmFirst<T: NativeDecode> {
     program: jmax_native::ValidatedProgram,
     ctx: NativeContext,
     limits: VmLimits,
+    scratch: jmax_schema_vm::ValidationScratch,
     _marker: std::marker::PhantomData<T>,
 }
 impl<T: NativeDecode> VmFirst<T> {
@@ -295,7 +296,7 @@ impl<T: NativeDecode> VmFirst<T> {
         let program = T::build_program().map_err(err)?;
         let limits = VmLimits::default();
         let ctx = NativeContext::with_program(&program, limits, NUMERIC()).map_err(err)?;
-        Ok(Self { program, ctx, limits, _marker: std::marker::PhantomData })
+        Ok(Self { program, ctx, limits, scratch: jmax_schema_vm::ValidationScratch::default(), _marker: std::marker::PhantomData })
     }
     pub fn decode(&mut self, input: &[u8], out: &mut T) -> R<()> {
         jmax_schema_vm::direct::validate_borrowed_into(
@@ -303,7 +304,7 @@ impl<T: NativeDecode> VmFirst<T> {
             input,
             self.limits,
             NUMERIC(),
-            &mut jmax_schema_vm::ValidationScratch::default(),
+            &mut self.scratch,
         )
         .map_err(err)?;
         let mut reader = Reader::new(input);
