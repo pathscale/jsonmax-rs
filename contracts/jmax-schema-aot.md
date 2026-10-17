@@ -54,6 +54,7 @@ impl<'a> SlotReader<'a> {
 pub fn fingerprint_schema(schema: &SchemaIr) -> Result<u64>;
 pub fn compile_schema(schema: &SchemaIr) -> Result<ValidatedProgram>;
 pub fn load_program(bytes: &[u8]) -> Result<ValidatedProgram>;
+pub fn dump_program(program: &ValidatedProgram) -> Result<alloc::vec::Vec<u8>>;
 pub fn rust_string_literal(text: &str) -> alloc::string::String;
 pub fn validate_symbol(symbol: &str) -> Result<()>;
 pub fn validate_rust_path(path: &str) -> Result<()>;
@@ -94,7 +95,9 @@ FINGERPRINT_PRIME are the same FNV-1a constants as schema-ir, not a separate has
 
 compile_schema performs that same normalization/resolution, then calls
 schema-compile::lower::compile with CompilerOptions::default(). load_program
-calls schema-compile::image::decode with the same options. The full compiler
+calls schema-compile::image::decode with the same options. dump_program is its inverse:
+schema-compile::image::encode under DEFAULT_MAX_IMAGE_BYTES, with no requirement that the
+flat ABI projection verify, so programs lowered from nested graphs can be embedded. The full compiler
 ValidatedProgram owns states, constraints, key strategies, patterns, slots,
 policy, format options, and canonical schema bytes. A bare StaticSchemaImage is
 only the ABI table projection and is not an executable program witness. Neither
@@ -204,7 +207,7 @@ verify_structure validates only the ABI projection: compiler magic/version/flags
 header counts versus arrays without usize truncation, nonempty instructions,
 known opcode bytes via compiler::decode_opcode, zero instruction flags, valid key
 byte spans/UTF-8/swar heads, globally unique key FieldIds, and exact sequential
-key-byte coverage with no unowned trailing bytes. Root/state references are
+key-byte coverage with no unowned trailing bytes, except that one schema capsule (the canonical schema bytes, their length as u32 little endian and the magic `JMXSCM02`, as jmax-schema-compile appends it to every compiled program) may follow the key names. Root/state references are
 state ids. Derive the dense state count and instruction boundaries from the
 compiler's exact start/end instruction templates in
 contracts/jmax-schema-compile.md; reject malformed templates and bad state
@@ -241,3 +244,17 @@ module paths. tables depends on verify; decode and encode use root SlotReader;
 verify uses root types/fingerprint and never calls tables, preventing recursion.
 All source strings are data until returned to the caller. Unsupported schema
 semantics must be explicit errors rather than generated weaker validators.
+
+## compile_graph
+
+```rust
+pub fn compile_graph(schema: &jmax_schema_ir::Schema) -> Result<ValidatedProgram>;
+```
+
+compile_graph lowers an already nested schema graph with the same path and options as
+compile_schema: schema-ir resolve with default ResolveLimits (consuming a clone of the input,
+which is never mutated), then schema-compile::lower::compile with CompilerOptions::default().
+It performs the validation that resolve performs and no other normalization. Errors propagate
+without replacement. A graph produced by endpoint-model schema_graph_for compiles to the
+program embedded next to a native decoder, and the same graph always compiles to the same
+fingerprint and image bytes.

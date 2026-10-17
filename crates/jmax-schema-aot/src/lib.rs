@@ -276,9 +276,24 @@ pub fn compile_schema(schema: &SchemaIr) -> Result<ValidatedProgram> {
     jmax_schema_compile::lower::compile(&resolved, &CompilerOptions::default())
 }
 
+/// Compile an already nested schema graph with the same path and options as
+/// `compile_schema`. The input is cloned for resolution and never modified.
+pub fn compile_graph(schema: &jmax_schema_ir::Schema) -> Result<ValidatedProgram> {
+    let resolved =
+        jmax_schema_ir::resolve::resolve(schema.clone(), jmax_schema_ir::ResolveLimits::default())?;
+    jmax_schema_compile::lower::compile(&resolved, &CompilerOptions::default())
+}
+
 /// Decode the complete compiler image, including all executable side tables.
 pub fn load_program(bytes: &[u8]) -> Result<ValidatedProgram> {
     jmax_schema_compile::image::decode(bytes, &CompilerOptions::default())
+}
+
+/// The complete compiler image of a program, exactly the bytes `load_program`
+/// accepts. Unlike `tables::emit_program` this does not require the flat ABI
+/// projection to verify, so it also serves programs lowered from nested graphs.
+pub fn dump_program(program: &ValidatedProgram) -> Result<alloc::vec::Vec<u8>> {
+    jmax_schema_compile::image::encode(program, jmax_schema_compile::DEFAULT_MAX_IMAGE_BYTES)
 }
 
 /// Rust source literal with no raw-string delimiter hazards.

@@ -85,6 +85,7 @@ fn recover(mut context: VmContext<'_>, scratch: &mut VmScratch) {
 
 fn selected_states(
     context: &mut VmContext<'_>,
+    selection: &Selection,
     needed: &mut Vec<bool>,
     queue: &mut Vec<StateId>,
 ) -> Result<()> {
@@ -97,11 +98,25 @@ fn selected_states(
         0,
     )?;
     needed.resize(context.program.program().states.len(), false);
-    for slot in &context.program.program().slots {
-        if extract::selected(&context.selection, slot.slot) && !needed[slot.state.0 as usize] {
-            needed[slot.state.0 as usize] = true;
-            execute::reserve(queue, 1, &mut context.budget, 0)?;
-            queue.push(slot.state);
+    if selection.field_ids.is_empty() {
+        for slot in &context.program.program().slots {
+            if !needed[slot.state.0 as usize] {
+                needed[slot.state.0 as usize] = true;
+                execute::reserve(queue, 1, &mut context.budget, 0)?;
+                queue.push(slot.state);
+            }
+        }
+    } else {
+        for field in &selection.field_ids {
+            let slot = context
+                .program
+                .slot_for_field(*field)
+                .ok_or_else(|| invalid(0, "missing selected field slot"))?;
+            if !needed[slot.state.0 as usize] {
+                needed[slot.state.0 as usize] = true;
+                execute::reserve(queue, 1, &mut context.budget, 0)?;
+                queue.push(slot.state);
+            }
         }
     }
     let mut cursor = 0;
@@ -276,10 +291,15 @@ impl Engine<'_, '_, '_> {
                         .slice(owner)
                         .ok_or_else(|| invalid(offset, "invalid numeric string"))?;
                     self.context.budget.charge(bytes.len() as u64, offset)?;
-                    if bytes.iter().filter(|byte| byte.is_ascii_digit()).count()
-                        > usize::from(self.context.limits.syntax.max_number_digits)
-                    {
-                        return Err(resource(offset));
+                    let max_digits = u32::from(self.context.limits.syntax.max_number_digits);
+                    let mut digits = 0u32;
+                    for byte in bytes {
+                        if byte.is_ascii_digit() {
+                            digits += 1;
+                            if digits > max_digits {
+                                return Err(resource(offset));
+                            }
+                        }
                     }
                 }
                 if kind == ScalarKind::String
@@ -500,6 +520,7 @@ fn execute_direct(
         if query {
             selected_states(
                 &mut context,
+                selection,
                 &mut scratch.direct_needed,
                 &mut scratch.direct_queue,
             )?;

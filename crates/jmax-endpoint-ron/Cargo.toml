@@ -14,3 +14,6 @@ std = ["alloc", "jmax-abi/std"]
 jmax-abi = { workspace = true }
 jmax-endpoint-model = { workspace = true }
 jmax-schema-compile = { workspace = true }
+
+[dev-dependencies]
+jmax-schema-ir = { workspace = true }

@@ -15,6 +15,7 @@ pub mod registry;
 pub mod legacy;
 pub mod wire_names;
 pub mod utilities;
+pub mod native;
 
 pub const CONTRACT_VERSION: u16 = 1;
 pub const MAX_REFERENCE_DEPTH: usize = 128;

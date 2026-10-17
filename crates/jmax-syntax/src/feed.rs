@@ -456,7 +456,10 @@ fn validate_number_inner(
     let result = jmax_number::lex::lex_number(input, span.offset, &policy);
     let error = match result {
         Ok(number) if number.span() == span => {
-            if numeric.is_some() && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal {
+            if numeric.is_some()
+                && number.kind() == jmax_abi::span::NumberLexKind::FloatDecimal
+                && !float_policy_cannot_fail(&number, &policy)
+            {
                 jmax_number::float::parse_f64(&number, &policy).err()
             } else {
                 None
@@ -900,4 +903,258 @@ fn next_complete(state: &mut SyntaxState) -> Result<ScanStep> {
             return Ok(ScanStep::Emit(event));
         }
     }
+}
+
+/// True when `parse_f64`'s policy checks cannot fail for a token that
+/// `lex_number` accepted under the same policy, so the binary64 conversion
+/// (whose value is discarded here) can be skipped. Conservative: anything not
+/// proven by decimal magnitude bounds still converts.
+///
+/// - Overflow: the value is below 10^(integer digits + exponent); at most
+///   10^308 it stays under f64::MAX.
+/// - Underflow to negative zero: the magnitude is at least 10^m, where m comes
+///   from the first nonzero significand digit; m >= -323 gives at least 1e-323,
+///   above half the smallest subnormal, so it cannot round to zero.
+///
+/// The lexer has already enforced the exponent limit and rejected lexical
+/// negative zero, and every lexed spelling parses as a decimal float.
+#[inline]
+fn float_policy_cannot_fail(
+    number: &jmax_number::NumberToken<'_>,
+    policy: &jmax_number::NumericPolicy,
+) -> bool {
+    let integer = i64::from(number.integer_digits());
+    let exponent = i64::from(number.exponent());
+    if policy.reject_non_finite_float && integer + exponent > 308 {
+        return false;
+    }
+    if policy.reject_negative_zero && number.is_negative() {
+        // The spelling is "-" followed by the integer digits.
+        let digits = number.raw_bytes().get(1..).unwrap_or(&[]);
+        let magnitude = if digits.first().is_some_and(|&byte| byte != b'0') {
+            integer - 1 + exponent
+        } else {
+            // "0.fraction": scale of the first nonzero fraction digit.
+            let fraction = digits
+                .get(2..2 + number.fraction_digits() as usize)
+                .unwrap_or(&[]);
+            match fraction.iter().position(|&byte| byte != b'0') {
+                Some(index) => exponent - (index as i64 + 1),
+                None => return false,
+            }
+        };
+        if magnitude < -323 {
+            return false;
+        }
+    }
+    true
+}
+
+/// Single pass over an atom span already bounded by the classifier masks:
+/// true only when `validate_number_slice` would accept it (the caller has
+/// also checked the following byte is a delimiter and the digit limit). It
+/// checks the JSON number grammar over the whole span, the exponent limit,
+/// lexical negative zero, and (for floats) the same magnitude bounds as
+/// `float_policy_cannot_fail`. Returns false for anything else, including
+/// every error, so the caller falls back to the exact lexer diagnostics.
+#[inline]
+pub(crate) fn number_accepted_fast(
+    bytes: &[u8],
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+) -> bool {
+    let (exponent_limit, reject_negative_zero, reject_non_finite) = match numeric {
+        Some(policy) => (
+            i64::from(policy.max_exponent_abs),
+            policy.reject_negative_zero,
+            policy.reject_non_finite_float,
+        ),
+        // Without a policy the syntax layer accepts any exponent magnitude.
+        None => (i64::MAX, false, false),
+    };
+    let negative = bytes.first() == Some(&b'-');
+    let mut rest = if negative { &bytes[1..] } else { bytes };
+    // Integer part: "0" or a nonzero digit followed by digits.
+    let integer_len = digit_run(rest);
+    if integer_len == 0 || (rest[0] == b'0' && integer_len > 1) {
+        return false;
+    }
+    let integer_digits = integer_len as i64;
+    let leading_nonzero = rest[0] != b'0';
+    rest = &rest[integer_len..];
+    let mut is_float = false;
+    // First nonzero fraction digit, for the underflow bound.
+    let mut first_nonzero_fraction = None;
+    if rest.first() == Some(&b'.') {
+        is_float = true;
+        rest = &rest[1..];
+        let fraction_len = digit_run(rest);
+        if fraction_len == 0 {
+            return false;
+        }
+        first_nonzero_fraction = rest[..fraction_len]
+            .iter()
+            .position(|&byte| byte != b'0')
+            .map(|position| position as i64);
+        rest = &rest[fraction_len..];
+    }
+    let mut exponent = 0i64;
+    if matches!(rest.first(), Some(b'e' | b'E')) {
+        is_float = true;
+        rest = &rest[1..];
+        let exponent_negative = rest.first() == Some(&b'-');
+        if matches!(rest.first(), Some(b'+' | b'-')) {
+            rest = &rest[1..];
+        }
+        let exponent_len = digit_run(rest);
+        // Long (zero-padded) exponents take the lexer path.
+        if exponent_len == 0 || exponent_len > 12 {
+            return false;
+        }
+        for &byte in &rest[..exponent_len] {
+            exponent = exponent * 10 + i64::from(byte - b'0');
+        }
+        if exponent > exponent_limit {
+            return false;
+        }
+        if exponent_negative {
+            exponent = -exponent;
+        }
+        rest = &rest[exponent_len..];
+    }
+    if !rest.is_empty() {
+        return false;
+    }
+    let nonzero = leading_nonzero || first_nonzero_fraction.is_some();
+    if negative && !nonzero && reject_negative_zero {
+        return false;
+    }
+    if is_float && numeric.is_some() {
+        if reject_non_finite && integer_digits + exponent > 308 {
+            return false;
+        }
+        if reject_negative_zero && negative {
+            let magnitude = if leading_nonzero {
+                integer_digits - 1 + exponent
+            } else {
+                match first_nonzero_fraction {
+                    Some(position) => exponent - (position + 1),
+                    None => return false,
+                }
+            };
+            if magnitude < -323 {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Length of the leading run of ASCII digits.
+#[inline(always)]
+fn digit_run(bytes: &[u8]) -> usize {
+    bytes
+        .iter()
+        .position(|&byte| byte.wrapping_sub(b'0') >= 10)
+        .unwrap_or(bytes.len())
+}
+
+/// `number_accepted_fast` driven by a precomputed non-digit mask: bit `i` of
+/// `non_digits` is set exactly when `bytes[i]` is not an ASCII digit, for
+/// `bytes.len() <= 64`. The few separator positions are found with bit scans
+/// instead of a byte loop over every digit. Same acceptance as
+/// `number_accepted_fast`; returns false whenever it cannot decide quickly.
+#[inline(always)]
+pub(crate) fn number_accepted_masked(
+    bytes: &[u8],
+    non_digits: u64,
+    numeric: Option<jmax_abi::number::NumericPolicy>,
+) -> bool {
+    let len = bytes.len() as u32;
+    if len == 0 || len > 64 {
+        return false;
+    }
+    // First non-digit at or after `from`, or `len`.
+    let next = |from: u32| -> u32 {
+        if from >= 64 {
+            return len;
+        }
+        let rest = non_digits >> from;
+        if rest == 0 {
+            len
+        } else {
+            (from + rest.trailing_zeros()).min(len)
+        }
+    };
+    let negative = bytes[0] == b'-';
+    let integer_start = u32::from(negative);
+    if non_digits & 1 != 0 && !negative {
+        return false;
+    }
+    let integer_end = next(integer_start);
+    let integer_len = integer_end - integer_start;
+    if integer_len == 0 || (bytes[integer_start as usize] == b'0' && integer_len > 1) {
+        return false;
+    }
+    let leading_nonzero = bytes[integer_start as usize] != b'0';
+    let mut position = integer_end;
+    let mut fraction = 0..0;
+    if position < len && bytes[position as usize] == b'.' {
+        let fraction_end = next(position + 1);
+        if fraction_end == position + 1 {
+            return false;
+        }
+        fraction = (position + 1) as usize..fraction_end as usize;
+        position = fraction_end;
+    }
+    let mut exponent = 0i64;
+    let is_float = position != integer_end || position < len;
+    if position < len {
+        if !matches!(bytes[position as usize], b'e' | b'E') {
+            return false;
+        }
+        let mut digits_start = position + 1;
+        let exponent_negative = bytes.get(digits_start as usize) == Some(&b'-');
+        if matches!(bytes.get(digits_start as usize), Some(b'+' | b'-')) {
+            digits_start += 1;
+        }
+        let digits_end = next(digits_start);
+        if digits_end != len || digits_end == digits_start || digits_end - digits_start > 12 {
+            return false;
+        }
+        for &byte in &bytes[digits_start as usize..digits_end as usize] {
+            exponent = exponent * 10 + i64::from(byte - b'0');
+        }
+        let limit = numeric.map_or(i64::MAX, |policy| i64::from(policy.max_exponent_abs));
+        if exponent > limit {
+            return false;
+        }
+        if exponent_negative {
+            exponent = -exponent;
+        }
+    }
+    let (reject_negative_zero, reject_non_finite) = match numeric {
+        Some(policy) => (policy.reject_negative_zero, policy.reject_non_finite_float),
+        None => (false, false),
+    };
+    if negative && reject_negative_zero && !leading_nonzero {
+        // "-0..." needs a nonzero fraction digit (lexical negative zero), and
+        // its scale bounds the underflow check below.
+        let Some(first) = bytes[fraction].iter().position(|&byte| byte != b'0') else {
+            return false;
+        };
+        if is_float && exponent - (first as i64 + 1) < -323 {
+            return false;
+        }
+    }
+    if is_float && numeric.is_some() {
+        let integer_digits = i64::from(integer_len);
+        if reject_non_finite && integer_digits + exponent > 308 {
+            return false;
+        }
+        if reject_negative_zero && negative && leading_nonzero && integer_digits - 1 + exponent < -323
+        {
+            return false;
+        }
+    }
+    true
 }

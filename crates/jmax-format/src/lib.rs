@@ -20,6 +20,10 @@ pub enum FormatId {
     Uuid = 1, Ipv4 = 2, Ipv6 = 3, IpAddr = 4,
     Base64 = 5, Base64Url = 6, Hex = 7, NanoId = 8,
     BlockchainAddress = 9, BlockchainTransactionHash = 10,
+    /// Nonempty, ASCII `A-Z a-z 0-9 _ -`; any length (a schema bounds it separately).
+    NanoIdChars = 11,
+    /// Nonempty, ASCII `A-Z a-z 0-9`; any length (a schema bounds it separately).
+    Base62 = 12,
 }
 
 impl FormatId {
@@ -29,6 +33,7 @@ impl FormatId {
             4 => Some(Self::IpAddr), 5 => Some(Self::Base64), 6 => Some(Self::Base64Url),
             7 => Some(Self::Hex), 8 => Some(Self::NanoId),
             9 => Some(Self::BlockchainAddress), 10 => Some(Self::BlockchainTransactionHash),
+            11 => Some(Self::NanoIdChars), 12 => Some(Self::Base62),
             _ => None,
         }
     }
@@ -40,6 +45,7 @@ impl FormatId {
             Self::Hex => "hex", Self::NanoId => "nanoid",
             Self::BlockchainAddress => "blockchain-address",
             Self::BlockchainTransactionHash => "blockchain-transaction-hash",
+            Self::NanoIdChars => "nanoid-chars", Self::Base62 => "base62",
         }
     }
 }

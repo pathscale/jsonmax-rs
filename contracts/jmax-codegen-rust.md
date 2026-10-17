@@ -24,8 +24,11 @@ pub struct CompatibilityOptions {
 pub struct CodegenOptions {
     pub module_name: String, pub abi_path: String, pub aot_path: String, pub derive_path: String,
     pub emit_views: bool, pub emit_schema_tables: bool, pub compatibility: CompatibilityOptions,
+    pub ident_overrides: Vec<IdentOverride>,
 }
-pub enum ArtifactKind { ModuleRoot, Models, Endpoints, Registries, SchemaTables, Compatibility }
+pub struct IdentOverride { pub type_name: String, pub wire: String, pub ident: String }
+pub struct NativeOptions { pub runtime_path: String, pub predict_layout: bool }
+pub enum ArtifactKind { ModuleRoot, Models, Endpoints, Registries, SchemaTables, Compatibility, Native }
 pub struct GeneratedArtifact { pub path: String, pub contents: String, pub kind: ArtifactKind }
 pub struct RegistryArtifacts { pub registries: GeneratedArtifact, pub schema_tables: GeneratedArtifact }
 pub struct Generation { artifacts: Vec<GeneratedArtifact> }
@@ -39,8 +42,9 @@ three small enums are Clone + Copy + Debug + PartialEq + Eq; ArtifactKind also
 has PartialOrd + Ord in declaration order. CompatibilityMode defaults to Native;
 CompatibilityOptions defaults to Native/false. CodegenOptions defaults to
 module_name generated, abi_path ::jmax_abi, aot_path ::jmax_schema_aot,
-derive_path ::jmax_derive, emit_views true, emit_schema_tables true, and default
-compatibility. A configured derive crate is a dependency of the generated
+derive_path ::jmax_derive, emit_views true, emit_schema_tables true, default
+compatibility, and no ident_overrides. NativeOptions defaults to runtime_path
+::jmax_native and predict_layout false. A configured derive crate is a dependency of the generated
 consumer when derives are emitted, not an added dependency of this generator.
 
 ```rust
@@ -53,6 +57,7 @@ pub fn validate_artifact_path(path: &str) -> Result<()>;
 pub fn validate_options(options: &CodegenOptions) -> Result<()>;
 pub fn rust_string_literal(text: &str) -> String;
 pub fn generate(model: &EndpointModel, options: &CodegenOptions) -> Result<Generation>;
+pub fn generate_with_native(model: &EndpointModel, spec: &NativeSpec, options: &CodegenOptions, native: &NativeOptions) -> Result<Generation>;
 pub(crate) fn codegen_error(code: ErrorCode, detail: &'static str) -> Error;
 ```
 
@@ -335,3 +340,61 @@ Generated encode/decode errors use Encode/Decode source respectively and
 propagate sink or checked-reader errors. No generator or generated view issues
 ValidationProof. A consumer may trust full programs only after the compiler
 validator constructs ValidatedProgram; StaticSchemaImage is merely a projection.
+
+## Native decoders: ident_overrides and Wave 5 (src/native.rs)
+
+The root and `native` re-export jmax-endpoint-model's NativeSpec. IdentOverride and
+NativeOptions are Clone + Debug + PartialEq + Eq; NativeOptions defaults to runtime_path
+`::jmax_native` and predict_layout false and is validated with validate_rust_path.
+`generate` is unchanged and never emits a native artifact. ArtifactKind::Native is last in
+declaration order, so existing ordering is preserved.
+
+```rust
+pub fn generate_native(model: &EndpointModel, spec: &NativeSpec, options: &CodegenOptions, native: &NativeOptions) -> Result<GeneratedArtifact>;
+```
+
+generate_with_native validates options, the NativeOptions and the NativeSpec against the
+model's registry (endpoint-model native::validate_native_spec), then returns exactly the six
+artifacts of `generate` plus `M/native.rs` with kind Native, and `M/mod.rs` additionally
+declares `pub mod native;`. With the same model and options, the six shared artifacts are
+byte-identical to those of `generate`, except that mod.rs gains the one declaration.
+
+ident_overrides replaces the snake_case Rust field identifier of one wire field of one
+nominal type: type_name is the PascalCase generated type, wire the exact wire name, ident a
+valid non-keyword snake_case identifier that must not collide with another field of that
+type. In Wave 1 an override is used instead of the derived identifier; remaining collisions
+are still ConstraintViolation, an override naming no type or field is ConstraintViolation,
+and the spec's NativeSpec.idents are applied as additional overrides (the two lists must not
+name the same field twice). This is how Binance fields `e` and `E` become distinct.
+
+Wave 5 emits, for every NativeSpec root, `impl NativeDecode for <Type>` over
+`jmax_native::Reader` plus a `NATIVE_<TYPE>_PROGRAM` static holding the lowered reference
+program image, built from the same schema graph as endpoint-model schema_graph_for and
+jmax-schema-aot compile_graph. Generated decoders are monomorphic single-pass recursive
+descent: key dispatch by length and one or two masked word compares (escaped keys are
+decoded first), a seen bitmask with a REQUIRED check at the closing brace, a repeated known
+key is a Fail when the limits reject duplicate keys (otherwise the last value wins), unknown keys are rejected or skipped with skip_strict plus duplicate
+detection, arrays are cleared and refilled into reused capacity with VM-equal inclusive
+bounds, decimals use the Reader's inline fixed-point path, and post_check carries value
+checks. With predict_layout, each object function keeps `next`, the declaration index after the field it last decoded (starting at 0), and tries `Reader::match_key` with the bytes `"name":` of that field first; a hit skips key scanning and dispatch, a miss (reordered, escaped, spaced, unknown or over-long key, or a name that needs JSON escaping) falls through to the general dispatch with no rollback. Only the generated object loops change; the programs and the accept set are identical. Every generated object, tuple and array function is marked `#[inline]`.
+
+Emitted details that the signatures do not show. `NATIVE_<SNAKE_UPPER_TYPE>_PROGRAM: &[u8]` holds the bytes of jmax-schema-aot dump_program (the complete compiler image) of the lowered graph, whose schema id is 5000 plus the root's index in NativeSpec.roots; build_program is jmax-schema-aot load_program of those bytes. No flat ABI table projection is emitted: a nested program is not a flat projection and does not verify as one. `pub const NATIVE_ROOTS` lists the roots. Models derive no Default, so native.rs implements `Default` for every struct it decodes (objects, tuples and roots); arrays of boxed structs keep and overwrite their existing elements and `truncate` on shrink, so a document with fewer elements than the previous one drops boxes and a later larger one allocates again. Objects have 1 to 128 fields, the seen mask being the smallest of u8..u128. Overrides apply to nominal model structs only, not to endpoint request and response records. generate_with_native applies the spec's idents to models.rs through options_with_native_idents, so its shared artifacts equal `generate` called with that merged option set, not with the caller's unmerged options. With the spec rejecting unknown keys an unknown key is a Fail; otherwise it is a Fail only while limits.syntax.reject_unknown_keys is set, else it is recorded and skipped with skip_strict. Programs with unknown-key-tolerant objects have no budget_safe bound, so those decoders always take the VM-first route.
+
+Nullable optionals. With NativeSpec.nullable_optionals each Optional field's arm begins `if r.null() { field = None } else { ... }`;
+the reference program was lowered with the matching nullable nodes, so the VM and the decoder agree on null.
+
+Format fields. UUID, IpAddr, BlockchainAddress, BlockchainTransactionHash and NanoId are read with
+`Reader::format(ctx, __native::FormatId::<Id>, <exact length>)` into the model's `String`, and Bytea with
+`Reader::bytea` into its `Vec<u8>`; the call is the very `jmax_format::registry::validate` the schema VM
+makes, with the program's own options. A NanoId of length 21 in the default alphabet uses FormatId::NanoId;
+any other length or alphabet uses FormatId::NanoIdChars (alphabet Url, `A-Z a-z 0-9 _ -`) or FormatId::Base62
+with the exact length. The alphabet is NativeSpec.nanoid_alphabet (default Url) unless the field is named in
+NativeSpec.nanoid_fields, which also covers NanoIds nested in that field (a `Vec` of them). An array decoder is
+keyed by its Rust type and the formats of its elements, so `Vec<NanoId(16, Url)>`, `Vec<NanoId(16, Base62)>`
+and `Vec<String>` are three decoders.
+
+Unsupported inputs return UnsupportedSchemaFeature and never produce a weaker decoder:
+patterns, Object, Enum, Unit, recursive
+types, heterogeneous tuples, empty structs, structs over 128 fields, and Optional elements inside arrays. Native decoders return
+typed values only; every failure re-runs the embedded program on the VM, which alone builds
+errors. They never create a ValidationProof or ParsedMessage.

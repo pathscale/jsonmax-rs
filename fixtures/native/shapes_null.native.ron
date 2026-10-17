@@ -1,0 +1,7 @@
+// The shapes specification with nullable optional fields: an explicit null means absent.
+NativeSpec(
+    roots: ["Shape"],
+    tuples: ["Pair"],
+    reject_unknown: true,
+    nullable_optionals: true,
+)

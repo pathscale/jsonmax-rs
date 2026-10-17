@@ -136,6 +136,7 @@ crates/jmax-codegen-rust/src/models.rs	W1	W1-25	gpt-6.1-sol	jmax-codegen-rust	ow
 crates/jmax-codegen-rust/src/endpoints.rs	W2	W2-25	gpt-6.1-sol	jmax-codegen-rust	requests/responses/errors
 crates/jmax-codegen-rust/src/registries.rs	W3	W3-25	gpt-6.1-sol	jmax-codegen-rust	static schema/type tables
 crates/jmax-codegen-rust/src/compat.rs	W4	W4-25	gpt-6.1-sol	jmax-codegen-rust	legacy derives/flags/artifacts
+crates/jmax-codegen-rust/src/native.rs	W5	W7-NATIVE	jmax-native	jmax-codegen-rust	native decoder emitter
 crates/jmax-codegen-spec/src/lib.rs	W0	W0-ROOTS	gpt-6.1-sol	jmax-codegen-spec	frozen_root
 crates/jmax-codegen-spec/src/services.rs	W1	W1-26	gpt-6.1-sol	jmax-codegen-spec	public/all services docs
 crates/jmax-codegen-spec/src/json_schema.rs	W2	W2-26	gpt-6.1-sol	jmax-codegen-spec	MCP schema + tools
@@ -209,3 +210,75 @@ crates/jsonmax/src/parse.rs	W1	W1-39	gpt-6-luna	jsonmax	native facade/owned pars
 crates/jsonmax/src/query.rs	W2	W2-39	gpt-6-luna	jsonmax	strict/query facade separation
 crates/jsonmax/src/encode.rs	W3	W3-39	gpt-6-luna	jsonmax	typed output facade
 crates/jsonmax/src/endpoint.rs	W4	W4-39	gpt-6-luna	jsonmax	schema/endpoint facade
+crates/jmax-native/src/lib.rs	W7	W7-NATIVE	jmax-native	jmax-native	frozen_root
+crates/jmax-native/src/reader.rs	W7	W7-NATIVE	jmax-native	jmax-native	token primitives
+crates/jmax-native/src/context.rs	W7	W7-NATIVE	jmax-native	jmax-native	reusable decoding state
+crates/jmax-native/src/decode.rs	W7	W7-NATIVE	jmax-native	jmax-native	decision flow
+crates/jmax-native-fixtures/src/lib.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	frozen_root
+crates/jmax-native-fixtures/src/regen.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generation recipe
+crates/jmax-native-fixtures/src/harness.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	differential harness
+crates/jmax-native-fixtures/src/binance/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_open/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_open/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/binance_plain/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/fuzzing.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	fuzz target native_vs_vm
+crates/jmax-native-fixtures/src/formats/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/formats_open/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-format/tests/chars.rs	W7	W7-NATIVE	jmax-native	jmax-format	nanoid-chars and base62 tests
+crates/jmax-native-fixtures/src/shapes_null/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/mod.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/models.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/endpoints.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/registries.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/schema_tables.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/compat.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)
+crates/jmax-native-fixtures/src/shapes_null_open/native.rs	W7	W7-NATIVE	jmax-native	jmax-native-fixtures	generated (drift tested)

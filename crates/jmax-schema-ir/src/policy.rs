@@ -38,7 +38,8 @@ pub fn validate_policy(policy: &SchemaPolicy) -> Result<()> {
 pub fn known_format(name: &str) -> bool {
     matches!(name,
         "uuid" | "ipv4" | "ipv6" | "ip" | "base64" | "base64url" | "hex"
-        | "nanoid" | "blockchain-address" | "blockchain-transaction-hash")
+        | "nanoid" | "blockchain-address" | "blockchain-transaction-hash"
+        | "nanoid-chars" | "base62")
 }
 
 fn error(schema: &ResolvedSchema, field: Option<FieldId>, code: ErrorCode,
@@ -134,6 +135,7 @@ pub fn validate_schema(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result
             TypeNode::Array(array) => {
                 enqueue(schema, array.items, field, &mut seen, &mut queue)?;
             }
+            TypeNode::Enum(_) => {}
             TypeNode::Ref(_) => {
                 return Err(error(schema, field, ErrorCode::ConstraintViolation,
                     "resolved target must not be a reference"));

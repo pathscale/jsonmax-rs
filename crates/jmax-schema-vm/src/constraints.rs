@@ -54,9 +54,13 @@ fn check_scalar_inner(
         }
         None => None,
     };
+    // A nullable state takes a JSON null whatever its kind.
+    let null_here = value.kind == ScalarKind::Null && current.is_some_and(|current| current.constraints.nullable);
     let kind = match current.map(|current| &current.kind) {
         None | Some(StateKind::Any) => None,
+        _ if null_here => Some(ValueKind::Null),
         Some(StateKind::Scalar(kind)) => Some(*kind),
+        Some(StateKind::Enum) => None,
         Some(StateKind::Object { .. } | StateKind::Array { .. }) => return Err(type_error(offset)),
     };
     let token = value
@@ -113,6 +117,12 @@ fn check_scalar_inner(
             ));
         }
     };
+    if !null_here && current.is_some_and(|state| state.kind == StateKind::Enum) {
+        return enum_value(
+            &current.ok_or_else(|| internal(offset))?.constraints,
+            value.kind, token, text, numeric, budget, offset,
+        );
+    }
     match (kind, value.kind) {
         (None | Some(ValueKind::Null), ScalarKind::Null) => Ok(SlotValue::RawSpan(value.span)),
         (None | Some(ValueKind::Boolean), ScalarKind::True) => Ok(SlotValue::Bool(true)),
@@ -201,6 +211,47 @@ fn check_scalar_inner(
         }
         _ => Err(type_error(offset)),
     }
+}
+
+/// Both enum wire representations publish the declared signed discriminant.
+/// Membership work is charged before comparison so a large table remains bounded.
+fn enum_value(
+    constraints: &ConstraintSet,
+    kind: ScalarKind,
+    token: &[u8],
+    text: Option<&str>,
+    numeric: &NumericPolicy,
+    budget: &mut VmBudget,
+    offset: u32,
+) -> Result<SlotValue> {
+    match kind {
+        ScalarKind::String => {
+            let text = text.ok_or_else(|| internal(offset))?;
+            for variant in &constraints.enum_variants {
+                budget.charge(1 + text.len().min(variant.name.len()) as u64, offset)?;
+                if variant.name == text {
+                    return Ok(SlotValue::I64(variant.discriminant));
+                }
+            }
+        }
+        ScalarKind::Number => {
+            let lexeme = number_grammar(token, numeric, budget, offset)?;
+            if !lexeme.integral { return Err(type_error(offset)); }
+            let discriminant = match integer(token, lexeme.negative, offset)? {
+                SlotValue::I64(value) => value,
+                SlotValue::U64(value) => i64::try_from(value).map_err(|_| overflow(offset))?,
+                _ => return Err(internal(offset)),
+            };
+            for variant in &constraints.enum_variants {
+                budget.charge(1, offset)?;
+                if variant.discriminant == discriminant {
+                    return Ok(SlotValue::I64(discriminant));
+                }
+            }
+        }
+        _ => return Err(type_error(offset)),
+    }
+    Err(vm_error(ErrorCode::ConstraintViolation, offset, "value is not a declared enum variant"))
 }
 
 /// Apply request numeric policy as well as the compiled schema policy.

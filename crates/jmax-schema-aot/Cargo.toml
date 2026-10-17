@@ -16,3 +16,7 @@ jmax-schema-compile = { workspace = true }
 jmax-schema-ir = { workspace = true }
 jmax-schema-vm = { workspace = true }
 jmax-utf8 = { workspace = true }
+
+[dev-dependencies]
+jmax-endpoint-model = { workspace = true }
+jmax-endpoint-ron = { workspace = true }

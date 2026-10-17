@@ -234,39 +234,46 @@ impl TapeDocument {
 }
 impl BorrowedDocument<'_> {
     document_methods!();
+    #[inline]
     pub fn recycle(self, scratch: &mut DomScratch) {
         scratch.reclaim_borrowed(self);
     }
 }
 
 impl<'a> TapeView<'a> {
+    #[inline]
     pub fn raw(self) -> &'a [u8] {
         match self.owner {
             TapeOwner::Owned(doc) => doc.payload.as_slice(),
             TapeOwner::Borrowed(doc) => doc.raw,
         }
     }
+    #[inline]
     pub fn tape(self) -> &'a [TapeWord] {
         match self.owner {
             TapeOwner::Owned(doc) => &doc.tape,
             TapeOwner::Borrowed(doc) => &doc.tape,
         }
     }
+    #[inline]
     pub fn decoded(self) -> &'a [u8] {
         match self.owner {
             TapeOwner::Owned(doc) => &doc.decoded,
             TapeOwner::Borrowed(doc) => &doc.decoded,
         }
     }
+    #[inline]
     pub const fn root(self) -> NodeId {
         NodeId(0)
     }
+    #[inline]
     pub fn root_node(self) -> Node<'a> {
         Node {
             document: self,
             id: NodeId(0),
         }
     }
+    #[inline]
     pub fn nodes(self) -> Nodes<'a> {
         Nodes {
             document: self,
@@ -274,39 +281,46 @@ impl<'a> TapeView<'a> {
             remaining: self.node_count() as u32,
         }
     }
+    #[inline]
     pub fn node(self, id: NodeId) -> Option<Node<'a>> {
         navigate::node_in_view(self, id)
     }
+    #[inline]
     pub fn proof(self) -> ValidationProof {
         match self.owner {
             TapeOwner::Owned(doc) => doc.proof,
             TapeOwner::Borrowed(doc) => doc.proof,
         }
     }
+    #[inline]
     pub fn capability(self) -> ValidationCapability {
         match self.owner {
             TapeOwner::Owned(doc) => doc.capability,
             TapeOwner::Borrowed(doc) => doc.capability,
         }
     }
+    #[inline]
     pub fn node_count(self) -> usize {
         match self.owner {
             TapeOwner::Owned(doc) => doc.node_count as usize,
             TapeOwner::Borrowed(doc) => doc.node_count as usize,
         }
     }
+    #[inline]
     pub fn container_count(self) -> usize {
         match self.owner {
             TapeOwner::Owned(doc) => doc.container_count as usize,
             TapeOwner::Borrowed(doc) => doc.container_count as usize,
         }
     }
+    #[inline]
     pub fn max_depth(self) -> u16 {
         match self.owner {
             TapeOwner::Owned(doc) => doc.max_depth,
             TapeOwner::Borrowed(doc) => doc.max_depth,
         }
     }
+    #[inline]
     pub fn metadata(self) -> TapeMetadata {
         TapeMetadata {
             root: self.root(),
@@ -317,6 +331,7 @@ impl<'a> TapeView<'a> {
             max_depth: self.max_depth(),
         }
     }
+    #[inline]
     pub fn resolve_str(self, reference: StrRef) -> Option<&'a str> {
         let storage = match reference.source {
             SpanSource::RawPayload => self.raw(),
@@ -324,6 +339,7 @@ impl<'a> TapeView<'a> {
         };
         core::str::from_utf8(reference.span.slice(storage)?).ok()
     }
+    #[inline]
     pub fn resolve_trusted_str(self, reference: StrRef) -> Result<&'a str> {
         self.resolve_str(reference).ok_or_else(|| {
             dom_error(
@@ -354,79 +370,103 @@ pub struct Node<'a> {
     pub(crate) id: NodeId,
 }
 impl<'a> Node<'a> {
+    #[inline]
     pub const fn id(self) -> NodeId {
         self.id
     }
+    #[inline]
     pub const fn document(self) -> TapeView<'a> {
         self.document
     }
+    #[inline]
     pub fn kind(self) -> NodeKind {
         navigate::kind(self)
     }
+    #[inline]
     pub fn header(self) -> TapeWord {
         self.document.tape()[self.id.0 as usize]
     }
+    #[inline]
     pub fn subtree_end(self) -> u32 {
         navigate::subtree_end(self)
     }
+    #[inline]
     pub fn raw_span(self) -> Span32 {
         navigate::raw_span(self)
     }
+    #[inline]
     pub fn parent(self) -> Option<Self> {
         navigate::parent(self)
     }
+    #[inline]
     pub fn children(self) -> Result<Children<'a>> {
         navigate::children(self)
     }
+    #[inline]
     pub fn object(self) -> Result<Object<'a>> {
         navigate::object(self)
     }
+    #[inline]
     pub fn array(self) -> Result<Array<'a>> {
         navigate::array(self)
     }
+    #[inline]
     pub fn string_ref(self) -> Option<StrRef> {
         navigate::string_ref(self)
     }
+    #[inline]
     pub fn key_ref(self) -> Option<StrRef> {
         navigate::key_ref(self)
     }
+    #[inline]
     pub fn key_span(self) -> Option<Span32> {
         navigate::key_span(self)
     }
     /// Original quoted key, guaranteed to need no escaping by construction.
+    #[inline]
     pub fn unescaped_key_token(self) -> Option<&'a [u8]> {
         navigate::unescaped_key_token(self)
     }
     /// Original quoted string, guaranteed to need no escaping by construction.
+    #[inline]
     pub fn unescaped_string_token(self) -> Option<&'a [u8]> {
         navigate::unescaped_string_token(self)
     }
     /// Resolves this value's validated member key without UTF-8 revalidation.
+    #[inline]
     pub fn key(self) -> Option<&'a str> {
         self.key_ref()
             .map(|reference| self.document.resolve_record_str(reference))
     }
+    #[inline]
     pub fn string(self) -> Result<&'a str> {
         scalar::string(self)
     }
+    #[inline]
     pub fn raw(self) -> Result<&'a [u8]> {
         scalar::raw(self)
     }
+    #[inline]
     pub fn value(self) -> Result<Scalar<'a>> {
         scalar::value(self)
     }
+    #[inline]
     pub fn boolean(self) -> Result<bool> {
         scalar::boolean(self)
     }
+    #[inline]
     pub fn u64(self) -> Result<u64> {
         scalar::u64(self)
     }
+    #[inline]
     pub fn i64(self) -> Result<i64> {
         scalar::i64(self)
     }
+    #[inline]
     pub fn f64(self) -> Result<f64> {
         scalar::f64(self)
     }
+    #[inline]
     pub fn converted(self) -> Result<ConvertedNumber> {
         scalar::converted(self)
     }
@@ -442,6 +482,7 @@ pub struct Nodes<'a> {
 }
 impl<'a> Iterator for Nodes<'a> {
     type Item = Node<'a>;
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining == 0 {
             return None;

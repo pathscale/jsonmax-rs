@@ -221,7 +221,22 @@ fn write_tape_view(
     let mut writer = JsonWriter::new_with_scratch(sink, limits, scratch);
     let emitted = writer
         .reserve_document(document.raw().len(), document.max_depth())
-        .and_then(|()| emit_tape(document, &mut writer));
+        .and_then(|()| {
+            // A strict native tape never emits more bytes than its source:
+            // whitespace is dropped, numbers and unescaped tokens are copied,
+            // and canonical re-escaping never lengthens a source escape. Within
+            // that bound no output-size check can fail, so the batched emitter
+            // only has to reproduce the per-token count, length and depth checks.
+            if document.raw().len() <= writer.limits.max_output_bytes {
+                let result = emit_tape_batched(document, &mut writer);
+                if result.is_err() {
+                    writer.poisoned = true;
+                }
+                result
+            } else {
+                emit_tape(document, &mut writer)
+            }
+        });
     // Always reclaim frames, preserving the original emission/sink error.
     let finished = writer.finish_with_scratch(scratch);
     emitted?;
@@ -288,6 +303,351 @@ fn close_tape_container(node: jmax_dom::Node<'_>, writer: &mut JsonWriter<'_>) -
     } else {
         writer.end_array()
     }
+}
+
+/// Bytes staged on the stack between delegated sink writes.
+const BATCH_BYTES: usize = 4096;
+
+/// Stack staging for the batched tape emitter. Flushes go through the writer's
+/// `LimitedSink`, so its limit, poisoning and length-contract checks still
+/// govern every byte that reaches the destination.
+struct Batch {
+    bytes: [u8; BATCH_BYTES],
+    len: usize,
+}
+
+impl Batch {
+    #[inline(always)]
+    fn push(&mut self, sink: &mut LimitedSink<'_>, data: &[u8]) -> Result<()> {
+        if data.len() > BATCH_BYTES - self.len {
+            self.flush(sink)?;
+            if data.len() > BATCH_BYTES {
+                return sink.write_bytes(data);
+            }
+        }
+        self.bytes[self.len..self.len + data.len()].copy_from_slice(data);
+        self.len += data.len();
+        Ok(())
+    }
+    #[inline(always)]
+    fn push_byte(&mut self, sink: &mut LimitedSink<'_>, byte: u8) -> Result<()> {
+        if self.len == BATCH_BYTES {
+            self.flush(sink)?;
+        }
+        self.bytes[self.len] = byte;
+        self.len += 1;
+        Ok(())
+    }
+    fn flush(&mut self, sink: &mut LimitedSink<'_>) -> Result<()> {
+        if self.len != 0 {
+            let len = core::mem::replace(&mut self.len, 0);
+            sink.write_bytes(&self.bytes[..len])?;
+        }
+        Ok(())
+    }
+    /// Same canonical minimal escaping as `JsonWriter::write_string`.
+    fn push_escaped(
+        &mut self,
+        sink: &mut LimitedSink<'_>,
+        text: &str,
+        masker: jmax_string::EscapeMasker,
+    ) -> Result<()> {
+        self.push_byte(sink, b'"')?;
+        let bytes = text.as_bytes();
+        let mut start = 0;
+        for index in EscapePositions::new(bytes, masker) {
+            if start != index {
+                self.push(sink, &bytes[start..index])?;
+            }
+            let byte = bytes[index];
+            let escape: &[u8] = match byte {
+                b'"' => b"\\\"",
+                b'\\' => b"\\\\",
+                b'\x08' => b"\\b",
+                b'\x0c' => b"\\f",
+                b'\n' => b"\\n",
+                b'\r' => b"\\r",
+                b'\t' => b"\\t",
+                _ => {
+                    const HEX: &[u8; 16] = b"0123456789abcdef";
+                    self.push(
+                        sink,
+                        &[
+                            b'\\',
+                            b'u',
+                            b'0',
+                            b'0',
+                            HEX[usize::from(byte >> 4)],
+                            HEX[usize::from(byte & 15)],
+                        ],
+                    )?;
+                    start = index + 1;
+                    continue;
+                }
+            };
+            self.push(sink, escape)?;
+            start = index + 1;
+        }
+        if start != bytes.len() {
+            self.push(sink, &bytes[start..])?;
+        }
+        self.push_byte(sink, b'"')
+    }
+}
+
+/// `emit_tape` with the writer's per-token state machine inlined and output
+/// staged in stack batches instead of several dynamic sink calls per token.
+///
+/// Every check `JsonWriter` performs for these operations is repeated in the
+/// same order with the same error: key count, decoded string length, number
+/// length, array item count, depth and frame allocation. Output size checks are
+/// omitted only because the caller established `raw.len() <= max_output_bytes`,
+/// which bounds every reservation the writer would make. Frame state is kept
+/// in the writer's own frames, so `finish` observes the usual completion state.
+fn emit_tape_batched(document: jmax_dom::TapeView<'_>, writer: &mut JsonWriter<'_>) -> Result<()> {
+    let limits = writer.limits;
+    let masker = writer.escape_masker;
+    let mut batch = Batch {
+        bytes: [0; BATCH_BYTES],
+        len: 0,
+    };
+    for node in document.nodes() {
+        let header = node.header();
+        let key_token = node.unescaped_key_token();
+        let escaped_key = if key_token.is_none() {
+            node.key()
+        } else {
+            None
+        };
+        if key_token.is_some() || escaped_key.is_some() {
+            // key_comma
+            let frame = writer
+                .frames
+                .last_mut()
+                .ok_or_else(|| encode_error(ErrorCode::InvalidSyntax, "key outside an object"))?;
+            if frame.kind != WriteContainer::Object || !frame.expecting_key {
+                return Err(encode_error(
+                    ErrorCode::InvalidSyntax,
+                    "object is not expecting a key",
+                ));
+            }
+            if frame.count >= limits.max_container_items {
+                return Err(encode_error(
+                    ErrorCode::BudgetExhausted,
+                    "object property limit exceeded",
+                ));
+            }
+            let comma = frame.count != 0;
+            match (key_token, escaped_key) {
+                (Some(token), _) => {
+                    check_batched_string_len(token.len() - 2, limits)?;
+                    if comma {
+                        batch.push_byte(&mut writer.sink, b',')?;
+                    }
+                    batch.push(&mut writer.sink, token)?;
+                }
+                (None, Some(key)) => {
+                    check_batched_string_len(key.len(), limits)?;
+                    if comma {
+                        batch.push_byte(&mut writer.sink, b',')?;
+                    }
+                    batch.push_escaped(&mut writer.sink, key, masker)?;
+                }
+                (None, None) => {}
+            }
+            batch.push_byte(&mut writer.sink, b':')?;
+            // accept_key
+            frame.count += 1;
+            frame.expecting_key = false;
+        }
+        match header.tag() {
+            jmax_dom::TAG_NULL => {
+                let comma = batched_value_comma(writer, limits)?;
+                batched_token(writer, &mut batch, comma, b"null")?;
+            }
+            jmax_dom::TAG_FALSE => {
+                let comma = batched_value_comma(writer, limits)?;
+                batched_token(writer, &mut batch, comma, b"false")?;
+            }
+            jmax_dom::TAG_TRUE => {
+                let comma = batched_value_comma(writer, limits)?;
+                batched_token(writer, &mut batch, comma, b"true")?;
+            }
+            jmax_dom::TAG_NUMBER => {
+                let bytes = node.raw()?;
+                if bytes.len() > limits.max_number_bytes as usize {
+                    return Err(encode_error(
+                        ErrorCode::BudgetExhausted,
+                        "number text limit exceeded",
+                    ));
+                }
+                let comma = batched_value_comma(writer, limits)?;
+                batched_token(writer, &mut batch, comma, bytes)?;
+            }
+            jmax_dom::TAG_STRING => {
+                if let Some(token) = node.unescaped_string_token() {
+                    check_batched_string_len(token.len() - 2, limits)?;
+                    let comma = batched_value_comma(writer, limits)?;
+                    batched_token(writer, &mut batch, comma, token)?;
+                } else {
+                    let value = node.string()?;
+                    check_batched_string_len(value.len(), limits)?;
+                    let comma = batched_value_comma(writer, limits)?;
+                    if comma {
+                        batch.push_byte(&mut writer.sink, b',')?;
+                    }
+                    batch.push_escaped(&mut writer.sink, value, masker)?;
+                    writer.accept_value();
+                }
+            }
+            jmax_dom::TAG_ARRAY | jmax_dom::TAG_OBJECT => {
+                let kind = if header.tag() == jmax_dom::TAG_OBJECT {
+                    WriteContainer::Object
+                } else {
+                    WriteContainer::Array
+                };
+                // begin
+                let comma = batched_value_comma(writer, limits)?;
+                if writer.frames.len() >= usize::from(limits.max_depth) {
+                    return Err(encode_error(
+                        ErrorCode::DepthLimitExceeded,
+                        "writer depth limit exceeded",
+                    ));
+                }
+                writer.frames.try_reserve(1).map_err(|_| {
+                    encode_error(ErrorCode::BudgetExhausted, "writer frame allocation failed")
+                })?;
+                batched_token(
+                    writer,
+                    &mut batch,
+                    comma,
+                    if kind == WriteContainer::Object {
+                        b"{"
+                    } else {
+                        b"["
+                    },
+                )?;
+                writer.frames.push(WriteFrame {
+                    kind,
+                    count: 0,
+                    expecting_key: kind == WriteContainer::Object,
+                });
+                // A nonempty container is closed by its final descendant.
+                if node.subtree_end() as usize != node.id().0 as usize + header.record_words() {
+                    continue;
+                }
+                batched_end(writer, &mut batch, kind)?;
+            }
+            _ => {
+                return Err(encode_error(
+                    ErrorCode::InternalError,
+                    "unknown native tape tag",
+                ));
+            }
+        }
+        let end = node.subtree_end();
+        let mut ancestor = node.parent();
+        while let Some(parent) = ancestor {
+            if parent.subtree_end() != end {
+                break;
+            }
+            let kind = if parent.header().tag() == jmax_dom::TAG_OBJECT {
+                WriteContainer::Object
+            } else {
+                WriteContainer::Array
+            };
+            batched_end(writer, &mut batch, kind)?;
+            ancestor = parent.parent();
+        }
+    }
+    batch.flush(&mut writer.sink)
+}
+
+#[inline(always)]
+fn check_batched_string_len(len: usize, limits: EncodeLimits) -> Result<()> {
+    if len > limits.max_string_bytes as usize {
+        return Err(encode_error(
+            ErrorCode::BudgetExhausted,
+            "decoded string limit exceeded",
+        ));
+    }
+    Ok(())
+}
+
+/// `JsonWriter::value_comma` over the writer's frames.
+#[inline(always)]
+fn batched_value_comma(writer: &JsonWriter<'_>, limits: EncodeLimits) -> Result<bool> {
+    match writer.frames.last() {
+        Some(frame) if frame.kind == WriteContainer::Object => {
+            if frame.expecting_key {
+                return Err(encode_error(
+                    ErrorCode::InvalidSyntax,
+                    "object value requires a key",
+                ));
+            }
+            Ok(false)
+        }
+        Some(frame) => {
+            if frame.count >= limits.max_container_items {
+                return Err(encode_error(
+                    ErrorCode::BudgetExhausted,
+                    "array item limit exceeded",
+                ));
+            }
+            Ok(frame.count != 0)
+        }
+        None if writer.root_written => {
+            Err(encode_error(ErrorCode::InvalidSyntax, "second JSON root"))
+        }
+        None => Ok(false),
+    }
+}
+
+#[inline(always)]
+fn batched_token(
+    writer: &mut JsonWriter<'_>,
+    batch: &mut Batch,
+    comma: bool,
+    bytes: &[u8],
+) -> Result<()> {
+    if comma {
+        batch.push_byte(&mut writer.sink, b',')?;
+    }
+    batch.push(&mut writer.sink, bytes)?;
+    writer.accept_value();
+    Ok(())
+}
+
+/// `JsonWriter::end` over the writer's frames.
+fn batched_end(writer: &mut JsonWriter<'_>, batch: &mut Batch, kind: WriteContainer) -> Result<()> {
+    let frame = writer.frames.last().ok_or_else(|| {
+        encode_error(
+            ErrorCode::InvalidSyntax,
+            "closing delimiter without an open container",
+        )
+    })?;
+    if frame.kind != kind {
+        return Err(encode_error(
+            ErrorCode::InvalidSyntax,
+            "mismatched closing delimiter",
+        ));
+    }
+    if kind == WriteContainer::Object && !frame.expecting_key {
+        return Err(encode_error(
+            ErrorCode::InvalidSyntax,
+            "object key has no value",
+        ));
+    }
+    batch.push_byte(
+        &mut writer.sink,
+        if kind == WriteContainer::Object {
+            b'}'
+        } else {
+            b']'
+        },
+    )?;
+    writer.frames.pop();
+    Ok(())
 }
 
 /// Emits present fields in schema order, rechecking current values and owners.

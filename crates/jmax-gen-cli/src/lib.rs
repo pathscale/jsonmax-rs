@@ -15,7 +15,7 @@ pub const EXIT_FAILURE: u8 = 1;
 pub const EXIT_USAGE: u8 = 2;
 pub const EXIT_DRIFT: u8 = 3;
 pub const MAX_INPUT_BYTES: u64 = 64 * 1024 * 1024;
-pub const HELP: &str = "jsonmax-gen --input PATH --output DIR [--format rust|services|json-schema|openapi|asyncapi|markdown|all] [--check] [--legacy]\n\n--input, -i       Endpoint RON input\n--output, -o      Artifact directory\n--format, -f      Repeatable output selection (default: all)\n--check          Compare without creating or changing files\n--legacy         Enable version-1 legacy generation conventions\n--help, -h       Show help\n--version, -V    Show version\n";
+pub const HELP: &str = "jsonmax-gen --input PATH --output DIR [--format rust|services|json-schema|openapi|asyncapi|markdown|all] [--native PATH] [--check] [--legacy]\n\n--input, -i       Endpoint RON input\n--output, -o      Artifact directory\n--format, -f      Repeatable output selection (default: all)\n--native         Native decoder specification; adds rust/native.rs\n--check          Compare without creating or changing files\n--legacy         Enable version-1 legacy generation conventions\n--help, -h       Show help\n--version, -V    Show version\n";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputFormat { Rust, Services, JsonSchema, OpenApi, AsyncApi, Markdown }
@@ -30,6 +30,8 @@ pub struct Options {
     pub formats: Vec<OutputFormat>,
     pub mode: RunMode,
     pub legacy: bool,
+    /// Native decoder specification (native.ron); needs the Rust format.
+    pub native: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

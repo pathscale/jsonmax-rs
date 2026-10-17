@@ -287,3 +287,24 @@ Parser state owns all storage, and borrowed views cannot survive a mutable feed.
 No backend choice changes grammar, errors, events, or bounds behavior. A backend
 is an optional optimization; portable behavior is mandatory. No schema proof is
 created anywhere in this crate.
+
+## skip_strict
+
+```rust
+pub fn skip_strict(
+    input: &[u8], start: u32, current_depth: u16, limits: Limits,
+    numeric: Option<NumericPolicy>, dup_owner: DuplicatePolicyOwner,
+    decoded: &mut Vec<u8>, scratch: &mut SkipScratch,
+) -> Result<u32>;
+```
+
+skip_strict strictly validates and discards the one value beginning at `start` and returns the
+offset just past it. For the same arguments it is equal to constructing a BlockCursor over
+`input` with the same limits, numeric policy, duplicate owner and scratch, moving it to
+`start`, and calling skip_value(decoded, current_depth, SkipMode::StrictValidate): the same end
+offset, the same final contents of `decoded`, and the same error code, byte offset and
+detail on failure (with `decoded` truncated to its original length). A failed call has no
+other effect. `start` must be the first byte of a value or whitespace before it and not
+inside a token. The wrapper tries the one-pass strict acceptor for container values and
+falls back to the exact BlockCursor path for scalars, doubt and every diagnostic. A
+differential test compares it with the cursor path over seeds and mutations.

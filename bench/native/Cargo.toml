@@ -1,0 +1,29 @@
+[package]
+name = "jmax-native-bench"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+simd-json = "0.18.1"
+sonic-rs = "0.5.10"
+rusty_alloc = { package = "ps-rusty_alloc", path = "../../../ps-rusty_alloc" }
+jmax-abi = { path = "../../crates/jmax-abi", features = ["std"] }
+jmax-native = { path = "../../crates/jmax-native", features = ["std"] }
+jmax-schema-aot = { path = "../../crates/jmax-schema-aot", features = ["std"] }
+jmax-schema-vm = { path = "../../crates/jmax-schema-vm", features = ["std"] }
+jmax-native-fixtures = { path = "../../crates/jmax-native-fixtures" }
+jmax-codegen-rust = { path = "../../crates/jmax-codegen-rust", features = ["std"] }
+jmax-endpoint-model = { path = "../../crates/jmax-endpoint-model", features = ["std"] }
+jmax-endpoint-ron = { path = "../../crates/jmax-endpoint-ron", features = ["std"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
+
+[workspace]

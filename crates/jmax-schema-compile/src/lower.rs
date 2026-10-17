@@ -149,7 +149,7 @@ fn plan_graph<'a>(schema: &'a ResolvedSchema, options: &CompilerOptions) -> Resu
                 let child = discover(schema, shape.items, &mut numbers, &mut order, options)?;
                 push(&mut children, child)?;
             }
-            TypeNode::Any | TypeNode::Scalar(_) => {}
+            TypeNode::Any | TypeNode::Scalar(_) | TypeNode::Enum(_) => {}
             TypeNode::Ref(_) => return Err(invalid("resolved graph contains an uncollapsed alias")),
         }
         push(&mut plans, NodePlan { node, properties, children })?;
@@ -267,6 +267,8 @@ fn scalar_constraints(source: &ScalarConstraints, patterns: &[(&str, u32)]) -> R
         max_count: source.max_length,
         pattern,
         format,
+        nullable: source.nullable,
+        enum_variants: Vec::new(),
     })
 }
 
@@ -408,9 +410,25 @@ fn lower_inner(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<Com
                 }
                 StateKind::Scalar(source.kind)
             }
+            TypeNode::Enum(shape) => {
+                constraints.nullable = shape.nullable;
+                constraints.enum_variants.try_reserve_exact(shape.variants.len())
+                    .map_err(|_| budget())?;
+                for variant in &shape.variants {
+                    let mut name = String::new();
+                    name.try_reserve_exact(variant.name.len()).map_err(|_| budget())?;
+                    name.push_str(&variant.name);
+                    constraints.enum_variants.push(jmax_schema_ir::EnumVariant {
+                        name, discriminant: variant.discriminant,
+                    });
+                }
+                emit(&mut program.image.insns, options, Opcode::CheckEnum, 0, id.0, 0)?;
+                StateKind::Enum
+            }
             TypeNode::Object(shape) => {
                 constraints.min_count = shape.min_properties;
                 constraints.max_count = shape.max_properties;
+                constraints.nullable = shape.nullable;
                 let (table, required_count, match_opcode) = append_keys(&mut program, plan, options)?;
                 emit(&mut program.image.insns, options, Opcode::EnterObject, 0, id.0, u64::from(table))?;
                 emit(&mut program.image.insns, options, match_opcode, 0, table, 0)?;
@@ -431,6 +449,7 @@ fn lower_inner(schema: &ResolvedSchema, options: &CompilerOptions) -> Result<Com
             TypeNode::Array(shape) => {
                 constraints.min_count = shape.min_items;
                 constraints.max_count = shape.max_items;
+                constraints.nullable = shape.nullable;
                 let items = *plan.children.first().ok_or_else(|| invalid("array has no item state"))?;
                 emit(&mut program.image.insns, options, Opcode::EnterArray, 0, id.0, u64::from(items.0))?;
                 emit(&mut program.image.insns, options, Opcode::LeaveArray, 0, id.0, 0)?;

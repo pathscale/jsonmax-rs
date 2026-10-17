@@ -64,6 +64,13 @@ fn check_limits(schema: &Schema, limits: ResolveLimits) -> Result<()> {
                         Some(property.field_id), "property name byte limit exceeded")?;
                 }
             }
+            TypeNode::Enum(shape) => {
+                for variant in &shape.variants {
+                    check_size(variant.name.len(), limits.max_name_bytes, schema,
+                        incoming_field(schema, TypeId(index as u32)),
+                        "enum variant name byte limit exceeded")?;
+                }
+            }
             _ => {}
         }
     }

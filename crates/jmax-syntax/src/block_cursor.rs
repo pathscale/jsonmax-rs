@@ -25,6 +25,7 @@ pub(crate) struct CursorCache {
 pub struct SkipScratch {
     frames: Vec<Frame>,
     tables: Vec<frames::KeyTable>,
+    fast: super::strict_fast::FastScratch,
 }
 pub(crate) type DiscardScratch = SkipScratch;
 
@@ -114,6 +115,7 @@ impl<'a> BlockCursor<'a> {
     ) -> Result<Self> {
         let mut cursor = Self::new(input, limits, numeric, dup_owner)?;
         cursor.discard = core::mem::take(scratch);
+        cursor.discard.fast.new_input();
         cursor.scratch = Some(scratch);
         Ok(cursor)
     }
@@ -233,7 +235,7 @@ impl<'a> BlockCursor<'a> {
 
     /// Ensures the active block covers offset, classifying intervening blocks
     /// when a lexical consumer advanced across them. Carry always flows forward.
-    #[inline]
+    #[inline(always)]
     fn refill(&mut self) -> Result<()> {
         let position = self.offset();
         if position >= self.cache.block_start && position < self.cache.block_end {
@@ -270,28 +272,57 @@ impl<'a> BlockCursor<'a> {
         }
         Ok(())
     }
-    #[inline]
+    #[inline(always)]
     pub fn skip_whitespace(&mut self) -> Result<Option<u8>> {
-        self.check_failure()?;
-        let result = (|| {
-            while self.offset() < self.input.len() as u32 {
-                self.refill()?;
-                let relative = self.offset() - self.cache.block_start;
-                let remaining =
-                    (!self.cache.masks.whitespace_mask & self.cache.masks.valid_mask) >> relative;
+        // Common case, inlined at every consumer: no failure and the next
+        // non-whitespace byte lies in the active block. This is exactly the
+        // first iteration of `whitespace_inner`.
+        if self.failure.is_none() {
+            let position = self.offset();
+            if position >= self.cache.block_start && position < self.cache.block_end {
+                let remaining = (!self.cache.masks.whitespace_mask & self.cache.masks.valid_mask)
+                    >> (position - self.cache.block_start);
                 if remaining != 0 {
                     self.cache.offset += remaining.trailing_zeros();
                     return Ok(self.peek_byte());
                 }
-                self.cache.offset = self.cache.block_end;
             }
-            Ok(None)
-        })();
+        }
+        self.skip_whitespace_general()
+    }
+    #[inline(never)]
+    fn skip_whitespace_general(&mut self) -> Result<Option<u8>> {
+        self.check_failure()?;
+        let result = self.whitespace_inner();
         self.retain(result)
     }
+    /// Unretained whitespace skip. Internal callers propagate every error to a
+    /// retaining public entry point, which records the same first failure.
+    #[inline(always)]
+    fn whitespace_inner(&mut self) -> Result<Option<u8>> {
+        while self.offset() < self.input.len() as u32 {
+            self.refill()?;
+            let relative = self.offset() - self.cache.block_start;
+            let remaining =
+                (!self.cache.masks.whitespace_mask & self.cache.masks.valid_mask) >> relative;
+            if remaining != 0 {
+                self.cache.offset += remaining.trailing_zeros();
+                return Ok(self.peek_byte());
+            }
+            self.cache.offset = self.cache.block_end;
+        }
+        Ok(None)
+    }
 
-    #[inline]
+    #[inline(always)]
     pub fn scan_string_meta(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
+        if let Some(meta) = self.ascii_string_in_block() {
+            return Ok(meta);
+        }
+        self.scan_string_meta_general(decoded)
+    }
+    #[inline(never)]
+    fn scan_string_meta_general(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = self.scan_string_inner(decoded, true);
@@ -300,9 +331,64 @@ impl<'a> BlockCursor<'a> {
         }
         self.retain(result)
     }
+    /// The common string, inlined at every consumer: no failure, an opening
+    /// quote at the offset, and an unescaped ASCII body closed in the active
+    /// block within the length limit. This is exactly the single-iteration
+    /// accepting path of `scan_string_inner`; anything else (including every
+    /// error) returns None without side effects and takes the general path.
+    #[inline(always)]
+    fn ascii_string_in_block(&mut self) -> Option<StringMeta> {
+        let start = self.offset();
+        let content_start = start.wrapping_add(1);
+        if self.failure.is_some()
+            || self.peek_byte() != Some(b'"')
+            || content_start < self.cache.block_start
+            || content_start >= self.cache.block_end
+        {
+            return None;
+        }
+        let masks = &self.cache.masks;
+        let relative = content_start - self.cache.block_start;
+        let remaining = masks.valid_mask & (u64::MAX << relative);
+        let quotes = masks.delimiter_quotes() & remaining;
+        if quotes == 0 {
+            return None;
+        }
+        let end = quotes.trailing_zeros();
+        let content = remaining & low_bits(end);
+        if (masks.backslash_mask | masks.non_ascii_mask | masks.control_mask) & content != 0 {
+            return None;
+        }
+        let raw_content = Span32::new(content_start, end - relative);
+        if raw_content.len > self.limits.max_string_bytes {
+            return None;
+        }
+        self.cache.offset = self.cache.block_start + end + 1;
+        Some(StringMeta {
+            raw_content,
+            raw_token: Span32::new(start, raw_content.len + 2),
+            cooked: StrRef {
+                span: raw_content,
+                source: SpanSource::RawPayload,
+                scalar_len: raw_content.len,
+            },
+            is_unescaped: true,
+            is_ascii: true,
+        })
+    }
     #[inline]
     fn scan_string_inner(&mut self, decoded: &mut Vec<u8>, capture: bool) -> Result<StringMeta> {
         let start = self.expect_byte(b'"', "expected string opening quote")?;
+        self.scan_string_body(start, decoded, capture)
+    }
+    /// String lexing after the opening quote at `start` has been consumed.
+    #[inline(always)]
+    fn scan_string_body(
+        &mut self,
+        start: u32,
+        decoded: &mut Vec<u8>,
+        capture: bool,
+    ) -> Result<StringMeta> {
         let content_start = self.offset();
         let mut backslash = 0u64;
         let mut non_ascii = 0u64;
@@ -499,7 +585,67 @@ impl<'a> BlockCursor<'a> {
     #[inline]
     pub fn scan_number_span(&mut self) -> Result<Span32> {
         self.check_failure()?;
-        let result = (|| {
+        let result = self.number_inner();
+        self.retain(result)
+    }
+    /// The common number, decided from the active block's masks alone: the
+    /// atom ends inside this block at a number delimiter, is within the digit
+    /// limit, and is accepted by the integer rule of `number_inner` or by
+    /// `number_accepted_fast`. Exactly `number_inner`'s accepting outcome for
+    /// such atoms; anything else returns None with no side effects.
+    #[inline(always)]
+    fn number_in_block(&mut self) -> Option<Span32> {
+        let start = self.offset();
+        if start < self.cache.block_start || start >= self.cache.block_end {
+            return None;
+        }
+        let masks = &self.cache.masks;
+        let relative = start - self.cache.block_start;
+        let remaining = masks.valid_mask & (u64::MAX << relative);
+        let boundaries =
+            (masks.structural_mask | masks.raw_punctuation_mask() | masks.whitespace_mask)
+                & remaining;
+        if boundaries == 0 {
+            return None;
+        }
+        let end = boundaries.trailing_zeros();
+        let len = end - relative;
+        let digits = (masks.digit_mask & remaining & low_bits(end)).count_ones();
+        if digits > u32::from(self.limits.max_number_digits) {
+            return None;
+        }
+        let end_offset = self.cache.block_start + end;
+        // The boundary byte exists: it is a set bit of the valid mask.
+        if !jmax_number::is_number_delimiter(self.input[end_offset as usize]) {
+            return None;
+        }
+        let bytes = &self.input[start as usize..end_offset as usize];
+        let unsigned =
+            digits == len && (bytes.first().is_some_and(|&byte| byte != b'0') || len == 1);
+        let signed = len >= 2
+            && digits == len - 1
+            && bytes[0] == b'-'
+            && (bytes[1] != b'0'
+                || (len == 2
+                    && !self
+                        .numeric
+                        .is_some_and(|policy| policy.reject_negative_zero)));
+        let non_digits = (!masks.digit_mask >> relative) & low_bits(len);
+        if !(unsigned
+            || signed
+            || super::feed::number_accepted_masked(bytes, non_digits, self.numeric))
+        {
+            return None;
+        }
+        self.cache.offset = end_offset;
+        Some(Span32::new(start, len))
+    }
+    #[inline(always)]
+    fn number_inner(&mut self) -> Result<Span32> {
+        if let Some(span) = self.number_in_block() {
+            return Ok(span);
+        }
+        {
             let (span, excess, digits) = self.atom_span()?;
             // A mask-proven nonzero-leading integer needs no second byte/UTF-8
             // traversal. Floats, leading zeros, malformed boundaries and
@@ -529,14 +675,28 @@ impl<'a> BlockCursor<'a> {
                 }
                 return Ok(span);
             }
+            // Well-formed floats (and other accepted spellings) in one pass over
+            // the mask-bounded span; anything else gets the exact lexer path.
+            if excess.is_none()
+                && self
+                    .peek_byte()
+                    .is_none_or(jmax_number::is_number_delimiter)
+                && super::feed::number_accepted_fast(bytes, self.numeric)
+            {
+                return Ok(span);
+            }
             super::feed::validate_number_slice(self.input, span, self.numeric, excess)?;
             Ok(span)
-        })();
-        self.retain(result)
+        }
     }
     pub fn scan_literal(&mut self) -> Result<(TokenKind, Span32)> {
         self.check_failure()?;
-        let result = (|| {
+        let result = self.literal_inner();
+        self.retain(result)
+    }
+    #[inline(always)]
+    fn literal_inner(&mut self) -> Result<(TokenKind, Span32)> {
+        {
             let start = self.offset();
             let (kind, spelling): (TokenKind, &[u8]) = match self.peek_byte() {
                 Some(b't') => (TokenKind::True, b"true"),
@@ -550,22 +710,29 @@ impl<'a> BlockCursor<'a> {
                     ));
                 }
             };
-            for &expected in spelling {
-                match self.peek_byte() {
-                    Some(byte) if byte == expected => self.advance(1),
-                    Some(_) => {
-                        return Err(lexical(
-                            ErrorCode::InvalidToken,
-                            self.offset(),
-                            "invalid literal or literal boundary",
-                        ));
-                    }
-                    None => {
-                        return Err(lexical(
-                            ErrorCode::UnexpectedEof,
-                            self.offset(),
-                            "incomplete literal",
-                        ));
+            let first = start as usize;
+            if self.input.get(first..first + spelling.len()) == Some(spelling) {
+                // Whole spelling present: the byte loop below would advance
+                // through it without error.
+                self.cache.offset = start + spelling.len() as u32;
+            } else {
+                for &expected in spelling {
+                    match self.peek_byte() {
+                        Some(byte) if byte == expected => self.advance(1),
+                        Some(_) => {
+                            return Err(lexical(
+                                ErrorCode::InvalidToken,
+                                self.offset(),
+                                "invalid literal or literal boundary",
+                            ));
+                        }
+                        None => {
+                            return Err(lexical(
+                                ErrorCode::UnexpectedEof,
+                                self.offset(),
+                                "incomplete literal",
+                            ));
+                        }
                     }
                 }
             }
@@ -580,8 +747,7 @@ impl<'a> BlockCursor<'a> {
                 ));
             }
             Ok((kind, Span32::new(start, self.offset() - start)))
-        })();
-        self.retain(result)
+        }
     }
 
     pub(crate) fn next_token(
@@ -754,6 +920,38 @@ impl<'a> BlockCursor<'a> {
         self.retain(result)
     }
 
+    /// Cumulative bytes of discarded decoded strings, for equivalence tests.
+    #[cfg(test)]
+    pub(crate) const fn discarded_decoded(&self) -> u32 {
+        self.cache.discarded_decoded
+    }
+
+    /// Conservative one-pass strict validation of the whole input from offset
+    /// zero: `Some(())` only when `skip_value(StrictValidate)` then `finish_eof`
+    /// would accept it with the same decoded total and `decoded` state. On
+    /// `None`, `decoded` is as it was and the exact path must run.
+    pub(crate) fn fast_validate(&mut self, decoded: &mut Vec<u8>) -> Option<()> {
+        if self.failure.is_some() || self.offset() != 0 {
+            return None;
+        }
+        let params = super::strict_fast::Params {
+            limits: self.limits,
+            numeric: self.numeric,
+            max_depth: usize::from(self.limits.max_depth),
+            masker: self.cache.escape_masker,
+            whole_input: true,
+        };
+        let (end, _) = super::strict_fast::accept(
+            self.input,
+            0,
+            &params,
+            self.cache.discarded_decoded,
+            decoded,
+            &mut self.discard.fast,
+        )?;
+        (end == self.input.len()).then_some(())
+    }
+
     pub fn skip_value(
         &mut self,
         decoded: &mut Vec<u8>,
@@ -848,6 +1046,78 @@ impl<'a> BlockCursor<'a> {
                 "container depth exceeds its limit",
             ));
         }
+        if self.fast_skip(decoded, current_depth) {
+            return Ok(());
+        }
+        self.skip_strict_exact(decoded, current_depth)
+    }
+
+    /// Conservative one-pass acceptance of a container value at the offset
+    /// (see `strict_fast`). True only when `skip_strict_exact` would have
+    /// accepted it, leaving the same offset, discarded total and `decoded`
+    /// contents and capacity. On false nothing has changed.
+    #[inline(always)]
+    fn fast_skip(&mut self, decoded: &mut Vec<u8>, current_depth: u16) -> bool {
+        let start = self.cache.offset;
+        let Some(&first) = self.input.get(start as usize) else {
+            return false;
+        };
+        if !matches!(first, b'{' | b'[')
+            || start < self.cache.block_start
+            || start >= self.cache.block_end
+        {
+            return false;
+        }
+        let params = super::strict_fast::Params {
+            limits: self.limits,
+            numeric: self.numeric,
+            max_depth: usize::from(self.limits.max_depth - current_depth),
+            masker: self.cache.escape_masker,
+            whole_input: false,
+        };
+        let Some((end, discarded)) = super::strict_fast::accept(
+            self.input,
+            start as usize,
+            &params,
+            self.cache.discarded_decoded,
+            decoded,
+            &mut self.discard.fast,
+        ) else {
+            return false;
+        };
+        // A complete container ends after an ASCII `}` or `]` outside any
+        // string, so the scanner carry restarts from its default there.
+        self.cache.discarded_decoded = discarded;
+        let end = end as u32;
+        if end < self.cache.block_end {
+            self.cache.offset = end;
+        } else {
+            self.cache.block_start = end;
+            self.cache.block_end = end;
+            self.cache.carry = ScanCarry::default();
+            self.cache.offset = end;
+        }
+        true
+    }
+
+    /// Test hook: the exact loop alone, for differential comparison.
+    #[cfg(test)]
+    pub(crate) fn skip_strict_exact_for_test(
+        &mut self,
+        decoded: &mut Vec<u8>,
+        current_depth: u16,
+    ) -> Result<()> {
+        self.skip_strict_exact(decoded, current_depth)
+    }
+
+    fn skip_strict_exact(&mut self, decoded: &mut Vec<u8>, current_depth: u16) -> Result<()> {
+        if current_depth > self.limits.max_depth {
+            return Err(syntax_error(
+                ErrorCode::DepthLimitExceeded,
+                self.offset(),
+                "container depth exceeds its limit",
+            ));
+        }
         // Reusable frames share the scanner/cache and decoded arena. They never
         // build nodes or captures, and retain capacities across skipped values.
         let saved_frames =
@@ -865,15 +1135,7 @@ impl<'a> BlockCursor<'a> {
         self.finished = false;
         self.limits.max_depth -= current_depth;
         let checkpoint = decoded.len();
-        let result = (|| {
-            loop {
-                self.next_event_inner(decoded, true)?;
-                if self.frames.is_empty() && self.root_phase == FramePhase::RootDone {
-                    break;
-                }
-            }
-            Ok(())
-        })();
+        let result = self.strict_discard_loop(decoded);
         self.cache.discarded_decoded = self
             .cache
             .discarded_decoded
@@ -887,6 +1149,262 @@ impl<'a> BlockCursor<'a> {
         self.limits.max_depth = saved_limit;
         self.dup_owner = saved_owner;
         result
+    }
+
+    /// Direct-coded equivalent of repeated `next_event_inner(decoded, true)`
+    /// until the skipped root value completes. Each token is lexed exactly as
+    /// `next_token` lexes it (so lexical errors keep precedence over grammar
+    /// errors), then the `machine::transition` table and the `frames::apply_parts`
+    /// checks run in their original order: depth, count, duplicate key,
+    /// reservation, commit. Discarded keys are reclaimed at container close.
+    fn strict_discard_loop(&mut self, decoded: &mut Vec<u8>) -> Result<()> {
+        // skip_strict_inner installs the syntax duplicate owner.
+        let reject_dup = self.limits.reject_duplicate_keys;
+        let max_depth = usize::from(self.limits.max_depth);
+        // The innermost open container (or the root) lives in locals; `frames`
+        // holds only the enclosing containers. `depth` counts open containers,
+        // i.e. the event machine's `frames.len()`.
+        let mut depth = 0usize;
+        let mut phase = self.root_phase;
+        let mut count = 0u32;
+        let mut checkpoint = decoded.len();
+        let mut top_start = self.offset();
+        loop {
+            let Some(byte) = self.whitespace_inner()? else {
+                return Err(syntax_error(
+                    ErrorCode::UnexpectedEof,
+                    self.offset(),
+                    "incomplete JSON document",
+                ));
+            };
+            let start = self.offset();
+            let mut key_ref = None;
+            let mut key_hash = 0u64;
+            let kind = match byte {
+                // One-byte punctuation: `start` is inside the input, so this is
+                // `advance(1)` without its clamp.
+                b'{' | b'}' | b'[' | b']' | b':' | b',' => {
+                    self.cache.offset = start + 1;
+                    match byte {
+                        b'{' => TokenKind::LBrace,
+                        b'}' => TokenKind::RBrace,
+                        b'[' => TokenKind::LBracket,
+                        b']' => TokenKind::RBracket,
+                        b':' => TokenKind::Colon,
+                        _ => TokenKind::Comma,
+                    }
+                }
+                b'"' => {
+                    let key = matches!(phase, FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd);
+                    if let Some(meta) = self.ascii_string_in_block() {
+                        // Raw ASCII content: nothing is decoded or discarded.
+                        if key {
+                            if reject_dup {
+                                let content = meta.raw_content;
+                                key_hash = discard_key_hash(
+                                    &self.input[content.offset as usize
+                                        ..(content.offset + content.len) as usize],
+                                );
+                            }
+                            key_ref = Some(meta.cooked);
+                        }
+                        TokenKind::String
+                    } else {
+                        // The opening quote is known; this is expect_byte's success path.
+                        self.cache.offset = start + 1;
+                        if key && reject_dup {
+                            let checkpoint = decoded.len();
+                            let meta = match self.scan_string_body(start, decoded, true) {
+                                Ok(meta) => meta,
+                                Err(error) => {
+                                    decoded.truncate(checkpoint);
+                                    return Err(error);
+                                }
+                            };
+                            let bytes = match meta.cooked.source {
+                                SpanSource::RawPayload => meta.cooked.span.slice(self.input),
+                                SpanSource::DecodedArena => meta.cooked.span.slice(decoded),
+                            }
+                            .ok_or_else(|| {
+                                syntax_error(
+                                    ErrorCode::InternalError,
+                                    meta.raw_token.offset,
+                                    "cooked key reference outside arena",
+                                )
+                            })?;
+                            key_hash = discard_key_hash(bytes);
+                            key_ref = Some(meta.cooked);
+                        } else {
+                            let meta = self.scan_string_body(start, decoded, false)?;
+                            if key {
+                                key_ref = Some(meta.cooked);
+                            }
+                        }
+                        TokenKind::String
+                    }
+                }
+                b'-' | b'0'..=b'9' => {
+                    self.number_inner()?;
+                    TokenKind::Number
+                }
+                b't' | b'f' | b'n' => self.literal_inner()?.0,
+                _ => {
+                    return Err(lexical(
+                        ErrorCode::InvalidToken,
+                        start,
+                        "invalid token start",
+                    ));
+                }
+            };
+            match (phase, kind) {
+                (FramePhase::ObjectStart | FramePhase::ObjectKeyOrEnd, TokenKind::String) => {
+                    count = increment_count(
+                        count,
+                        self.limits.max_fields_per_object,
+                        start,
+                        "object field count exceeds its limit",
+                    )?;
+                    if reject_dup {
+                        let reference = key_ref.ok_or_else(|| inconsistent_frame(start))?;
+                        let owner: &[u8] = match reference.source {
+                            SpanSource::RawPayload => self.input,
+                            SpanSource::DecodedArena => decoded,
+                        };
+                        let bytes = reference
+                            .span
+                            .slice(owner)
+                            .ok_or_else(|| inconsistent_frame(start))?;
+                        let table = depth
+                            .checked_sub(1)
+                            .and_then(|index| self.key_tables.get_mut(index))
+                            .ok_or_else(|| inconsistent_frame(start))?;
+                        if table
+                            .insert_unique(key_hash, reference, bytes, self.input, decoded, start)?
+                        {
+                            return Err(syntax_error(
+                                ErrorCode::DuplicateObjectKey,
+                                start,
+                                "duplicate decoded object key",
+                            ));
+                        }
+                    }
+                    phase = FramePhase::ObjectColon;
+                }
+                (FramePhase::ObjectColon, TokenKind::Colon) => phase = FramePhase::ObjectValue,
+                (FramePhase::ObjectCommaOrEnd, TokenKind::Comma) => {
+                    phase = FramePhase::ObjectKeyOrEnd;
+                }
+                (FramePhase::ArrayCommaOrEnd, TokenKind::Comma) => {
+                    phase = FramePhase::ArrayValueOrEnd;
+                }
+                (FramePhase::ObjectStart | FramePhase::ObjectCommaOrEnd, TokenKind::RBrace)
+                | (FramePhase::ArrayStart | FramePhase::ArrayCommaOrEnd, TokenKind::RBracket) => {
+                    // The closed container's keys are no longer consulted.
+                    // Preserve cumulative resource accounting while returning
+                    // the physical arena to its parent's live-key checkpoint.
+                    self.cache.discarded_decoded = self
+                        .cache
+                        .discarded_decoded
+                        .saturating_add((decoded.len() - checkpoint) as u32);
+                    decoded.truncate(checkpoint);
+                    if depth == 1 {
+                        // root_phase was set to RootDone when the root opened.
+                        return Ok(());
+                    }
+                    let parent = self.frames.pop().ok_or_else(|| inconsistent_frame(start))?;
+                    phase = parent.phase;
+                    count = parent.count;
+                    checkpoint = parent.decoded_checkpoint;
+                    top_start = parent.start_offset;
+                    depth -= 1;
+                }
+                (
+                    FramePhase::RootStart
+                    | FramePhase::ObjectValue
+                    | FramePhase::ArrayStart
+                    | FramePhase::ArrayValueOrEnd,
+                    TokenKind::LBrace
+                    | TokenKind::LBracket
+                    | TokenKind::String
+                    | TokenKind::Number
+                    | TokenKind::True
+                    | TokenKind::False
+                    | TokenKind::Null,
+                ) => {
+                    let next_phase = match phase {
+                        FramePhase::RootStart => FramePhase::RootDone,
+                        FramePhase::ObjectValue => FramePhase::ObjectCommaOrEnd,
+                        _ => FramePhase::ArrayCommaOrEnd,
+                    };
+                    let child = match kind {
+                        TokenKind::LBrace => Some(FramePhase::ObjectStart),
+                        TokenKind::LBracket => Some(FramePhase::ArrayStart),
+                        _ => None,
+                    };
+                    if child.is_some() && depth >= max_depth {
+                        return Err(syntax_error(
+                            ErrorCode::DepthLimitExceeded,
+                            start,
+                            "container depth exceeds its limit",
+                        ));
+                    }
+                    if matches!(phase, FramePhase::ArrayStart | FramePhase::ArrayValueOrEnd) {
+                        count = increment_count(
+                            count,
+                            self.limits.max_array_items,
+                            start,
+                            "array item count exceeds its limit",
+                        )?;
+                    }
+                    match child {
+                        Some(child_phase) => {
+                            if self.key_tables.len() == depth {
+                                reserve_one(&mut self.key_tables, start)?;
+                                self.key_tables.push(frames::KeyTable::new());
+                            }
+                            self.key_tables[depth].reset();
+                            if depth == 0 {
+                                self.root_phase = next_phase;
+                            } else {
+                                // The parent's advanced phase and count wait on
+                                // the stack while the child is the top.
+                                reserve_one(&mut self.frames, start)?;
+                                self.frames.push(Frame {
+                                    kind: if matches!(next_phase, FramePhase::ObjectCommaOrEnd) {
+                                        ContainerKind::Object
+                                    } else {
+                                        ContainerKind::Array
+                                    },
+                                    phase: next_phase,
+                                    start_offset: top_start,
+                                    count,
+                                    decoded_checkpoint: checkpoint,
+                                });
+                            }
+                            phase = child_phase;
+                            count = 0;
+                            checkpoint = decoded.len();
+                            top_start = start;
+                            depth += 1;
+                        }
+                        None => {
+                            if depth == 0 {
+                                self.root_phase = next_phase;
+                                return Ok(());
+                            }
+                            phase = next_phase;
+                        }
+                    }
+                }
+                _ => {
+                    return Err(syntax_error(
+                        ErrorCode::InvalidSyntax,
+                        start,
+                        "unexpected token in the current JSON phase",
+                    ));
+                }
+            }
+        }
     }
 
     fn skip_query_inner(&mut self, current_depth: u16, trusted: bool) -> Result<()> {
@@ -1028,7 +1546,7 @@ fn earlier(current: &mut Option<Error>, candidate: Error) {
 
 /// Single-pass escaped-content traversal with bulk ordinary runs. The legacy
 /// escape unit is invoked only at a backslash, retaining its exact diagnostics.
-fn decode_content(
+pub(crate) fn decode_content(
     input: &[u8],
     start: u32,
     end: u32,
@@ -1096,7 +1614,13 @@ fn decode_content(
                     ));
                 }
                 let run = &tail[..run_len];
-                let validation = jmax_utf8::validate_and_count_scalars(run, position);
+                // ASCII runs (the common text between escapes) are valid UTF-8
+                // with one scalar per byte; skip the general validator for them.
+                let validation = if run.is_ascii() {
+                    Ok(run.len() as u32)
+                } else {
+                    jmax_utf8::validate_and_count_scalars(run, position)
+                };
                 let raw_remaining =
                     limits.max_string_bytes.saturating_sub(position - start - 1) as usize;
                 let decoded_remaining = limits.max_string_bytes.saturating_sub(byte_len) as usize;
@@ -1192,4 +1716,128 @@ fn append_run(
     }
     *byte_len = next;
     Ok(())
+}
+
+#[cold]
+fn inconsistent_frame(offset: u32) -> Error {
+    syntax_error(
+        ErrorCode::InternalError,
+        offset,
+        "inconsistent syntax frame or transition",
+    )
+}
+use frames::increment_count;
+#[inline(always)]
+fn reserve_one<T>(storage: &mut Vec<T>, offset: u32) -> Result<()> {
+    storage.try_reserve(1).map_err(|_| {
+        syntax_error(
+            ErrorCode::BudgetExhausted,
+            offset,
+            "unable to reserve syntax frame storage",
+        )
+    })
+}
+
+/// Hash for the strict-discard duplicate tables only. Those tables are private
+/// to `strict_discard_loop`, reset per object, and always compare the cooked
+/// bytes on a hash match, so the hash affects probe length, never results.
+/// Constant work per key (length, head word, tail word) instead of FNV-1a's
+/// dependent multiply per byte or a pass over every word.
+#[inline(always)]
+fn discard_key_hash(bytes: &[u8]) -> u64 {
+    const K: u64 = 0x9e37_79b9_7f4a_7c15;
+    let len = bytes.len();
+    // Constant work per key: length plus a head word and a tail word, which
+    // overlap (and so cover every byte) up to 16 bytes. Bytes beyond that in
+    // the middle only matter to the byte comparison that confirms a match.
+    let (head, tail) = if len >= 8 {
+        (load_u64(bytes, 0), load_u64(bytes, len - 8))
+    } else if len >= 4 {
+        let word = u64::from(load_u32(bytes, 0)) | u64::from(load_u32(bytes, len - 4)) << 32;
+        (word, word)
+    } else if len > 0 {
+        let word = u64::from(bytes[0])
+            | u64::from(bytes[len >> 1]) << 8
+            | u64::from(bytes[len - 1]) << 16;
+        (word, word)
+    } else {
+        (0, 0)
+    };
+    let mut hash = ((len as u64).wrapping_mul(K) ^ head).wrapping_mul(K);
+    hash ^= hash >> 32;
+    hash = (hash ^ tail).wrapping_mul(K);
+    hash ^ (hash >> 32)
+}
+
+#[inline(always)]
+fn load_u64(bytes: &[u8], at: usize) -> u64 {
+    let mut word = [0u8; 8];
+    word.copy_from_slice(&bytes[at..at + 8]);
+    u64::from_le_bytes(word)
+}
+
+#[inline(always)]
+fn load_u32(bytes: &[u8], at: usize) -> u32 {
+    let mut word = [0u8; 4];
+    word.copy_from_slice(&bytes[at..at + 4]);
+    u32::from_le_bytes(word)
+}
+
+/// Strictly validate and discard the one value that starts at `start`,
+/// returning the offset just past it.
+///
+/// Equal to a `BlockCursor` over `input` moved to `start` and then
+/// `skip_value(decoded, current_depth, SkipMode::StrictValidate)`: the same end
+/// offset, the same final `decoded` contents and the same error (code, offset,
+/// detail, with `decoded` truncated to its original length). Container values
+/// first try the one-pass strict acceptor; scalars, doubt and every diagnostic
+/// run the exact cursor path. `start` must not lie inside a token.
+pub fn skip_strict(
+    input: &[u8],
+    start: u32,
+    current_depth: u16,
+    limits: Limits,
+    numeric: Option<NumericPolicy>,
+    dup_owner: DuplicatePolicyOwner,
+    decoded: &mut Vec<u8>,
+    scratch: &mut SkipScratch,
+) -> Result<u32> {
+    // The same checks, in the same order, as BlockCursor::new.
+    frames::check_payload_growth(0, input.len(), limits)?;
+    check_duplicate_owner(limits, dup_owner)?;
+    if numeric.is_some_and(|policy| policy.max_exponent_abs < 0) {
+        return Err(syntax_error(
+            ErrorCode::ConstraintViolation,
+            0,
+            "numeric exponent limit cannot be negative",
+        ));
+    }
+    let first = input.get(start as usize).copied();
+    if matches!(first, Some(b'{' | b'['))
+        && current_depth <= limits.max_depth
+        && start as usize <= input.len()
+    {
+        scratch.fast.new_input();
+        let params = super::strict_fast::Params {
+            limits,
+            numeric,
+            max_depth: usize::from(limits.max_depth - current_depth),
+            masker: jmax_string::EscapeMasker::new(),
+            whole_input: false,
+        };
+        if let Some((end, _)) = super::strict_fast::accept(
+            input,
+            start as usize,
+            &params,
+            0,
+            decoded,
+            &mut scratch.fast,
+        ) {
+            return Ok(end as u32);
+        }
+    }
+    let mut cursor = BlockCursor::with_scratch(input, limits, numeric, dup_owner, scratch)?;
+    cursor.advance(start);
+    cursor.skip_value(decoded, current_depth, SkipMode::StrictValidate)?;
+    Ok(cursor.offset())
 }

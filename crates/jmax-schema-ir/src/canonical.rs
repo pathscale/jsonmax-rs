@@ -198,11 +198,13 @@ pub fn canonicalize(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<Ca
         match &stored.nodes[ty.0 as usize] {
             TypeNode::Any => encoder.byte(0)?,
             TypeNode::Scalar(value) => {
-                encoder.byte(1)?;
+                // Tags 4 to 6 are tags 1 to 3 of a node that also accepts null, so
+                // every schema without a nullable node keeps its exact bytes.
+                encoder.byte(if value.nullable { 4 } else { 1 })?;
                 encoder.scalar(value)?;
             }
             TypeNode::Object(object) => {
-                encoder.byte(2)?;
+                encoder.byte(if object.nullable { 5 } else { 2 })?;
                 encoder.boolean(object.reject_unknown)?;
                 encoder.option(object.min_properties, Encoder::u32)?;
                 encoder.option(object.max_properties, Encoder::u32)?;
@@ -227,11 +229,20 @@ pub fn canonicalize(schema: &ResolvedSchema, policy: &SchemaPolicy) -> Result<Ca
                 }
             }
             TypeNode::Array(array) => {
-                encoder.byte(3)?;
+                encoder.byte(if array.nullable { 6 } else { 3 })?;
                 let target = discover(schema, array.items, None, &mut indices, &mut queue)?;
                 encoder.u32(target)?;
                 encoder.option(array.min_items, Encoder::u32)?;
                 encoder.option(array.max_items, Encoder::u32)?;
+            }
+            TypeNode::Enum(shape) => {
+                encoder.byte(7)?;
+                encoder.boolean(shape.nullable)?;
+                encoder.u32(count(shape.variants.len(), stored.schema_id, None)?)?;
+                for variant in &shape.variants {
+                    encoder.string(&variant.name)?;
+                    encoder.i64(variant.discriminant)?;
+                }
             }
             TypeNode::Ref(_) => {
                 return Err(error(stored.schema_id, None, ErrorCode::ConstraintViolation,

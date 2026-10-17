@@ -283,3 +283,47 @@ pub(crate) fn vm_error(code: ErrorCode, offset: u32, detail: &'static str) -> Er
     Error::new(code, ErrorSource::SchemaVm, offset, detail)
 }
 ```
+
+## Nullable states
+
+A state whose constraints have `nullable` set accepts a JSON null token (a complete `null` literal) in addition to its
+own kind: a nullable Integer, String, Decimal, Boolean or Number takes null, and so do a nullable Object and Array
+(which never open a frame for it). Every other token keeps its normal outcome; a non-nullable state still rejects
+null with TypeMismatch. A captured null is a raw span, as for a Null-kind scalar. Both executors (the direct
+cursor and the event executor) apply the rule through the same constraint check and dispatch mask.
+
+## budget_safe
+
+```rust
+pub struct BudgetBound { pub steps: u64, pub scratch_bytes: u64 }
+pub fn budget_bound(program: &ValidatedProgram, len: usize, limits: VmLimits) -> Option<BudgetBound>;
+pub fn budget_safe(program: &ValidatedProgram, len: usize, limits: VmLimits) -> bool;
+pub fn budget_bound_counted(program: &ValidatedProgram, len: usize, decimals: u64, limits: VmLimits) -> Option<BudgetBound>;
+pub fn budget_safe_counted(program: &ValidatedProgram, len: usize, decimals: u64, limits: VmLimits) -> bool;
+```
+
+budget_bound returns an upper bound, valid for every input of at most len bytes, on the VM
+steps and scratch bytes that a strict validate_borrowed_into can charge, as a function of len,
+the program and limits.syntax. It is deliberately conservative and returns None when no bound is
+derived: any program state with a pattern constraint, an object that retains unknown keys, a constrained untyped value, a program with an unbounded
+construct, or an arithmetic overflow. budget_safe is true only when budget_bound is Some, its
+steps do not exceed limits.max_steps, its scratch bytes do not exceed limits.max_scratch_bytes,
+len does not exceed limits.syntax.max_payload_bytes or limits.syntax.max_decoded_bytes, and len
+fits u32. When true, the VM cannot fail with BudgetExhausted, DecodedArenaOverflow or
+PayloadTooLarge for this program on any such input. A test measures real consumption
+(by bisecting max_steps and max_scratch_bytes) over the corpora and their mutations and asserts
+it never exceeds the bound. Both functions are pure and allocation free.
+
+The VM bills every decimal scalar a fixed 2,048 steps (a prepayment for rescaling and
+validation) whatever its length, so a bound that knows only len must assume the densest
+possible decimals (at most len / 4 + 1 of them) and cannot vouch for a long book of decimals.
+budget_bound_counted takes the number of decimal scalars the input holds and charges
+`len * per_byte + fixed + decimals * 2,096` (the 2,096 is the 2,048 plus slack for the
+decimal's own passes; `per_byte` is the bound's byte factor without the decimal term, and
+the decimal term is added only to programs that have a decimal state). budget_bound is
+budget_bound_counted with decimals = len / 4 + 1, and budget_safe is budget_safe_counted
+with that count,, though their bound is slightly larger than before for programs with decimals. A caller may pass a count it has verified,
+for example the number of decimals a native decoder has just read: an input holding at most
+that many decimal scalars cannot exhaust the budget when budget_safe_counted is true. The
+test measures the counted bound the same way, over 1,000 level books, one-digit decimals
+and long, escaped, signed and exponent decimals, with measured/bound at most 0.84.

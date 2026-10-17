@@ -45,23 +45,23 @@ pub fn normalize_defaults(node: &ConfigNode) -> Result<ConfigDefaults> {
     })
 }
 
-struct Record<'a> {
-    node: &'a ConfigNode,
+pub(crate) struct Record<'a> {
+    pub(crate) node: &'a ConfigNode,
     fields: &'a [(String, ConfigNode)],
 }
 
 impl<'a> Record<'a> {
-    fn get(&self, key: &str) -> Option<&'a ConfigNode> {
+    pub(crate) fn get(&self, key: &str) -> Option<&'a ConfigNode> {
         self.fields.iter().find(|(name, _)| name == key).map(|(_, value)| value)
     }
 
-    fn required(&self, key: &str) -> Result<&'a ConfigNode> {
+    pub(crate) fn required(&self, key: &str) -> Result<&'a ConfigNode> {
         self.get(key).ok_or_else(|| at(self.node, ErrorCode::MissingRequiredField,
             "required configuration field is missing"))
     }
 }
 
-fn record<'a>(node: &'a ConfigNode, wrappers: &[&str], keys: &[&str]) -> Result<Record<'a>> {
+pub(crate) fn record<'a>(node: &'a ConfigNode, wrappers: &[&str], keys: &[&str]) -> Result<Record<'a>> {
     let payload = match &node.value {
         ConfigValue::Variant { name, value } => {
             if !wrappers.contains(&name.as_str()) {
@@ -88,7 +88,7 @@ fn record<'a>(node: &'a ConfigNode, wrappers: &[&str], keys: &[&str]) -> Result<
     Ok(Record { node: payload, fields })
 }
 
-fn at(node: &ConfigNode, code: ErrorCode, detail: &'static str) -> Error {
+pub(crate) fn at(node: &ConfigNode, code: ErrorCode, detail: &'static str) -> Error {
     config_error(code, node.offset, detail)
 }
 
@@ -100,14 +100,14 @@ fn copy_string(value: &str, node: &ConfigNode) -> Result<String> {
     Ok(output)
 }
 
-fn text(node: &ConfigNode) -> Result<String> {
+pub(crate) fn text(node: &ConfigNode) -> Result<String> {
     match &node.value {
         ConfigValue::String(value) => copy_string(value, node),
         _ => Err(at(node, ErrorCode::TypeMismatch, "expected a quoted string")),
     }
 }
 
-fn name(node: &ConfigNode) -> Result<String> {
+pub(crate) fn name(node: &ConfigNode) -> Result<String> {
     let value = text(node)?;
     if value.is_empty() {
         return Err(at(node, ErrorCode::ConstraintViolation, "required name must not be empty"));
@@ -115,14 +115,14 @@ fn name(node: &ConfigNode) -> Result<String> {
     Ok(value)
 }
 
-fn boolean(node: &ConfigNode) -> Result<bool> {
+pub(crate) fn boolean(node: &ConfigNode) -> Result<bool> {
     match &node.value {
         ConfigValue::Bool(value) => Ok(*value),
         _ => Err(at(node, ErrorCode::TypeMismatch, "expected a boolean")),
     }
 }
 
-fn unsigned<T: TryFrom<u64>>(node: &ConfigNode) -> Result<T> {
+pub(crate) fn unsigned<T: TryFrom<u64>>(node: &ConfigNode) -> Result<T> {
     let overflow = || at(node, ErrorCode::NumberOverflow, "integer exceeds unsigned field width");
     let value = match &node.value {
         ConfigValue::U64(value) => *value,
@@ -141,7 +141,7 @@ fn signed_i32(node: &ConfigNode) -> Result<i32> {
     }
 }
 
-fn list<T>(node: Option<&ConfigNode>, mut convert: impl FnMut(&ConfigNode) -> Result<T>) -> Result<Vec<T>> {
+pub(crate) fn list<T>(node: Option<&ConfigNode>, mut convert: impl FnMut(&ConfigNode) -> Result<T>) -> Result<Vec<T>> {
     let Some(node) = node else { return Ok(Vec::new()); };
     let ConfigValue::Sequence(values) = &node.value else {
         return Err(at(node, ErrorCode::TypeMismatch, "expected a configuration sequence"));
@@ -155,7 +155,7 @@ fn list<T>(node: Option<&ConfigNode>, mut convert: impl FnMut(&ConfigNode) -> Re
     Ok(output)
 }
 
-fn strings(node: Option<&ConfigNode>) -> Result<Vec<String>> {
+pub(crate) fn strings(node: Option<&ConfigNode>) -> Result<Vec<String>> {
     list(node, name)
 }
 

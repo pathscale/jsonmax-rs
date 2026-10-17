@@ -1097,7 +1097,8 @@ fn scalar(
         if matches!(
             current.kind,
             StateKind::Object { .. } | StateKind::Array { .. }
-        ) {
+        ) && !(value.kind == ScalarKind::Null && current.constraints.nullable)
+        {
             return Err(vm_error(
                 ErrorCode::TypeMismatch,
                 offset,

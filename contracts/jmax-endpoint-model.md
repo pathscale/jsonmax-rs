@@ -239,3 +239,61 @@ locale independent. Utilities never call build_registry internally; functions
 requiring resolution take an already constructed index. Model errors remain the
 canonical ABI Error, with deterministic declaration-order validation failures.
 These contracts add metadata wrappers without extending the frozen ABI structs.
+
+## Wave 5: src/native.rs
+
+```rust
+pub struct NativeIdent { pub type_name: String, pub wire: String, pub ident: String }
+pub struct NativeSpec {
+    pub roots: Vec<String>,
+    pub tuples: Vec<String>,
+    pub decimal_policy: DecimalPolicy,
+    pub reject_unknown: bool,
+    pub idents: Vec<NativeIdent>,
+    pub nanoid_alphabet: NanoIdAlphabet,
+    pub nullable_optionals: bool,
+    pub nanoid_fields: Vec<NativeNanoIdField>,
+}
+pub enum NanoIdAlphabet { Url, Base62 }   // Default: Url
+pub struct NativeNanoIdField { pub type_name: String, pub wire: String, pub alphabet: NanoIdAlphabet }
+impl NativeSpec { pub fn alphabet_for(&self, type_name: &str, wire: &str) -> NanoIdAlphabet; }
+pub fn validate_native_spec(registry: &Registry<'_>, spec: &NativeSpec) -> Result<()>;
+pub fn schema_graph_for(registry: &Registry<'_>, spec: &NativeSpec, root: &str, schema_id: SchemaId) -> Result<jmax_schema_ir::Schema>;
+```
+
+NativeSpec is a separate artifact from the endpoint model; it never changes a model's
+meaning. It derives Clone + Debug + PartialEq + Eq; NativeIdent likewise. Default:
+no roots, no tuples, DecimalPolicy::spot_8, reject_unknown true, no idents. roots lists
+top-level definition names whose nominal struct becomes a decoder entry; tuples lists
+definition names of structs encoded on the wire as a JSON array; decimal_policy applies
+to every BlockchainDecimal; reject_unknown applies to every object. validate_native_spec
+requires every root and tuple to name a definition that resolves to a Struct (uniqueness
+and nonempty names included), every ident to name an existing field of a struct reachable
+from a root with a legal snake_case non-keyword identifier, no two idents for one field and
+no collision among the resulting identifiers, and a DecimalPolicy with max_precision in 1..=38, target_scale at most 38 and a nonnegative
+tick_step (the schema-ir scalar rules). Failures are
+ConstraintViolation; wire-name collisions are DuplicateObjectKey.
+
+schema_graph_for lowers root, a root name from spec.roots, to a nested jmax_schema_ir::Schema
+named after the root with the supplied SchemaId and runs jmax_schema_ir::model::validate. Mapping:
+Struct (and StructRef/StructTable resolved through the registry) to Object with one Property per
+field in declaration order, a FieldId unique across the whole graph (a counter from 1 in depth-first declaration order), required unless the field type is
+Optional, and reject_unknown from the spec; Vec to Array with no bounds; Optional
+unwraps its element and clears required (absence allowed, explicit null rejected, nested Optional
+and Optional elements in arrays unsupported); a tuple struct to Array with min_items =
+max_items = field count whose single items node is shared by all fields, which therefore must
+lower to structurally equal nodes; BlockchainDecimal to Decimal with
+DecimalConstraints{policy: decimal_policy, no bounds}; UInt32/Int32/Int64/TimeStampMs to
+Integer with their exact signed-representable bounds (0..=u32::MAX, i32, i64); Float64 to
+Number; Boolean to Boolean; String to String; UUID, IpAddr, BlockchainAddress and
+BlockchainTransactionHash to String with the same format names as utilities::schema_for_fields;
+NanoId of length 21 in the Url alphabet with format nanoid as there; any other NanoId length or alphabet to a
+String with min_length = max_length = len and format nanoid-chars (Url, `A-Z a-z 0-9 _ -`) or base62 (`A-Z a-z 0-9`),
+the alphabet being `alphabet_for` the field being lowered (nanoid_alphabet, or the entry of nanoid_fields for that
+field, which also applies to NanoIds nested in it); Bytea with format base64. Recursion, Enum, EnumRef, Object,
+Unit and heterogeneous tuples return UnsupportedSchemaFeature (a zero NanoId length is a ConstraintViolation).
+nullable_optionals (default false) makes the node lowered for every Optional field of a struct nullable (Scalar, Object
+or Array flag), so an explicit JSON null is accepted for the field and means it is absent, as serde does for Option
+fields; without it null stays a type error. validate_native_spec also requires every nanoid_fields entry to name an existing field of a struct and no field twice. Traversal
+is bounded by MAX_REFERENCE_DEPTH (DepthLimitExceeded). The result contains no pattern and no
+definitions or references; each nested object is its own node, so the graph is a tree.

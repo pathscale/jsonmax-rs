@@ -1,0 +1,20 @@
+// A request envelope in the shape of fixtures/endpoint_rpc_request.json.
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "AccountBalanceParams", ty: Struct(
+            name: "AccountBalanceParams",
+            fields: [
+                Field(name: "account_id", ty: UUID),
+            ],
+        )),
+        Definition(name: "RpcRequest", ty: Struct(
+            name: "RpcRequest",
+            fields: [
+                Field(name: "method", ty: String),
+                Field(name: "seq", ty: UInt32),
+                Field(name: "params", ty: StructRef("AccountBalanceParams")),
+            ],
+        )),
+    ],
+)

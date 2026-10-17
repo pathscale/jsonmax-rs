@@ -17,6 +17,8 @@ pub use jmax_schema_compile::{
 };
 pub use jmax_schema_ir::ValueKind;
 
+pub mod budget;
+pub use budget::{BudgetBound, budget_bound, budget_bound_counted, budget_safe, budget_safe_counted};
 pub mod direct;
 pub mod execute;
 pub use direct::{

@@ -21,7 +21,7 @@ fn compile(keys: u32) -> Result<jmax_schema_compile::ValidatedProgram> {
         schema_id: SchemaId(6),
         root: TypeId(0),
         nodes: vec![
-            TypeNode::Object(ObjectShape {
+            TypeNode::Object(ObjectShape { nullable: false,
                 properties,
                 reject_unknown: false,
                 min_properties: None,
@@ -103,7 +103,7 @@ fn recursive_dispatch_reaches_fixed_point_without_recursive_walks() -> Result {
         root: TypeId(0),
         definitions: vec![],
         nodes: vec![
-            TypeNode::Object(ObjectShape {
+            TypeNode::Object(ObjectShape { nullable: false,
                 properties: vec![
                     Property {
                         field_id: FieldId(0),

@@ -45,12 +45,14 @@ pub struct ScalarConstraints {
     pub max_length: Option<u32>,
     pub pattern: Option<String>,
     pub format: Option<String>,
+    /// A JSON `null` is accepted in place of a value of this kind.
+    pub nullable: bool,
 }
 
 impl ScalarConstraints {
     pub const fn new(kind: ValueKind) -> Self {
         Self { kind, min_i64: None, max_i64: None, decimal: None,
-            min_length: None, max_length: None, pattern: None, format: None }
+            min_length: None, max_length: None, pattern: None, format: None, nullable: false }
     }
 }
 
@@ -66,6 +68,8 @@ pub struct Property {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjectShape {
+    /// A JSON `null` is accepted in place of an object.
+    pub nullable: bool,
     pub properties: Vec<Property>,
     pub reject_unknown: bool,
     pub min_properties: Option<u32>,
@@ -74,9 +78,25 @@ pub struct ObjectShape {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArrayShape {
+    /// A JSON `null` is accepted in place of an array.
+    pub nullable: bool,
     pub items: TypeId,
     pub min_items: Option<u32>,
     pub max_items: Option<u32>,
+}
+
+/// One declared enum variant and the exact JSON integer accepted for it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnumVariant {
+    pub name: String,
+    pub discriminant: i64,
+}
+
+/// A closed enum accepting a declared name or its integer discriminant.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnumShape {
+    pub variants: Vec<EnumVariant>,
+    pub nullable: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -85,6 +105,7 @@ pub enum TypeNode {
     Scalar(ScalarConstraints),
     Object(ObjectShape),
     Array(ArrayShape),
+    Enum(EnumShape),
     Ref(String),
 }
 

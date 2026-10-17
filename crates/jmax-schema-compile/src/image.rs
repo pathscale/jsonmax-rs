@@ -9,7 +9,7 @@ use super::*;
 use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 use jmax_format::{HexCase, HexPolicy, Padding};
 use jmax_schema_ir::{
-    ArrayShape, Dialect, ObjectShape, Property, ResolveLimits, Schema, TypeNode,
+    ArrayShape, Dialect, EnumShape, EnumVariant, ObjectShape, Property, ResolveLimits, Schema, TypeNode,
     UnknownFormatPolicy,
 };
 
@@ -184,14 +184,25 @@ impl Writer<'_> {
         })
     }
 
-    fn constraints(&mut self, value: &ConstraintSet) -> Result<()> {
+    fn constraints(&mut self, value: &ConstraintSet, is_enum: bool) -> Result<()> {
         self.optional(value.min_i64.as_ref(), |w, n| w.i64(*n))?;
         self.optional(value.max_i64.as_ref(), |w, n| w.i64(*n))?;
         self.optional(value.decimal.as_ref(), Self::decimal)?;
         self.optional(value.min_count.as_ref(), |w, n| w.u32(*n))?;
         self.optional(value.max_count.as_ref(), |w, n| w.u32(*n))?;
         self.optional(value.pattern.as_ref(), |w, n| w.u32(*n))?;
-        self.optional(value.format.as_ref(), |w, n| w.u16(*n as u16))
+        self.optional(value.format.as_ref(), |w, n| w.u16(*n as u16))?;
+        self.boolean(value.nullable)?;
+        // The enum state tag owns this extension; older states keep their
+        // original byte grammar and fingerprints.
+        if is_enum {
+            self.length(value.enum_variants.len())?;
+            for variant in &value.enum_variants {
+                self.blob(variant.name.as_bytes())?;
+                self.i64(variant.discriminant)?;
+            }
+        }
+        Ok(())
     }
 
     fn state(&mut self, state: &ProgramState) -> Result<()> {
@@ -202,6 +213,7 @@ impl Writer<'_> {
                 self.u8(1)?;
                 self.u8(value_tag(*kind))?;
             }
+            StateKind::Enum => self.u8(4)?,
             StateKind::Object {
                 key_table,
                 required_count,
@@ -218,7 +230,7 @@ impl Writer<'_> {
             }
         }
         self.span(state.insns)?;
-        self.constraints(&state.constraints)
+        self.constraints(&state.constraints, matches!(state.kind, StateKind::Enum))
     }
 
     fn pattern(&mut self, pattern: &PatternProgram) -> Result<()> {
@@ -690,7 +702,7 @@ impl<'a> Reader<'a> {
         })
     }
 
-    fn constraints(&mut self) -> Result<ConstraintSet> {
+    fn constraints(&mut self, is_enum: bool) -> Result<ConstraintSet> {
         Ok(ConstraintSet {
             min_i64: self.optional(Self::i64)?,
             max_i64: self.optional(Self::i64)?,
@@ -699,6 +711,13 @@ impl<'a> Reader<'a> {
             max_count: self.optional(Self::u32)?,
             pattern: self.optional(Self::u32)?,
             format: self.optional(Self::format_id)?,
+            nullable: self.boolean()?,
+            enum_variants: if is_enum { self.vector(12, u32::MAX, |reader| {
+                Ok(EnumVariant {
+                    name: reader.string(u32::MAX)?,
+                    discriminant: reader.i64()?,
+                })
+            })? } else { Vec::new() },
         })
     }
 
@@ -716,13 +735,15 @@ impl<'a> Reader<'a> {
             3 => StateKind::Array {
                 items: StateId(self.u32()?),
             },
+            4 => StateKind::Enum,
             _ => return Err(self.error_at(position, "unknown state-kind tag")),
         };
+        let is_enum = matches!(kind, StateKind::Enum);
         Ok(ProgramState {
             id,
             kind,
             insns: self.span()?,
-            constraints: self.constraints()?,
+            constraints: self.constraints(is_enum)?,
         })
     }
 
@@ -921,7 +942,7 @@ pub fn decode(bytes: &[u8], options: &CompilerOptions) -> Result<ValidatedProgra
     validate(program, options)
 }
 
-fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions) -> Result<ScalarConstraints> {
+fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions, nullable: bool) -> Result<ScalarConstraints> {
     Ok(ScalarConstraints {
         kind: reader.value_kind()?,
         min_i64: reader.optional(Reader::i64)?,
@@ -931,6 +952,7 @@ fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions) -> Result<Sca
         max_length: reader.optional(Reader::u32)?,
         pattern: reader.optional(|r| r.string(options.policy.max_pattern_bytes))?,
         format: reader.optional(|r| r.string(options.max_image_bytes))?,
+        nullable,
     })
 }
 
@@ -953,10 +975,12 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
     let mut remaining_keys = options.limits.max_keys;
     let nodes = reader.vector(1, options.limits.max_states, |r| {
         let position = r.position;
-        match r.u8()? {
+        let tag = r.u8()?;
+        match tag {
             0 => Ok(TypeNode::Any),
-            1 => Ok(TypeNode::Scalar(read_scalar(r, options)?)),
-            2 => {
+            1 | 4 => Ok(TypeNode::Scalar(read_scalar(r, options, tag == 4)?)),
+            2 | 5 => {
+                let nullable = tag == 5;
                 let reject_unknown = r.boolean()?;
                 let min_properties = r.optional(Reader::u32)?;
                 let max_properties = r.optional(Reader::u32)?;
@@ -977,17 +1001,26 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
                     .checked_sub(count(properties.len())?)
                     .ok_or_else(budget)?;
                 Ok(TypeNode::Object(ObjectShape {
+                    nullable,
                     properties,
                     reject_unknown,
                     min_properties,
                     max_properties,
                 }))
             }
-            3 => Ok(TypeNode::Array(ArrayShape {
+            3 | 6 => Ok(TypeNode::Array(ArrayShape {
+                nullable: tag == 6,
                 items: TypeId(r.u32()?),
                 min_items: r.optional(Reader::u32)?,
                 max_items: r.optional(Reader::u32)?,
             })),
+            7 => {
+                let nullable = r.boolean()?;
+                let variants = r.vector(12, options.max_image_bytes, |r| {
+                    Ok(EnumVariant { name: r.string(options.max_image_bytes)?, discriminant: r.i64()? })
+                })?;
+                Ok(TypeNode::Enum(EnumShape { variants, nullable }))
+            }
             _ => Err(r.error_at(position, "unknown canonical node tag")),
         }
     })?;
@@ -1108,7 +1141,15 @@ fn inspect(program: &CompiledProgram, options: &CompilerOptions) -> Result<()> {
             StateKind::Array { items } if items.0 >= state_count => {
                 return Err(invalid("array target is outside the state graph"));
             }
+            StateKind::Enum if state.constraints.enum_variants.is_empty() => {
+                return Err(invalid("enum state has no variants"));
+            }
             _ => {}
+        }
+        if !matches!(&state.kind, StateKind::Enum)
+            && !state.constraints.enum_variants.is_empty()
+        {
+            return Err(invalid("non-enum state has enum variants"));
         }
         if state
             .constraints
@@ -1357,8 +1398,9 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
             }
             StateKind::Scalar(ValueKind::Number) => bit(S::Number),
             StateKind::Scalar(ValueKind::Decimal | ValueKind::String) => bit(S::String),
+            StateKind::Enum => bit(S::String) | bit(S::Number),
             StateKind::Object { .. } | StateKind::Array { .. } => 0,
-        };
+        } | if state.constraints.nullable { bit(S::Null) } else { 0 };
         let has_constraints =
             state.kind != StateKind::Any || state.constraints != ConstraintSet::default();
         dispatch.push(CompiledStateDispatch {

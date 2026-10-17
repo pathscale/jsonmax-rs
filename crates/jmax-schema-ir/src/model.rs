@@ -74,7 +74,7 @@ pub fn normalize(ir: &SchemaIr) -> Result<Schema> {
     }
     // Capacity includes the root; inserting it cannot allocate. Child IDs
     // already account for this shift and are never exposed before validation.
-    nodes.insert(0, TypeNode::Object(ObjectShape {
+    nodes.insert(0, TypeNode::Object(ObjectShape { nullable: false,
         properties,
         reject_unknown: ir.reject_unknown,
         min_properties: None,
@@ -115,6 +115,7 @@ fn normalize_field(field: &SchemaFieldIr, schema: SchemaId) -> Result<TypeNode> 
         pattern: None,
         format: field.format.as_deref()
             .map(|value| copy_string(value, schema, Some(field.field_id))).transpose()?,
+        nullable: false,
     };
     validate_scalar(&constraints, schema, Some(field.field_id))?;
     Ok(TypeNode::Scalar(constraints))
@@ -216,6 +217,29 @@ pub fn validate(schema: &Schema) -> Result<()> {
             TypeNode::Array(array) => {
                 check_id(schema, array.items, field)?;
                 check_bounds(array.min_items, array.max_items, id, field)?;
+            }
+            TypeNode::Enum(shape) => {
+                if shape.variants.is_empty() {
+                    return Err(invalid(id, field, "enum has no variants"));
+                }
+                count(shape.variants.len(), id, field)?;
+                let mut names = Vec::new();
+                let mut discriminants = Vec::new();
+                reserve(&mut names, shape.variants.len(), id)?;
+                reserve(&mut discriminants, shape.variants.len(), id)?;
+                for variant in &shape.variants {
+                    count(variant.name.len(), id, field)?;
+                    names.push(variant.name.as_str());
+                    discriminants.push(variant.discriminant);
+                }
+                names.sort_unstable_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+                if names.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(invalid(id, field, "duplicate enum variant name"));
+                }
+                discriminants.sort_unstable();
+                if discriminants.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(invalid(id, field, "duplicate enum discriminant"));
+                }
             }
             TypeNode::Ref(name) => {
                 count(name.len(), id, field)?;
@@ -363,4 +387,65 @@ pub fn required_fields(schema: &ResolvedSchema, object: TypeId) -> Result<Vec<Fi
     reserve(&mut fields, required, schema.schema.schema_id).map_err(contextualize)?;
     fields.extend(shape.properties.iter().filter(|property| property.required).map(|property| property.field_id));
     Ok(fields)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn enum_schema(variants: Vec<EnumVariant>) -> Schema {
+        Schema {
+            name: String::from("State"),
+            schema_id: SchemaId(1),
+            root: TypeId(0),
+            nodes: alloc::vec![TypeNode::Enum(EnumShape { variants, nullable: false })],
+            definitions: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn enum_requires_unique_names_and_discriminants() {
+        let variants = alloc::vec![
+            EnumVariant { name: String::from("Queued"), discriminant: 3 },
+            EnumVariant { name: String::from("Done"), discriminant: 8 },
+        ];
+        assert!(validate(&enum_schema(variants)).is_ok());
+
+        let duplicate_name = alloc::vec![
+            EnumVariant { name: String::from("Same"), discriminant: 3 },
+            EnumVariant { name: String::from("Same"), discriminant: 8 },
+        ];
+        assert!(validate(&enum_schema(duplicate_name)).is_err());
+
+        let duplicate_discriminant = alloc::vec![
+            EnumVariant { name: String::from("Queued"), discriminant: 3 },
+            EnumVariant { name: String::from("Done"), discriminant: 3 },
+        ];
+        assert!(validate(&enum_schema(duplicate_discriminant)).is_err());
+        assert!(validate(&enum_schema(Vec::new())).is_err());
+    }
+
+    #[test]
+    fn unit_is_the_existing_null_scalar() {
+        let ir = SchemaIr {
+            name: String::from("UnitHolder"),
+            schema_id: SchemaId(2),
+            required_count: 1,
+            reject_unknown: true,
+            fields: alloc::vec![SchemaFieldIr {
+                field_id: FieldId(4),
+                name: String::from("unit"),
+                required: true,
+                scalar_kind: Some(ScalarKind::Null),
+                format: None,
+                min_len: None,
+                max_len: None,
+                min_i64: None,
+                max_i64: None,
+            }],
+        };
+        let schema = normalize(&ir).unwrap();
+        assert!(matches!(schema.nodes.get(1), Some(TypeNode::Scalar(value))
+            if value.kind == ValueKind::Null && !value.nullable));
+    }
 }

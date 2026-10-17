@@ -1,0 +1,52 @@
+// Binance Spot market data as endpoint definitions: aggTrade, depthUpdate and
+// the REST depth snapshot. Wire names are the exchange's one-letter keys.
+// Update ids and event times are Int64/TimeStampMs: values above i64::MAX are
+// rejected, which the exchange never sends.
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "PriceLevel", ty: Struct(
+            name: "PriceLevel",
+            fields: [
+                Field(name: "price", ty: BlockchainDecimal),
+                Field(name: "quantity", ty: BlockchainDecimal),
+            ],
+        )),
+        Definition(name: "AggTrade", ty: Struct(
+            name: "AggTrade",
+            fields: [
+                Field(name: "e", ty: String),
+                Field(name: "E", ty: TimeStampMs),
+                Field(name: "s", ty: String),
+                Field(name: "a", ty: Int64),
+                Field(name: "p", ty: BlockchainDecimal),
+                Field(name: "q", ty: BlockchainDecimal),
+                Field(name: "f", ty: Int64),
+                Field(name: "l", ty: Int64),
+                Field(name: "T", ty: TimeStampMs),
+                Field(name: "m", ty: Boolean),
+                Field(name: "M", ty: Optional(Boolean)),
+            ],
+        )),
+        Definition(name: "DepthUpdate", ty: Struct(
+            name: "DepthUpdate",
+            fields: [
+                Field(name: "e", ty: String),
+                Field(name: "E", ty: TimeStampMs),
+                Field(name: "s", ty: String),
+                Field(name: "U", ty: Int64),
+                Field(name: "u", ty: Int64),
+                Field(name: "b", ty: Vec(StructRef("PriceLevel"))),
+                Field(name: "a", ty: Vec(StructRef("PriceLevel"))),
+            ],
+        )),
+        Definition(name: "DepthSnapshot", ty: Struct(
+            name: "DepthSnapshot",
+            fields: [
+                Field(name: "lastUpdateId", ty: Int64),
+                Field(name: "bids", ty: Vec(StructRef("PriceLevel"))),
+                Field(name: "asks", ty: Vec(StructRef("PriceLevel"))),
+            ],
+        )),
+    ],
+)

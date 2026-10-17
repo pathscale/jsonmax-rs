@@ -59,6 +59,12 @@ Canonical byte grammar v1: all fixed-width integers little endian, booleans exac
 
 Node record tag is Any=0, Scalar=1, Object=2, Array=3. Any has no payload. Scalar encodes kind u8 (Null=0, Boolean=1, Integer=2, Number=3, Decimal=4, String=5), min_i64 Option<i64>, max_i64 Option<i64>, decimal Option<DecimalConstraints>, min_length/max_length Option<u32>, pattern/format Option<string>, in that order. DecimalConstraints is DecimalPolicy in ABI order (u8,u8,bool,bool,i128), then minimum/maximum Option<Decimal128>; Decimal128 is i128 coefficient,u8 scale. Object is reject_unknown bool, min/max_properties Option<u32>, then property vector sorted by name. Each property is u32 field_id,string name,u32 canonical target,bool required,Option<u32> slot. Array is u32 canonical items target, min/max_items Option<u32>. There are no Ref records.
 
+Nullable nodes. A Scalar, Object or Array node with `nullable` set means a JSON null is accepted in place of
+its value (in addition to a value of its kind with all its constraints); a nullable node under a
+non-nullable one or the reverse are different schemas. The canonical record of a nullable node has tag 4
+(Scalar), 5 (Object) or 6 (Array) and the payload of tag 1, 2 or 3, so the bytes, and therefore the
+fingerprint, of every schema with no nullable node are exactly what they were before the flag existed.
+
 fingerprint_bytes computes root Fingerprint/FNV-1a exactly, with wrapping u64 multiplication. fingerprint must return canonicalize(...).fingerprint. Overflow or allocation failure uses BudgetExhausted; policy errors propagate. Hash collisions do not establish schema equivalence, authentication, or trust. Compare canonical bytes for identity-sensitive uses.
 
 ## Normative shared root
@@ -111,12 +117,14 @@ pub struct ScalarConstraints {
     pub max_length: Option<u32>,
     pub pattern: Option<String>,
     pub format: Option<String>,
+    /// A JSON null is accepted in place of a value of this kind.
+    pub nullable: bool,
 }
 
 impl ScalarConstraints {
     pub const fn new(kind: ValueKind) -> Self {
         Self { kind, min_i64: None, max_i64: None, decimal: None,
-            min_length: None, max_length: None, pattern: None, format: None }
+            min_length: None, max_length: None, pattern: None, format: None, nullable: false }
     }
 }
 
@@ -132,6 +140,8 @@ pub struct Property {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjectShape {
+    /// A JSON null is accepted in place of an object.
+    pub nullable: bool,
     pub properties: Vec<Property>,
     pub reject_unknown: bool,
     pub min_properties: Option<u32>,
@@ -140,6 +150,8 @@ pub struct ObjectShape {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArrayShape {
+    /// A JSON null is accepted in place of an array.
+    pub nullable: bool,
     pub items: TypeId,
     pub min_items: Option<u32>,
     pub max_items: Option<u32>,

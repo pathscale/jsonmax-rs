@@ -149,11 +149,11 @@ fn validate_names(model: &EndpointModel, catalog: &Catalog<'_>, options: &Codege
                 let mut fields_seen = BTreeMap::new();
                 for (index, field) in fields.iter().enumerate() {
                     let id = u32::try_from(index).map_err(|_| codegen_error(ErrorCode::BudgetExhausted, "field count exceeds u32"))?;
-                    let name = field_name(&field.name).map_err(|error| error.with_schema(0, id))?;
-                    if options.emit_views && matches!(name.as_str(), "new" | "value") {
+                    let member = crate::models::member_ident(options, &name, &field.name).map_err(|error| error.with_schema(0, id))?;
+                    if options.emit_views && matches!(member.as_str(), "new" | "value") {
                         return Err(constraint("view field getter collides with constructor or owner accessor").with_schema(0, id));
                     }
-                    if fields_seen.insert(name, ()).is_some() {
+                    if fields_seen.insert(member, ()).is_some() {
                         return Err(constraint("colliding generated Rust field names").with_schema(0, id));
                     }
                 }
