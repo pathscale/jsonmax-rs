@@ -700,6 +700,7 @@ dependencies = [
  "jmax-decimal",
  "jmax-endpoint-model",
  "jmax-endpoint-ron",
+ "jmax-format",
  "jmax-number",
  "jmax-schema-aot",
  "jmax-schema-compile",

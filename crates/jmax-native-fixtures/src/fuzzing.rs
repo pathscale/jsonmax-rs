@@ -14,9 +14,12 @@
 use crate::harness::{
     depth_document, limit_variants, check_one, snapshot_document, Subject, Tally, AGG_TRADE, SHAPE,
 };
-use crate::harness::{oracle_open, oracle_plain, oracle_strict, shape_open, shape_strict};
-use crate::regen::{BINANCE, SHAPES};
-use crate::{binance, binance_open, binance_plain, shapes, shapes_open};
+use crate::harness::{
+    formats_open_oracle, formats_strict, oracle_open, oracle_plain, oracle_strict, shape_open, shape_strict,
+    FORMATS_DOC,
+};
+use crate::regen::{BINANCE, FORMATS, SHAPES};
+use crate::{binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_open};
 use jmax_abi::number::NumericPolicy;
 use jmax_native::{NativeContext, NativeDecode, VmLimits};
 use std::cell::RefCell;
@@ -33,6 +36,8 @@ pub const SUBJECTS: &[&str] = &[
     "plain DepthUpdate",
     "strict Shape",
     "open Shape",
+    "strict Ids",
+    "open Ids",
 ];
 
 struct Runner {
@@ -70,6 +75,8 @@ fn runners() -> Vec<Runner> {
         runner(Subject::<binance_plain::models::DepthUpdate>::new(&BINANCE, "DepthUpdate", true, oracle_plain::depth)),
         runner(Subject::<shapes::models::Shape>::new(&SHAPES, "Shape", true, shape_strict::shape)),
         runner(Subject::<shapes_open::models::Shape>::new(&SHAPES, "Shape", false, shape_open::shape)),
+        runner(Subject::<formats::models::Ids>::new(&FORMATS, "Ids", true, formats_strict::ids)),
+        runner(Subject::<formats_open::models::Ids>::new(&FORMATS, "Ids", false, formats_open_oracle::ids)),
     ]
 }
 
@@ -108,6 +115,10 @@ pub fn seed_corpus() -> Vec<Vec<u8>> {
         (8, SHAPE.as_bytes().to_vec()),
         (9, SHAPE.as_bytes().to_vec()),
         (9, SHAPE.replace("\"ok\"", "\"u\":[1,{\"k\":[null,true]}],\"ok\"").into_bytes()),
+        (10, FORMATS_DOC.as_bytes().to_vec()),
+        (10, FORMATS_DOC.replace("Zm9vYmE=", "Zm9vYmE").into_bytes()),
+        (11, FORMATS_DOC.as_bytes().to_vec()),
+        (11, FORMATS_DOC.replace("\"names\"", "\"x\":[1],\"names\"").into_bytes()),
     ];
     for levels in [0usize, 1, 2, 20] {
         for subject in [1usize, 4, 7] {

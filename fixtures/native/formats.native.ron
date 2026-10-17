@@ -1,0 +1,10 @@
+// Native decoder specification for fixtures/native/formats.ron: the NanoIds of
+// `sess` and `sessions` are Base62, every other one uses the default alphabet.
+NativeSpec(
+    roots: ["Ids"],
+    reject_unknown: true,
+    nanoid_fields: [
+        NanoIdField("Ids", "sess", Base62),
+        NanoIdField("Ids", "sessions", Base62),
+    ],
+)

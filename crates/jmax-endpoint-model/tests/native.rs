@@ -130,7 +130,6 @@ fn unsupported_shapes_are_refused() {
         ("object", vec![field("x", Object)], ErrorCode::UnsupportedSchemaFeature),
         ("unit", vec![field("x", Unit)], ErrorCode::UnsupportedSchemaFeature),
         ("enum", vec![field("x", EnumRef { name: "E".into(), prefixed_name: false })], ErrorCode::UnsupportedSchemaFeature),
-        ("nano", vec![field("x", NanoId { len: 8 })], ErrorCode::UnsupportedSchemaFeature),
         ("optional element", vec![field("x", Vec(Box::new(Optional(Box::new(Boolean)))))], ErrorCode::UnsupportedSchemaFeature),
         ("recursion", vec![field("x", Vec(Box::new(StructRef("Root".into()))))], ErrorCode::UnsupportedSchemaFeature),
     ];
@@ -206,4 +205,39 @@ fn reject_unknown_follows_the_spec_and_lowering_is_deterministic() {
     let a = schema_graph_for(&registry, &spec(), "DepthUpdate", SchemaId(2)).unwrap();
     let b = schema_graph_for(&registry, &spec(), "DepthUpdate", SchemaId(2)).unwrap();
     assert_eq!(a, b);
+}
+
+#[test]
+fn nanoids_lower_to_length_bounded_formats() {
+    use jmax_endpoint_model::native::{NanoIdAlphabet, NativeNanoIdField};
+    use jmax_schema_ir::{TypeNode, ValueKind};
+    let model = model(vec![strukt("Root", vec![
+        field("a", EndpointType::NanoId { len: 8 }),
+        field("b", EndpointType::NanoId { len: 21 }),
+        field("c", EndpointType::NanoId { len: 21 }),
+        field("d", EndpointType::Vec(Box::new(EndpointType::NanoId { len: 16 }))),
+    ])]);
+    let registry = build_registry(&model).unwrap();
+    let mut spec = NativeSpec { roots: vec!["Root".into()], ..NativeSpec::default() };
+    spec.nanoid_fields.push(NativeNanoIdField {
+        type_name: "Root".into(), wire: "c".into(), alphabet: NanoIdAlphabet::Base62,
+    });
+    spec.nanoid_fields.push(NativeNanoIdField {
+        type_name: "Root".into(), wire: "d".into(), alphabet: NanoIdAlphabet::Base62,
+    });
+    let schema = schema_graph_for(&registry, &spec, "Root", SchemaId(1)).unwrap();
+    let strings: std::vec::Vec<(Option<&str>, Option<u32>, Option<u32>)> = schema
+        .nodes
+        .iter()
+        .filter_map(|node| match node {
+            TypeNode::Scalar(c) if c.kind == ValueKind::String => Some((c.format.as_deref(), c.min_length, c.max_length)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(strings, [
+        (Some("nanoid-chars"), Some(8), Some(8)),
+        (Some("nanoid"), None, None),
+        (Some("base62"), Some(21), Some(21)),
+        (Some("base62"), Some(16), Some(16)),
+    ]);
 }

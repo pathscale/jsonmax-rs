@@ -1,10 +1,34 @@
 //! Token primitives. Each skips whitespace, consumes exactly one token on
 //! success and leaves the position unchanged on `Fail`.
 
-use crate::{Decimal128, DecimalPolicy, Fail, NativeContext, NativeResult};
+use crate::{Decimal128, DecimalPolicy, Fail, FormatId, NativeContext, NativeResult};
 use alloc::vec::Vec;
 use jmax_number::NumberToken;
 use jmax_abi::span::NumberLexKind;
+
+/// Decode text that `FormatId::Base64` has accepted: the standard alphabet, padded
+/// to a multiple of four, canonical trailing bits.
+fn base64_decode(text: &[u8], out: &mut Vec<u8>) {
+    fn value(byte: u8) -> u32 {
+        match byte {
+            b'A'..=b'Z' => u32::from(byte - b'A'),
+            b'a'..=b'z' => u32::from(byte - b'a') + 26,
+            b'0'..=b'9' => u32::from(byte - b'0') + 52,
+            b'+' => 62,
+            _ => 63,
+        }
+    }
+    out.reserve(text.len() / 4 * 3);
+    for quantum in text.chunks(4) {
+        let data = quantum.iter().take_while(|byte| **byte != b'=').count();
+        let mut bits = 0u32;
+        for (index, &byte) in quantum.iter().enumerate() {
+            bits |= (if index < data { value(byte) } else { 0 }) << (18 - 6 * index);
+        }
+        let bytes = bits.to_be_bytes();
+        out.extend_from_slice(&bytes[1..data.saturating_sub(1) + 1]);
+    }
+}
 
 /// A scanned string: ASCII bytes (valid UTF-8 by construction) or validated text.
 enum Scanned<'c> {
@@ -252,6 +276,43 @@ impl<'a> Reader<'a> {
         self.pos = end;
         ctx.decimals += 1;
         Ok(value)
+    }
+
+    /// A string that must pass the named format, and, when `exact` is given, must be
+    /// exactly that many characters long (a schema's min_length = max_length).
+    /// The format is checked by `jmax_format::registry::validate` with the
+    /// program's own options, the very call the schema VM makes, so the accept
+    /// sets are identical by construction.
+    #[inline]
+    pub fn format<'c>(
+        &mut self,
+        ctx: &'c mut NativeContext,
+        id: FormatId,
+        exact: Option<u32>,
+    ) -> NativeResult<&'c str>
+    where
+        'a: 'c,
+    {
+        self.skip_ws();
+        let max = ctx.limits.syntax.max_string_bytes as usize;
+        let (text, end) = self.string_in(max, &mut ctx.arena, self.pos)?;
+        jmax_format::registry::validate(id, text.as_bytes(), &ctx.format_options).map_err(|_| Fail)?;
+        // Every format accepts ASCII only, so characters and bytes are the same count.
+        if exact.is_some_and(|length| text.len() != length as usize) {
+            return Err(Fail);
+        }
+        self.pos = end;
+        Ok(text)
+    }
+
+    /// A base64 string (standard alphabet, canonical padding, as the `base64`
+    /// format defines it) decoded into `out`, which is cleared first.
+    pub fn bytea(&mut self, ctx: &mut NativeContext, out: &mut Vec<u8>) -> NativeResult<()> {
+        let text = self.format(ctx, FormatId::Base64, None)?.as_bytes();
+        out.clear();
+        base64_decode(text, out);
+        // Format::format advanced the position past the string.
+        Ok(())
     }
 
     /// A string. Without escapes it borrows the input; with escapes it is

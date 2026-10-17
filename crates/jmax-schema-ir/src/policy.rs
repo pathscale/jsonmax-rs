@@ -38,7 +38,8 @@ pub fn validate_policy(policy: &SchemaPolicy) -> Result<()> {
 pub fn known_format(name: &str) -> bool {
     matches!(name,
         "uuid" | "ipv4" | "ipv6" | "ip" | "base64" | "base64url" | "hex"
-        | "nanoid" | "blockchain-address" | "blockchain-transaction-hash")
+        | "nanoid" | "blockchain-address" | "blockchain-transaction-hash"
+        | "nanoid-chars" | "base62")
 }
 
 fn error(schema: &ResolvedSchema, field: Option<FieldId>, code: ErrorCode,

@@ -28,6 +28,33 @@ pub fn validate_nanoid(input: &[u8], len: u8) -> FormatResult<()> {
     Ok(())
 }
 
+/// Validates a nonempty run of ASCII letters, decimal digits, underscores or hyphens.
+///
+/// The length is not constrained here; a schema bounds it with its own length limits.
+/// Empty input fails with InvalidLength at 0; otherwise the first invalid byte is reported.
+pub fn validate_nanoid_chars(input: &[u8]) -> FormatResult<()> {
+    if input.is_empty() {
+        return Err(FormatFailure::new(FormatFailureKind::InvalidLength, 0));
+    }
+    match input.iter().position(|byte| !matches!(byte, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'-')) {
+        Some(index) => Err(FormatFailure::new(FormatFailureKind::InvalidByte, index)),
+        None => Ok(()),
+    }
+}
+
+/// Validates a nonempty run of ASCII letters and decimal digits (the Base62 alphabet).
+///
+/// Failures are reported as in [`validate_nanoid_chars`].
+pub fn validate_base62(input: &[u8]) -> FormatResult<()> {
+    if input.is_empty() {
+        return Err(FormatFailure::new(FormatFailureKind::InvalidLength, 0));
+    }
+    match input.iter().position(|byte| !byte.is_ascii_alphanumeric()) {
+        Some(index) => Err(FormatFailure::new(FormatFailureKind::InvalidByte, index)),
+        None => Ok(()),
+    }
+}
+
 /// Validates exactly lowercase `0x` followed by 40 hex digits of either case.
 ///
 /// This is lexical validation only. It does not verify a chain, checksum,

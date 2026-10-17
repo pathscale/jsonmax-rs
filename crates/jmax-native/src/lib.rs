@@ -12,6 +12,7 @@ extern crate alloc;
 pub use jmax_abi::error::{Error, ErrorCode, ErrorSource, Result};
 pub use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 pub use jmax_schema_compile::ValidatedProgram;
+pub use jmax_format::FormatId;
 pub use jmax_schema_vm::VmLimits;
 
 pub mod context;

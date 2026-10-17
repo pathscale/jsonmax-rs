@@ -92,3 +92,49 @@ fn malformed_documents_are_rejected_with_offsets() {
     let limits = ConfigLimits { max_input_bytes: 4, ..ConfigLimits::default() };
     assert_eq!(load_native_spec("(roots: [])", &limits).unwrap_err().code, ErrorCode::PayloadTooLarge);
 }
+
+const FORMATS: &str = include_str!("../../../fixtures/native/formats.ron");
+const FORMATS_NATIVE: &str = include_str!("../../../fixtures/native/formats.native.ron");
+
+#[test]
+fn nanoid_alphabets_load_and_lower_to_length_bounded_formats() {
+    use jmax_endpoint_model::native::{NanoIdAlphabet, NativeNanoIdField};
+    let spec = spec(FORMATS_NATIVE);
+    assert_eq!(spec.nanoid_alphabet, NanoIdAlphabet::Url);
+    assert_eq!(spec.nanoid_fields, [
+        NativeNanoIdField { type_name: "Ids".into(), wire: "sess".into(), alphabet: NanoIdAlphabet::Base62 },
+        NativeNanoIdField { type_name: "Ids".into(), wire: "sessions".into(), alphabet: NanoIdAlphabet::Base62 },
+    ]);
+    assert_eq!(spec.alphabet_for("Ids", "sess"), NanoIdAlphabet::Base62);
+    assert_eq!(spec.alphabet_for("Ids", "id"), NanoIdAlphabet::Url);
+    let model = model(FORMATS);
+    let registry = build_registry(&model).unwrap();
+    validate_native_spec(&registry, &spec).unwrap();
+    let schema = schema_graph_for(&registry, &spec, "Ids", SchemaId(5000)).unwrap();
+    // The 16 character fields are strings of exactly 16 characters with a format.
+    let formats = |name: &str| schema.nodes.iter().filter(|node| matches!(node,
+        jmax_schema_ir::TypeNode::Scalar(c) if c.format.as_deref() == Some(name) && c.min_length == Some(16) && c.max_length == Some(16))).count();
+    assert_eq!(formats("nanoid-chars"), 2, "id and many");
+    assert_eq!(formats("base62"), 2, "sess and sessions");
+    let resolved = resolve::resolve(schema, ResolveLimits::default()).unwrap();
+    jmax_schema_compile::compile(&resolved, &CompilerOptions::default()).unwrap();
+
+    // The record form, a default alphabet, and bad spellings.
+    let record = load_native_spec(
+        "NativeSpec(roots: [\"Ids\"], nanoid_alphabet: Base62, nanoid_fields: [NanoIdField(type: \"Ids\", wire: \"id\", alphabet: Url)])",
+        &ConfigLimits::default(),
+    ).unwrap();
+    assert_eq!(record.alphabet_for("Ids", "id"), NanoIdAlphabet::Url);
+    assert_eq!(record.alphabet_for("Ids", "tag"), NanoIdAlphabet::Base62);
+    for bad in [
+        "NativeSpec(roots: [\"Ids\"], nanoid_alphabet: Base64)",
+        "NativeSpec(roots: [\"Ids\"], nanoid_alphabet: \"Base62\")",
+        "NativeSpec(roots: [\"Ids\"], nanoid_fields: [NanoIdField(\"Ids\", \"id\")])",
+        "NativeSpec(roots: [\"Ids\"], nanoid_fields: [NanoIdField(\"Ids\", \"\", Url)])",
+    ] {
+        assert!(load_native_spec(bad, &ConfigLimits::default()).is_err(), "{bad}");
+    }
+    let mut unknown = spec.clone();
+    unknown.nanoid_fields[0].wire = "nope".into();
+    assert!(validate_native_spec(&registry, &unknown).is_err());
+}

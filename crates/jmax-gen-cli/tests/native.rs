@@ -233,12 +233,20 @@ fn argument_rules() {
 
 #[test]
 fn unsupported_and_missing_specifications_fail_without_writing() {
-    // UUID is a format, and jmax-native has no format validators yet.
-    let workspace = Workspace::new("unsupported", RPC, RPC_SPEC);
-    let (code, stdout, stderr) = run_native(&workspace, &[]);
+    // Enums have no native form.
+    let enum_model = FLAT.replace("Field(name: \"ask\", ty: Int64),", "Field(name: \"ask\", ty: Int64), Field(name: \"side\", ty: Enum(name: \"Side\", variants: [EnumVariant(name: \"Buy\", value: 1)])),");
+    let workspace = Workspace::new("unsupported", &enum_model, FLAT_SPEC);
+    let (code, stdout, stderr) = run_native(&workspace, &["--format", "rust"]);
     assert_eq!((code, stdout.as_str()), (1, ""));
-    assert!(stderr.contains("format validators"), "{stderr}");
+    assert!(stderr.contains("enums have no native form"), "{stderr}");
     assert!(!workspace.output().exists());
+
+    // A format field generates (UUID is validated by jmax-native).
+    let workspace = Workspace::new("formats", RPC, RPC_SPEC);
+    let (code, _, stderr) = run_native(&workspace, &["--format", "rust"]);
+    assert_eq!((code, stderr.as_str()), (0, ""));
+    let native = fs::read_to_string(workspace.output().join("rust/native.rs")).unwrap();
+    assert!(native.contains("FormatId::Uuid"));
 
     let workspace = Workspace::new("missing", BINANCE, BINANCE_SPEC);
     fs::remove_file(workspace.native()).unwrap();

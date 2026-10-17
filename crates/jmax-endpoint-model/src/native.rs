@@ -25,6 +25,24 @@ pub struct NativeIdent {
     pub ident: String,
 }
 
+/// The characters a NanoId may use. The model's `NanoId { len }` fixes only the length.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NanoIdAlphabet {
+    /// `A-Z a-z 0-9 _ -`, the alphabet of every NanoId validator in the workspace.
+    #[default]
+    Url,
+    /// `A-Z a-z 0-9`.
+    Base62,
+}
+
+/// The alphabet of the NanoId fields of one wire field of one nominal struct.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeNanoIdField {
+    pub type_name: String,
+    pub wire: String,
+    pub alphabet: NanoIdAlphabet,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeSpec {
     /// Definition names that get a decoder entry point.
@@ -36,6 +54,20 @@ pub struct NativeSpec {
     /// Applied to every object.
     pub reject_unknown: bool,
     pub idents: Vec<NativeIdent>,
+    /// The alphabet of every NanoId not named in `nanoid_fields`.
+    pub nanoid_alphabet: NanoIdAlphabet,
+    /// Per-field alphabets, which also apply to NanoIds nested in that field (arrays).
+    pub nanoid_fields: Vec<NativeNanoIdField>,
+}
+
+impl NativeSpec {
+    /// The alphabet for NanoIds inside the field `wire` of struct `type_name`.
+    pub fn alphabet_for(&self, type_name: &str, wire: &str) -> NanoIdAlphabet {
+        self.nanoid_fields
+            .iter()
+            .find(|field| field.type_name == type_name && field.wire == wire)
+            .map_or(self.nanoid_alphabet, |field| field.alphabet)
+    }
 }
 
 impl Default for NativeSpec {
@@ -46,6 +78,8 @@ impl Default for NativeSpec {
             decimal_policy: DecimalPolicy::spot_8(),
             reject_unknown: true,
             idents: Vec::new(),
+            nanoid_alphabet: NanoIdAlphabet::Url,
+            nanoid_fields: Vec::new(),
         }
     }
 }
@@ -124,6 +158,18 @@ pub fn validate_native_spec(registry: &Registry<'_>, spec: &NativeSpec) -> Resul
             }
         }
     }
+    for (index, entry) in spec.nanoid_fields.iter().enumerate() {
+        let fields = struct_fields(registry, &entry.type_name)?;
+        if !fields.iter().any(|field| field.name == entry.wire) {
+            return Err(invalid("native NanoId alphabet names an unknown wire field"));
+        }
+        if spec.nanoid_fields[..index]
+            .iter()
+            .any(|earlier| earlier.type_name == entry.type_name && earlier.wire == entry.wire)
+        {
+            return Err(invalid("native NanoId alphabet repeats a field"));
+        }
+    }
     Ok(())
 }
 
@@ -134,6 +180,8 @@ struct Lowering<'r, 'a> {
     next_field: u32,
     /// Names of structs being lowered, for recursion detection.
     active: Vec<&'a str>,
+    /// The alphabet in force for NanoIds in the field being lowered.
+    alphabet: NanoIdAlphabet,
 }
 
 /// Lower `root`, one of `spec.roots`, to a nested schema graph.
@@ -155,6 +203,7 @@ pub fn schema_graph_for(
         nodes: Vec::new(),
         next_field: 1,
         active: Vec::new(),
+        alphabet: spec.nanoid_alphabet,
     };
     let ty = lowering.lower(&definition.ty, 0).map_err(|error| error.with_schema(schema_id.0, 0))?;
     debug_assert_eq!(ty, TypeId(0));
@@ -211,7 +260,24 @@ impl<'r, 'a> Lowering<'r, 'a> {
             EndpointType::UUID => self.string(Some("uuid")),
             EndpointType::IpAddr => self.string(Some("ip")),
             EndpointType::Bytea => self.string(Some("base64")),
-            EndpointType::NanoId { len: 21 } => self.string(Some("nanoid")),
+            EndpointType::NanoId { len: 0 } => Err(invalid("NanoId length must be nonzero")),
+            EndpointType::NanoId { len: 21 } if self.alphabet == NanoIdAlphabet::Url => {
+                self.string(Some("nanoid"))
+            }
+            // Any other length or alphabet: a string of exactly `len` characters whose
+            // characters pass the alphabet's format (both are VM constraints).
+            EndpointType::NanoId { len } => {
+                let format = match self.alphabet {
+                    NanoIdAlphabet::Url => "nanoid-chars",
+                    NanoIdAlphabet::Base62 => "base62",
+                };
+                jmax_format_lookup(format)?;
+                let mut constraints = ScalarConstraints::new(ValueKind::String);
+                constraints.min_length = Some(u32::from(*len));
+                constraints.max_length = Some(u32::from(*len));
+                constraints.format = Some(String::from(format));
+                self.push(TypeNode::Scalar(constraints))
+            }
             EndpointType::BlockchainAddress => self.string(Some("blockchain-address")),
             EndpointType::BlockchainTransactionHash => {
                 self.string(Some("blockchain-transaction-hash"))
@@ -248,7 +314,6 @@ impl<'r, 'a> Lowering<'r, 'a> {
                 }
             }
             EndpointType::Optional(_) => Err(unsupported("nested optional has no native form")),
-            EndpointType::NanoId { .. } => Err(unsupported("only 21 byte NanoId has a native form")),
             EndpointType::Object => Err(unsupported("untyped Object has no native form")),
             EndpointType::Enum { .. } | EndpointType::EnumRef { .. } => {
                 Err(unsupported("enums have no native form"))
@@ -268,15 +333,15 @@ impl<'r, 'a> Lowering<'r, 'a> {
         }
         self.active.push(name);
         let result = if self.spec.tuples.iter().any(|tuple| tuple == name) {
-            self.lower_tuple(fields, depth)
+            self.lower_tuple(name, fields, depth)
         } else {
-            self.lower_object(fields, depth)
+            self.lower_object(name, fields, depth)
         };
         self.active.pop();
         result
     }
 
-    fn lower_object(&mut self, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
+    fn lower_object(&mut self, name: &'a str, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
         let object = self.push(TypeNode::Object(ObjectShape {
             properties: Vec::new(),
             reject_unknown: self.spec.reject_unknown,
@@ -297,7 +362,11 @@ impl<'r, 'a> Lowering<'r, 'a> {
             let field_id = FieldId(self.next_field);
             self.next_field = self.next_field.checked_add(1)
                 .ok_or_else(|| model_error(ErrorCode::BudgetExhausted, "field id overflow"))?;
-            let ty = self.lower(ty, depth + 1)?;
+            let saved = self.alphabet;
+            self.alphabet = self.spec.alphabet_for(name, &field.name);
+            let ty = self.lower(ty, depth + 1);
+            self.alphabet = saved;
+            let ty = ty?;
             properties.push(Property {
                 field_id,
                 name: field.name.clone(),
@@ -312,7 +381,7 @@ impl<'r, 'a> Lowering<'r, 'a> {
         Ok(object)
     }
 
-    fn lower_tuple(&mut self, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
+    fn lower_tuple(&mut self, name: &'a str, fields: &'a [EndpointField], depth: usize) -> Result<TypeId> {
         let count = u32::try_from(fields.len())
             .map_err(|_| model_error(ErrorCode::BudgetExhausted, "tuple length exceeds u32"))?;
         if count == 0 {
@@ -330,7 +399,11 @@ impl<'r, 'a> Lowering<'r, 'a> {
             }
             let mark = self.nodes.len();
             let saved_field = self.next_field;
-            let ty = self.lower(&field.ty, depth + 1)?;
+            let saved = self.alphabet;
+            self.alphabet = self.spec.alphabet_for(name, &field.name);
+            let ty = self.lower(&field.ty, depth + 1);
+            self.alphabet = saved;
+            let ty = ty?;
             match items {
                 None => items = Some(ty),
                 Some(first) => {

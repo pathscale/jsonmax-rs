@@ -1,8 +1,8 @@
 //! Generated decoders against the schema VM and the tree oracle.
 
 use jmax_native_fixtures::harness::*;
-use jmax_native_fixtures::regen::{BINANCE, SHAPES};
-use jmax_native_fixtures::{binance, binance_open, binance_plain, shapes, shapes_open};
+use jmax_native_fixtures::regen::{BINANCE, FORMATS, SHAPES};
+use jmax_native_fixtures::{binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_open};
 
 fn trade_seeds(open: bool) -> Vec<Vec<u8>> {
     let valid = AGG_TRADE.as_bytes().to_vec();
@@ -217,4 +217,85 @@ fn shape_seed_decodes_to_the_expected_value() {
         .replace(",\"cost\":\"0.00000001\",\"flag\":false,\"count\":9", "");
     decode_into(&mut ctx, bare.as_bytes(), &mut shape).unwrap();
     assert_eq!((&shape.note, &shape.extra, shape.pin.is_none(), shape.cost, shape.flag, shape.count), (&None, &None, true, None, None, None));
+}
+
+fn formats_seeds(open: bool) -> Vec<Vec<u8>> {
+    let doc = FORMATS_DOC;
+    let swap = |from: &str, to: &str| doc.replace(from, to).into_bytes();
+    let mut seeds = vec![
+        doc.as_bytes().to_vec(),
+        swap(",\"nick\":\"nick_ok1\",\"extra\":\"AQID\",\"peer\":\"::1\"", ""),
+        // NanoIds: wrong length, wrong alphabet, escapes, the Base62 field with '_' and '-'.
+        swap("\"id\":\"abc_DEF-12345678\"", "\"id\":\"abc_DEF-1234567\""),
+        swap("\"id\":\"abc_DEF-12345678\"", "\"id\":\"abc_DEF-123456789\""),
+        swap("\"id\":\"abc_DEF-12345678\"", "\"id\":\"abc DEF-12345678\""),
+        swap("\"id\":\"abc_DEF-12345678\"", "\"id\":\"abc_DEF-1234567\\u0038\""),
+        swap("\"id\":\"abc_DEF-12345678\"", "\"id\":\"abc_DEF-1234567\u{e9}\""),
+        swap("\"sess\":\"Ab12Cd34Ef56Gh78\"", "\"sess\":\"Ab12Cd34Ef56Gh_8\""),
+        swap("\"sess\":\"Ab12Cd34Ef56Gh78\"", "\"sess\":\"Ab12Cd34Ef56Gh-8\""),
+        swap("\"sessions\":[\"Zz09Aa12Bb34Cc56\"]", "\"sessions\":[\"Zz09Aa12Bb34Cc_6\"]"),
+        swap("\"many\":[\"aaaaaaaaaaaaaaaa\",\"bbbb_bbb-bbbbbbb\"]", "\"many\":[\"aaaaaaaaaaaaaaaa\",\"bbbb_bbb-bbbbbbb\",\"short\"]"),
+        swap("\"many\":[\"aaaaaaaaaaaaaaaa\",\"bbbb_bbb-bbbbbbb\"]", "\"many\":[]"),
+        swap("\"tag\":\"V1StGXR8_Z5jdHi6B-myT\"", "\"tag\":\"V1StGXR8_Z5jdHi6B-my\""),
+        swap("\"nick\":\"nick_ok1\"", "\"nick\":\"nick_ok12\""),
+        // UUID, IP address, address and hash.
+        swap("123e4567-e89b-12d3-a456-426614174000", "123E4567-E89B-12D3-A456-426614174000"),
+        swap("123e4567-e89b-12d3-a456-426614174000", "123e4567e89b12d3a456426614174000"),
+        swap("\"ip\":\"192.168.0.1\"", "\"ip\":\"192.168.00.1\""),
+        swap("\"ip\":\"192.168.0.1\"", "\"ip\":\"2001:db8::ff00:42:8329\""),
+        swap("\"ip\":\"192.168.0.1\"", "\"ip\":\"1::2::3\""),
+        swap("\"peer\":\"::1\"", "\"peer\":\"::1%x\""),
+        swap("0x00112233445566778899aabbccddeeff00112233\"", "0x00112233445566778899AABBCCDDEEFF00112233\""),
+        swap("0x00112233445566778899aabbccddeeff00112233\"", "00112233445566778899aabbccddeeff00112233\""),
+        swap("0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeef"),
+        // Bytea.
+        swap("\"blob\":\"Zm9vYmE=\"", "\"blob\":\"\""),
+        swap("\"blob\":\"Zm9vYmE=\"", "\"blob\":\"Zm9vYg==\""),
+        swap("\"blob\":\"Zm9vYmE=\"", "\"blob\":\"Zm9vYmE\""),
+        swap("\"blob\":\"Zm9vYmE=\"", "\"blob\":\"Zm9vYmF=\""),
+        swap("\"blob\":\"Zm9vYmE=\"", "\"blob\":\"Zm9v\\u0059mE=\""),
+        swap("\"extra\":\"AQID\"", "\"extra\":\"AQI=\""),
+        swap("\"extra\":\"AQID\"", "\"extra\":\"AQI\""),
+        // Out of declaration order, so a predicted order misses.
+        r#"{"items":[],"names":[],"sessions":[],"many":[],"tx":"0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","addr":"0x00112233445566778899aabbccddeeff00112233","blob":"","ip":"::","uid":"00000000-0000-0000-0000-000000000000","sess":"aaaaaaaaaaaaaaaa","tag":"aaaaaaaaaaaaaaaaaaaaa","id":"aaaaaaaaaaaaaaaa"}"#.as_bytes().to_vec(),
+    ];
+    if open {
+        seeds.push(swap("\"names\"", "\"x\":[1,{\"y\":null}],\"names\""));
+    }
+    seeds
+}
+
+#[test]
+fn strict_formats() {
+    let subject = Subject::<formats::models::Ids>::new(&FORMATS, "Ids", true, formats_strict::ids);
+    report("strict formats", differential(&subject, &formats_seeds(false), 600, 9), 1_000);
+}
+
+#[test]
+fn open_formats() {
+    let subject = Subject::<formats_open::models::Ids>::new(&FORMATS, "Ids", false, formats_open_oracle::ids);
+    report("open formats", differential(&subject, &formats_seeds(true), 600, 10), 1_000);
+}
+
+#[test]
+fn formats_seed_decodes_to_the_expected_value() {
+    use jmax_abi::number::NumericPolicy;
+    use jmax_native::{decode_into, NativeContext, VmLimits};
+    let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
+    let mut ids = formats::models::Ids::default();
+    decode_into(&mut ctx, FORMATS_DOC.as_bytes(), &mut ids).unwrap();
+    assert_eq!(ids.id, "abc_DEF-12345678");
+    assert_eq!(ids.blob, b"fooba");
+    assert_eq!(ids.many.len(), 2);
+    assert_eq!(ids.sessions, ["Zz09Aa12Bb34Cc56"]);
+    assert_eq!(ids.items[0].r#ref, "abcd1234");
+    assert_eq!(ids.extra.as_deref(), Some(&[1u8, 2, 3][..]));
+    // Base62 rejects what the default alphabet accepts; the default one accepts it.
+    let sess = FORMATS_DOC.replace("Ab12Cd34Ef56Gh78", "Ab12Cd34Ef56Gh_8");
+    assert!(decode_into(&mut ctx, sess.as_bytes(), &mut ids).is_err());
+    let id = FORMATS_DOC.replace("abc_DEF-12345678", "abc_DEF_12345678");
+    assert!(decode_into(&mut ctx, id.as_bytes(), &mut ids).is_ok());
+    // An absent optional is reset by the next document.
+    decode_into(&mut ctx, FORMATS_DOC.replace(",\"extra\":\"AQID\"", "").as_bytes(), &mut ids).unwrap();
+    assert_eq!(ids.extra, None);
 }

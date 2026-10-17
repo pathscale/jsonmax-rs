@@ -539,3 +539,131 @@ fn match_key_hits_only_exact_unescaped_keys() {
     let mut reader = Reader::new(b"\"abcd\":1");
     assert!(!reader.match_key(&small, b"\"abcd\":"));
 }
+
+/// Strings around every format's grammar: valid, nearly valid, escaped and noisy.
+fn format_tokens(rng: &mut Rng) -> Vec<Vec<u8>> {
+    let mut tokens = token_corpus(rng);
+    let samples = [
+        "123e4567-e89b-12d3-a456-426614174000", "123E4567-E89B-12D3-A456-426614174000",
+        "123e4567e89b12d3a456426614174000", "00000000-0000-0000-0000-000000000000",
+        "192.168.0.1", "192.168.00.1", "256.1.1.1", "::1", "::", "2001:db8::ff00:42:8329", "1::2::3",
+        "::ffff:192.0.2.1", "fe80::1%eth0", "1.2.3", "",
+        "AQID", "AQI=", "AQ==", "AQ", "AQJ=", "AR==", "////", "++++", "-_-_", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy",
+        "0x00112233445566778899aabbccddeeff00112233", "0X00112233445566778899aabbccddeeff00112233",
+        "0x00112233445566778899AABBCCDDEEFF0011223", "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeef",
+        "V1StGXR8_Z5jdHi6B-myT", "V1StGXR8_Z5jdHi6B-my", "V1StGXR8_Z5jdHi6B-myTT", "V1StGXR8 Z5jdHi6B-myT",
+        "abcdefghijklmnop", "abcdefghijklmno", "abcdefghijklmnopq", "abcdefghij_lmnop", "abcdefghij-lmnop",
+        "abcdefghij\u{e9}lmnop", "abcdefghij\u{e9}lmno", "a", "AZaz09", "a_", "a-",
+    ];
+    for sample in samples {
+        tokens.push(format!("\"{sample}\"").into_bytes());
+        // The same text with its first and last characters escaped.
+        if sample.len() > 2 && sample.is_ascii() {
+            let (head, rest) = sample.split_at(1);
+            tokens.push(format!("\"\\u{:04x}{rest}\"", head.as_bytes()[0]).into_bytes());
+        }
+    }
+    let alphabet = b"0123456789abcdefABCDEF-_:.=+/xg ";
+    for _ in 0..1500 {
+        let length = rng.below(48);
+        let mut token = vec![b'"'];
+        token.extend((0..length).map(|_| alphabet[rng.below(alphabet.len())]));
+        token.push(b'"');
+        tokens.push(token);
+    }
+    tokens
+}
+
+#[test]
+fn formats_match_the_vm() {
+    use jmax_native::FormatId;
+    let mut rng = Rng(0x0f0a_7a11_c0de_f001);
+    let tokens = format_tokens(&mut rng);
+    let numeric = NumericPolicy::strict_default();
+    let formats = [
+        ("uuid", FormatId::Uuid), ("ipv4", FormatId::Ipv4), ("ipv6", FormatId::Ipv6), ("ip", FormatId::IpAddr),
+        ("base64", FormatId::Base64), ("base64url", FormatId::Base64Url), ("hex", FormatId::Hex),
+        ("nanoid", FormatId::NanoId), ("blockchain-address", FormatId::BlockchainAddress),
+        ("blockchain-transaction-hash", FormatId::BlockchainTransactionHash),
+        ("nanoid-chars", FormatId::NanoIdChars), ("base62", FormatId::Base62),
+    ];
+    let (mut accepted, mut compared) = (0u32, 0u32);
+    for (name, id) in formats {
+        // With no length bound, and with the exact lengths 16 and 21.
+        for exact in [None, Some(16u32), Some(21)] {
+            let mut constraints = ScalarConstraints::new(ValueKind::String);
+            constraints.format = Some(name.into());
+            constraints.min_length = exact;
+            constraints.max_length = exact;
+            let program = scalar_program(constraints);
+            for limits in limit_variants() {
+                let mut ctx = context(&program, limits, numeric);
+                for token in &tokens {
+                    let vm = vm_accepts(&program, token, limits, numeric);
+                    let mut reader = Reader::new(token);
+                    let native = reader.format(&mut ctx, id, exact).ok().map(str::to_owned).filter(|_| reader.end().is_ok());
+                    compared += 1;
+                    assert_eq!(
+                        vm,
+                        native.is_some(),
+                        "{name} {exact:?} {limits:?}: {:?}",
+                        String::from_utf8_lossy(token)
+                    );
+                    accepted += u32::from(native.is_some());
+                }
+            }
+        }
+    }
+    assert!(compared > 100_000 && accepted > 500, "{compared} {accepted}");
+}
+
+#[test]
+fn bytea_decodes_what_the_base64_format_accepts() {
+    let mut constraints = ScalarConstraints::new(ValueKind::String);
+    constraints.format = Some("base64".into());
+    let program = scalar_program(constraints);
+    let numeric = NumericPolicy::strict_default();
+    let mut ctx = context(&program, VmLimits::default(), numeric);
+    let mut out = vec![9u8];
+    for (text, bytes) in [
+        ("", &b""[..]), ("Zg==", b"f"), ("Zm8=", b"fo"), ("Zm9v", b"foo"), ("Zm9vYg==", b"foob"),
+        ("Zm9vYmE=", b"fooba"), ("Zm9vYmFy", b"foobar"), ("AAECAwQF", &[0, 1, 2, 3, 4, 5]), ("/+8=", &[0xff, 0xef]),
+    ] {
+        let token = format!("\"{text}\"");
+        let mut reader = Reader::new(token.as_bytes());
+        reader.bytea(&mut ctx, &mut out).unwrap();
+        assert_eq!(out, bytes, "{text}");
+        assert!(reader.end().is_ok());
+    }
+    // Exhaustive over every one, two and three byte value pair: encode, decode, compare.
+    let table = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    for a in 0..=255u8 {
+        for b in [0u8, 1, 127, 128, 255, a] {
+            for c in [0u8, 77, 255] {
+                for length in 1..=3usize {
+                    let raw = [a, b, c];
+                    let raw = &raw[..length];
+                    let mut text = String::from("\"");
+                    for chunk in raw.chunks(3) {
+                        let n = chunk.iter().enumerate().fold(0u32, |n, (i, v)| n | u32::from(*v) << (16 - 8 * i));
+                        for k in 0..chunk.len() + 1 {
+                            text.push(table[(n >> (18 - 6 * k) & 63) as usize] as char);
+                        }
+                        for _ in chunk.len() + 1..4 {
+                            text.push('=');
+                        }
+                    }
+                    text.push('"');
+                    let mut reader = Reader::new(text.as_bytes());
+                    reader.bytea(&mut ctx, &mut out).unwrap();
+                    assert_eq!(out, raw, "{text}");
+                }
+            }
+        }
+    }
+    // Rejected spellings leave no claim about `out` but Fail.
+    for bad in ["\"Zg=\"", "\"Zg\"", "\"Zh==\"", "\"Zm9\"", "\"Zm9v=\"", "\"Z===\"", "\"Zm 9\"", "\"é\""] {
+        assert!(Reader::new(bad.as_bytes()).bytea(&mut ctx, &mut out).is_err(), "{bad}");
+    }
+}

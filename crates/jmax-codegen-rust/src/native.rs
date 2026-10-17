@@ -10,6 +10,8 @@ use crate::{
     validate_options, ArtifactKind, CodegenOptions, EndpointField, EndpointModel, EndpointType,
     ErrorCode, GeneratedArtifact, NativeOptions, NativeSpec, Result, RustTypeMode, GENERATED_NOTICE,
 };
+use core::cell::Cell;
+use jmax_endpoint_model::native::NanoIdAlphabet;
 use jmax_endpoint_model::{registry, NameCase, Registry, SchemaId};
 
 /// The schema id of the lowered graph of the root at `index`.
@@ -28,15 +30,22 @@ fn snake(name: &str) -> Result<String> {
 }
 
 struct StructInfo<'a> {
+    /// The definition name, as the specification spells it.
+    source: &'a str,
     /// PascalCase generated type name.
     name: String,
     fields: &'a [EndpointField],
     tuple: bool,
 }
 
-struct ArrayInfo {
-    /// The owned Rust type of the whole Vec, which determines its decoder.
+struct ArrayInfo<'a> {
+    /// The owned Rust type of the whole Vec, with the formats of its elements: the
+    /// same Rust type decodes differently as `Vec<NanoId(16)>` and `Vec<String>`.
+    key: String,
     rust_type: String,
+    element: &'a EndpointType,
+    /// The NanoId alphabet in force where this array is declared.
+    alphabet: NanoIdAlphabet,
 }
 
 struct Emitter<'r, 'a> {
@@ -44,7 +53,9 @@ struct Emitter<'r, 'a> {
     spec: &'r NativeSpec,
     options: &'r CodegenOptions,
     structs: Vec<StructInfo<'a>>,
-    arrays: Vec<ArrayInfo>,
+    arrays: Vec<ArrayInfo<'a>>,
+    /// The NanoId alphabet of the field being visited or emitted.
+    alphabet: Cell<NanoIdAlphabet>,
     decimals: bool,
     /// Try each object's next field in declaration order before the general dispatch.
     predict: bool,
@@ -70,8 +81,43 @@ impl<'r, 'a> Emitter<'r, 'a> {
         Ok(format!("__decode_{}", snake(&models::pascal_name(name)?)?))
     }
 
-    fn array_index(&self, rust_type: &str) -> Option<usize> {
-        self.arrays.iter().position(|array| array.rust_type == rust_type)
+    /// Identifies an array decoder: the Rust type plus what its elements must satisfy.
+    fn array_key(&self, rust_type: &str, ty: &EndpointType) -> String {
+        format!("{rust_type}|{}", self.signature(ty))
+    }
+
+    fn signature(&self, ty: &EndpointType) -> String {
+        match ty {
+            EndpointType::Vec(inner) | EndpointType::Optional(inner) => format!("[{}]", self.signature(inner)),
+            EndpointType::NanoId { len } => format!("n{len}{:?}", self.alphabet.get()),
+            other => match self.format_of(other) {
+                Some((id, _)) => String::from(id),
+                None => String::new(),
+            },
+        }
+    }
+
+    /// The format a string-like type must satisfy: its `FormatId` variant and exact length.
+    fn format_of(&self, ty: &EndpointType) -> Option<(&'static str, Option<u32>)> {
+        Some(match ty {
+            EndpointType::UUID => ("Uuid", None),
+            EndpointType::IpAddr => ("IpAddr", None),
+            EndpointType::BlockchainAddress => ("BlockchainAddress", None),
+            EndpointType::BlockchainTransactionHash => ("BlockchainTransactionHash", None),
+            EndpointType::NanoId { len: 21 } if self.alphabet.get() == NanoIdAlphabet::Url => ("NanoId", None),
+            EndpointType::NanoId { len } => (
+                match self.alphabet.get() {
+                    NanoIdAlphabet::Url => "NanoIdChars",
+                    NanoIdAlphabet::Base62 => "Base62",
+                },
+                Some(u32::from(*len)),
+            ),
+            _ => return None,
+        })
+    }
+
+    fn array_index(&self, key: &str) -> Option<usize> {
+        self.arrays.iter().position(|array| array.key == key)
     }
 
     /// Register the structs and arrays reachable from `ty`.
@@ -89,13 +135,17 @@ impl<'r, 'a> Emitter<'r, 'a> {
             }
             EndpointType::UUID | EndpointType::IpAddr | EndpointType::Bytea
             | EndpointType::NanoId { .. } | EndpointType::BlockchainAddress
-            | EndpointType::BlockchainTransactionHash => {
-                Err(unsupported("format validators are not available in jmax-native"))
-            }
+            | EndpointType::BlockchainTransactionHash => Ok(()),
             EndpointType::Vec(inner) => {
                 let rust_type = self.rust_type(ty)?;
-                if self.array_index(&rust_type).is_none() {
-                    self.arrays.push(ArrayInfo { rust_type });
+                let key = self.array_key(&rust_type, ty);
+                if self.array_index(&key).is_none() {
+                    self.arrays.push(ArrayInfo {
+                        key,
+                        rust_type,
+                        element: inner.as_ref(),
+                        alphabet: self.alphabet.get(),
+                    });
                 }
                 self.visit(inner, depth + 1)
             }
@@ -112,13 +162,17 @@ impl<'r, 'a> Emitter<'r, 'a> {
                     return Err(unsupported("native objects support at most 128 fields"));
                 }
                 let tuple = self.is_tuple(name);
-                self.structs.push(StructInfo { name: pascal, fields, tuple });
+                self.structs.push(StructInfo { source: name, name: pascal, fields, tuple });
+                let saved = self.alphabet.get();
                 for field in fields {
                     let inner = match &field.ty {
                         EndpointType::Optional(inner) if !tuple => inner.as_ref(),
                         ty => ty,
                     };
-                    self.visit(inner, depth + 1)?;
+                    self.alphabet.set(self.spec.alphabet_for(name, &field.name));
+                    let result = self.visit(inner, depth + 1);
+                    self.alphabet.set(saved);
+                    result?;
                 }
                 Ok(())
             }
@@ -154,9 +208,22 @@ impl<'r, 'a> Emitter<'r, 'a> {
             EndpointType::String => format!(
                 "{indent}{{\n{indent}    let text = r.string(ctx)?;\n{indent}    {place}.clear();\n{indent}    {place}.push_str(text);\n{indent}}}\n"
             ),
+            EndpointType::Bytea => format!("{indent}r.bytea(ctx, &mut {place})?;\n"),
+            EndpointType::UUID | EndpointType::IpAddr | EndpointType::BlockchainAddress
+            | EndpointType::BlockchainTransactionHash | EndpointType::NanoId { .. } => {
+                let (id, exact) = self.format_of(ty).ok_or_else(|| constraint("format type without a format"))?;
+                let exact = match exact {
+                    Some(length) => format!("::core::option::Option::Some({length}u32)"),
+                    None => String::from("::core::option::Option::None"),
+                };
+                format!(
+                    "{indent}{{\n{indent}    let text = r.format(ctx, __native::FormatId::{id}, {exact})?;\n{indent}    {place}.clear();\n{indent}    {place}.push_str(text);\n{indent}}}\n"
+                )
+            }
             EndpointType::Vec(_) => {
                 let rust_type = self.rust_type(ty)?;
-                let index = self.array_index(&rust_type).ok_or_else(|| constraint("unregistered array"))?;
+                let key = self.array_key(&rust_type, ty);
+                let index = self.array_index(&key).ok_or_else(|| constraint("unregistered array"))?;
                 format!("{indent}__decode_array_{index}(r, ctx, &mut {place}, depth + 1)?;\n")
             }
             EndpointType::Struct { .. } => {
@@ -254,6 +321,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
         ));
         out.push_str("            match which {\n");
         for (index, field) in info.fields.iter().enumerate() {
+            self.alphabet.set(self.spec.alphabet_for(info.source, &field.name));
             out.push_str(&format!("                {index} => {{\n"));
             let member = models::member_ident(self.options, &info.name, &field.name)?;
             let place = format!("out.{member}");
@@ -358,6 +426,7 @@ impl<'r, 'a> Emitter<'r, 'a> {
             "    let limits = ctx.limits().syntax;\n    if depth > limits.max_depth || {count}u32 > limits.max_array_items {{\n        return Err(__native::Fail);\n    }}\n    r.expect(b'[')?;\n"
         ));
         for (index, field) in info.fields.iter().enumerate() {
+            self.alphabet.set(self.spec.alphabet_for(info.source, &field.name));
             if index > 0 {
                 out.push_str("    r.expect(b',')?;\n");
             }
@@ -368,7 +437,9 @@ impl<'r, 'a> Emitter<'r, 'a> {
         Ok(())
     }
 
-    fn emit_array(&self, out: &mut String, index: usize, info: &ArrayInfo, element: &'a EndpointType) -> Result<()> {
+    fn emit_array(&self, out: &mut String, index: usize, info: &ArrayInfo<'a>) -> Result<()> {
+        self.alphabet.set(info.alphabet);
+        let element = info.element;
         out.push_str(&format!(
             "#[inline]\nfn __decode_array_{index}(r: &mut __native::Reader<'_>, ctx: &mut __native::NativeContext, out: &mut {}, depth: u16) -> __native::NativeResult<()> {{\n",
             info.rust_type
@@ -432,6 +503,7 @@ pub fn generate_native(
         options: &merged,
         structs: Vec::new(),
         arrays: Vec::new(),
+        alphabet: Cell::new(spec.nanoid_alphabet),
         decimals: false,
         predict: native.predict_layout,
     };
@@ -511,19 +583,6 @@ pub fn generate_native(
         out.push_str("    }\n}\n");
     }
     // Struct decoders in discovery order, then array decoders.
-    let mut array_types: Vec<(&EndpointType, &EndpointType)> = Vec::new();
-    for info in &emitter.structs {
-        for field in info.fields {
-            let ty = match &field.ty {
-                EndpointType::Optional(inner) => inner.as_ref(),
-                ty => ty,
-            };
-            array_elements(ty, &mut array_types);
-        }
-    }
-    for definition in spec.roots.iter().filter_map(|root| registry::definition_by_name(&registry, root)) {
-        array_elements(&definition.ty, &mut array_types);
-    }
     for info in &emitter.structs {
         if info.tuple {
             emitter.emit_tuple(&mut out, info)?;
@@ -531,17 +590,8 @@ pub fn generate_native(
             emitter.emit_object(&mut out, info)?;
         }
     }
-    let mut emitted = BTreeSet::new();
-    for (whole, element) in array_types {
-        let rust_type = emitter.rust_type(whole)?;
-        if let Some(index) = emitter.array_index(&rust_type) {
-            if emitted.insert(index) {
-                emitter.emit_array(&mut out, index, &emitter.arrays[index], element)?;
-            }
-        }
-    }
-    if emitted.len() != emitter.arrays.len() {
-        return Err(constraint("a native array decoder was registered but not emitted"));
+    for (index, info) in emitter.arrays.iter().enumerate() {
+        emitter.emit_array(&mut out, index, info)?;
     }
     Ok(GeneratedArtifact {
         path: format!("{}/native.rs", options.module_name),

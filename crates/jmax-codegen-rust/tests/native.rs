@@ -105,10 +105,47 @@ fn plain_generate_has_no_native_artifact() {
 }
 
 #[test]
-fn the_rpc_fixture_needs_format_validators() {
-    // UUID is a format, and jmax-native has no format validators yet.
-    let result = generate_with_native(&model(RPC), &spec(RPC_SPEC), &options(), &NativeOptions::default());
-    assert_eq!(code(result), ErrorCode::UnsupportedSchemaFeature);
+fn format_fields_generate_with_validators() {
+    // UUID is a format; the native runtime validates it with the VM's own check.
+    let generated = generate_with_native(&model(RPC), &spec(RPC_SPEC), &options(), &NativeOptions::default()).unwrap();
+    let native = generated.artifacts().iter().find(|a| a.kind == ArtifactKind::Native).unwrap();
+    assert!(native.contents.contains("r.format(ctx, __native::FormatId::Uuid, ::core::option::Option::None)?"));
+}
+
+fn formats_model() -> (EndpointModel, NativeSpec) {
+    let model = model(include_str!("../../../fixtures/native/formats.ron"));
+    let spec = spec(include_str!("../../../fixtures/native/formats.native.ron"));
+    (model, spec)
+}
+
+#[test]
+fn nanoid_length_and_alphabet_follow_the_field() {
+    let (model, spec) = formats_model();
+    let text = generate_native(&model, &spec, &options(), &NativeOptions::default()).unwrap().contents;
+    // Default alphabet at 16 and 8, the default 21, Base62 for the two named fields.
+    assert!(text.contains("FormatId::NanoIdChars, ::core::option::Option::Some(16u32)"));
+    assert!(text.contains("FormatId::NanoIdChars, ::core::option::Option::Some(8u32)"));
+    assert!(text.contains("FormatId::NanoId, ::core::option::Option::None"));
+    assert!(text.contains("FormatId::Base62, ::core::option::Option::Some(16u32)"));
+    assert!(text.contains("r.bytea(ctx, &mut out.blob)?"));
+    // Arrays of NanoIds with different alphabets are separate decoders.
+    assert_eq!(text.matches("fn __decode_array_").count(), 4);
+    // A spec-wide Base62 default changes every unlisted field.
+    let mut base62 = spec.clone();
+    base62.nanoid_alphabet = jmax_endpoint_model::native::NanoIdAlphabet::Base62;
+    base62.nanoid_fields.clear();
+    let text = generate_native(&model, &base62, &options(), &NativeOptions::default()).unwrap().contents;
+    assert!(!text.contains("FormatId::NanoIdChars"));
+    assert!(!text.contains("FormatId::NanoId,"), "21 characters with the default alphabet only");
+    // A field override must name a real field, once.
+    let mut bad = spec.clone();
+    bad.nanoid_fields.push(jmax_endpoint_model::native::NativeNanoIdField {
+        type_name: "Ids".into(), wire: "nope".into(), alphabet: jmax_endpoint_model::native::NanoIdAlphabet::Url,
+    });
+    assert!(generate_native(&model, &bad, &options(), &NativeOptions::default()).is_err());
+    let mut twice = spec.clone();
+    twice.nanoid_fields.push(twice.nanoid_fields[0].clone());
+    assert!(generate_native(&model, &twice, &options(), &NativeOptions::default()).is_err());
 }
 
 fn unsupported(definitions: &str, native: &str) -> ErrorCode {
@@ -126,11 +163,7 @@ fn shapes_without_a_native_form_are_unsupported() {
     let spec = "NativeSpec(roots: [\"Root\"], reject_unknown: true)";
     for ty in [
         "Object",
-        "UUID",
-        "Bytea",
-        "IpAddr",
-        "BlockchainAddress",
-        "NanoId(len: 21)",
+        "Unit",
         "Vec(Optional(Boolean))",
         "Optional(Optional(Boolean))",
         "Enum(name: \"E\", variants: [EnumVariant(name: \"A\", value: 1)])",

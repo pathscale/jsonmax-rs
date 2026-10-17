@@ -36,6 +36,8 @@ pub fn lookup(name: &str) -> Result<FormatId> {
         "nanoid" => Ok(FormatId::NanoId),
         "blockchain-address" => Ok(FormatId::BlockchainAddress),
         "blockchain-transaction-hash" => Ok(FormatId::BlockchainTransactionHash),
+        "nanoid-chars" => Ok(FormatId::NanoIdChars),
+        "base62" => Ok(FormatId::Base62),
         _ => Err(Error::new(
             ErrorCode::UnsupportedSchemaFeature,
             ErrorSource::SchemaVm,
@@ -76,6 +78,8 @@ pub fn validate(id: FormatId, input: &[u8], options: &FormatOptions) -> FormatRe
         FormatId::NanoId => identity::validate_nanoid(input, options.nanoid_len),
         FormatId::BlockchainAddress => identity::validate_address(input),
         FormatId::BlockchainTransactionHash => identity::validate_transaction_hash(input),
+        FormatId::NanoIdChars => identity::validate_nanoid_chars(input),
+        FormatId::Base62 => identity::validate_base62(input),
     }
 }
 

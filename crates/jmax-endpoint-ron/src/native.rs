@@ -5,7 +5,7 @@
 
 use alloc::string::String;
 use jmax_abi::number::DecimalPolicy;
-use jmax_endpoint_model::native::{NativeIdent, NativeSpec};
+use jmax_endpoint_model::native::{NanoIdAlphabet, NativeIdent, NativeNanoIdField, NativeSpec};
 
 use crate::normalize::{at, boolean, list, name, record, text, unsigned};
 use crate::{ConfigLimits, ConfigNode, ConfigValue, ErrorCode, Result};
@@ -18,7 +18,7 @@ pub fn load_native_spec(source: &str, limits: &ConfigLimits) -> Result<NativeSpe
 
 fn normalize_native_spec(node: &ConfigNode) -> Result<NativeSpec> {
     let record = record(node, &["NativeSpec", "Native"], &[
-        "roots", "tuples", "decimal", "reject_unknown", "idents",
+        "roots", "tuples", "decimal", "reject_unknown", "idents", "nanoid_alphabet", "nanoid_fields",
     ])?;
     let defaults = NativeSpec::default();
     Ok(NativeSpec {
@@ -29,6 +29,41 @@ fn normalize_native_spec(node: &ConfigNode) -> Result<NativeSpec> {
         reject_unknown: record.get("reject_unknown").map(boolean).transpose()?
             .unwrap_or(defaults.reject_unknown),
         idents: list(record.get("idents"), ident)?,
+        nanoid_alphabet: record.get("nanoid_alphabet").map(alphabet).transpose()?
+            .unwrap_or(defaults.nanoid_alphabet),
+        nanoid_fields: list(record.get("nanoid_fields"), nanoid_field)?,
+    })
+}
+
+fn alphabet(node: &ConfigNode) -> Result<NanoIdAlphabet> {
+    match &node.value {
+        ConfigValue::Identifier(tag) if tag == "Url" => Ok(NanoIdAlphabet::Url),
+        ConfigValue::Identifier(tag) if tag == "Base62" => Ok(NanoIdAlphabet::Base62),
+        _ => Err(at(node, ErrorCode::TypeMismatch, "expected the alphabet Url or Base62")),
+    }
+}
+
+/// `NanoIdField("Type", "wire", Base62)` or `NanoIdField(type: .., wire: .., alphabet: ..)`.
+fn nanoid_field(node: &ConfigNode) -> Result<NativeNanoIdField> {
+    if let ConfigValue::Variant { name: tag, value } = &node.value {
+        if tag == "NanoIdField" {
+            if let ConfigValue::Tuple(items) = &value.value {
+                let [type_name, wire, alphabet_node] = items.as_slice() else {
+                    return Err(at(node, ErrorCode::TypeMismatch, "NanoIdField requires type, wire and alphabet"));
+                };
+                return Ok(NativeNanoIdField {
+                    type_name: name(type_name)?,
+                    wire: wire_name(wire)?,
+                    alphabet: alphabet(alphabet_node)?,
+                });
+            }
+        }
+    }
+    let record = record(node, &["NanoIdField"], &["type", "wire", "alphabet"])?;
+    Ok(NativeNanoIdField {
+        type_name: name(record.required("type")?)?,
+        wire: wire_name(record.required("wire")?)?,
+        alphabet: alphabet(record.required("alphabet")?)?,
     })
 }
 

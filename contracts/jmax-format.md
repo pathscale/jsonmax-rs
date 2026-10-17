@@ -44,13 +44,13 @@ pub fn validate(id: FormatId, input: &[u8], options: &FormatOptions) -> FormatRe
 pub fn validate_named(name: &str, input: &[u8], options: &FormatOptions) -> Result<()>;
 ```
 
-The complete immutable registry is the ten FormatId::name() spellings. No aliases, case folding, suffix grammar, dynamic registration or global mutable state. A name longer than MAX_FORMAT_NAME_BYTES -> BudgetExhausted; unknown/empty name -> UnsupportedSchemaFeature. Registry ABI errors use SchemaVm, byte_offset/schema_id/field_id zero. validate_named maps FormatFailure through into_error(0, SchemaVm). Callers attach their own raw token/schema/field location.
+The complete immutable registry is the twelve FormatId::name() spellings (the first ten are the original registry; `nanoid-chars` and `base62` were added later as ids 11 and 12). No aliases, case folding, suffix grammar, dynamic registration or global mutable state. A name longer than MAX_FORMAT_NAME_BYTES -> BudgetExhausted; unknown/empty name -> UnsupportedSchemaFeature. Registry ABI errors use SchemaVm, byte_offset/schema_id/field_id zero. validate_named maps FormatFailure through into_error(0, SchemaVm). Callers attach their own raw token/schema/field location.
 
 validate checks input.len() <= options.max_input_bytes before dispatch, otherwise Limit. Uuid/IP options are ignored except the input limit. Hex uses options.hex. Base64/Base64Url use their respective alphabet and options.base64_padding. NanoId uses options.nanoid_len. Address/hash always use the fixed policy above, independent of options.hex. Default options give NanoId 21, ordinary hex without prefix or fixed length, and canonical padded base64. Each validator is linear time and constant auxiliary memory; IPv6 storage is bounded by eight groups. Numeric/decimal conversion and JSON parsing are outside this registry.
 
 ## Cross-module invariants
 
-FormatId discriminants 1..=10 and registry version are frozen for schema images. FormatOptions must participate in compiled-program encoding/cache identity. No validator issues a ValidationProof or claims ownership of input. FormatFailure::into_error attaches the raw token start exactly; a decoded index cannot be added to a raw JSON offset because escapes change lengths. Limit maps to BudgetExhausted; all other format failures map to FormatMismatch.
+FormatId discriminants 1..=12 and registry version are frozen for schema images. FormatOptions must participate in compiled-program encoding/cache identity. No validator issues a ValidationProof or claims ownership of input. FormatFailure::into_error attaches the raw token start exactly; a decoded index cannot be added to a raw JSON offset because escapes change lengths. Limit maps to BudgetExhausted; all other format failures map to FormatMismatch.
 
 ## Normative shared root
 
@@ -170,3 +170,13 @@ impl FormatFailure {
     }
 }
 ```
+
+## Additions: nanoid-chars (11) and base62 (12)
+
+`validate_nanoid_chars(input)` accepts a nonempty run of ASCII `A-Z a-z 0-9 _ -`; `validate_base62(input)`
+a nonempty run of ASCII `A-Z a-z 0-9`. Neither constrains the length (a schema bounds it with
+min_length and max_length, which is how a NanoId of any length is expressed); empty input fails with
+InvalidLength at 0 and otherwise the first invalid byte fails with InvalidByte. Both honor the
+`max_input_bytes` limit of `registry::validate` and ignore every other option. They exist so a
+nested native schema can spell `NanoId { len }` of any length and either alphabet as a string with a
+length bound and a format; `nanoid` (id 8, exactly 21 characters by default) is unchanged.

@@ -542,3 +542,86 @@ macro_rules! shape_oracles {
 
 shape_oracles!(shapes, shape_strict);
 shape_oracles!(shapes_open, shape_open);
+
+/// A valid document of the `formats` fixture.
+pub const FORMATS_DOC: &str = r#"{"id":"abc_DEF-12345678","tag":"V1StGXR8_Z5jdHi6B-myT","sess":"Ab12Cd34Ef56Gh78","uid":"123e4567-e89b-12d3-a456-426614174000","ip":"192.168.0.1","blob":"Zm9vYmE=","addr":"0x00112233445566778899aabbccddeeff00112233","tx":"0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff","many":["aaaaaaaaaaaaaaaa","bbbb_bbb-bbbbbbb"],"sessions":["Zz09Aa12Bb34Cc56"],"names":["x"],"items":[{"ref":"abcd1234","uid":"00000000-0000-0000-0000-000000000000"}],"nick":"nick_ok1","extra":"AQID","peer":"::1"}"#;
+
+/// Oracle decoder for the `formats` fixture. Base64 is decoded with its own
+/// bit accumulator, independent of the runtime's decoder.
+macro_rules! formats_oracles {
+    ($module:ident, $name:ident) => {
+        pub mod $name {
+            use super::*;
+            use crate::$module::models::{Ids, Item};
+
+            fn base64(text: &str) -> Option<Vec<u8>> {
+                let mut out = Vec::new();
+                let (mut bits, mut count) = (0u32, 0u32);
+                for byte in text.bytes().take_while(|byte| *byte != b'=') {
+                    let value = match byte {
+                        b'A'..=b'Z' => byte - b'A',
+                        b'a'..=b'z' => byte - b'a' + 26,
+                        b'0'..=b'9' => byte - b'0' + 52,
+                        b'+' => 62,
+                        b'/' => 63,
+                        _ => return None,
+                    };
+                    bits = bits << 6 | u32::from(value);
+                    count += 6;
+                    if count >= 8 {
+                        count -= 8;
+                        out.push((bits >> count) as u8);
+                        bits &= (1 << count) - 1;
+                    }
+                }
+                Some(out)
+            }
+
+            fn strings(value: &Json) -> Option<Vec<String>> {
+                value.array()?.iter().map(|v| Some(v.string()?.to_owned())).collect()
+            }
+
+            fn optional<T>(value: Option<&Json>, read: impl Fn(&Json) -> Option<T>) -> Option<Option<T>> {
+                match value {
+                    None => Some(None),
+                    Some(value) => Some(Some(read(value)?)),
+                }
+            }
+
+            pub fn ids(input: &[u8]) -> Option<Ids> {
+                let root = tree(input)?;
+                let text = |key: &str| Some(root.get(key)?.string()?.to_owned());
+                Some(Ids {
+                    id: text("id")?,
+                    tag: text("tag")?,
+                    sess: text("sess")?,
+                    uid: text("uid")?,
+                    ip: text("ip")?,
+                    blob: base64(root.get("blob")?.string()?)?,
+                    addr: text("addr")?,
+                    tx: text("tx")?,
+                    many: strings(root.get("many")?)?,
+                    sessions: strings(root.get("sessions")?)?,
+                    names: strings(root.get("names")?)?,
+                    items: root
+                        .get("items")?
+                        .array()?
+                        .iter()
+                        .map(|item| {
+                            Some(Box::new(Item {
+                                r#ref: item.get("ref")?.string()?.to_owned(),
+                                uid: item.get("uid")?.string()?.to_owned(),
+                            }))
+                        })
+                        .collect::<Option<_>>()?,
+                    nick: optional(root.get("nick"), |v| Some(v.string()?.to_owned()))?,
+                    extra: optional(root.get("extra"), |v| base64(v.string()?))?,
+                    peer: optional(root.get("peer"), |v| Some(v.string()?.to_owned()))?,
+                })
+            }
+        }
+    };
+}
+
+formats_oracles!(formats, formats_strict);
+formats_oracles!(formats_open, formats_open_oracle);

@@ -1,0 +1,36 @@
+// Every string format a native decoder validates: UUID, IP address, base64
+// bytes, blockchain address and transaction hash, and NanoIds of several
+// lengths. `Sess` is Base62 in formats.native.ron; the others use the default
+// alphabet.
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "Item", ty: Struct(
+            name: "Item",
+            fields: [
+                Field(name: "ref", ty: NanoId(len: 8)),
+                Field(name: "uid", ty: UUID),
+            ],
+        )),
+        Definition(name: "Ids", ty: Struct(
+            name: "Ids",
+            fields: [
+                Field(name: "id", ty: NanoId(len: 16)),
+                Field(name: "tag", ty: NanoId(len: 21)),
+                Field(name: "sess", ty: NanoId(len: 16)),
+                Field(name: "uid", ty: UUID),
+                Field(name: "ip", ty: IpAddr),
+                Field(name: "blob", ty: Bytea),
+                Field(name: "addr", ty: BlockchainAddress),
+                Field(name: "tx", ty: BlockchainTransactionHash),
+                Field(name: "many", ty: Vec(NanoId(len: 16))),
+                Field(name: "sessions", ty: Vec(NanoId(len: 16))),
+                Field(name: "names", ty: Vec(String)),
+                Field(name: "items", ty: Vec(StructRef("Item"))),
+                Field(name: "nick", ty: Optional(NanoId(len: 8))),
+                Field(name: "extra", ty: Optional(Bytea)),
+                Field(name: "peer", ty: Optional(IpAddr)),
+            ],
+        )),
+    ],
+)

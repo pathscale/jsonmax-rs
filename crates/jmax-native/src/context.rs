@@ -34,6 +34,8 @@ pub struct NativeContext {
     pub(crate) safe_max_len: Option<usize>,
     /// Decimal scalars read since the last `core_decode` began.
     pub(crate) decimals: u64,
+    /// The program's format options, as the schema VM applies them.
+    pub(crate) format_options: jmax_format::FormatOptions,
 }
 
 impl core::fmt::Debug for NativeContext {
@@ -61,6 +63,7 @@ impl NativeContext {
             program_type: None,
             safe_max_len: None,
             decimals: 0,
+            format_options: jmax_format::FormatOptions::default(),
         }
     }
 
@@ -107,6 +110,7 @@ impl NativeContext {
             max_exponent_abs: self.requested.max_exponent_abs.min(schema.max_exponent_abs),
         };
         self.schema_numeric = schema;
+        self.format_options = program.program().format_options;
         self.safe_max_len = largest_safe_len(&program, self.limits);
         self.program = Some(program);
         self.program_type = Some(type_id);

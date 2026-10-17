@@ -31,6 +31,13 @@ pub const SHAPES: Fixture = Fixture {
     roots: &["Shape"],
 };
 
+pub const FORMATS: Fixture = Fixture {
+    name: "formats",
+    model: include_str!("../../../fixtures/native/formats.ron"),
+    spec: include_str!("../../../fixtures/native/formats.native.ron"),
+    roots: &["Ids"],
+};
+
 /// Generated module name, fixture, whether the specification rejects unknown
 /// keys, and whether the module follows `predict_layout` (the `_plain` module
 /// is always generated without prediction, so both strategies are tested).
@@ -40,6 +47,8 @@ pub const VARIANTS: &[(&str, Fixture, bool, bool)] = &[
     ("binance_plain", BINANCE, true, false),
     ("shapes", SHAPES, true, true),
     ("shapes_open", SHAPES, false, true),
+    ("formats", FORMATS, true, true),
+    ("formats_open", FORMATS, false, true),
 ];
 
 pub fn model(fixture: &Fixture) -> EndpointModel {

@@ -380,8 +380,18 @@ checks. With predict_layout, each object function keeps `next`, the declaration 
 
 Emitted details that the signatures do not show. `NATIVE_<SNAKE_UPPER_TYPE>_PROGRAM: &[u8]` holds the bytes of jmax-schema-aot dump_program (the complete compiler image) of the lowered graph, whose schema id is 5000 plus the root's index in NativeSpec.roots; build_program is jmax-schema-aot load_program of those bytes. No flat ABI table projection is emitted: a nested program is not a flat projection and does not verify as one. `pub const NATIVE_ROOTS` lists the roots. Models derive no Default, so native.rs implements `Default` for every struct it decodes (objects, tuples and roots); arrays of boxed structs keep and overwrite their existing elements and `truncate` on shrink, so a document with fewer elements than the previous one drops boxes and a later larger one allocates again. Objects have 1 to 128 fields, the seen mask being the smallest of u8..u128. Overrides apply to nominal model structs only, not to endpoint request and response records. generate_with_native applies the spec's idents to models.rs through options_with_native_idents, so its shared artifacts equal `generate` called with that merged option set, not with the caller's unmerged options. With the spec rejecting unknown keys an unknown key is a Fail; otherwise it is a Fail only while limits.syntax.reject_unknown_keys is set, else it is recorded and skipped with skip_strict. Programs with unknown-key-tolerant objects have no budget_safe bound, so those decoders always take the VM-first route.
 
+Format fields. UUID, IpAddr, BlockchainAddress, BlockchainTransactionHash and NanoId are read with
+`Reader::format(ctx, __native::FormatId::<Id>, <exact length>)` into the model's `String`, and Bytea with
+`Reader::bytea` into its `Vec<u8>`; the call is the very `jmax_format::registry::validate` the schema VM
+makes, with the program's own options. A NanoId of length 21 in the default alphabet uses FormatId::NanoId;
+any other length or alphabet uses FormatId::NanoIdChars (alphabet Url, `A-Z a-z 0-9 _ -`) or FormatId::Base62
+with the exact length. The alphabet is NativeSpec.nanoid_alphabet (default Url) unless the field is named in
+NativeSpec.nanoid_fields, which also covers NanoIds nested in that field (a `Vec` of them). An array decoder is
+keyed by its Rust type and the formats of its elements, so `Vec<NanoId(16, Url)>`, `Vec<NanoId(16, Base62)>`
+and `Vec<String>` are three decoders.
+
 Unsupported inputs return UnsupportedSchemaFeature and never produce a weaker decoder:
-patterns, formats (until jmax-native provides their validators), Object, Enum, recursive
+patterns, Object, Enum, Unit, recursive
 types, heterogeneous tuples, empty structs, structs over 128 fields, and Optional elements inside arrays. Native decoders return
 typed values only; every failure re-runs the embedded program on the VM, which alone builds
 errors. They never create a ValidationProof or ParsedMessage.

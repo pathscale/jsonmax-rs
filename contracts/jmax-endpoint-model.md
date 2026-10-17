@@ -250,7 +250,12 @@ pub struct NativeSpec {
     pub decimal_policy: DecimalPolicy,
     pub reject_unknown: bool,
     pub idents: Vec<NativeIdent>,
+    pub nanoid_alphabet: NanoIdAlphabet,
+    pub nanoid_fields: Vec<NativeNanoIdField>,
 }
+pub enum NanoIdAlphabet { Url, Base62 }   // Default: Url
+pub struct NativeNanoIdField { pub type_name: String, pub wire: String, pub alphabet: NanoIdAlphabet }
+impl NativeSpec { pub fn alphabet_for(&self, type_name: &str, wire: &str) -> NanoIdAlphabet; }
 pub fn validate_native_spec(registry: &Registry<'_>, spec: &NativeSpec) -> Result<()>;
 pub fn schema_graph_for(registry: &Registry<'_>, spec: &NativeSpec, root: &str, schema_id: SchemaId) -> Result<jmax_schema_ir::Schema>;
 ```
@@ -281,7 +286,11 @@ DecimalConstraints{policy: decimal_policy, no bounds}; UInt32/Int32/Int64/TimeSt
 Integer with their exact signed-representable bounds (0..=u32::MAX, i32, i64); Float64 to
 Number; Boolean to Boolean; String to String; UUID, IpAddr, BlockchainAddress and
 BlockchainTransactionHash to String with the same format names as utilities::schema_for_fields;
-NanoId only for len=21 as there; Bytea with format base64. Recursion, Enum, EnumRef, Object,
-Unit, heterogeneous tuples and unavailable formats return UnsupportedSchemaFeature. Traversal
+NanoId of length 21 in the Url alphabet with format nanoid as there; any other NanoId length or alphabet to a
+String with min_length = max_length = len and format nanoid-chars (Url, `A-Z a-z 0-9 _ -`) or base62 (`A-Z a-z 0-9`),
+the alphabet being `alphabet_for` the field being lowered (nanoid_alphabet, or the entry of nanoid_fields for that
+field, which also applies to NanoIds nested in it); Bytea with format base64. Recursion, Enum, EnumRef, Object,
+Unit and heterogeneous tuples return UnsupportedSchemaFeature (a zero NanoId length is a ConstraintViolation).
+validate_native_spec also requires every nanoid_fields entry to name an existing field of a struct and no field twice. Traversal
 is bounded by MAX_REFERENCE_DEPTH (DepthLimitExceeded). The result contains no pattern and no
 definitions or references; each nested object is its own node, so the graph is a tree.
