@@ -206,7 +206,8 @@ impl SeenKey {
 }
 #[derive(Debug)]
 struct DepthKeys {
-    inline: [SeenKey; 128],
+    few: [SeenKey; 6],
+    inline: Option<alloc::boxed::Box<[SeenKey; 128]>>,
     slots: Vec<SeenKey>,
     generation: u32,
     len: usize,
@@ -214,7 +215,8 @@ struct DepthKeys {
 impl Default for DepthKeys {
     fn default() -> Self {
         Self {
-            inline: [SeenKey::EMPTY; 128],
+            few: [SeenKey::EMPTY; 6],
+            inline: None,
             slots: Vec::new(),
             generation: 1,
             len: 0,
@@ -229,7 +231,10 @@ impl DepthKeys {
         if self.generation == 0 {
             // Only generation wrap needs a physical clear (once per 2^32 uses).
             self.slots.fill(SeenKey::EMPTY);
-            self.inline.fill(SeenKey::EMPTY);
+            self.few.fill(SeenKey::EMPTY);
+            if let Some(inline) = self.inline.as_mut() {
+                inline.fill(SeenKey::EMPTY);
+            }
             self.generation = 1;
         }
     }
@@ -303,6 +308,7 @@ pub struct DomScratch {
     decoded: Vec<u8>,
     stack: ContainerStack,
     seen: DepthTables,
+    shapes: fast::Shapes,
     document: Option<Document>,
 }
 pub type ParseScratch = DomScratch;
@@ -1035,7 +1041,7 @@ fn check_duplicate(
     }
     let table = &mut scratch.seen[depth];
     if table.len < 6 {
-        for entry in table.inline.iter().take(table.len).copied() {
+        for entry in table.few.iter().take(table.len).copied() {
             if entry.hash == hash && entry.span.len == reference.span.len {
                 let previous_bytes = string_bytes(raw, &scratch.decoded, entry.span, entry.source);
                 let current_bytes =
@@ -1049,7 +1055,7 @@ fn check_duplicate(
                 }
             }
         }
-        table.inline[table.len] = SeenKey {
+        table.few[table.len] = SeenKey {
             generation: table.generation,
             span: reference.span,
             source: reference.source,
@@ -1059,18 +1065,33 @@ fn check_duplicate(
         return Ok(());
     }
     if table.len == 6 {
-        let prefix: [SeenKey; 6] = table.inline[..6].try_into().unwrap_or([SeenKey::EMPTY; 6]);
-        table.inline[..6].fill(SeenKey::EMPTY);
-        for entry in prefix {
-            insert_seen(&mut table.inline, entry);
+        if table.inline.is_none() {
+            let mut inline = Vec::new();
+            reserve(&mut inline, 128, offset)?;
+            inline.resize(128, SeenKey::EMPTY);
+            table.inline = inline.into_boxed_slice().try_into().ok();
+        }
+        // Stale entries carry older generations, so the table needs no clearing.
+        let prefix = table.few;
+        if let Some(inline) = table.inline.as_mut() {
+            for entry in prefix {
+                insert_seen(&mut inline[..], entry);
+            }
         }
     }
     if table.len < 64 {
-        let mut slot = hash as usize & (table.inline.len() - 1);
+        let Some(inline) = table.inline.as_mut() else {
+            return Err(dom_error(
+                ErrorCode::InternalError,
+                offset,
+                "duplicate table is missing",
+            ));
+        };
+        let mut slot = hash as usize & 127;
         loop {
-            let entry = table.inline[slot];
+            let entry = inline[slot];
             if entry.generation != table.generation {
-                table.inline[slot] = SeenKey {
+                inline[slot] = SeenKey {
                     generation: table.generation,
                     span: reference.span,
                     source: reference.source,
@@ -1090,7 +1111,7 @@ fn check_duplicate(
                     "duplicate decoded JSON object key",
                 ));
             }
-            slot = (slot + 1) & (table.inline.len() - 1);
+            slot = (slot + 1) & 127;
         }
     }
     if table.len == 64 {
@@ -1106,6 +1127,7 @@ fn check_duplicate(
         for entry in table
             .inline
             .iter()
+            .flat_map(|inline| inline.iter())
             .copied()
             .filter(|entry| entry.generation == table.generation)
         {
