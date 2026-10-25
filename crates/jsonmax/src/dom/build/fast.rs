@@ -103,7 +103,7 @@ fn build_shaped<const FAST: bool>(
             } else {
                 scan_string_inline(&mut cursor, &mut scratch.decoded)?
             };
-            drop(key_span);
+            jmax_trace::end!(key_span);
             let key_extended = append_string(&mut scratch.tape, TAPE_TAG_KEY, string, 0, NO_NODE)?;
             if limits.reject_duplicate_keys && !matched_shape_token {
                 let depth = scratch.stack.len() - 1;
