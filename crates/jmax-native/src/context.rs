@@ -136,11 +136,13 @@ impl NativeContext {
 
     /// Open an object scope for unknown-key tracking; pass the mark to `end_object`.
     pub fn begin_object(&self) -> usize {
+        let _t = jmax_trace::span!(NATIVE_READER_OPEN);
         self.unknown.entries.len()
     }
 
     /// Record a decoded unknown key of the object opened at `mark`.
     pub fn unknown_key(&mut self, key: &str) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         self.unknown.push_key(key)?;
         self.unknown_key_bytes = self
             .unknown_key_bytes
@@ -170,10 +172,14 @@ impl NativeContext {
     /// Close the object opened at `mark`. With duplicate rejection on, two equal
     /// decoded unknown keys in it are a Fail. Always discards the object's keys.
     pub fn end_object(&mut self, mark: usize) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_READER_OPEN);
         self.unknown
             .finish(mark, self.limits.syntax.reject_duplicate_keys)
     }
 }
+
+/// Objects with at most this many unknown keys check duplicates pairwise instead of sorting.
+const SMALL_UNKNOWN: usize = 8;
 
 /// The unknown keys of every open object, innermost last.
 #[derive(Default)]
@@ -190,11 +196,15 @@ impl UnknownKeys {
     }
 
     pub(crate) fn push_key(&mut self, key: &str) -> NativeResult<()> {
+        self.push_key_bytes(key.as_bytes())
+    }
+
+    pub(crate) fn push_key_bytes(&mut self, key: &[u8]) -> NativeResult<()> {
         let start = u32::try_from(self.bytes.len()).map_err(|_| crate::Fail)?;
         let len = u32::try_from(key.len()).map_err(|_| crate::Fail)?;
-        self.bytes.extend_from_slice(key.as_bytes());
+        self.bytes.extend_from_slice(key);
         self.entries.push(UnknownEntry {
-            hash: key_hash(key.as_bytes()),
+            hash: key_hash(key),
             start,
             len,
         });
@@ -206,18 +216,27 @@ impl UnknownKeys {
         let result = if reject_duplicates {
             let bytes = &self.bytes;
             let slice = self.entries.get_mut(mark..).ok_or(crate::Fail)?;
-            slice.sort_unstable_by_key(|entry| entry.hash);
             let key = |entry: &UnknownEntry| {
                 bytes.get(entry.start as usize..(entry.start + entry.len) as usize)
             };
             let mut duplicate = false;
-            for (index, entry) in slice.iter().enumerate() {
-                // Equal hashes are adjacent; compare each against its whole run.
-                for other in slice[index + 1..]
-                    .iter()
-                    .take_while(|other| other.hash == entry.hash)
-                {
-                    duplicate |= key(entry) == key(other);
+            if slice.len() <= SMALL_UNKNOWN {
+                // A few keys: compare every pair by hash, with no sort.
+                for (index, entry) in slice.iter().enumerate() {
+                    for other in &slice[index + 1..] {
+                        duplicate |= entry.hash == other.hash && key(entry) == key(other);
+                    }
+                }
+            } else {
+                slice.sort_unstable_by_key(|entry| entry.hash);
+                for (index, entry) in slice.iter().enumerate() {
+                    // Equal hashes are adjacent; compare each against its whole run.
+                    for other in slice[index + 1..]
+                        .iter()
+                        .take_while(|other| other.hash == entry.hash)
+                    {
+                        duplicate |= key(entry) == key(other);
+                    }
                 }
             }
             if duplicate { Err(crate::Fail) } else { Ok(()) }
@@ -233,11 +252,33 @@ impl UnknownKeys {
 }
 
 fn key_hash(bytes: &[u8]) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325u64;
-    for &byte in bytes {
-        hash = (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3);
+    // Every byte takes part, a word at a time; equal keys hash equal and the
+    // duplicate check still compares bytes, so only the spread matters.
+    const K: u64 = 0x9e37_79b9_7f4a_7c15;
+    let n = bytes.len();
+    let word = |at: usize| u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap_or_default());
+    let mut hash = (n as u64).wrapping_mul(K);
+    if n >= 8 {
+        let mut at = 0;
+        while at + 8 < n {
+            hash = (hash ^ word(at)).wrapping_mul(K);
+            hash ^= hash >> 32;
+            at += 8;
+        }
+        hash = (hash ^ word(n - 8)).wrapping_mul(K);
+    } else {
+        let small = if n >= 4 {
+            let low = u32::from_le_bytes(bytes[..4].try_into().unwrap_or_default());
+            let high = u32::from_le_bytes(bytes[n - 4..].try_into().unwrap_or_default());
+            u64::from(low) | u64::from(high) << 32
+        } else if n > 0 {
+            u64::from(bytes[0]) | u64::from(bytes[n / 2]) << 8 | u64::from(bytes[n - 1]) << 16
+        } else {
+            0
+        };
+        hash = (hash ^ small).wrapping_mul(K);
     }
-    hash
+    hash ^ (hash >> 29)
 }
 
 /// The bound grows with the length, so the safe lengths form a prefix.

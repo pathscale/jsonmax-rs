@@ -20,6 +20,6 @@ Both `bench/compare.sh` (six general corpora) and `bench/native/target/release/t
 - **`lazy-skip`**: `sonic-rs` lazy root boundary scan (`get` with empty path, which skips unvisited interiors without validating every number or string escape).
 - **`query-only`**: Single-field raw slice lookup (`ps-pikkr` speculative SIMD parser and `jsonmax` query mode) without full-document validation.
 - **`strict-extract`**: Single-field extraction combined with full-document strict syntax validation (`jsonmax` `QueryMode::Strict`).
-- **`typed`**: Schema-driven field projection on the six general corpora, and full typed struct decoding (including exact `Decimal128` parsing in `jmax-native` vs. `String` or fixed-point `i64` in `serde_json`, `sonic-rs`, and `simd-json`) on the four Binance payloads.
+- **`typed`**: Two jmax engines are always shown, `jmax native` (generated AOT decoder) and `jmax vm` (schema bytecode VM). Schema-driven field projection on the six general corpora, and full typed struct decoding (including exact `Decimal128` parsing in `jmax native` vs. `String` or fixed-point `i64` in `serde_json`, `sonic-rs`, and `simd-json`) on the four Binance payloads.
 - **`dom-borrowed` / `dom-owned`**: Full DOM document construction (`BorrowedDocument` / `TapeDocument` in `jsonmax`, `Value` in `serde_json` and `sonic-rs`, borrowed/owned/tape views in `simd-json`, `JsonValue` in `jiter`, and `json-rust`).
 - **`serialize`**: Compact JSON serialization of a pre-parsed document or typed model.

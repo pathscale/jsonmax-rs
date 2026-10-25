@@ -3,6 +3,8 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 extern crate alloc;
+#[cfg(test)]
+extern crate std;
 
 use alloc::{boxed::Box, vec::Vec};
 pub use jmax_abi::buffer::{Payload, ValidationCapability, ValidationProof};
@@ -12,8 +14,8 @@ pub use jmax_abi::schema::{FieldId, Selection, SlotValue, StateId, ValidatedSlot
 pub use jmax_abi::span::{Span32, SpanSource, StrRef};
 pub use jmax_abi::syntax::{Event, Limits, ScalarKind};
 pub use jmax_schema_compile::{
-    CompiledProgram, ConstraintSet, KeyTable, PatternProgram, ProgramState, SlotSpec, StateKind,
-    ValidatedProgram,
+    CompiledProgram, ConstraintSet, KeyTable, PatternProgram, ProgramState, RowGroup, RowShape,
+    SlotSpec, StateKind, ValidatedProgram,
 };
 pub use jmax_schema_ir::ValueKind;
 
@@ -25,8 +27,8 @@ pub mod direct;
 pub mod execute;
 pub use direct::{
     extract_borrowed, extract_borrowed_with_scratch, extract_payload_direct,
-    extract_query_borrowed, extract_query_payload, validate_borrowed, validate_into,
-    validate_payload_direct,
+    extract_query_borrowed, extract_query_payload, extract_rows_borrowed_with_scratch,
+    validate_borrowed, validate_into, validate_payload_direct,
 };
 pub mod input {
     pub use crate::execute::CursorInput;
@@ -156,6 +158,9 @@ pub struct ObjectState {
     pub unknown_keys: UnknownKeyTable,
     pub property_count: u32,
     pub pending: Option<PendingValue>,
+    /// The compiled table rejects unknown keys, so no key is ever retained
+    /// and cooked-key hashes are never read.
+    pub(crate) rejects_unknown: bool,
 }
 
 impl ObjectState {
@@ -329,6 +334,20 @@ pub struct VmScratch {
     pub(crate) seen_masks: Vec<Vec<u64>>,
     pub(crate) slots: Vec<SlotValue>,
     pub(crate) selection_words: Vec<u64>,
+    /// The last successful selection index, keyed by program and field list.
+    pub(crate) selection_cache: Option<SelectionCache>,
+}
+
+/// A selection index that already passed validation for one program and one
+/// field list. Only inline-word indexes are cached; the steps the exact
+/// build charges are charged again on every hit.
+pub(crate) struct SelectionCache {
+    program: ValidatedProgram,
+    fields: Vec<FieldId>,
+    all: bool,
+    inline_words: [u64; 4],
+    /// Captured-entry mask of the last fixed object scanned, by key table.
+    pub(crate) fixed_selected: Option<(u32, u64)>,
 }
 
 /// Reusable direct-input interpreter storage and the last validated result.
@@ -337,6 +356,7 @@ pub struct ValidationScratch {
     pub(crate) vm: VmScratch,
     pub(crate) output: Option<ValidatedSlots>,
     pub(crate) ordered: Vec<SlotValue>,
+    pub(crate) rows: Vec<RowBlock>,
     pub(crate) direct_decoded: Vec<u8>,
     pub(crate) direct_needed: Vec<bool>,
     pub(crate) direct_queue: Vec<StateId>,
@@ -348,6 +368,7 @@ impl Default for ValidationScratch {
             vm: VmScratch::default(),
             output: None,
             ordered: Vec::new(),
+            rows: Vec::new(),
             direct_decoded: Vec::new(),
             direct_needed: Vec::new(),
             direct_queue: Vec::new(),
@@ -451,6 +472,49 @@ pub struct BorrowedValidatedSlotsRef<'raw, 'scratch> {
     pub raw: &'raw [u8],
     pub decoded: &'scratch [u8],
     pub slots: &'scratch [SlotValue],
+    pub proof: ValidationProof,
+    pub capability: ValidationCapability,
+}
+
+/// The staged rows of one array property: `values` holds `width` slots per
+/// element, in document order. Item groups hold the element's captured
+/// properties in slot order (`Empty` for an absent optional property); leaf
+/// groups hold the element's scalars in array order.
+#[derive(Clone, Debug, Default)]
+pub struct RowBlock {
+    /// Capture slot of the array property this block belongs to.
+    pub array_slot: u32,
+    pub width: u32,
+    pub values: Vec<SlotValue>,
+}
+
+impl RowBlock {
+    /// Number of staged elements.
+    pub fn len(&self) -> usize {
+        match self.width {
+            0 => 0,
+            width => self.values.len() / width as usize,
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+    /// Element rows in document order.
+    pub fn rows(&self) -> core::slice::ChunksExact<'_, SlotValue> {
+        self.values.chunks_exact((self.width as usize).max(1))
+    }
+}
+
+/// A strict extraction that also stages the elements of every row group.
+/// Published only after the whole document passed strict EOF. `groups` lines
+/// up with `ValidatedProgram::row_groups`; the plain `slots` keep their
+/// compiled indices, with the per-element item slots left `Empty`.
+#[derive(Debug)]
+pub struct BorrowedRowsRef<'raw, 'scratch> {
+    pub raw: &'raw [u8],
+    pub decoded: &'scratch [u8],
+    pub slots: &'scratch [SlotValue],
+    pub groups: &'scratch [RowBlock],
     pub proof: ValidationProof,
     pub capability: ValidationCapability,
 }

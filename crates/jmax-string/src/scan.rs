@@ -6,6 +6,48 @@
 
 use super::{BACKSLASH, Error, ErrorCode, ErrorSource, QUOTE, Result, Span32, StringScan};
 
+/// Index (0..32) of the first `"`, `\`, control (below 0x20) or non-ASCII (0x80 and above)
+/// byte of `block`, or 32 when there is none. One branch-free pass over two vector blocks.
+#[inline(always)]
+pub fn first_special_or_high32(block: &[u8; 32]) -> u32 {
+    #[cfg(target_arch = "x86_64")]
+    {
+        use core::arch::x86_64::*;
+        // SAFETY: SSE2 is baseline on x86_64 and both unaligned loads lie within `block`.
+        unsafe {
+            let quote = _mm_set1_epi8(b'"' as i8);
+            let slash = _mm_set1_epi8(b'\\' as i8);
+            let space = _mm_set1_epi8(0x20);
+            let a = _mm_loadu_si128(block.as_ptr().cast());
+            let b = _mm_loadu_si128(block.as_ptr().add(16).cast());
+            // A signed compare below 0x20 catches controls and, as negatives, bytes >= 0x80.
+            let sa = _mm_or_si128(
+                _mm_or_si128(_mm_cmpeq_epi8(a, quote), _mm_cmpeq_epi8(a, slash)),
+                _mm_cmplt_epi8(a, space),
+            );
+            let sb = _mm_or_si128(
+                _mm_or_si128(_mm_cmpeq_epi8(b, quote), _mm_cmpeq_epi8(b, slash)),
+                _mm_cmplt_epi8(b, space),
+            );
+            let mask = (_mm_movemask_epi8(sa) as u32) | ((_mm_movemask_epi8(sb) as u32) << 16);
+            mask.trailing_zeros()
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        let mut at = 0;
+        while at < 32 {
+            let byte = block[at];
+            if byte == b'"' || byte == b'\\' || !(0x20..0x80).contains(&byte) {
+                break;
+            }
+            at += 1;
+        }
+        at as u32
+    }
+}
+
+
 /// Find the first quote, backslash, or raw control byte below `0x20`.
 ///
 /// Arbitrary byte slices are accepted, including invalid UTF-8 and slices whose
@@ -96,6 +138,7 @@ pub fn first_special(bytes: &[u8]) -> Option<usize> {
 /// Once a closing quote is found, the entire raw content is validated as UTF-8;
 /// malformed sequences have source `Utf8` and point to their leading byte.
 pub fn scan_string(input: &[u8], opening_quote: u32) -> Result<StringScan> {
+    let _t = jmax_trace::span!(STRING_SCAN);
     let input_len = checked_scan_len(input.len())?;
     if opening_quote >= input_len {
         return Err(Error::new(

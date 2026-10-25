@@ -28,6 +28,11 @@ impl<const FAST: bool> FastDomCursor<'_, FAST> {
         if !FAST {
             return self.0.skip_whitespace();
         }
+        // Compact input: the next byte is usually the token itself.
+        match self.peek_byte() {
+            Some(b' ' | b'\t' | b'\r' | b'\n') => {}
+            other => return Ok(other),
+        }
         let start = self.offset() as usize;
         let mut end = start;
         while self
@@ -108,23 +113,29 @@ struct OpenContainer {
     count: u32,
     phase: Phase,
 }
-/// Most JSON documents nest shallowly. Deeper documents retain a spill vector.
+/// Most JSON documents nest shallowly. The innermost open container lives in
+/// `top` so the hot loop reads and updates it without indexing; the frames
+/// below it sit in `inline`, then `spill` for deeper documents. The storage
+/// slot of the top frame is only written when a child is pushed above it.
 #[derive(Debug)]
 struct ContainerStack {
+    top: OpenContainer,
+    depth: usize,
     inline: [OpenContainer; 32],
-    len: usize,
     spill: Vec<OpenContainer>,
 }
+const EMPTY_FRAME: OpenContainer = OpenContainer {
+    node: 0,
+    tag: 0,
+    count: 0,
+    phase: Phase::First,
+};
 impl Default for ContainerStack {
     fn default() -> Self {
         Self {
-            inline: [OpenContainer {
-                node: 0,
-                tag: 0,
-                count: 0,
-                phase: Phase::First,
-            }; 32],
-            len: 0,
+            top: EMPTY_FRAME,
+            depth: 0,
+            inline: [EMPTY_FRAME; 32],
             spill: Vec::new(),
         }
     }
@@ -132,58 +143,67 @@ impl Default for ContainerStack {
 impl ContainerStack {
     #[inline(always)]
     fn len(&self) -> usize {
-        self.len + self.spill.len()
+        self.depth
     }
     fn capacity(&self) -> usize {
         self.inline.len() + self.spill.capacity()
     }
     fn clear(&mut self) {
-        self.len = 0;
+        self.depth = 0;
         self.spill.clear();
     }
     #[inline(always)]
     fn last(&self) -> Option<&OpenContainer> {
-        if self.spill.is_empty() {
-            self.inline[..self.len].last()
-        } else {
-            self.spill.last()
-        }
+        if self.depth != 0 { Some(&self.top) } else { None }
     }
     #[inline(always)]
     fn last_mut(&mut self) -> Option<&mut OpenContainer> {
-        if self.spill.is_empty() {
-            self.inline[..self.len].last_mut()
+        if self.depth != 0 {
+            Some(&mut self.top)
         } else {
-            self.spill.last_mut()
+            None
         }
     }
+    /// The caller has called `reserve(1)`, so demoting the old top cannot grow.
     #[inline(always)]
     fn push(&mut self, value: OpenContainer) {
-        if self.len < self.inline.len() {
-            self.inline[self.len] = value;
-            self.len += 1;
-        } else {
-            self.spill.push(value);
+        if self.depth != 0 {
+            let below = self.depth - 1;
+            if below < self.inline.len() {
+                self.inline[below] = self.top;
+            } else {
+                self.spill.push(self.top);
+            }
         }
+        self.top = value;
+        self.depth += 1;
     }
     #[inline(always)]
     fn pop(&mut self) -> Option<OpenContainer> {
-        if let Some(value) = self.spill.pop() {
-            return Some(value);
-        }
-        if self.len == 0 {
+        if self.depth == 0 {
             return None;
         }
-        self.len -= 1;
-        Some(self.inline[self.len])
+        let value = self.top;
+        self.depth -= 1;
+        if self.depth != 0 {
+            let below = self.depth - 1;
+            self.top = if below < self.inline.len() {
+                self.inline[below]
+            } else {
+                self.spill.pop().unwrap_or(EMPTY_FRAME)
+            };
+        }
+        Some(value)
     }
     fn reserve(&mut self, additional: usize, offset: u32) -> Result<()> {
-        let need = self
-            .len()
+        // After the push, `depth + additional - 1` frames sit below the top.
+        let below = self
+            .depth
             .checked_add(additional)
-            .ok_or_else(|| dom_error(ErrorCode::BudgetExhausted, offset, "DOM depth overflow"))?;
-        if need > self.inline.len() {
-            let additional = need - self.inline.len() - self.spill.len();
+            .ok_or_else(|| dom_error(ErrorCode::BudgetExhausted, offset, "DOM depth overflow"))?
+            .saturating_sub(1);
+        if below > self.inline.len() {
+            let additional = below - self.inline.len() - self.spill.len();
             reserve(&mut self.spill, additional, offset)?;
         }
         Ok(())
@@ -204,9 +224,14 @@ impl SeenKey {
         hash: 0,
     };
 }
+/// Objects with at most this many keys use the 32-slot table.
+const SMALL_KEYS: usize = 16;
 #[derive(Debug)]
 struct DepthKeys {
-    inline: [SeenKey; 128],
+    few: [SeenKey; 6],
+    /// Lazily built 32-slot table for objects of 7..=16 keys.
+    small: Vec<SeenKey>,
+    inline: Option<alloc::boxed::Box<[SeenKey; 128]>>,
     slots: Vec<SeenKey>,
     generation: u32,
     len: usize,
@@ -214,7 +239,9 @@ struct DepthKeys {
 impl Default for DepthKeys {
     fn default() -> Self {
         Self {
-            inline: [SeenKey::EMPTY; 128],
+            few: [SeenKey::EMPTY; 6],
+            small: Vec::new(),
+            inline: None,
             slots: Vec::new(),
             generation: 1,
             len: 0,
@@ -229,7 +256,11 @@ impl DepthKeys {
         if self.generation == 0 {
             // Only generation wrap needs a physical clear (once per 2^32 uses).
             self.slots.fill(SeenKey::EMPTY);
-            self.inline.fill(SeenKey::EMPTY);
+            self.few.fill(SeenKey::EMPTY);
+            self.small.fill(SeenKey::EMPTY);
+            if let Some(inline) = self.inline.as_mut() {
+                inline.fill(SeenKey::EMPTY);
+            }
             self.generation = 1;
         }
     }
@@ -303,6 +334,7 @@ pub struct DomScratch {
     decoded: Vec<u8>,
     stack: ContainerStack,
     seen: DepthTables,
+    shapes: fast::Shapes,
     document: Option<Document>,
 }
 pub type ParseScratch = DomScratch;
@@ -517,8 +549,12 @@ fn build(
     numeric: Option<NumericPolicy>,
     scratch: &mut DomScratch,
 ) -> Result<Summary> {
+    let _t = jmax_trace::span!(DOM_BUILD);
     scratch.clear_keep_capacity();
-    prepare_fresh_buffers(raw, limits, scratch)?;
+    {
+        let _p = jmax_trace::span!(DOM_PREPARE);
+        prepare_fresh_buffers(raw, limits, scratch)?;
+    }
     // The specialized grammar handles general JSON too. BlockCursor remains
     // its authority for escaped strings, uncertain numbers, and diagnostics.
     let result = fast::build_inner(raw, limits, numeric, scratch).or_else(|_| {
@@ -533,18 +569,29 @@ fn build(
     result
 }
 
+const SMALL_INPUT: usize = 512;
+
 /// Reserve the tape from source density without keeping a half-input sized
 /// tape for ordinary JSON. Count only the source spans that must be decoded;
 /// their raw lengths are a safe upper bound for the cooked arena.
 fn prepare_fresh_buffers(raw: &[u8], limits: Limits, scratch: &mut DomScratch) -> Result<()> {
     if scratch.tape.capacity() == 0 {
-        let words = initial_tape_words(raw)
-            .clamp(16, 1_048_576)
-            .min(limits.max_payload_bytes as usize);
+        // Small inputs skip the density sample: a flat guess costs less than
+        // the scan, and an undersized tape just grows.
+        let words = if raw.len() <= SMALL_INPUT {
+            raw.len() / 2 + 16
+        } else {
+            initial_tape_words(raw)
+        }
+        .clamp(16, 1_048_576)
+        .min(limits.max_payload_bytes as usize);
         reserve(&mut scratch.tape, words, 0)?;
     }
-    if scratch.decoded.capacity() == 0 && raw.contains(&b'\\') {
-        let decoded = decoded_reservation(raw).min(limits.max_decoded_bytes as usize);
+    if scratch.decoded.capacity() == 0 && raw.len() > SMALL_INPUT && raw.contains(&b'\\') {
+        // A whole-input scan for the exact escaped bytes costs ~10% of a
+        // twitter-size parse; start at an eighth of the input and let the
+        // arena double for escape-heavy documents.
+        let decoded = (raw.len() / 8 + 64).min(limits.max_decoded_bytes as usize);
         if decoded != 0 {
             reserve(&mut scratch.decoded, decoded, 0)?;
         }
@@ -615,63 +662,13 @@ fn initial_tape_words(raw: &[u8]) -> usize {
         .min(usize::MAX as u64) as usize
 }
 
-/// Sum raw interiors of escaped strings. This is conservative for UTF-8 and
-/// Unicode escapes, and avoids reserving the whole input for a lone escape.
-fn decoded_reservation(raw: &[u8]) -> usize {
-    let mut total = 0usize;
-    let mut at = 0usize;
-    while at < raw.len() {
-        if raw[at] != b'"' {
-            at += next_quote(&raw[at..]);
-            continue;
-        }
-        let start = at + 1;
-        at = start;
-        let mut escaped = false;
-        while at < raw.len() {
-            match raw[at] {
-                b'\\' => {
-                    escaped = true;
-                    at = at.saturating_add(2).min(raw.len());
-                }
-                b'"' => {
-                    if escaped {
-                        total = total.saturating_add(at - start);
-                    }
-                    at += 1;
-                    break;
-                }
-                _ => at += jmax_dispatch::short::string_special(&raw[at..]).max(1),
-            }
-        }
-    }
-    total
-}
-
-fn next_quote(raw: &[u8]) -> usize {
-    const LOW: u64 = 0x0101_0101_0101_0101;
-    const HIGH: u64 = 0x8080_8080_8080_8080;
-    let mut at = 0;
-    while raw.len() - at >= 8 {
-        let word = u64::from_le_bytes(raw[at..at + 8].try_into().unwrap_or_default())
-            ^ (LOW * u64::from(b'"'));
-        let mask = word.wrapping_sub(LOW) & !word & HIGH;
-        if mask != 0 {
-            return at + (mask.trailing_zeros() / 8) as usize;
-        }
-        at += 8;
-    }
-    at + raw[at..]
-        .iter()
-        .position(|&b| b == b'"')
-        .unwrap_or(raw.len() - at)
-}
 fn build_inner(
     raw: &[u8],
     limits: Limits,
     numeric: Option<NumericPolicy>,
     scratch: &mut DomScratch,
 ) -> Result<Summary> {
+    let _t = jmax_trace::span!(DOM_SLOW_BUILD);
     let mut cursor = BlockCursor::new(raw, limits, numeric, DuplicatePolicyOwner::Syntax)?;
     let mut summary = Summary::default();
     append_value(&mut cursor, scratch, &mut summary, 0, None)?;
@@ -904,6 +901,7 @@ fn append_number(
     key_flags: u32,
     parent: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(DOM_TAPE_PUSH);
     let index = tape_index(tape.len(), span.offset)?;
     let extended = span.len > TAPE_AUX_LEN_MASK;
     let width = if extended { 3 } else { 2 };
@@ -922,13 +920,15 @@ fn append_number(
     Ok(())
 }
 #[inline(always)]
+/// Appends one string or key record; returns whether it used the extended layout.
 fn append_string(
     tape: &mut Vec<TapeWord>,
     tag: u8,
     meta: StringMeta,
     key_flags: u32,
     parent: u32,
-) -> Result<()> {
+) -> Result<bool> {
+    let _t = jmax_trace::span!(DOM_TAPE_PUSH);
     let index = tape_index(tape.len(), meta.raw_token.offset)?;
     let cooked = meta.cooked;
     let ascii = cooked.scalar_len == cooked.span.len;
@@ -944,7 +944,7 @@ fn append_string(
         if tag != TAPE_TAG_KEY {
             tape.push(TapeWord::pack_pair(parent, index + width as u32));
         }
-        return Ok(());
+        return Ok(false);
     }
     let mut aux = key_flags | TAPE_FLAG_EXTENDED;
     if ascii {
@@ -962,7 +962,7 @@ fn append_string(
     }
     tape.push(TapeWord::pack_pair(cooked.span.offset, cooked.span.len));
     tape.push(TapeWord::pack_pair(cooked.scalar_len, meta.raw_token.len));
-    Ok(())
+    Ok(true)
 }
 fn increment(value: u32, offset: u32) -> Result<u32> {
     value.checked_add(1).ok_or_else(|| {
@@ -983,8 +983,20 @@ fn tape_index(len: usize, offset: u32) -> Result<u32> {
         )
     })
 }
+/// Hot path: room for `additional` more elements below 2^31 total. The
+/// comparison also tells the compiler the following pushes cannot grow, so a
+/// token's header, link and extension words share this one check.
 #[inline(always)]
 fn reserve<T>(values: &mut Vec<T>, additional: usize, offset: u32) -> Result<()> {
+    const LIMIT: usize = 1 << 31;
+    if values.len() < LIMIT && additional < LIMIT && values.len() + additional <= values.capacity()
+    {
+        return Ok(());
+    }
+    reserve_slow(values, additional, offset)
+}
+#[inline(never)]
+fn reserve_slow<T>(values: &mut Vec<T>, additional: usize, offset: u32) -> Result<()> {
     let next = values.len().checked_add(additional).ok_or_else(|| {
         dom_error(
             ErrorCode::PayloadTooLarge,
@@ -1028,6 +1040,7 @@ fn check_duplicate(
     reference: StrRef,
     offset: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(DOM_DUP);
     if depth >= scratch.seen.len() {
         let additional = depth + 1 - scratch.seen.len();
         scratch.seen.reserve(additional, offset)?;
@@ -1035,7 +1048,7 @@ fn check_duplicate(
     }
     let table = &mut scratch.seen[depth];
     if table.len < 6 {
-        for entry in table.inline.iter().take(table.len).copied() {
+        for entry in table.few.iter().take(table.len).copied() {
             if entry.hash == hash && entry.span.len == reference.span.len {
                 let previous_bytes = string_bytes(raw, &scratch.decoded, entry.span, entry.source);
                 let current_bytes =
@@ -1049,7 +1062,7 @@ fn check_duplicate(
                 }
             }
         }
-        table.inline[table.len] = SeenKey {
+        table.few[table.len] = SeenKey {
             generation: table.generation,
             span: reference.span,
             source: reference.source,
@@ -1058,19 +1071,25 @@ fn check_duplicate(
         table.len += 1;
         return Ok(());
     }
-    if table.len == 6 {
-        let prefix: [SeenKey; 6] = table.inline[..6].try_into().unwrap_or([SeenKey::EMPTY; 6]);
-        table.inline[..6].fill(SeenKey::EMPTY);
-        for entry in prefix {
-            insert_seen(&mut table.inline, entry);
+    if table.len < SMALL_KEYS {
+        // Mid-size objects (7..=16 keys) probe a 32-slot table: building it
+        // costs a fraction of the 128-slot table and it is kept for reuse.
+        if table.small.is_empty() {
+            reserve(&mut table.small, 32, offset)?;
+            table.small.resize(32, SeenKey::EMPTY);
         }
-    }
-    if table.len < 64 {
-        let mut slot = hash as usize & (table.inline.len() - 1);
+        // Stale entries carry older generations, so the table needs no clearing.
+        if table.len == 6 {
+            let prefix = table.few;
+            for entry in prefix {
+                insert_seen(&mut table.small, entry);
+            }
+        }
+        let mut slot = hash as usize & 31;
         loop {
-            let entry = table.inline[slot];
+            let entry = table.small[slot];
             if entry.generation != table.generation {
-                table.inline[slot] = SeenKey {
+                table.small[slot] = SeenKey {
                     generation: table.generation,
                     span: reference.span,
                     source: reference.source,
@@ -1090,7 +1109,60 @@ fn check_duplicate(
                     "duplicate decoded JSON object key",
                 ));
             }
-            slot = (slot + 1) & (table.inline.len() - 1);
+            slot = (slot + 1) & 31;
+        }
+    }
+    if table.len == SMALL_KEYS {
+        if table.inline.is_none() {
+            let mut inline = Vec::new();
+            reserve(&mut inline, 128, offset)?;
+            inline.resize(128, SeenKey::EMPTY);
+            table.inline = inline.into_boxed_slice().try_into().ok();
+        }
+        if let Some(inline) = table.inline.as_mut() {
+            for entry in table
+                .small
+                .iter()
+                .copied()
+                .filter(|entry| entry.generation == table.generation)
+            {
+                insert_seen(&mut inline[..], entry);
+            }
+        }
+    }
+    if table.len < 64 {
+        let Some(inline) = table.inline.as_mut() else {
+            return Err(dom_error(
+                ErrorCode::InternalError,
+                offset,
+                "duplicate table is missing",
+            ));
+        };
+        let mut slot = hash as usize & 127;
+        loop {
+            let entry = inline[slot];
+            if entry.generation != table.generation {
+                inline[slot] = SeenKey {
+                    generation: table.generation,
+                    span: reference.span,
+                    source: reference.source,
+                    hash,
+                };
+                table.len += 1;
+                return Ok(());
+            }
+            if entry.hash == hash
+                && entry.span.len == reference.span.len
+                && string_bytes(raw, &scratch.decoded, entry.span, entry.source)
+                    == string_bytes(raw, &scratch.decoded, reference.span, reference.source)
+            {
+                return Err(syntax_error(
+                    ErrorCode::DuplicateObjectKey,
+                    offset,
+                    "duplicate decoded JSON object key",
+                ));
+            }
+            slot = (slot + 1) & 127;
         }
     }
     if table.len == 64 {
@@ -1106,6 +1178,7 @@ fn check_duplicate(
         for entry in table
             .inline
             .iter()
+            .flat_map(|inline| inline.iter())
             .copied()
             .filter(|entry| entry.generation == table.generation)
         {
@@ -1284,6 +1357,80 @@ mod tests {
             let actual = fast::build_inner(&raw, Limits::strict_default(), None, &mut a).err();
             let expected = build_inner(&raw, Limits::strict_default(), None, &mut b).err();
             assert_eq!(actual, expected);
+        }
+    }
+
+    /// The tiered duplicate tables (6 inline keys, 32 slots up to 16 keys,
+    /// 128 slots up to 64, then the growing table) and the container stack
+    /// (inline frames then spill) must agree with the plain builder, including
+    /// the offset and message of the first duplicate.
+    #[test]
+    fn duplicate_tiers_and_deep_stacks_match_plain_builder() {
+        fn both(raw: &str) -> (Result<Summary>, Vec<TapeWord>, Result<Summary>, Vec<TapeWord>) {
+            let limits = Limits::strict_default();
+            let mut fast_scratch = DomScratch::new();
+            fast_scratch.clear_keep_capacity();
+            let fast = fast::build_inner(raw.as_bytes(), limits, None, &mut fast_scratch);
+            let mut plain_scratch = DomScratch::new();
+            let plain = build_inner(raw.as_bytes(), limits, None, &mut plain_scratch);
+            (fast, fast_scratch.tape.clone(), plain, plain_scratch.tape.clone())
+        }
+        for keys in 1..=70usize {
+            let mut members = (0..keys)
+                .map(|index| alloc::format!("\"k{index}\":{index}"))
+                .collect::<Vec<_>>();
+            let clean = alloc::format!("{{{}}}", members.join(","));
+            let (fast, fast_tape, plain, plain_tape) = both(&clean);
+            assert!(fast.is_ok() && plain.is_ok(), "{keys} clean keys");
+            assert_eq!(fast_tape, plain_tape);
+            for dup in [0, keys / 2, keys - 1] {
+                members.push(alloc::format!("\"k{dup}\":0"));
+                let raw = alloc::format!("{{{}}}", members.join(","));
+                members.pop();
+                let (fast, _, plain, _) = both(&raw);
+                let (Err(fast), Err(plain)) = (fast, plain) else {
+                    panic!("{keys} keys with duplicate k{dup} must fail");
+                };
+                assert_eq!(fast.code, ErrorCode::DuplicateObjectKey);
+                assert_eq!(
+                    (fast.code, fast.byte_offset, fast.detail),
+                    (plain.code, plain.byte_offset, plain.detail)
+                );
+            }
+        }
+        // Sibling objects of different sizes reuse tables across generations.
+        let mut raw = String::from("[");
+        for size in [3usize, 9, 17, 70, 5, 12, 66, 1, 16] {
+            if raw.len() > 1 {
+                raw.push(',');
+            }
+            let members = (0..size)
+                .map(|index| alloc::format!("\"k{index}\":{index}"))
+                .collect::<Vec<_>>();
+            raw.push_str(&alloc::format!("{{{}}}", members.join(",")));
+        }
+        raw.push(']');
+        let (fast, fast_tape, plain, plain_tape) = both(&raw);
+        assert!(fast.is_ok() && plain.is_ok());
+        assert_eq!(fast_tape, plain_tape);
+        // Nesting beyond the inline stack frames, with objects at every level.
+        for depth in [1usize, 31, 32, 33, 34, 40, 90] {
+            let mut raw = String::new();
+            for level in 0..depth {
+                raw.push_str(&alloc::format!("{{\"a{level}\":1,\"b\":["));
+            }
+            raw.push('0');
+            for _ in 0..depth {
+                raw.push_str("],\"c\":2}");
+            }
+            let mut limits = Limits::strict_default();
+            limits.max_depth = 256;
+            let mut fast_scratch = DomScratch::new();
+            let fast = fast::build_inner(raw.as_bytes(), limits, None, &mut fast_scratch);
+            let mut plain_scratch = DomScratch::new();
+            let plain = build_inner(raw.as_bytes(), limits, None, &mut plain_scratch);
+            assert!(fast.is_ok() && plain.is_ok(), "depth {depth}");
+            assert_eq!(fast_scratch.tape, plain_scratch.tape, "depth {depth}");
         }
     }
 

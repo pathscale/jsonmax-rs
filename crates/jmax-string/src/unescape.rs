@@ -31,6 +31,7 @@ pub fn decode_escape(input: &[u8], backslash_offset: u32) -> Result<DecodedEscap
 /// errors retain all metadata and may leave an emitted prefix. Returned counts
 /// describe only this append, independent of the sink's existing length.
 pub fn unescape(input: &[u8], content: Span32, sink: &mut dyn ByteSink) -> Result<StringLengths> {
+    let _t = jmax_trace::span!(STRING_UNESCAPE);
     let bytes = content_bytes(input, content)?;
     // content_bytes checked span addition and slicing. These sums cannot exceed
     // u32::MAX or the source slice length, on either 32-bit or 64-bit hosts.
@@ -238,6 +239,7 @@ pub fn cook_into(
     arena: &mut jmax_buffer::DecodedArena,
     max_string_bytes: u32,
 ) -> Result<jmax_abi::span::StrRef> {
+    let _t = jmax_trace::span!(STRING_UNESCAPE);
     let len = checked_input_len(raw_content)?;
     let end = raw_content_offset.checked_add(len).ok_or_else(|| {
         Error::new(

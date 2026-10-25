@@ -9,8 +9,8 @@ use super::*;
 use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 use jmax_format::{HexCase, HexPolicy, Padding};
 use jmax_schema_ir::{
-    ArrayShape, Dialect, EnumShape, EnumVariant, ObjectShape, Property, ResolveLimits, Schema, TypeNode,
-    UnknownFormatPolicy,
+    ArrayShape, Dialect, EnumShape, EnumVariant, ObjectShape, Property, ResolveLimits, Schema,
+    TypeNode, UnknownFormatPolicy,
 };
 
 fn invalid(detail: &'static str) -> Error {
@@ -712,12 +712,16 @@ impl<'a> Reader<'a> {
             pattern: self.optional(Self::u32)?,
             format: self.optional(Self::format_id)?,
             nullable: self.boolean()?,
-            enum_variants: if is_enum { self.vector(12, u32::MAX, |reader| {
-                Ok(EnumVariant {
-                    name: reader.string(u32::MAX)?,
-                    discriminant: reader.i64()?,
-                })
-            })? } else { Vec::new() },
+            enum_variants: if is_enum {
+                self.vector(12, u32::MAX, |reader| {
+                    Ok(EnumVariant {
+                        name: reader.string(u32::MAX)?,
+                        discriminant: reader.i64()?,
+                    })
+                })?
+            } else {
+                Vec::new()
+            },
         })
     }
 
@@ -942,7 +946,11 @@ pub fn decode(bytes: &[u8], options: &CompilerOptions) -> Result<ValidatedProgra
     validate(program, options)
 }
 
-fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions, nullable: bool) -> Result<ScalarConstraints> {
+fn read_scalar(
+    reader: &mut Reader<'_>,
+    options: &CompilerOptions,
+    nullable: bool,
+) -> Result<ScalarConstraints> {
     Ok(ScalarConstraints {
         kind: reader.value_kind()?,
         min_i64: reader.optional(Reader::i64)?,
@@ -1017,7 +1025,10 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
             7 => {
                 let nullable = r.boolean()?;
                 let variants = r.vector(12, options.max_image_bytes, |r| {
-                    Ok(EnumVariant { name: r.string(options.max_image_bytes)?, discriminant: r.i64()? })
+                    Ok(EnumVariant {
+                        name: r.string(options.max_image_bytes)?,
+                        discriminant: r.i64()?,
+                    })
                 })?;
                 Ok(TypeNode::Enum(EnumShape { variants, nullable }))
             }
@@ -1146,9 +1157,7 @@ fn inspect(program: &CompiledProgram, options: &CompilerOptions) -> Result<()> {
             }
             _ => {}
         }
-        if !matches!(&state.kind, StateKind::Enum)
-            && !state.constraints.enum_variants.is_empty()
-        {
+        if !matches!(&state.kind, StateKind::Enum) && !state.constraints.enum_variants.is_empty() {
             return Err(invalid("non-enum state has enum variants"));
         }
         if state
@@ -1400,7 +1409,11 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
             StateKind::Scalar(ValueKind::Decimal | ValueKind::String) => bit(S::String),
             StateKind::Enum => bit(S::String) | bit(S::Number),
             StateKind::Object { .. } | StateKind::Array { .. } => 0,
-        } | if state.constraints.nullable { bit(S::Null) } else { 0 };
+        } | if state.constraints.nullable {
+            bit(S::Null)
+        } else {
+            0
+        };
         let has_constraints =
             state.kind != StateKind::Any || state.constraints != ConstraintSet::default();
         dispatch.push(CompiledStateDispatch {
@@ -1479,6 +1492,10 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
         }
         cursor += 1;
     }
+    let (row_groups, row_group_by_slot) = derive_row_groups(program, &field_slots, &parents)?;
+    let rows_only = row_groups
+        .iter()
+        .any(|group| matches!(group.shape, RowShape::Items { .. }));
     let mut required_masks = reserved(program.key_tables.len())?;
     for table in &program.key_tables {
         let mut mask = reserved((table.key_count as usize + 63) / 64)?;
@@ -1494,11 +1511,381 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
         }
         required_masks.push(mask);
     }
+    let mut fixed_objects = reserved(program.key_tables.len())?;
+    for (id, table) in program.key_tables.iter().enumerate() {
+        let owner = table_states
+            .get(id)
+            .and_then(|s| program.states.get(s.0 as usize));
+        fixed_objects.push(match owner {
+            Some(owner) => fixed_object_plan(
+                program,
+                &field_slots,
+                &row_groups,
+                &row_group_by_slot,
+                owner,
+                table,
+            )?,
+            None => None,
+        });
+    }
     Ok(ProgramIndexes {
         field_slots,
         table_states,
         dispatch,
         parents,
         required_masks,
+        fixed_objects,
+        row_groups,
+        rows_only,
+        row_group_by_slot,
     })
+}
+
+/// Widest row a leaf or item group may stage.
+const MAX_ROW_WIDTH: u32 = 64;
+
+/// Row groups of the rows API: slotted array properties of object items with
+/// contiguous item slots, or of fixed-length arrays of scalars. A slotted
+/// array of anything else keeps its plain raw-span capture.
+fn derive_row_groups(
+    program: &CompiledProgram,
+    field_slots: &[u32],
+    parents: &[Vec<StateId>],
+) -> Result<(Vec<RowGroup>, Vec<u32>)> {
+    let mut groups: Vec<RowGroup> = Vec::new();
+    let mut by_slot = reserved(program.slots.len())?;
+    by_slot.resize(program.slots.len(), u32::MAX);
+    for spec in &program.slots {
+        let Some(array) = program.states.get(spec.state.0 as usize) else {
+            continue;
+        };
+        let StateKind::Array { items } = array.kind else {
+            continue;
+        };
+        let item = program
+            .states
+            .get(items.0 as usize)
+            .ok_or_else(|| invalid("invalid array item state"))?;
+        let shape = match item.kind {
+            StateKind::Object { key_table, .. } => {
+                let table = program
+                    .key_tables
+                    .get(key_table as usize)
+                    .ok_or_else(|| invalid("invalid item key table"))?;
+                let mut slots = Vec::new();
+                for key in program
+                    .image
+                    .keys
+                    .get(table.first_key as usize..(table.first_key + table.key_count) as usize)
+                    .ok_or_else(|| invalid("invalid item key range"))?
+                {
+                    let slot = field_slots
+                        .get(usize::from(key.field_id))
+                        .copied()
+                        .filter(|&slot| slot != EMPTY_KEY_SLOT);
+                    if let Some(slot) = slot {
+                        let target = program
+                            .states
+                            .get(key.target_state as usize)
+                            .ok_or_else(|| invalid("invalid item property state"))?;
+                        if matches!(
+                            target.kind,
+                            StateKind::Array { .. } | StateKind::Object { .. }
+                        ) {
+                            return Err(unsupported_rows("row item slots must hold scalars"));
+                        }
+                        slots.try_reserve(1).map_err(|_| budget())?;
+                        slots.push(slot);
+                    }
+                }
+                if slots.is_empty() {
+                    continue;
+                }
+                slots.sort_unstable();
+                let first = slots[0];
+                let width = u32::try_from(slots.len()).map_err(|_| budget())?;
+                if width > MAX_ROW_WIDTH
+                    || slots
+                        .iter()
+                        .enumerate()
+                        .any(|(i, &s)| s != first + i as u32)
+                {
+                    return Err(unsupported_rows("row item slots must be contiguous"));
+                }
+                if parents[spec.state.0 as usize].len() != 1 || parents[items.0 as usize].len() != 1
+                {
+                    return Err(unsupported_rows("row item slots must belong to one array"));
+                }
+                RowShape::Items {
+                    first_slot: first,
+                    width,
+                }
+            }
+            StateKind::Array { items: leaf } => {
+                let (Some(min), Some(max)) =
+                    (item.constraints.min_count, item.constraints.max_count)
+                else {
+                    continue;
+                };
+                let scalar = program.states.get(leaf.0 as usize);
+                if min != max
+                    || min == 0
+                    || min > MAX_ROW_WIDTH
+                    || item.constraints.nullable
+                    || !scalar.is_some_and(|s| {
+                        matches!(s.kind, StateKind::Scalar(_)) && !s.constraints.nullable
+                    })
+                {
+                    continue;
+                }
+                RowShape::Leaf { width: min }
+            }
+            _ => continue,
+        };
+        by_slot[spec.slot as usize] = u32::try_from(groups.len()).map_err(|_| budget())?;
+        groups.try_reserve(1).map_err(|_| budget())?;
+        groups.push(RowGroup {
+            array_slot: spec.slot,
+            array_state: spec.state,
+            item_state: items,
+            shape,
+        });
+    }
+    // Item slots must not overlap, or two arrays would stage the same columns.
+    let mut ranges: Vec<(u32, u32)> = groups
+        .iter()
+        .filter_map(|g| match g.shape {
+            RowShape::Items { first_slot, width } => Some((first_slot, first_slot + width)),
+            RowShape::Leaf { .. } => None,
+        })
+        .collect();
+    ranges.sort_unstable();
+    if ranges.windows(2).any(|w| w[0].1 > w[1].0) {
+        return Err(unsupported_rows("row item slots overlap"));
+    }
+    Ok((groups, by_slot))
+}
+
+fn unsupported_rows(detail: &'static str) -> Error {
+    compile_error(ErrorCode::UnsupportedSchemaFeature, detail)
+}
+/// The direct VM's flat-object fast-path plan for one table, if its object
+/// qualifies. Anything unusual yields `None` and the exact engine runs.
+fn fixed_object_plan(
+    program: &CompiledProgram,
+    field_slots: &[u32],
+    row_groups: &[RowGroup],
+    row_group_by_slot: &[u32],
+    owner: &ProgramState,
+    table: &KeyTable,
+) -> Result<Option<FixedObjectPlan>> {
+    let StateKind::Object {
+        reject_unknown: true,
+        ..
+    } = owner.kind
+    else {
+        return Ok(None);
+    };
+    let size = table.key_count as usize;
+    if owner.constraints != ConstraintSet::default() || size == 0 || size > 64 {
+        return Ok(None);
+    }
+    let Some(keys) = program
+        .image
+        .keys
+        .get(table.first_key as usize..table.first_key as usize + size)
+    else {
+        return Ok(None);
+    };
+    let mut entries = reserved(size)?;
+    let mut required = 0u64;
+    let mut by_first_byte = [0xffu8; 256];
+    let mut first_seen = [false; 256];
+    let mut max_name_len = 0u32;
+    for (local, key) in keys.iter().enumerate() {
+        let Some(state) = program.states.get(key.target_state as usize) else {
+            return Ok(None);
+        };
+        let mut rows_group = None;
+        let kind = match state.kind {
+            StateKind::Scalar(kind) => kind,
+            StateKind::Array { items: pair } => {
+                // The leaf pair arrays the rows fast path stages in one pass.
+                let Some(group) = key_slot(field_slots, program, key)
+                    .and_then(|slot| row_group_by_slot.get(slot as usize))
+                    .copied()
+                    .filter(|&group| group != u32::MAX)
+                else {
+                    return Ok(None);
+                };
+                let leaf_pair = matches!(
+                    row_groups.get(group as usize).map(|g| g.shape),
+                    Some(RowShape::Leaf { width: 2 })
+                );
+                let decimal = program
+                    .states
+                    .get(pair.0 as usize)
+                    .and_then(|p| match p.kind {
+                        StateKind::Array { items } => program.states.get(items.0 as usize),
+                        _ => None,
+                    })
+                    .filter(|d| matches!(d.kind, StateKind::Scalar(ValueKind::Decimal)))
+                    .and_then(|d| d.constraints.decimal.as_ref());
+                let Some(decimal) = decimal else {
+                    return Ok(None);
+                };
+                if !leaf_pair
+                    || jmax_decimal::validate_policy(&decimal.policy).is_err()
+                    || decimal.minimum.is_some()
+                    || decimal.maximum.is_some()
+                {
+                    return Ok(None);
+                }
+                rows_group = Some(group);
+                ValueKind::Null
+            }
+            _ => return Ok(None),
+        };
+        let constraints = &state.constraints;
+        let small_integer = if rows_group.is_some() {
+            false
+        } else {
+            match kind {
+                ValueKind::Decimal => {
+                    let Some(decimal) = constraints.decimal.as_ref() else {
+                        return Ok(None);
+                    };
+                    if jmax_decimal::validate_policy(&decimal.policy).is_err()
+                        || decimal.minimum.is_some()
+                        || decimal.maximum.is_some()
+                    {
+                        return Ok(None);
+                    }
+                    false
+                }
+                ValueKind::Integer
+                    if *constraints
+                        == (ConstraintSet {
+                            min_i64: constraints.min_i64,
+                            max_i64: constraints.max_i64,
+                            ..ConstraintSet::default()
+                        }) =>
+                {
+                    matches!(constraints.min_i64, None | Some(i64::MIN))
+                        && matches!(constraints.max_i64, None | Some(i64::MAX))
+                }
+                ValueKind::String | ValueKind::Boolean | ValueKind::Null
+                    if *constraints == ConstraintSet::default() =>
+                {
+                    false
+                }
+                _ => return Ok(None),
+            }
+        };
+        let Some(name) = key.span.slice(&program.image.key_bytes) else {
+            return Ok(None);
+        };
+        if name
+            .iter()
+            .any(|&b| !(0x20..0x80).contains(&b) || b == b'"' || b == b'\\')
+        {
+            return Ok(None);
+        }
+        let slot = match field_slots
+            .get(key.field_id as usize)
+            .filter(|&&s| s != EMPTY_KEY_SLOT)
+            .and_then(|&s| program.slots.get(s as usize))
+        {
+            Some(spec) if spec.state.0 != key.target_state => return Ok(None),
+            Some(spec) if spec.slot >= program.image.header.slot_count => return Ok(None),
+            Some(spec) => Some(spec.slot),
+            None => None,
+        };
+        if key.required_bit != NO_REQUIRED_BIT {
+            required |= 1u64 << local;
+        }
+        max_name_len = max_name_len.max(name.len() as u32);
+        if let Some(&first) = name.first() {
+            by_first_byte[first as usize] = if first_seen[first as usize] {
+                0xff
+            } else {
+                local as u8
+            };
+            first_seen[first as usize] = true;
+        }
+        let name_len = name.len() as u64;
+        let passes = match table.strategy {
+            KeyStrategy::Swar => u64::from(table.key_count) + 1,
+            KeyStrategy::PerfectHash { .. } => 2,
+            KeyStrategy::BucketedPerfectHash { .. } => 3,
+        };
+        let width = name.len() + 3;
+        let (pattern, pattern_mask) = if width <= 8 {
+            let mut bytes = [0u8; 8];
+            bytes[0] = b'"';
+            bytes[1..=name.len()].copy_from_slice(name);
+            bytes[name.len() + 1] = b'"';
+            bytes[name.len() + 2] = b':';
+            let mask = if width == 8 {
+                u64::MAX
+            } else {
+                (1u64 << (8 * width)) - 1
+            };
+            (u64::from_le_bytes(bytes), mask)
+        } else {
+            (0, 0)
+        };
+        entries.push(FixedEntry {
+            name: key.span,
+            kind,
+            state: StateId(key.target_state),
+            slot,
+            small_integer,
+            pattern,
+            pattern_mask,
+            key_work: 7 + name_len + (name_len + 8) * passes,
+            decimal_scale: constraints
+                .decimal
+                .as_ref()
+                .map_or(0, |d| d.policy.target_scale),
+            decimal_precision: constraints
+                .decimal
+                .as_ref()
+                .map_or(0, |d| d.policy.max_precision.min(38)),
+            unit_tick: constraints
+                .decimal
+                .as_ref()
+                .is_some_and(|d| d.policy.tick_step == 1),
+            rows_group,
+        });
+    }
+    let has_rows = entries.iter().any(|e| e.rows_group.is_some());
+    let mut by_field: Vec<(u32, u8)> = keys
+        .iter()
+        .enumerate()
+        .map(|(local, key)| (key.field_id as u32, local as u8))
+        .collect();
+    by_field.sort_unstable();
+    let mut follow = [0xffu8; 64];
+    for pair in by_field.windows(2) {
+        follow[usize::from(pair[0].1)] = pair[1].1;
+    }
+    Ok(Some(FixedObjectPlan {
+        entries,
+        required,
+        max_name_len,
+        has_rows,
+        first_entry: by_field.first().map_or(0xff, |&(_, local)| local),
+        follow,
+        by_first_byte,
+    }))
+}
+
+/// The capture slot of a key's property, if the schema names one.
+fn key_slot(field_slots: &[u32], program: &CompiledProgram, key: &KeyEntry) -> Option<u32> {
+    field_slots
+        .get(key.field_id as usize)
+        .filter(|&&s| s != EMPTY_KEY_SLOT)
+        .and_then(|&s| program.slots.get(s as usize))
+        .map(|spec| spec.slot)
 }

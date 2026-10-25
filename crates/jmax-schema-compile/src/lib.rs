@@ -12,7 +12,8 @@ pub use jmax_abi::schema::{
 pub use jmax_abi::span::Span32;
 pub use jmax_format::{FormatId, FormatOptions};
 pub use jmax_schema_ir::{
-    DecimalConstraints, EnumVariant, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId, ValueKind,
+    DecimalConstraints, EnumVariant, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId,
+    ValueKind,
 };
 
 pub mod image;
@@ -217,6 +218,83 @@ pub(crate) struct ProgramIndexes {
     pub dispatch: Vec<CompiledStateDispatch>,
     pub parents: Vec<Vec<StateId>>,
     pub required_masks: Vec<Vec<u64>>,
+    pub fixed_objects: Vec<Option<FixedObjectPlan>>,
+    pub row_groups: Vec<RowGroup>,
+    /// Some group stages item slots, so only the rows API can run the program.
+    pub rows_only: bool,
+    /// Row group index by array property slot, or `u32::MAX`.
+    pub row_group_by_slot: Vec<u32>,
+}
+
+/// How one array property's elements are staged as rows by the rows API.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowShape {
+    /// Elements are objects whose captured properties hold the contiguous
+    /// slots `first_slot..first_slot + width`; each element yields one row.
+    Items { first_slot: u32, width: u32 },
+    /// Elements are arrays of exactly `width` scalars; each yields one row.
+    Leaf { width: u32 },
+}
+
+/// An array property with a capture slot whose elements are staged as rows.
+/// Derived once at image validation from the program; the image, its
+/// fingerprint and the IR are unchanged. A program with any row group is
+/// only executable through the rows API.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RowGroup {
+    /// Capture slot of the array property itself (it still receives the raw span).
+    pub array_slot: u32,
+    pub array_state: StateId,
+    pub item_state: StateId,
+    pub shape: RowShape,
+}
+
+/// A scalar property of a flat fixed object, as the direct VM's fast path reads it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedEntry {
+    /// Key bytes in the image key arena: plain ASCII with no quote or escape.
+    pub name: Span32,
+    pub kind: ValueKind,
+    pub state: StateId,
+    /// The capture slot of this property, if the schema names one.
+    pub slot: Option<u32>,
+    /// No integer bounds beyond the type's own range.
+    pub small_integer: bool,
+    /// `"name":` as little-endian bytes under `pattern_mask`, when it fits in a word.
+    pub pattern: u64,
+    pub pattern_mask: u64,
+    /// Step cost of reading this key: `7 + n + (n + 8) * passes` for an `n` byte name.
+    pub key_work: u64,
+    /// Decimal properties: target scale, precision limit, and whether the tick is one unit.
+    pub decimal_scale: u8,
+    pub decimal_precision: u8,
+    pub unit_tick: bool,
+    /// A slotted array of unit-tick decimal pairs staged by this row group;
+    /// `kind` is then a placeholder and `state` is the outer array.
+    pub rows_group: Option<u32>,
+}
+
+/// A table whose object rejects unknown keys and holds only unconstrained
+/// scalar properties that the direct VM can check and convert in one pass.
+/// Built once at image validation; presence says only that the shape is
+/// eligible, and the VM still verifies every value and falls back to the
+/// exact engine on any miss.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedObjectPlan {
+    pub entries: Vec<FixedEntry>,
+    /// Table-local bits of the required keys; tables hold at most 64 keys.
+    pub required: u64,
+    /// Longest key name, to compare against the request's string limit.
+    pub max_name_len: u32,
+    /// Some entry is a row group array, so a scan opens two more frames.
+    pub has_rows: bool,
+    /// The entry whose property has the lowest field id, 0xff when empty.
+    pub first_entry: u8,
+    /// Entry index of the property with the next field id after each entry's
+    /// (0xff for the last): the order a document most often follows.
+    pub follow: [u8; 64],
+    /// Entry index by first key byte when exactly one key starts with it, else 0xff.
+    pub by_first_byte: [u8; 256],
 }
 
 /// Immutable dispatch prepared after the canonical bytecode has been validated.
@@ -246,6 +324,10 @@ pub const fn scalar_kind_bit(kind: jmax_abi::syntax::ScalarKind) -> u8 {
 }
 
 impl ValidatedProgram {
+    /// True when both values share one validated program, not merely equal ones.
+    pub fn same_program(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.program, &other.program)
+    }
     pub fn program(&self) -> &CompiledProgram {
         &self.program
     }
@@ -259,6 +341,25 @@ impl ValidatedProgram {
             .required_masks
             .get(table as usize)
             .map(Vec::as_slice)
+    }
+    /// The fast-path plan of a flat scalar object table, if it has one.
+    pub fn fixed_object(&self, table: u32) -> Option<&FixedObjectPlan> {
+        self.indexes.fixed_objects.get(table as usize)?.as_ref()
+    }
+    /// Array properties whose elements the rows API stages, in slot order.
+    pub fn row_groups(&self) -> &[RowGroup] {
+        &self.indexes.row_groups
+    }
+    /// Whether item slots make the rows API the only way to execute this program.
+    pub fn requires_rows(&self) -> bool {
+        self.indexes.rows_only
+    }
+    /// The row group of an array property slot, as an index into `row_groups`.
+    pub fn row_group_of_slot(&self, slot: u32) -> Option<usize> {
+        match self.indexes.row_group_by_slot.get(slot as usize) {
+            Some(&group) if group != u32::MAX => Some(group as usize),
+            _ => None,
+        }
     }
     pub fn dispatch(&self, id: StateId) -> Option<&CompiledStateDispatch> {
         self.indexes.dispatch.get(id.0 as usize)

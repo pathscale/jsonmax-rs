@@ -37,13 +37,17 @@ pub(crate) fn begin_with_scratch(
     offset: u32,
 ) -> Result<ObjectState> {
     budget.charge(1, offset)?;
-    let table_id = match object_state(program, state, offset)? {
+    let (table_id, rejects_unknown) = match object_state(program, state, offset)? {
         Some(current) => match &current.kind {
-            StateKind::Object { key_table, .. } => Some(*key_table),
-            StateKind::Any => None,
+            StateKind::Object {
+                key_table,
+                reject_unknown,
+                ..
+            } => (Some(*key_table), *reject_unknown),
+            StateKind::Any => (None, false),
             _ => return Err(type_error(offset)),
         },
-        None => None,
+        None => (None, false),
     };
     seen_words.clear();
     let mut seen_word_count = 0;
@@ -65,6 +69,7 @@ pub(crate) fn begin_with_scratch(
         unknown_keys,
         property_count: 0,
         pending: None,
+        rejects_unknown,
     })
 }
 
@@ -127,6 +132,7 @@ pub(crate) fn key_meta(
     limits: &VmLimits,
     budget: &mut VmBudget,
 ) -> Result<PendingValue> {
+    let _t = jmax_trace::span!(VM_KEY);
     let reference = meta.string.cooked;
     let bytes = reference
         .span

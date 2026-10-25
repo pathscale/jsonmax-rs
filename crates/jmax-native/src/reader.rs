@@ -40,6 +40,9 @@ enum Scanned<'c> {
 pub struct Reader<'a> {
     input: &'a [u8],
     pos: usize,
+    /// Set by `decode_into` after it reset the context's skip memo for this input, so
+    /// skipped values may share remembered key shapes. A hand-built reader never sets it.
+    shared_skip: bool,
 }
 
 /// Bytes that may follow a literal or number token.
@@ -53,7 +56,20 @@ const fn is_delim(byte: Option<u8>) -> bool {
 
 impl<'a> Reader<'a> {
     pub const fn new(input: &'a [u8]) -> Self {
-        Self { input, pos: 0 }
+        Self {
+            input,
+            pos: 0,
+            shared_skip: false,
+        }
+    }
+
+    /// A reader over `input` whose context's skip memo was just reset for it.
+    pub(crate) const fn new_shared_skip(input: &'a [u8]) -> Self {
+        Self {
+            input,
+            pos: 0,
+            shared_skip: true,
+        }
     }
 
     pub const fn input(&self) -> &'a [u8] {
@@ -66,9 +82,7 @@ impl<'a> Reader<'a> {
 
     #[inline(always)]
     pub fn skip_ws(&mut self) {
-        while let Some(b' ' | b'\t' | b'\r' | b'\n') = self.input.get(self.pos) {
-            self.pos += 1;
-        }
+        self.pos = jmax_syntax::skip_json_whitespace(self.input, self.pos);
     }
 
     /// The next non-whitespace byte, not consumed.
@@ -80,6 +94,7 @@ impl<'a> Reader<'a> {
 
     #[inline(always)]
     pub fn eat(&mut self, byte: u8) -> bool {
+        let _t = jmax_trace::span!(NATIVE_WS);
         if self.peek() == Some(byte) {
             self.pos += 1;
             true
@@ -105,6 +120,7 @@ impl<'a> Reader<'a> {
 
     #[inline]
     pub fn boolean(&mut self) -> NativeResult<bool> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_BOOL);
         self.skip_ws();
         let rest = &self.input[self.pos..];
         if rest.starts_with(b"true") && is_delim(rest.get(4).copied()) {
@@ -121,6 +137,7 @@ impl<'a> Reader<'a> {
     /// A nonnegative integer no greater than `max`.
     #[inline]
     pub fn uint(&mut self, ctx: &mut NativeContext, max: u64) -> NativeResult<u64> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_NUMBER);
         self.skip_ws();
         let input = self.input;
         let start = self.pos;
@@ -159,6 +176,7 @@ impl<'a> Reader<'a> {
     /// An integer within `min..=max`.
     #[inline]
     pub fn int(&mut self, ctx: &mut NativeContext, min: i64, max: i64) -> NativeResult<i64> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_NUMBER);
         self.skip_ws();
         let input = self.input;
         let start = self.pos;
@@ -247,6 +265,7 @@ impl<'a> Reader<'a> {
 
     /// A JSON number as binary64 under the effective numeric policy.
     pub fn float(&mut self, ctx: &mut NativeContext) -> NativeResult<f64> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_NUMBER);
         self.skip_ws();
         let start = self.pos;
         let offset = u32::try_from(start).map_err(|_| Fail)?;
@@ -279,6 +298,7 @@ impl<'a> Reader<'a> {
         ctx: &mut NativeContext,
         policy: &DecimalPolicy,
     ) -> NativeResult<Decimal128> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_DECIMAL);
         self.skip_ws();
         let digits_limit = usize::from(ctx.limits.syntax.max_number_digits);
         let max_string = ctx.limits.syntax.max_string_bytes as usize;
@@ -315,6 +335,7 @@ impl<'a> Reader<'a> {
     /// Consume a JSON `null` literal, if one is next; otherwise nothing but whitespace.
     #[inline]
     pub fn null(&mut self) -> bool {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_BOOL);
         self.skip_ws();
         let rest = &self.input[self.pos..];
         if rest.starts_with(b"null") && is_delim(rest.get(4).copied()) {
@@ -328,6 +349,7 @@ impl<'a> Reader<'a> {
     /// Consume an empty JSON object, preserving the position on failure.
     #[inline]
     pub fn empty_object(&mut self) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_READER_OPEN);
         let start = self.pos;
         self.skip_ws();
         if self.input.get(self.pos) != Some(&b'{') {
@@ -360,6 +382,7 @@ impl<'a> Reader<'a> {
     where
         'a: 'c,
     {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_STRING);
         self.skip_ws();
         let max = ctx.limits.syntax.max_string_bytes as usize;
         let (text, end) = self.string_in(max, &mut ctx.arena, self.pos)?;
@@ -376,6 +399,7 @@ impl<'a> Reader<'a> {
     /// A base64 string (standard alphabet, canonical padding, as the `base64`
     /// format defines it) decoded into `out`, which is cleared first.
     pub fn bytea(&mut self, ctx: &mut NativeContext, out: &mut Vec<u8>) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_STRING);
         let text = self.format(ctx, FormatId::Base64, None)?.as_bytes();
         out.clear();
         base64_decode(text, out);
@@ -390,6 +414,7 @@ impl<'a> Reader<'a> {
     where
         'a: 'c,
     {
+        let _t = jmax_trace::span!(NATIVE_SCALAR_STRING);
         self.skip_ws();
         let (text, end) = self.string_at(ctx, self.pos)?;
         self.pos = end;
@@ -402,6 +427,7 @@ impl<'a> Reader<'a> {
     where
         'a: 'c,
     {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         let key = self.string(ctx)?;
         self.expect(b':')?;
         Ok(key)
@@ -413,6 +439,7 @@ impl<'a> Reader<'a> {
     /// not of the form `"...":` never matches, so a hit is exactly a successful `key`.
     #[inline(always)]
     pub fn match_key(&mut self, ctx: &NativeContext, pattern: &[u8]) -> bool {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         if pattern.len() < 3
             || pattern[0] != b'"'
             || pattern[pattern.len() - 2] != b'"'
@@ -434,6 +461,7 @@ impl<'a> Reader<'a> {
     /// useful to handwritten decoders that do not otherwise parse a key on a miss.
     #[inline(always)]
     pub fn match_key_decoded(&mut self, ctx: &mut NativeContext, pattern: &[u8]) -> bool {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         if pattern.len() < 3
             || pattern[0] != b'"'
             || pattern[pattern.len() - 2] != b'"'
@@ -484,6 +512,7 @@ impl<'a> Reader<'a> {
     where
         'a: 'c,
     {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         self.skip_ws();
         let max = ctx.limits.syntax.max_string_bytes as usize;
         let (scanned, end) = self.scan_in(max, &mut ctx.arena, self.pos)?;
@@ -500,10 +529,15 @@ impl<'a> Reader<'a> {
     /// of the reader taken before `key`, because the key returned by `key`
     /// borrows the context.
     pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         self.skip_ws();
         let max = ctx.limits.syntax.max_string_bytes as usize;
-        let (text, end) = self.string_in(max, &mut ctx.arena, self.pos)?;
-        ctx.unknown.push_key(text)?;
+        let (scanned, end) = self.scan_in(max, &mut ctx.arena, self.pos)?;
+        let text: &[u8] = match scanned {
+            Scanned::Ascii(bytes) => bytes,
+            Scanned::Text(text) => text.as_bytes(),
+        };
+        ctx.unknown.push_key_bytes(text)?;
         ctx.unknown_fields = ctx.unknown_fields.checked_add(1).ok_or(Fail)?;
         ctx.unknown_key_bytes = ctx
             .unknown_key_bytes
@@ -565,7 +599,24 @@ impl<'a> Reader<'a> {
         let content_start = start + 1;
         let window = &input[content_start..];
         let mut k = 0;
-        let reach = window.len().min(32);
+        let mut reach = window.len().min(32);
+        if let Some(block) = window.first_chunk::<32>() {
+            // Two vector blocks settle a short plain string with one branch: the first
+            // quote, backslash, control or non-ASCII byte is found without a per-byte loop.
+            let first = jmax_string::scan::first_special_or_high32(block);
+            if first < 32 {
+                k = first as usize;
+                if window[k] == b'"' {
+                    if k > max {
+                        return Err(Fail);
+                    }
+                    return Ok((Scanned::Ascii(&window[..k]), content_start + k + 1));
+                }
+            } else {
+                k = 32;
+            }
+            reach = 0;
+        }
         while k < reach {
             let byte = window[k];
             if byte == b'"' {
@@ -613,10 +664,15 @@ impl<'a> Reader<'a> {
 
     /// Strictly validate and discard one value; `depth` counts enclosing containers.
     pub fn skip_value(&mut self, ctx: &mut NativeContext, depth: u16) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_SKIP);
         self.skip_ws();
         let start = u32::try_from(self.pos).map_err(|_| Fail)?;
         let limits = ctx.limits.syntax;
-        if self.pos <= self.input.len()
+        // Literals and flat containers are recognized by their first byte; every other value
+        // goes straight to the strict scanner.
+        let first = self.input.get(self.pos).copied();
+        if matches!(first, Some(b't' | b'f' | b'n'))
+            && self.pos <= self.input.len()
             && self.input.len() <= limits.max_payload_bytes as usize
             && depth <= limits.max_depth
             && ctx.numeric.max_exponent_abs >= 0
@@ -643,7 +699,8 @@ impl<'a> Reader<'a> {
                 return Ok(());
             }
         }
-        if self.input.len() <= limits.max_payload_bytes as usize
+        if matches!(first, Some(b'[' | b'{'))
+            && self.input.len() <= limits.max_payload_bytes as usize
             && depth < limits.max_depth
             && ctx.numeric.max_exponent_abs >= 0
         {
@@ -671,7 +728,12 @@ impl<'a> Reader<'a> {
             jmax_abi::syntax::DuplicatePolicyOwner::Disabled
         };
         ctx.skip_decoded.clear();
-        let end = jmax_syntax::skip_strict(
+        let skip = if self.shared_skip {
+            jmax_syntax::skip_strict_continuing
+        } else {
+            jmax_syntax::skip_strict
+        };
+        let end = skip(
             self.input,
             start,
             depth,

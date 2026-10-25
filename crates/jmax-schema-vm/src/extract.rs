@@ -45,6 +45,7 @@ pub fn selected(selection: &SelectionIndex, slot: u32) -> bool {
 /// Reference validity and schema constraints are checked by the interpreter;
 /// publication checks the references again against the retained owners.
 pub fn store(slots: &mut [SlotValue], slot: u32, value: SlotValue, offset: u32) -> Result<()> {
+    let _t = jmax_trace::span!(VM_SLOT_STORE);
     let index = usize::try_from(slot).map_err(|_| {
         vm_error(
             ErrorCode::InternalError,

@@ -9,6 +9,7 @@
 /// slice and inspect any remaining bytes individually.
 #[inline]
 pub fn string_special(input: &[u8]) -> usize {
+    let _t = jmax_trace::span!(SCAN_STRING_SPECIAL);
     #[cfg(target_arch = "aarch64")]
     { jmax_scan_neon::short::string_special(input) }
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -23,6 +24,7 @@ pub fn string_special(input: &[u8]) -> usize {
 /// quote and validate an unescaped ASCII body in the same byte pass.
 #[inline]
 pub fn string_special_ascii(input: &[u8]) -> (usize, bool) {
+    let _t = jmax_trace::span!(SCAN_STRING_SPECIAL);
     #[cfg(target_arch = "aarch64")]
     { jmax_scan_neon::short::string_special_ascii(input) }
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -38,6 +40,7 @@ pub fn string_special_ascii(input: &[u8]) -> (usize, bool) {
 /// bounded to the provided slice and does not use sentinel or padding bytes.
 #[inline]
 pub fn whitespace_prefix(input: &[u8]) -> usize {
+    let _t = jmax_trace::span!(SCAN_WHITESPACE);
     #[cfg(target_arch = "aarch64")]
     { jmax_scan_neon::short::whitespace_prefix(input) }
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

@@ -6,12 +6,20 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 pub mod block_cursor;
-pub use block_cursor::{BlockCursor, SkipScratch, skip_strict};
+pub use block_cursor::{BlockCursor, SkipScratch, skip_strict, skip_strict_continuing};
 pub mod feed;
 pub mod finish;
 pub mod frames;
 pub mod machine;
 mod strict_fast;
+
+/// Index of the first byte at or after `i` that is not JSON whitespace (space, tab, CR, LF),
+/// or `input.len()` when only whitespace remains. A short run is settled inline and a long one
+/// by a vector scan, so indentation does not cost a branch per byte.
+#[inline(always)]
+pub fn skip_json_whitespace(input: &[u8], i: usize) -> usize {
+    strict_fast::skip_ws(input, i)
+}
 
 pub use jmax_abi::buffer::Payload;
 pub use jmax_abi::buffer::{ValidationCapability, ValidationProof};

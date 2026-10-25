@@ -61,6 +61,7 @@ fn core_decode<T: NativeDecode>(
     input: &[u8],
     out: &mut T,
 ) -> NativeResult<()> {
+    let _t = jmax_trace::span!(NATIVE_SETUP);
     // A failed earlier decode may have left keys of objects it never closed.
     ctx.unknown.clear();
     ctx.decimals = 0;
@@ -69,7 +70,8 @@ fn core_decode<T: NativeDecode>(
     ctx.unknown_key_bytes = 0;
     ctx.unknown_fields = 0;
     ctx.skipped_bytes = 0;
-    let mut reader = Reader::new(input);
+    ctx.skip.new_input();
+    let mut reader = Reader::new_shared_skip(input);
     T::decode_core(&mut reader, ctx, out)?;
     reader.end()?;
     Ok(())
@@ -81,6 +83,7 @@ pub fn decode_into<T: NativeDecode>(
     input: &[u8],
     out: &mut T,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(NATIVE_DECODE);
     if ctx.program_type != Some(TypeId::of::<T>()) {
         let program = T::build_program()?;
         ctx.install(program, TypeId::of::<T>())?;

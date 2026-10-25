@@ -29,6 +29,14 @@ pub struct SkipScratch {
 }
 pub(crate) type DiscardScratch = SkipScratch;
 
+impl SkipScratch {
+    /// Forgets the key shapes remembered from earlier skips. Call before the first
+    /// `skip_strict_continuing` on a new (or possibly rewritten) input.
+    pub fn new_input(&mut self) {
+        self.fast.new_input();
+    }
+}
+
 /// Persistent parser over an exact borrowed, immutable complete input slice.
 /// Lexical methods consume one token. `next_event` additionally owns grammar
 /// state; callers doing their own grammar must use the lexical methods instead.
@@ -70,13 +78,16 @@ pub(crate) fn check_duplicate_owner(limits: Limits, owner: DuplicatePolicyOwner)
 }
 
 impl<'a> BlockCursor<'a> {
-    pub fn new(
-        input: &'a [u8],
+    /// The failures `new` reports before it builds anything, so a caller can
+    /// defer construction and still fail in the same order.
+    #[inline(always)]
+    pub fn check_new(
+        input_len: usize,
         limits: Limits,
         numeric: Option<NumericPolicy>,
         dup_owner: DuplicatePolicyOwner,
-    ) -> Result<Self> {
-        frames::check_payload_growth(0, input.len(), limits)?;
+    ) -> Result<()> {
+        frames::check_payload_growth(0, input_len, limits)?;
         check_duplicate_owner(limits, dup_owner)?;
         if numeric.is_some_and(|policy| policy.max_exponent_abs < 0) {
             return Err(syntax_error(
@@ -85,6 +96,17 @@ impl<'a> BlockCursor<'a> {
                 "numeric exponent limit cannot be negative",
             ));
         }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn new(
+        input: &'a [u8],
+        limits: Limits,
+        numeric: Option<NumericPolicy>,
+        dup_owner: DuplicatePolicyOwner,
+    ) -> Result<Self> {
+        Self::check_new(input.len(), limits, numeric, dup_owner)?;
         let dispatch = jmax_dispatch::Dispatch::new(input.len(), Default::default())?;
         Ok(Self::from_cache(
             input,
@@ -106,6 +128,7 @@ impl<'a> BlockCursor<'a> {
 
     /// Uses reusable strict-skip storage, returning it automatically on drop,
     /// including after lexical, policy, resource-limit, or allocation errors.
+    #[inline(always)]
     pub fn with_scratch(
         input: &'a [u8],
         limits: Limits,
@@ -120,6 +143,7 @@ impl<'a> BlockCursor<'a> {
         Ok(cursor)
     }
 
+    #[inline(always)]
     pub(crate) fn from_cache(
         input: &'a [u8],
         limits: Limits,
@@ -248,6 +272,7 @@ impl<'a> BlockCursor<'a> {
                 "invalid block cursor refill",
             ));
         }
+        let _t = jmax_trace::span!(CURSOR_REFILL);
         while self.cache.block_end <= position {
             let start = self.cache.block_end as usize;
             let end = (start + 64).min(self.input.len());
@@ -295,6 +320,15 @@ impl<'a> BlockCursor<'a> {
     #[inline(always)]
     pub fn skip_whitespace_uncached(&mut self) -> Result<Option<u8>> {
         if self.input.len() <= 512 {
+            // A value that starts at the cursor needs no block classification:
+            // refill classifies the skipped blocks in order when a later
+            // consumer asks for masks.
+            if self.failure.is_none()
+                && let Some(&byte) = self.input.get(self.cache.offset as usize)
+                && !matches!(byte, b' ' | b'\t' | b'\n' | b'\r')
+            {
+                return Ok(Some(byte));
+            }
             return self.skip_whitespace();
         }
         self.check_failure()?;
@@ -326,6 +360,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline(never)]
     fn skip_whitespace_general(&mut self) -> Result<Option<u8>> {
+        let _t = jmax_trace::span!(CURSOR_WHITESPACE);
         self.check_failure()?;
         let result = self.whitespace_inner();
         self.retain(result)
@@ -360,6 +395,7 @@ impl<'a> BlockCursor<'a> {
     /// that advance directly over preceding tokens avoid classifying that
     /// skipped prefix merely to recover a later Unicode or escaped string.
     pub fn scan_string_meta_uncached(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
+        let _t = jmax_trace::span!(CURSOR_STRING);
         if self.input.len() <= 512 {
             return self.scan_string_meta(decoded);
         }
@@ -425,6 +461,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline(never)]
     fn scan_string_meta_general(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
+        let _t = jmax_trace::span!(CURSOR_STRING);
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = self.scan_string_inner(decoded, true);
@@ -704,6 +741,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline]
     pub fn scan_number_span(&mut self) -> Result<Span32> {
+        let _t = jmax_trace::span!(CURSOR_NUMBER);
         self.check_failure()?;
         let result = self.number_inner();
         self.retain(result)
@@ -725,6 +763,7 @@ impl<'a> BlockCursor<'a> {
     /// side effects; use `scan_number_span` for the authoritative diagnostic.
     #[inline]
     pub fn try_scan_number_span_fast(&mut self) -> Option<Span32> {
+        let _t = jmax_trace::span!(CURSOR_NUMBER);
         if self.failure.is_some() {
             return None;
         }
@@ -840,6 +879,7 @@ impl<'a> BlockCursor<'a> {
         }
     }
     pub fn scan_literal(&mut self) -> Result<(TokenKind, Span32)> {
+        let _t = jmax_trace::span!(CURSOR_LITERAL);
         self.check_failure()?;
         let result = self.literal_inner();
         self.retain(result)
@@ -1108,6 +1148,7 @@ impl<'a> BlockCursor<'a> {
         current_depth: u16,
         mode: SkipMode,
     ) -> Result<Span32> {
+        let _t = jmax_trace::span!(CURSOR_SKIP);
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = (|| {
@@ -1945,6 +1986,34 @@ pub fn skip_strict(
     decoded: &mut Vec<u8>,
     scratch: &mut SkipScratch,
 ) -> Result<u32> {
+    scratch.fast.new_input();
+    skip_strict_continuing(
+        input,
+        start,
+        current_depth,
+        limits,
+        numeric,
+        dup_owner,
+        decoded,
+        scratch,
+    )
+}
+
+/// `skip_strict` that keeps the key shapes remembered by earlier skips in `scratch`.
+/// The caller guarantees that `input` is the same unmodified slice every earlier skip
+/// since `SkipScratch::new_input` saw, and that the limits are unchanged; skipped
+/// values of one document then reuse each other's shapes.
+#[allow(clippy::too_many_arguments)]
+pub fn skip_strict_continuing(
+    input: &[u8],
+    start: u32,
+    current_depth: u16,
+    limits: Limits,
+    numeric: Option<NumericPolicy>,
+    dup_owner: DuplicatePolicyOwner,
+    decoded: &mut Vec<u8>,
+    scratch: &mut SkipScratch,
+) -> Result<u32> {
     // The same checks, in the same order, as BlockCursor::new.
     frames::check_payload_growth(0, input.len(), limits)?;
     check_duplicate_owner(limits, dup_owner)?;
@@ -1956,12 +2025,11 @@ pub fn skip_strict(
         ));
     }
     if current_depth <= limits.max_depth && start as usize <= input.len() {
-        scratch.fast.new_input();
         let params = super::strict_fast::Params {
             limits,
             numeric,
             max_depth: usize::from(limits.max_depth - current_depth),
-            masker: jmax_string::EscapeMasker::new(),
+            masker: scratch.fast.masker(),
             whole_input: false,
         };
         if let Some((end, _)) = super::strict_fast::accept(

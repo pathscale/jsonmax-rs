@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run the cross-parser benchmark suite across N rounds and render a markdown table.
 set -eu
-rounds=${1:-3}
+rounds=${1:-1}
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here/harness"
 artifacts=$(mktemp)
