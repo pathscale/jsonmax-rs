@@ -151,6 +151,9 @@ struct Engine<'a, 'ctx, 'buf> {
     validated: Option<ValidationCapability>,
     // Row staging for the rows API: one block per program row group.
     rows: Option<&'buf mut Vec<RowBlock>>,
+    // The last error came from staging a row inside the array fast path. The
+    // exact engine raises it outside any value, so it carries no field.
+    staged_error: bool,
 }
 
 impl Engine<'_, '_, '_> {
@@ -180,7 +183,7 @@ impl Engine<'_, '_, '_> {
         let pending = execute::take_value(self.context, offset)?;
         let result = self.value_pending(byte, pending);
         result.map_err(|error| {
-            let field = if error.field_id == 0 {
+            let field = if error.field_id == 0 && !self.staged_error {
                 pending.field_id.0
             } else {
                 error.field_id
@@ -194,7 +197,10 @@ impl Engine<'_, '_, '_> {
         if byte == b'['
             && !self.query
             && self.rows.is_some()
-            && let Some(span) = self.fast_leaf_rows(pending, offset)?
+            && let Some(span) = match self.fast_leaf_rows(pending, offset)? {
+                Some(span) => Some(span),
+                None => self.fast_item_rows(pending, offset)?,
+            }
         {
             if let Some(slot) = pending.slot {
                 extract::store(
@@ -792,153 +798,25 @@ impl Engine<'_, '_, '_> {
         else {
             return None;
         };
-        let plan = program.fixed_object(key_table)?;
-        let table = program.program().key_tables.get(key_table as usize)?;
-        let limits = self.context.limits.syntax;
-        let depth = self.context.frames.len().checked_add(1)?;
-        if plan.max_name_len > limits.max_string_bytes
-            || depth > usize::from(limits.max_depth)
-            || depth > self.context.frames.capacity()
-        {
-            return None;
-        }
-        let entries = plan.entries.as_slice();
-        let size = entries.len();
-        let key_bytes = program.image().key_bytes.as_slice();
-        let passes = match table.strategy {
-            jmax_schema_compile::KeyStrategy::Swar => u64::from(table.key_count) + 1,
-            jmax_schema_compile::KeyStrategy::PerfectHash { .. } => 2,
-            jmax_schema_compile::KeyStrategy::BucketedPerfectHash { .. } => 3,
-        };
-        let input = self.cursor.input();
-        if u32::try_from(input.len()).is_err() {
-            return None;
-        }
-        let numeric = self.numeric;
-        let mut written = [0u32; 64];
-        let mut written_len = 0usize;
+        let scan = FixedScan::new(
+            program,
+            program.fixed_object(key_table)?,
+            self.cursor.input(),
+            self.numeric,
+            self.context.limits.syntax,
+            self.context.frames.len().checked_add(1)?,
+            self.context.frames.capacity(),
+            &self.context.selection,
+        )?;
+        let mut written = 0u64;
         let slots = &mut self.context.slots;
-        let selection = &self.context.selection;
-        let snapshot = self.context.budget.clone();
-        let steps_left = snapshot.steps_left();
-        let attempt = (|| {
-            let mut at = start as usize + 1;
-            let mut seen = 0u64;
-            let mut fields = 0usize;
-            let mut work = 3u64;
-            while input.get(at) != Some(&b'}') {
-                if fields >= size
-                    || fields >= limits.max_fields_per_object as usize
-                    || input.get(at) != Some(&b'"')
-                {
-                    return None;
-                }
-                // A key's first byte usually names its entry outright.
-                let word = input
-                    .get(at..)
-                    .and_then(|rest| rest.first_chunk::<8>())
-                    .map(|chunk| u64::from_le_bytes(*chunk));
-                let mut index = usize::from(plan.by_first_byte[usize::from(*input.get(at + 1)?)]);
-                let mut name_len = 0usize;
-                let mut hit = false;
-                if let Some(guessed) = entries.get(index) {
-                    name_len = guessed.name.len as usize;
-                    hit = match word {
-                        Some(word) if guessed.pattern_mask != 0 => {
-                            (word ^ guessed.pattern) & guessed.pattern_mask == 0
-                        }
-                        _ => {
-                            let name = guessed.name.slice(key_bytes)?;
-                            input.get(at + 1..at + 1 + name_len)? == name
-                                && input.get(at + 1 + name_len..at + 3 + name_len)? == b"\":"
-                        }
-                    };
-                }
-                if !hit {
-                    let end = input[at + 1..].iter().position(|&b| b == b'"')? + at + 1;
-                    let key = &input[at + 1..end];
-                    index = entries
-                        .iter()
-                        .position(|e| e.name.slice(key_bytes) == Some(key))?;
-                    name_len = key.len();
-                    if input.get(end + 1) != Some(&b':') {
-                        return None;
-                    }
-                }
-                let name_end = at + 1 + name_len;
-                let bit = 1u64 << index;
-                // Repeated fields are the exact engine's to accept or reject.
-                if seen & bit != 0 {
-                    return None;
-                }
-                seen |= bit;
-                let entry = &entries[index];
-                let state = if entry.kind == ValueKind::Decimal
-                    || (entry.kind == ValueKind::Integer && !entry.small_integer)
-                {
-                    Some(program.state(entry.state)?)
-                } else {
-                    None
-                };
-                let property = FixedProperty {
-                    name: &[],
-                    state,
-                    kind: entry.kind,
-                    small_integer: entry.small_integer,
-                };
-                at = name_end + 2;
-                let (end, scalar_work) = fixed_property_end(input, at, property, numeric, limits)?;
-                if let Some(slot) = entry.slot.filter(|&s| extract::selected(selection, s)) {
-                    let value = match entry.kind {
-                        // fixed_decimal_end accepted a unit-tick string: only ASCII
-                        // digits, a sign and a point, at most target_scale decimals.
-                        ValueKind::Decimal => validated_decimal(
-                            &input[at + 1..end - 1],
-                            state?.constraints.decimal.as_ref()?.policy.target_scale,
-                        )?,
-                        ValueKind::String => SlotValue::Str(StrRef {
-                            span: Span32::new(at as u32 + 1, (end - at - 2) as u32),
-                            source: SpanSource::RawPayload,
-                            scalar_len: (end - at - 2) as u32,
-                        }),
-                        ValueKind::Integer => {
-                            let negative = input[at] == b'-';
-                            constraints::integer(&input[at..end], negative, at as u32).ok()?
-                        }
-                        ValueKind::Boolean => SlotValue::Bool(input[at] == b't'),
-                        _ => SlotValue::RawSpan(Span32::new(at as u32, 4)),
-                    };
-                    let target = slots.get_mut(slot as usize)?;
-                    if *target != SlotValue::Empty {
-                        return None;
-                    }
-                    *target = value;
-                    written[written_len] = slot;
-                    written_len += 1;
-                }
-                work += 7 + name_len as u64 + (name_len as u64 + 8) * passes + scalar_work;
-                at = end;
-                fields += 1;
-                match input.get(at) {
-                    Some(b',') => {
-                        at += 1;
-                        if input.get(at) == Some(&b'}') {
-                            return None;
-                        }
-                    }
-                    Some(b'}') => break,
-                    _ => return None,
-                }
-            }
-            if seen & plan.required != plan.required || input.get(at) != Some(&b'}') {
-                return None;
-            }
-            if fields == 0 {
-                work += 1;
-            }
-            // The total is charged all at once, and only when it fits.
-            (work <= steps_left).then_some((u32::try_from(at + 1 - start as usize).ok()?, work))
-        })();
+        let steps_left = self.context.budget.steps_left();
+        let attempt = scan
+            .object(start as usize, slots, 0, &mut written)
+            .and_then(|(end, work)| {
+                // The total is charged all at once, and only when it fits.
+                (work <= steps_left).then_some((u32::try_from(end - start as usize).ok()?, work))
+            });
         match attempt {
             Some((len, work)) => {
                 self.context.budget.charge(work, start).ok()?;
@@ -946,12 +824,136 @@ impl Engine<'_, '_, '_> {
                 Some(len)
             }
             None => {
-                for &slot in &written[..written_len] {
-                    self.context.slots[slot as usize] = SlotValue::Empty;
+                while written != 0 {
+                    let index = written.trailing_zeros() as usize;
+                    written &= written - 1;
+                    if let Some(slot) = scan.plan.entries[index].slot {
+                        self.context.slots[slot as usize] = SlotValue::Empty;
+                    }
                 }
                 None
             }
         }
+    }
+
+    /// A slotted item-group array of minified flat objects: validate every
+    /// element in one pass and stage its row directly. A miss leaves no rows
+    /// and no step charge, so the exact engine replays from the array start;
+    /// capacity growth is charged exactly as the exact engine charges it, in
+    /// the same order, because every accepted prefix is identical to its work.
+    fn fast_item_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
+        #[cfg(test)]
+        if tests::force_exact() {
+            return Ok(None);
+        }
+        let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
+            return Ok(None);
+        };
+        let program = self.context.program;
+        let Some(group) = program.row_group_of_slot(slot) else {
+            return Ok(None);
+        };
+        let RowShape::Items { first_slot, width } = program.row_groups()[group].shape else {
+            return Ok(None);
+        };
+        if width == 0
+            || width as usize > MAX_ROW
+            || self.context.slots.get(slot as usize) != Some(&SlotValue::Empty)
+        {
+            return Ok(None);
+        }
+        let Some(outer) = program.state(state) else {
+            return Ok(None);
+        };
+        let StateKind::Array { items } = outer.kind else {
+            return Ok(None);
+        };
+        let Some(StateKind::Object {
+            key_table,
+            reject_unknown: true,
+            ..
+        }) = program.state(items).map(|s| &s.kind)
+        else {
+            return Ok(None);
+        };
+        let Some(plan) = program.fixed_object(*key_table) else {
+            return Ok(None);
+        };
+        let limits = self.context.limits.syntax;
+        let Some(scan) = FixedScan::new(
+            program,
+            plan,
+            self.cursor.input(),
+            self.numeric,
+            limits,
+            // The array frame and the element's own frame.
+            self.context.frames.len().saturating_add(2),
+            self.context.frames.capacity(),
+            &self.context.selection,
+        ) else {
+            return Ok(None);
+        };
+        let Some(block) = self.rows.as_mut().and_then(|rows| rows.get_mut(group)) else {
+            return Ok(None);
+        };
+        let input = scan.input;
+        let budget = &mut self.context.budget;
+        let steps_left = budget.steps_left();
+        let rows_start = block.values.len();
+        let mut row = [SlotValue::Empty; MAX_ROW];
+        let width = width as usize;
+        let mut at = start as usize + 1;
+        let mut work = 0u64;
+        let mut count = 0u32;
+        let accepted = 'scan: {
+            if input.get(at) == Some(&b']') {
+                work = 1;
+                break 'scan true;
+            }
+            loop {
+                if count == limits.max_array_items || input.get(at) != Some(&b'{') {
+                    break 'scan false;
+                }
+                row[..width].fill(SlotValue::Empty);
+                let mut written = 0u64;
+                let Some((end, object_work)) =
+                    scan.object(at, &mut row[..width], first_slot, &mut written)
+                else {
+                    break 'scan false;
+                };
+                // One step each for the element's two value tokens and the
+                // delimiter after it, plus the staged width.
+                work += object_work + 3 + width as u64;
+                if work > steps_left {
+                    break 'scan false;
+                }
+                if let Err(error) = grow_staged(budget, &mut block.values, width, end as u32) {
+                    self.staged_error = true;
+                    return Err(error);
+                }
+                block.values.extend_from_slice(&row[..width]);
+                count += 1;
+                at = end;
+                match input.get(at) {
+                    Some(b',') => at += 1,
+                    Some(b']') => break 'scan true,
+                    _ => break 'scan false,
+                }
+            }
+        };
+        if !accepted || constraints::check_count(&outer.constraints, count, at as u32).is_err() {
+            block.values.truncate(rows_start);
+            return Ok(None);
+        }
+        let Ok(len) = u32::try_from(at + 1 - start as usize) else {
+            block.values.truncate(rows_start);
+            return Ok(None);
+        };
+        budget.charge(work, start)?;
+        #[cfg(test)]
+        tests::ITEM_ROWS_TAKEN.with(|n| n.set(n.get() + 1));
+        self.cursor.advance(len);
+        Ok(Some(Span32::new(start, len)))
     }
 
     /// Fast path for arrays of schema objects containing scalar properties.
@@ -1523,6 +1525,458 @@ impl Engine<'_, '_, '_> {
     }
 }
 
+/// Widest item row the array-level row fast path stages from the stack.
+const MAX_ROW: usize = 16;
+
+/// A flat reject-unknown object table, resolved once for a run of objects.
+struct FixedScan<'a> {
+    program: &'a ValidatedProgram,
+    plan: &'a jmax_schema_compile::FixedObjectPlan,
+    key_bytes: &'a [u8],
+    input: &'a [u8],
+    numeric: NumericPolicy,
+    limits: Limits,
+    /// Entry bits whose capture slot is selected.
+    selected: u64,
+}
+
+impl<'a> FixedScan<'a> {
+    /// `depth` is the deepest frame the scanned objects would open.
+    #[allow(clippy::too_many_arguments)]
+    #[inline(always)]
+    fn new(
+        program: &'a ValidatedProgram,
+        plan: &'a jmax_schema_compile::FixedObjectPlan,
+        input: &'a [u8],
+        numeric: NumericPolicy,
+        limits: Limits,
+        depth: usize,
+        frame_capacity: usize,
+        selection: &'a extract::SelectionIndex,
+    ) -> Option<Self> {
+        if plan.max_name_len > limits.max_string_bytes
+            || depth > usize::from(limits.max_depth)
+            || depth > frame_capacity
+            || u32::try_from(input.len()).is_err()
+        {
+            return None;
+        }
+        Some(Self {
+            program,
+            plan,
+            key_bytes: program.image().key_bytes.as_slice(),
+            input,
+            numeric,
+            limits,
+            selected: plan
+                .entries
+                .iter()
+                .enumerate()
+                .filter(|(_, e)| e.slot.is_some_and(|s| extract::selected(selection, s)))
+                .fold(0u64, |mask, (i, _)| mask | 1u64 << i),
+        })
+    }
+
+    /// Scan the object whose `{` is at `start`: the index after its `}` and
+    /// the exact engine's step cost. Every selected capture is written to
+    /// `dst[slot - base]`, which must still be empty, and its entry index is
+    /// recorded in `written`. Any `None` is a miss for the exact engine; the
+    /// caller undoes the stores named by `written`.
+    #[inline(never)]
+    fn object(
+        &self,
+        start: usize,
+        dst: &mut [SlotValue],
+        base: u32,
+        written: &mut u64,
+    ) -> Option<(usize, u64)> {
+        let input = self.input;
+        let plan = self.plan;
+        let limits = self.limits;
+        let entries = plan.entries.as_slice();
+        let max_fields = (limits.max_fields_per_object as usize).min(entries.len());
+        let mut at = start + 1;
+        let mut seen = 0u64;
+        let mut fields = 0usize;
+        let mut work = 3u64;
+        loop {
+            let lead = *input.get(at)?;
+            if lead == b'}' {
+                break;
+            }
+            if lead != b'"' || fields >= max_fields {
+                return None;
+            }
+            // A key's first byte usually names its entry outright.
+            let rest = input.get(at..)?;
+            let word = rest
+                .first_chunk::<8>()
+                .map(|chunk| u64::from_le_bytes(*chunk));
+            let mut index = usize::from(plan.by_first_byte[usize::from(*rest.get(1)?)]);
+            let mut name_len = 0usize;
+            let mut hit = false;
+            if let Some(guessed) = entries.get(index) {
+                name_len = guessed.name.len as usize;
+                hit = match word {
+                    Some(word) if guessed.pattern_mask != 0 => {
+                        (word ^ guessed.pattern) & guessed.pattern_mask == 0
+                    }
+                    _ => {
+                        let name = guessed.name.slice(self.key_bytes)?;
+                        rest.get(1..1 + name_len)? == name
+                            && rest.get(1 + name_len..3 + name_len)? == b"\":"
+                    }
+                };
+            }
+            if !hit {
+                let end = rest[1..].iter().position(|&b| b == b'"')? + 1;
+                let key = &rest[1..end];
+                index = entries
+                    .iter()
+                    .position(|e| e.name.slice(self.key_bytes) == Some(key))?;
+                name_len = key.len();
+                if rest.get(end + 1) != Some(&b':') {
+                    return None;
+                }
+            }
+            let bit = 1u64 << index;
+            // Repeated fields are the exact engine's to accept or reject.
+            if seen & bit != 0 {
+                return None;
+            }
+            seen |= bit;
+            let entry = entries.get(index)?;
+            at += name_len + 3;
+            let capture = self.selected & bit != 0;
+            let mut target: Option<&mut SlotValue> = None;
+            if capture {
+                let cell = dst.get_mut(entry.slot?.checked_sub(base)? as usize)?;
+                if !matches!(cell, SlotValue::Empty) {
+                    return None;
+                }
+                *written |= bit;
+                target = Some(cell);
+            }
+            let (end, scalar_work) = match entry.kind {
+                ValueKind::Decimal => {
+                    if !entry.unit_tick {
+                        return None;
+                    }
+                    if let Some((next, value)) = quick_decimal(
+                        input,
+                        at,
+                        entry.decimal_scale,
+                        entry.decimal_precision,
+                        self.numeric,
+                        limits.max_string_bytes,
+                        limits.max_number_digits,
+                    ) {
+                        if let Some(cell) = target {
+                            *cell = value;
+                        }
+                        (next, (next - at - 2) as u64 * 5 + 2048)
+                    } else {
+                        let span = decimal_scan(
+                            input,
+                            at,
+                            entry.decimal_scale,
+                            entry.decimal_precision,
+                            self.numeric,
+                            limits.max_string_bytes,
+                            limits.max_number_digits,
+                        )?;
+                        if let Some(cell) = target {
+                            *cell = decimal_from_span(input, &span, entry.decimal_scale)?;
+                        }
+                        (span.next, (span.next - at - 2) as u64 * 5 + 2048)
+                    }
+                }
+                ValueKind::String => {
+                    let end = fixed_string_end(input, at, limits.max_string_bytes)?;
+                    if let Some(cell) = target {
+                        *cell = SlotValue::Str(StrRef {
+                            span: Span32::new(at as u32 + 1, (end - at - 2) as u32),
+                            source: SpanSource::RawPayload,
+                            scalar_len: (end - at - 2) as u32,
+                        });
+                    }
+                    (end, 0)
+                }
+                ValueKind::Integer if entry.small_integer => {
+                    let negative = *input.get(at)? == b'-';
+                    let first = at + usize::from(negative);
+                    if let Some((end, magnitude, len)) = scan_uint(input, first)
+                        && len <= usize::from(limits.max_number_digits)
+                        && (len == 1 || input[first] != b'0')
+                        && !(negative && input[first] == b'0' && self.numeric.reject_negative_zero)
+                    {
+                        if let Some(cell) = target {
+                            *cell = if negative {
+                                SlotValue::I64(-(magnitude as i64))
+                            } else {
+                                SlotValue::U64(magnitude)
+                            };
+                        }
+                        work += entry.key_work + (end - at) as u64 * 4;
+                        at = end;
+                        fields += 1;
+                        match input.get(at) {
+                            Some(b',') => {
+                                at += 1;
+                                if input.get(at) == Some(&b'}') {
+                                    return None;
+                                }
+                                continue;
+                            }
+                            Some(b'}') => break,
+                            _ => return None,
+                        }
+                    }
+                    let end = decimal_digits_end(input, first);
+                    if end == first
+                        || end - first > usize::from(limits.max_number_digits)
+                        || (end - first > 1 && input[first] == b'0')
+                        || (negative && input[first] == b'0' && self.numeric.reject_negative_zero)
+                    {
+                        return None;
+                    }
+                    if end - first >= 19 {
+                        // Beyond the plain range: the exact engine decides.
+                        return None;
+                    }
+                    if let Some(cell) = target {
+                        *cell = integer_slot(input, at, end, negative)?;
+                    }
+                    (end, (end - at) as u64 * 4)
+                }
+                ValueKind::Integer => {
+                    let (end, scalar_work) = fixed_property_end(
+                        input,
+                        at,
+                        FixedProperty {
+                            name: &[],
+                            state: Some(self.program.state(entry.state)?),
+                            kind: entry.kind,
+                            small_integer: false,
+                        },
+                        self.numeric,
+                        limits,
+                    )?;
+                    if let Some(cell) = target {
+                        *cell = integer_slot(input, at, end, input[at] == b'-')?;
+                    }
+                    (end, scalar_work)
+                }
+                ValueKind::Boolean => {
+                    let len = if input.get(at..at + 4) == Some(b"true") {
+                        4
+                    } else if input.get(at..at + 5) == Some(b"false") {
+                        5
+                    } else {
+                        return None;
+                    };
+                    if let Some(cell) = target {
+                        *cell = SlotValue::Bool(len == 4);
+                    }
+                    (at + len, 0)
+                }
+                ValueKind::Null => {
+                    if input.get(at..at + 4) != Some(b"null") {
+                        return None;
+                    }
+                    if let Some(cell) = target {
+                        *cell = SlotValue::RawSpan(Span32::new(at as u32, 4));
+                    }
+                    (at + 4, 0)
+                }
+                _ => return None,
+            };
+            work += entry.key_work + scalar_work;
+            at = end;
+            fields += 1;
+            match input.get(at) {
+                Some(b',') => {
+                    at += 1;
+                    if input.get(at) == Some(&b'}') {
+                        return None;
+                    }
+                }
+                Some(b'}') => break,
+                _ => return None,
+            }
+        }
+        if seen & plan.required != plan.required || input.get(at) != Some(&b'}') {
+            return None;
+        }
+        if fields == 0 {
+            work += 1;
+        }
+        Some((at + 1, work))
+    }
+}
+
+/// Eight ASCII bytes: 0x80 in every byte that is not a digit, exact up to the
+/// lowest flagged byte.
+#[inline(always)]
+fn non_digit_mask(word: u64) -> u64 {
+    const LOW: u64 = 0x0101_0101_0101_0101;
+    const HIGH: u64 = 0x8080_8080_8080_8080;
+    (word.wrapping_sub(LOW * 0x30) | word.wrapping_add(LOW * 0x46)) & HIGH
+}
+
+fn load8(bytes: &[u8], at: usize) -> Option<u64> {
+    Some(u64::from_le_bytes(*bytes.get(at..)?.first_chunk::<8>()?))
+}
+
+/// The digit run at `first` when it is one to sixteen digits long, with its
+/// end, value and length. Needs sixteen readable bytes at `first`; the
+/// general scanner handles everything else.
+#[inline(always)]
+fn scan_uint(input: &[u8], first: usize) -> Option<(usize, u64, usize)> {
+    let low = load8(input, first)?;
+    let high = load8(input, first + 8)?;
+    let mask = non_digit_mask(low);
+    if mask != 0 {
+        let len = (mask.trailing_zeros() / 8) as usize;
+        if len == 0 {
+            return None;
+        }
+        return Some((first + len, swar_digits8(low << (64 - 8 * len)), len));
+    }
+    let mask = non_digit_mask(high);
+    if mask == 0 {
+        return None;
+    }
+    let extra = (mask.trailing_zeros() / 8) as usize;
+    let value = if extra == 0 {
+        swar_digits8(low)
+    } else {
+        swar_digits8(low) * POW10_U64[extra] + swar_digits8(high << (64 - 8 * extra))
+    };
+    Some((first + 8 + extra, value, 8 + extra))
+}
+
+/// The common spot shape of a unit-tick decimal string: `"[-]W.F"` with one to
+/// seven whole digits and one to eight fraction digits, no more than the
+/// scale, and at most nineteen digits once padded to the scale. Anything
+/// else, or anything the general scanner would reject, returns `None` and
+/// takes the general scanner, which decides. Needs 24 readable bytes.
+#[inline(always)]
+fn quick_decimal(
+    raw: &[u8],
+    start: usize,
+    scale: u8,
+    max_precision: u8,
+    numeric: NumericPolicy,
+    max_string_bytes: u32,
+    max_digits: u16,
+) -> Option<(usize, SlotValue)> {
+    let window: &[u8; 24] = raw.get(start..start + 24)?.try_into().ok()?;
+    let load = |at: usize| u64::from_le_bytes(window[at..at + 8].try_into().unwrap_or_default());
+    if window[0] != b'"' {
+        return None;
+    }
+    let negative = window[1] == b'-';
+    let whole_at = 1 + usize::from(negative);
+    let whole_word = load(whole_at);
+    let mask = non_digit_mask(whole_word);
+    if mask == 0 {
+        return None;
+    }
+    let whole_len = (mask.trailing_zeros() / 8) as usize;
+    if whole_len == 0
+        || window[whole_at + whole_len] != b'.'
+        || (whole_len > 1 && window[whole_at] == b'0')
+    {
+        return None;
+    }
+    let fraction_at = whole_at + whole_len + 1;
+    let fraction_word = load(fraction_at);
+    let mask = non_digit_mask(fraction_word);
+    let fraction_len = if mask == 0 {
+        8
+    } else {
+        (mask.trailing_zeros() / 8) as usize
+    };
+    let close = fraction_at + fraction_len;
+    let scale_len = usize::from(scale);
+    if fraction_len == 0
+        || window[close] != b'"'
+        || fraction_len > scale_len
+        || whole_len + fraction_len > usize::from(max_digits)
+        || whole_len + scale_len > usize::from(max_precision).min(19)
+        || close - 1 > max_string_bytes as usize
+    {
+        return None;
+    }
+    let whole = swar_digits8(whole_word << (64 - 8 * whole_len));
+    let fraction = swar_digits8(if fraction_len == 8 {
+        fraction_word
+    } else {
+        fraction_word << (64 - 8 * fraction_len)
+    });
+    let coefficient =
+        (whole * POW10_U64[fraction_len] + fraction) * POW10_U64[scale_len - fraction_len];
+    if negative && coefficient == 0 && numeric.reject_negative_zero {
+        return None;
+    }
+    let coefficient = i128::from(coefficient);
+    Some((
+        start + close + 1,
+        SlotValue::Decimal(jmax_abi::number::Decimal128::new(
+            if negative { -coefficient } else { coefficient },
+            scale,
+        )),
+    ))
+}
+
+/// The index after the closing quote of the plain string at `start`: no
+/// escape, control or non-ASCII byte, and at most `max_string_bytes` long.
+#[inline(always)]
+fn fixed_string_end(input: &[u8], start: usize, max_string_bytes: u32) -> Option<usize> {
+    if input.get(start) != Some(&b'"') {
+        return None;
+    }
+    let mut at = start + 1;
+    // Eight bytes at a time; the lowest flagged byte is exact even
+    // though bytes above it may be flagged spuriously.
+    while let Some(chunk) = input.get(at..).and_then(|rest| rest.first_chunk::<8>()) {
+        const ONES: u64 = 0x0101_0101_0101_0101;
+        const HIGH: u64 = 0x8080_8080_8080_8080;
+        let word = u64::from_le_bytes(*chunk);
+        let quote = word ^ (ONES * u64::from(b'"'));
+        let slash = word ^ (ONES * u64::from(b'\\'));
+        let flagged = (word & HIGH)
+            | (word.wrapping_sub(ONES * 0x20) & !word & HIGH)
+            | (quote.wrapping_sub(ONES) & !quote & HIGH)
+            | (slash.wrapping_sub(ONES) & !slash & HIGH);
+        if flagged != 0 {
+            at += (flagged.trailing_zeros() / 8) as usize;
+            break;
+        }
+        at += 8;
+    }
+    loop {
+        match *input.get(at)? {
+            b'"' => break,
+            b'\\' | 0..=0x1f | 0x80..=0xff => return None,
+            _ => at += 1,
+        }
+    }
+    (at - start - 1 <= max_string_bytes as usize).then_some(at + 1)
+}
+
+/// The slot value of the integer `input[at..end]`, already lexically checked.
+#[inline(always)]
+fn integer_slot(input: &[u8], at: usize, end: usize, negative: bool) -> Option<SlotValue> {
+    // Digits only, no leading zero, below 2^63 in magnitude.
+    match short_digits_value(input, at + usize::from(negative), end) {
+        Some(magnitude) if negative => Some(SlotValue::I64(-(magnitude as i64))),
+        Some(magnitude) => Some(SlotValue::U64(magnitude)),
+        None => constraints::integer(&input[at..end], negative, at as u32).ok(),
+    }
+}
+
 #[derive(Clone, Copy)]
 struct FixedProperty<'a> {
     name: &'a [u8],
@@ -1552,20 +2006,7 @@ fn fixed_property_end(
             )?;
             Some((end, (end - start - 2) as u64 * 5 + 2048))
         }
-        ValueKind::String => {
-            if input.get(start) != Some(&b'"') {
-                return None;
-            }
-            let mut at = start + 1;
-            loop {
-                match *input.get(at)? {
-                    b'"' => break,
-                    b'\\' | 0..=0x1f | 0x80..=0xff => return None,
-                    _ => at += 1,
-                }
-            }
-            (at - start - 1 <= limits.max_string_bytes as usize).then_some((at + 1, 0))
-        }
+        ValueKind::String => Some((fixed_string_end(input, start, limits.max_string_bytes)?, 0)),
         ValueKind::Integer => {
             let negative = input.get(start) == Some(&b'-');
             let first = start + usize::from(negative);
@@ -1722,7 +2163,22 @@ fn fixed_decimal_value(
     max_string_bytes: u32,
     max_digits: u16,
 ) -> Option<(usize, u64, SlotValue)> {
-    let (next, work) = fixed_decimal_end(
+    if constraints.policy.tick_step == 1
+        && constraints.minimum.is_none()
+        && constraints.maximum.is_none()
+        && let Some((next, value)) = quick_decimal(
+            raw,
+            start,
+            constraints.policy.target_scale,
+            constraints.policy.max_precision.min(38),
+            numeric,
+            max_string_bytes,
+            max_digits,
+        )
+    {
+        return Some((next, (next - start - 2) as u64 * 5 + 2051, value));
+    }
+    let span = fixed_decimal_scan(
         raw,
         start,
         constraints,
@@ -1730,42 +2186,42 @@ fn fixed_decimal_value(
         max_string_bytes,
         max_digits,
     )?;
-    let value = validated_decimal(
-        raw.get(start + 1..next - 1)?,
-        constraints.policy.target_scale,
-    )?;
-    Some((next, work, value))
+    let value = decimal_from_span(raw, &span, constraints.policy.target_scale)?;
+    Some((span.next, span.work, value))
 }
 
-/// The value of a string `fixed_decimal_end` accepted: sign, digits and at
+/// The value of a string `fixed_decimal_scan` accepted: sign, digits and at
 /// most one point, never more than `target_scale` fractional digits.
 #[inline(always)]
-fn validated_decimal(content: &[u8], scale: u8) -> Option<SlotValue> {
-    let (negative, digits) = match content.split_first() {
-        Some((b'-', rest)) => (true, rest),
-        _ => (false, content),
-    };
-    let (whole, fraction) = match digits.iter().position(|&b| b == b'.') {
-        Some(dot) => (&digits[..dot], &digits[dot + 1..]),
-        None => (digits, &digits[..0]),
+fn decimal_from_span(raw: &[u8], span: &DecimalSpan, scale: u8) -> Option<SlotValue> {
+    let whole = raw.get(span.integer..span.dot)?;
+    let fraction = if span.fraction_end > span.dot {
+        raw.get(span.dot + 1..span.fraction_end)?
+    } else {
+        &[]
     };
     let padding = usize::from(scale).checked_sub(fraction.len())?;
-    let mut coefficient = if whole.len() + fraction.len() <= 19 {
-        // At most nineteen digits fit u64; one widening multiply pads the scale.
-        let whole = ascii_digits(whole);
-        let fraction_value = ascii_digits(fraction);
-        u128::from(whole * POW10_U64[fraction.len()] + fraction_value)
+    let coefficient = if whole.len() + usize::from(scale) <= 19 {
+        // The padded value has at most nineteen digits, so it fits u64.
+        let value = (ascii_digits(whole) * POW10_U64[fraction.len()] + ascii_digits(fraction))
+            * POW10_U64[padding];
+        i128::from(value)
+    } else if whole.len() + fraction.len() <= 19 {
+        let value = ascii_digits(whole) * POW10_U64[fraction.len()] + ascii_digits(fraction);
+        (u128::from(value) * *POW10.get(padding)?) as i128
     } else {
         let mut wide = 0u128;
         for &byte in whole.iter().chain(fraction) {
             wide = wide * 10 + u128::from(byte - b'0');
         }
-        wide
+        (wide * *POW10.get(padding)?) as i128
     };
-    coefficient *= *POW10.get(padding)?;
-    let coefficient = coefficient as i128;
     Some(SlotValue::Decimal(jmax_abi::number::Decimal128::new(
-        if negative { -coefficient } else { coefficient },
+        if span.negative {
+            -coefficient
+        } else {
+            coefficient
+        },
         scale,
     )))
 }
@@ -1779,6 +2235,37 @@ const POW10_U64: [u64; 20] = {
     }
     table
 };
+
+/// Eight ASCII digits, the first as the most significant. Bytes below the
+/// digits' own `0x30` mask contribute zero, so a masked-off prefix is padding.
+#[inline(always)]
+fn swar_digits8(word: u64) -> u64 {
+    let mut word = word & 0x0F0F_0F0F_0F0F_0F0F;
+    word = word.wrapping_mul(2561) >> 8;
+    word = (word & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601) >> 16;
+    (word & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001) >> 32
+}
+
+/// The value of the 1..=16 ASCII digits `input[first..end]` when the window
+/// leaves room for two full loads before `end`, else `None`.
+#[inline(always)]
+fn short_digits_value(input: &[u8], first: usize, end: usize) -> Option<u64> {
+    let len = end.checked_sub(first)?;
+    if len == 0 || len > 16 || end < 16 {
+        return None;
+    }
+    let load = |from: usize, digits: usize| -> Option<u64> {
+        let chunk = input.get(from..from + 8)?.first_chunk::<8>()?;
+        Some(swar_digits8(
+            u64::from_le_bytes(*chunk) & (u64::MAX << (8 * (8 - digits))),
+        ))
+    };
+    let low = load(end - 8, len.min(8))?;
+    if len <= 8 {
+        return Some(low);
+    }
+    Some(load(end - 16, len - 8)? * 100_000_000 + low)
+}
 
 /// Up to nineteen ASCII digits, eight at a time.
 #[inline(always)]
@@ -1834,29 +2321,39 @@ fn fixed_pair_rows(
                 return miss(rows);
             }
             at += 1;
-            let mut values = [SlotValue::Empty; 2];
-            for (index, value) in values.iter_mut().enumerate() {
-                let Some((end, work, decoded)) = fixed_decimal_value(
-                    raw,
-                    at,
-                    decimal,
-                    numeric,
-                    limits.max_string_bytes,
-                    limits.max_number_digits,
-                ) else {
-                    return miss(rows);
-                };
-                scalar_work += work;
-                at = end;
-                *value = decoded;
-                let expected = if index == 0 { b',' } else { b']' };
-                if raw.get(at) != Some(&expected) {
-                    return miss(rows);
-                }
-                at += 1;
+            let Some((end, work, first)) = fixed_decimal_value(
+                raw,
+                at,
+                decimal,
+                numeric,
+                limits.max_string_bytes,
+                limits.max_number_digits,
+            ) else {
+                return miss(rows);
+            };
+            scalar_work += work;
+            if raw.get(end) != Some(&b',') {
+                return miss(rows);
             }
+            at = end + 1;
+            let Some((end, work, second)) = fixed_decimal_value(
+                raw,
+                at,
+                decimal,
+                numeric,
+                limits.max_string_bytes,
+                limits.max_number_digits,
+            ) else {
+                return miss(rows);
+            };
+            scalar_work += work;
+            if raw.get(end) != Some(&b']') {
+                return miss(rows);
+            }
+            at = end + 1;
             rows.try_reserve(2).map_err(|_| resource(at as u32))?;
-            rows.extend_from_slice(&values);
+            rows.push(first);
+            rows.push(second);
             count += 1;
             if raw.get(at) == Some(&b']') {
                 break;
@@ -1907,12 +2404,66 @@ fn fixed_decimal_end(
     max_string_bytes: u32,
     max_digits: u16,
 ) -> Option<(usize, u64)> {
+    let span = fixed_decimal_scan(
+        raw,
+        start,
+        constraints,
+        numeric,
+        max_string_bytes,
+        max_digits,
+    )?;
+    Some((span.next, span.work))
+}
+
+/// Where the parts of an accepted unit-tick decimal string lie.
+struct DecimalSpan {
+    /// Index after the closing quote.
+    next: usize,
+    work: u64,
+    negative: bool,
+    integer: usize,
+    dot: usize,
+    /// Index of the closing quote; equals `dot` when there is no fraction.
+    fraction_end: usize,
+}
+
+#[inline(always)]
+fn fixed_decimal_scan(
+    raw: &[u8],
+    start: usize,
+    constraints: &jmax_schema_ir::DecimalConstraints,
+    numeric: NumericPolicy,
+    max_string_bytes: u32,
+    max_digits: u16,
+) -> Option<DecimalSpan> {
     let policy = &constraints.policy;
-    if policy.tick_step != 1
-        || constraints.minimum.is_some()
-        || constraints.maximum.is_some()
-        || raw.get(start) != Some(&b'"')
-    {
+    if policy.tick_step != 1 || constraints.minimum.is_some() || constraints.maximum.is_some() {
+        return None;
+    }
+    decimal_scan(
+        raw,
+        start,
+        policy.target_scale,
+        policy.max_precision.min(38),
+        numeric,
+        max_string_bytes,
+        max_digits,
+    )
+}
+
+/// `fixed_decimal_scan` for a unit-tick decimal with no bounds, from its
+/// precomputed scale and precision limit.
+#[inline(always)]
+fn decimal_scan(
+    raw: &[u8],
+    start: usize,
+    target_scale: u8,
+    max_precision: u8,
+    numeric: NumericPolicy,
+    max_string_bytes: u32,
+    max_digits: u16,
+) -> Option<DecimalSpan> {
+    if raw.get(start) != Some(&b'"') {
         return None;
     }
     let content = start + 1;
@@ -1932,10 +2483,10 @@ fn fixed_decimal_end(
     } else {
         (dot, 0)
     };
-    let padding = usize::from(policy.target_scale).checked_sub(fractional_digits)?;
+    let padding = usize::from(target_scale).checked_sub(fractional_digits)?;
     let digits = dot - integer + fractional_digits;
     if raw.get(end) != Some(&b'"')
-        || digits.checked_add(padding)? > usize::from(policy.max_precision).min(38)
+        || digits.checked_add(padding)? > usize::from(max_precision)
         || digits > usize::from(max_digits)
         || end - content > max_string_bytes as usize
     {
@@ -1947,7 +2498,14 @@ fn fixed_decimal_end(
     {
         return None;
     }
-    Some((end + 1, (end - content) as u64 * 5 + 2051))
+    Some(DecimalSpan {
+        next: end + 1,
+        work: (end - content) as u64 * 5 + 2051,
+        negative,
+        integer,
+        dot,
+        fraction_end: end,
+    })
 }
 
 #[inline(always)]
@@ -2112,13 +2670,9 @@ fn execute_direct(
             )
         }
     });
-    let cursor = BlockCursor::with_scratch(
-        raw,
-        limits.syntax,
-        cursor_numeric,
-        owner,
-        &mut scratch.direct_skip,
-    )?;
+    // Construction is deferred until the fast whole-input path has declined,
+    // but its failures keep their place ahead of the context's.
+    BlockCursor::check_new(raw.len(), limits.syntax, cursor_numeric, owner)?;
     let mut context = if rows {
         execute::new_context_rows(program, selection, limits, &mut scratch.vm)?
     } else {
@@ -2157,6 +2711,21 @@ fn execute_direct(
                 &mut scratch.direct_queue,
             )?;
         }
+        if capture
+            && !query
+            && !rows
+            && validated.is_none()
+            && fast_root_object(program, raw, &mut context, numeric)
+        {
+            return Ok(());
+        }
+        let cursor = BlockCursor::with_scratch(
+            raw,
+            limits.syntax,
+            cursor_numeric,
+            owner,
+            &mut scratch.direct_skip,
+        )?;
         let decoded_capacity = scratch.direct_decoded.capacity();
         let mut engine = Engine {
             cursor,
@@ -2168,6 +2737,7 @@ fn execute_direct(
             decoded_capacity,
             validated,
             rows: if rows { Some(&mut scratch.rows) } else { None },
+            staged_error: false,
         };
         engine.run()?;
         Ok(())
@@ -2184,6 +2754,80 @@ fn execute_direct(
         let field = error.field_id;
         error.with_schema(program.image().header.schema_id, field)
     })
+}
+
+/// The whole input is one minified flat reject-unknown object at the root:
+/// scan it straight into the capture slots, with the budget the exact engine
+/// would have spent. Any miss (whitespace, escapes, a repeated or unknown key,
+/// a cold frame stack, a budget that would run out) leaves the context as it
+/// was and returns false, and the exact engine runs.
+fn fast_root_object(
+    program: &ValidatedProgram,
+    raw: &[u8],
+    context: &mut VmContext<'_>,
+    numeric: NumericPolicy,
+) -> bool {
+    #[cfg(test)]
+    if tests::force_exact() {
+        return false;
+    }
+    if raw.first() != Some(&b'{') || !context.frames.is_empty() || context.root_started {
+        return false;
+    }
+    let Some(StateKind::Object {
+        key_table,
+        reject_unknown: true,
+        ..
+    }) = program
+        .state(StateId(program.image().header.root_state))
+        .map(|state| &state.kind)
+    else {
+        return false;
+    };
+    let key_table = *key_table;
+    let Some(plan) = program.fixed_object(key_table) else {
+        return false;
+    };
+    let Some(scan) = FixedScan::new(
+        program,
+        plan,
+        raw,
+        numeric,
+        context.limits.syntax,
+        1,
+        context.frames.capacity(),
+        &context.selection,
+    ) else {
+        return false;
+    };
+    let mut written = 0u64;
+    let steps_left = context.budget.steps_left();
+    let accepted = match scan.object(0, &mut context.slots, 0, &mut written) {
+        // One step for the root value token, then the object itself.
+        Some((end, work)) if end == raw.len() && work < steps_left => Some(work + 1),
+        _ => None,
+    };
+    match accepted {
+        Some(work) => {
+            // Cannot fail: the total was checked against the steps left.
+            if context.budget.charge(work, 0).is_err() {
+                return false;
+            }
+            context.root_started = true;
+            context.root_done = true;
+            true
+        }
+        None => {
+            while written != 0 {
+                let index = written.trailing_zeros() as usize;
+                written &= written - 1;
+                if let Some(slot) = plan.entries[index].slot {
+                    context.slots[slot as usize] = SlotValue::Empty;
+                }
+            }
+            false
+        }
+    }
 }
 
 fn strict_selection(selection: &Selection) -> Result<()> {
@@ -2387,6 +3031,7 @@ pub fn map_root_array_borrowed<T>(
                     decoded_capacity,
                     validated: None,
                     rows: None,
+                    staged_error: false,
                 };
                 let (next_cursor, row_result) = {
                     let mut engine = engine;
@@ -2641,17 +3286,18 @@ pub fn extract_borrowed_with_scratch<'raw, 'scratch>(
     })
 }
 
-/// Append staged values, charging capacity growth like the root-array stage.
-fn push_staged(
+/// Make room for `additional` staged values, charging capacity growth like
+/// the root-array stage.
+fn grow_staged(
     budget: &mut VmBudget,
     buffer: &mut Vec<SlotValue>,
-    values: &[SlotValue],
+    additional: usize,
     offset: u32,
 ) -> Result<()> {
-    if buffer.capacity() - buffer.len() < values.len() {
+    if buffer.capacity() - buffer.len() < additional {
         let old = buffer.capacity();
         buffer
-            .try_reserve(values.len())
+            .try_reserve(additional)
             .map_err(|_| resource(offset))?;
         let growth = buffer
             .capacity()
@@ -2661,6 +3307,17 @@ fn push_staged(
             .ok_or_else(|| resource(offset))?;
         budget.retain(growth, offset)?;
     }
+    Ok(())
+}
+
+/// Append staged values, charging capacity growth like the root-array stage.
+fn push_staged(
+    budget: &mut VmBudget,
+    buffer: &mut Vec<SlotValue>,
+    values: &[SlotValue],
+    offset: u32,
+) -> Result<()> {
+    grow_staged(budget, buffer, values.len(), offset)?;
     buffer.extend_from_slice(values);
     budget.charge(values.len() as u64, offset)
 }
@@ -2923,6 +3580,9 @@ mod tests {
         static FORCE_EXACT: Cell<bool> = const { Cell::new(false) };
     }
     /// True while a test compares the fast paths against the exact engine.
+    std::thread_local! {
+        pub(super) static ITEM_ROWS_TAKEN: Cell<u32> = const { Cell::new(0) };
+    }
     pub(super) fn force_exact() -> bool {
         FORCE_EXACT.with(Cell::get)
     }
@@ -3202,6 +3862,336 @@ mod tests {
             }
             selection.field_ids.push(field);
             assert!(extract::SelectionIndex::new(&program, &selection).is_err());
+        }
+        Ok(())
+    }
+
+    /// `{"rows":[{"n":int,"d":dec,"s":str,"f"?:bool}]}`; slot 0 is the array
+    /// and slots 1..=4 are the item properties.
+    fn item_rows_program() -> Result<ValidatedProgram> {
+        use jmax_schema_ir::{
+            ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
+        };
+        let prop = |id: u32, name: &str, ty: u32, required: bool, slot: u32| Property {
+            field_id: FieldId(id),
+            name: name.into(),
+            ty: TypeId(ty),
+            required,
+            slot: Some(slot),
+        };
+        let object = |properties| {
+            TypeNode::Object(ObjectShape {
+                nullable: false,
+                properties,
+                reject_unknown: true,
+                min_properties: None,
+                max_properties: None,
+            })
+        };
+        let mut decimal = ScalarConstraints::new(ValueKind::Decimal);
+        decimal.decimal = Some(jmax_schema_ir::DecimalConstraints {
+            policy: jmax_abi::DecimalPolicy::spot_8(),
+            minimum: None,
+            maximum: None,
+        });
+        let schema = Schema {
+            name: "item_rows".into(),
+            schema_id: SchemaId(7_072),
+            root: TypeId(0),
+            definitions: vec![],
+            nodes: vec![
+                object(vec![prop(1, "rows", 1, true, 0)]),
+                TypeNode::Array(ArrayShape {
+                    nullable: false,
+                    items: TypeId(2),
+                    min_items: None,
+                    max_items: Some(5),
+                }),
+                object(vec![
+                    prop(2, "n", 3, true, 1),
+                    prop(3, "d", 4, true, 2),
+                    prop(4, "s", 5, true, 3),
+                    prop(5, "f", 6, false, 4),
+                ]),
+                TypeNode::Scalar(ScalarConstraints::new(ValueKind::Integer)),
+                TypeNode::Scalar(decimal),
+                TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+                TypeNode::Scalar(ScalarConstraints::new(ValueKind::Boolean)),
+            ],
+        };
+        let resolved = jmax_schema_ir::resolve::resolve(schema, Default::default())?;
+        jmax_schema_compile::compile(&resolved, &jmax_schema_compile::CompilerOptions::default())
+    }
+
+    fn run_rows(
+        program: &ValidatedProgram,
+        input: &[u8],
+        limits: VmLimits,
+        scratch: &mut ValidationScratch,
+        exact: bool,
+    ) -> core::result::Result<(Vec<SlotValue>, Vec<Vec<SlotValue>>), (ErrorCode, u32, u32)> {
+        FORCE_EXACT.with(|f| f.set(exact));
+        let selection = Selection {
+            field_ids: vec![],
+            strict_validate_unselected: true,
+        };
+        let result = extract_rows_borrowed_with_scratch(
+            program,
+            input,
+            &selection,
+            limits,
+            NumericPolicy::strict_default(),
+            scratch,
+        );
+        FORCE_EXACT.with(|f| f.set(false));
+        match result {
+            Ok(out) => Ok((
+                out.slots.to_vec(),
+                out.groups
+                    .iter()
+                    .map(|block| block.rows().flatten().copied().collect())
+                    .collect(),
+            )),
+            Err(error) => Err((error.code, error.byte_offset, error.field_id)),
+        }
+    }
+
+    #[test]
+    fn item_rows_fast_path_matches_the_exact_engine_at_every_budget() -> Result<()> {
+        let program = item_rows_program()?;
+        let inputs: [&[u8]; 14] = [
+            br#"{"rows":[]}"#,
+            br#"{"rows":[{"n":1,"d":"1.5","s":"a"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1.5","s":"a","f":true},{"f":false,"s":"bb","d":"2","n":-7},{"n":3,"d":"0.00000001","s":"","f":true}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"},{"n":3,"d":"3","s":"c"},{"n":4,"d":"4","s":"d"},{"n":5,"d":"5","s":"e"}]}"#,
+            // Over the array count bound.
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"},{"n":3,"d":"3","s":"c"},{"n":4,"d":"4","s":"d"},{"n":5,"d":"5","s":"e"},{"n":6,"d":"6","s":"f"}]}"#,
+            // A miss in the middle, after good rows.
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2.123456789","s":"b"},{"n":3,"d":"3","s":"c"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b","x":1}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b\n"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"s":"b"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"}, {"n":2,"d":"2","s":"b"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":1,"n":2,"d":"2","s":"b"}]}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"}"#,
+            br#"{"rows":[{"n":1,"d":"1","s":"a"},{}]}"#,
+        ];
+        let mut fast = ValidationScratch::default();
+        let mut probe = ValidationScratch::default();
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        let mut exact = ValidationScratch::default();
+        let mut steps = [u64::MAX, 0];
+        for input in inputs {
+            let base = VmLimits::default();
+            // Smallest successful step budget of the exact engine bounds the grid.
+            let mut tight = 1u64;
+            while tight < 4_096
+                && run_rows(
+                    &program,
+                    input,
+                    VmLimits {
+                        max_steps: tight,
+                        ..base
+                    },
+                    &mut probe,
+                    true,
+                )
+                .is_err()
+            {
+                tight += 1;
+            }
+            steps[1] = tight + 8;
+            let mut grid: Vec<(u64, u32)> = Vec::new();
+            for max_steps in 0..steps[1] {
+                grid.push((max_steps, base.max_scratch_bytes));
+            }
+            for max_scratch_bytes in (0..6_000u32).step_by(8) {
+                grid.push((base.max_steps, max_scratch_bytes));
+            }
+            for (max_steps, max_scratch_bytes) in grid {
+                let limits = VmLimits {
+                    max_steps,
+                    max_scratch_bytes,
+                    ..base
+                };
+                // Warm each scratch identically, including capacity growth.
+                for round in 0..3 {
+                    let want = run_rows(&program, input, limits, &mut exact, true);
+                    let got = run_rows(&program, input, limits, &mut fast, false);
+                    assert_eq!(
+                        got,
+                        want,
+                        "round {round} steps {max_steps} scratch {max_scratch_bytes}: {}",
+                        alloc::string::String::from_utf8_lossy(input)
+                    );
+                }
+            }
+        }
+        // The comparison is only meaningful if the fast path actually ran.
+        assert!(ITEM_ROWS_TAKEN.with(Cell::get) > taken_before);
+        Ok(())
+    }
+
+    #[test]
+    fn cached_selection_charges_like_a_fresh_build() -> Result<()> {
+        let (program, selection) = trade_program(false, false)?;
+        let input: &[u8] = br#"{"e":"aggTrade","E":123,"p":"0.50000000","b":7,"m":true}"#;
+        let other = Selection {
+            field_ids: selection.field_ids.iter().rev().copied().take(3).collect(),
+            strict_validate_unselected: true,
+        };
+        // `hit` ran the chosen selection last, so its index comes from the cache;
+        // `miss` ran the other one, so it rebuilds. Both are equally warm.
+        let mut hit = ValidationScratch::default();
+        let mut miss = ValidationScratch::default();
+        for _ in 0..2 {
+            run(
+                &program,
+                &selection,
+                input,
+                VmLimits::default(),
+                &mut hit,
+                true,
+            )
+            .ok();
+            run(
+                &program,
+                &other,
+                input,
+                VmLimits::default(),
+                &mut miss,
+                true,
+            )
+            .ok();
+        }
+        for max_steps in 0..400u64 {
+            let limits = VmLimits {
+                max_steps,
+                ..VmLimits::default()
+            };
+            for chosen in [&selection, &other] {
+                let (cached, rebuilt) = if core::ptr::eq(chosen, &selection) {
+                    (&mut hit, &mut miss)
+                } else {
+                    (&mut miss, &mut hit)
+                };
+                // Re-prime so the scratches keep their roles after failed runs.
+                run(&program, chosen, input, VmLimits::default(), cached, true).ok();
+                let other_selection = if core::ptr::eq(chosen, &selection) {
+                    &other
+                } else {
+                    &selection
+                };
+                run(
+                    &program,
+                    other_selection,
+                    input,
+                    VmLimits::default(),
+                    rebuilt,
+                    true,
+                )
+                .ok();
+                let want = run(&program, chosen, input, limits, rebuilt, true);
+                let got = run(&program, chosen, input, limits, cached, true);
+                assert_eq!(got, want, "steps {max_steps}");
+            }
+        }
+        // A duplicate field is rejected and never cached.
+        let mut duplicate = selection.clone();
+        duplicate.field_ids.push(duplicate.field_ids[0]);
+        let limits = VmLimits::default();
+        let mut warm = ValidationScratch::default();
+        assert!(run(&program, &selection, input, limits, &mut warm, true).is_ok());
+        assert!(run(&program, &duplicate, input, limits, &mut warm, true).is_err());
+        assert!(run(&program, &duplicate, input, limits, &mut warm, true).is_err());
+        assert!(run(&program, &selection, input, limits, &mut warm, true).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn fixed_object_strings_and_integers_match_the_exact_engine() -> Result<()> {
+        let (program, selection) = trade_program(false, false)?;
+        let mut fast = ValidationScratch::default();
+        let mut exact = ValidationScratch::default();
+        let mut check = |input: &[u8]| {
+            for _ in 0..2 {
+                run(
+                    &program,
+                    &selection,
+                    input,
+                    VmLimits::default(),
+                    &mut fast,
+                    false,
+                )
+                .ok();
+            }
+            let want = run(
+                &program,
+                &selection,
+                input,
+                VmLimits::default(),
+                &mut exact,
+                true,
+            );
+            let got = run(
+                &program,
+                &selection,
+                input,
+                VmLimits::default(),
+                &mut fast,
+                false,
+            );
+            assert_eq!(
+                got,
+                want,
+                "{}",
+                alloc::string::String::from_utf8_lossy(input)
+            );
+        };
+        let tail = br#","E":5,"p":"1","b":1,"m":true}"#;
+        for length in 0..40usize {
+            for special in [
+                None,
+                Some(b'"'),
+                Some(b'\\'),
+                Some(0x1fu8),
+                Some(0x7fu8),
+                Some(0xc3u8),
+            ] {
+                for position in 0..=length {
+                    let mut text = vec![b'x'; length];
+                    if let Some(byte) = special {
+                        if position < length {
+                            text[position] = byte;
+                        } else {
+                            continue;
+                        }
+                    }
+                    let mut input = br#"{"e":""#.to_vec();
+                    input.extend_from_slice(&text);
+                    input.push(b'"');
+                    input.extend_from_slice(tail);
+                    check(&input);
+                }
+            }
+        }
+        for digits in 1..=21usize {
+            for negative in [false, true] {
+                for lead in [b'1', b'9'] {
+                    let mut number = vec![lead; digits];
+                    number[digits - 1] = b'7';
+                    let number = alloc::string::String::from_utf8(number).unwrap();
+                    let sign = if negative { "-" } else { "" };
+                    let input =
+                        alloc::format!(r#"{{"e":"a","E":{sign}{number},"p":"1","b":1,"m":true}}"#);
+                    check(input.as_bytes());
+                    // The same value at the very start of the document.
+                    let input =
+                        alloc::format!(r#"{{"E":{sign}{number},"e":"a","p":"1","b":1,"m":true}}"#);
+                    check(input.as_bytes());
+                }
+            }
         }
         Ok(())
     }

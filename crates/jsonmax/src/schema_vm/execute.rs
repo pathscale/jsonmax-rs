@@ -437,13 +437,9 @@ fn new_context_inner<'a>(
         budget.retain(allocation_bytes::<u64>(mask.capacity(), 0)?, 0)?;
     }
     let selection = if capture {
-        selection_index_into(
-            program,
-            selection,
-            &mut budget,
-            core::mem::take(&mut scratch.selection_words),
-        )?
+        cached_selection_index(program, selection, &mut budget, scratch)?
     } else {
+        scratch.selection_cache = None;
         extract::SelectionIndex {
             all: false,
             words: Vec::new(),
@@ -518,6 +514,46 @@ pub(crate) fn selection_index(
     }
     selection_index_into(program, selection, budget, Vec::new())
 }
+/// `selection_index_into`, remembering a successful inline-word result per
+/// scratch. A hit charges exactly what the build charges (two steps per
+/// selected field) and runs no lookups, so budget outcomes are unchanged.
+fn cached_selection_index(
+    program: &ValidatedProgram,
+    selection: &Selection,
+    budget: &mut VmBudget,
+    scratch: &mut VmScratch,
+) -> Result<extract::SelectionIndex> {
+    if let Some(cache) = &scratch.selection_cache
+        && cache.program.same_program(program)
+        && cache.fields == selection.field_ids
+    {
+        budget.charge(2 * selection.field_ids.len() as u64, 0)?;
+        let mut words = core::mem::take(&mut scratch.selection_words);
+        words.clear();
+        return Ok(extract::SelectionIndex {
+            all: cache.all,
+            words,
+            inline_words: cache.inline_words,
+        });
+    }
+    scratch.selection_cache = None;
+    let index = selection_index_into(
+        program,
+        selection,
+        budget,
+        core::mem::take(&mut scratch.selection_words),
+    )?;
+    if index.words.is_empty() {
+        scratch.selection_cache = Some(SelectionCache {
+            program: program.clone(),
+            fields: selection.field_ids.clone(),
+            all: index.all,
+            inline_words: index.inline_words,
+        });
+    }
+    Ok(index)
+}
+
 fn selection_index_into(
     program: &ValidatedProgram,
     selection: &Selection,
