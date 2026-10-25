@@ -29,6 +29,14 @@ pub struct SkipScratch {
 }
 pub(crate) type DiscardScratch = SkipScratch;
 
+impl SkipScratch {
+    /// Forgets the key shapes remembered from earlier skips. Call before the first
+    /// `skip_strict_continuing` on a new (or possibly rewritten) input.
+    pub fn new_input(&mut self) {
+        self.fast.new_input();
+    }
+}
+
 /// Persistent parser over an exact borrowed, immutable complete input slice.
 /// Lexical methods consume one token. `next_event` additionally owns grammar
 /// state; callers doing their own grammar must use the lexical methods instead.
@@ -1945,6 +1953,34 @@ pub fn skip_strict(
     decoded: &mut Vec<u8>,
     scratch: &mut SkipScratch,
 ) -> Result<u32> {
+    scratch.fast.new_input();
+    skip_strict_continuing(
+        input,
+        start,
+        current_depth,
+        limits,
+        numeric,
+        dup_owner,
+        decoded,
+        scratch,
+    )
+}
+
+/// `skip_strict` that keeps the key shapes remembered by earlier skips in `scratch`.
+/// The caller guarantees that `input` is the same unmodified slice every earlier skip
+/// since `SkipScratch::new_input` saw, and that the limits are unchanged; skipped
+/// values of one document then reuse each other's shapes.
+#[allow(clippy::too_many_arguments)]
+pub fn skip_strict_continuing(
+    input: &[u8],
+    start: u32,
+    current_depth: u16,
+    limits: Limits,
+    numeric: Option<NumericPolicy>,
+    dup_owner: DuplicatePolicyOwner,
+    decoded: &mut Vec<u8>,
+    scratch: &mut SkipScratch,
+) -> Result<u32> {
     // The same checks, in the same order, as BlockCursor::new.
     frames::check_payload_growth(0, input.len(), limits)?;
     check_duplicate_owner(limits, dup_owner)?;
@@ -1956,7 +1992,6 @@ pub fn skip_strict(
         ));
     }
     if current_depth <= limits.max_depth && start as usize <= input.len() {
-        scratch.fast.new_input();
         let params = super::strict_fast::Params {
             limits,
             numeric,

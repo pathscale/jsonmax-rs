@@ -3,7 +3,7 @@
 
 use alloc::vec::Vec;
 pub mod block_cursor;
-pub use block_cursor::{BlockCursor, SkipScratch, skip_strict};
+pub use block_cursor::{BlockCursor, SkipScratch, skip_strict, skip_strict_continuing};
 pub mod feed;
 pub mod finish;
 pub mod frames;
