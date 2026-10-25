@@ -1544,7 +1544,7 @@ const MAX_ROW: usize = 16;
 /// A flat reject-unknown object table, resolved once for a run of objects.
 struct FixedScan<'a> {
     program: &'a ValidatedProgram,
-    plan: &'a jmax_schema_compile::FixedObjectPlan,
+    plan: &'a crate::schema_compile::FixedObjectPlan,
     key_bytes: &'a [u8],
     input: &'a [u8],
     numeric: NumericPolicy,
@@ -1559,7 +1559,7 @@ impl<'a> FixedScan<'a> {
     #[inline(always)]
     fn new(
         program: &'a ValidatedProgram,
-        plan: &'a jmax_schema_compile::FixedObjectPlan,
+        plan: &'a crate::schema_compile::FixedObjectPlan,
         input: &'a [u8],
         numeric: NumericPolicy,
         limits: Limits,
@@ -1936,7 +1936,7 @@ fn quick_decimal(
     let coefficient = i128::from(coefficient);
     Some((
         start + close + 1,
-        SlotValue::Decimal(jmax_abi::number::Decimal128::new(
+        SlotValue::Decimal(crate::abi::number::Decimal128::new(
             if negative { -coefficient } else { coefficient },
             scale,
         )),
@@ -2171,7 +2171,7 @@ const POW10: [u128; 39] = {
 fn fixed_decimal_value(
     raw: &[u8],
     start: usize,
-    constraints: &jmax_schema_ir::DecimalConstraints,
+    constraints: &crate::schema_ir::DecimalConstraints,
     numeric: NumericPolicy,
     max_string_bytes: u32,
     max_digits: u16,
@@ -2229,7 +2229,7 @@ fn decimal_from_span(raw: &[u8], span: &DecimalSpan, scale: u8) -> Option<SlotVa
         }
         (wide * *POW10.get(padding)?) as i128
     };
-    Some(SlotValue::Decimal(jmax_abi::number::Decimal128::new(
+    Some(SlotValue::Decimal(crate::abi::number::Decimal128::new(
         if span.negative {
             -coefficient
         } else {
@@ -2304,7 +2304,7 @@ fn ascii_digits(mut digits: &[u8]) -> u64 {
 fn fixed_pair_rows(
     raw: &[u8],
     start: u32,
-    decimal: &jmax_schema_ir::DecimalConstraints,
+    decimal: &crate::schema_ir::DecimalConstraints,
     pair: &ConstraintSet,
     outer: &ConstraintSet,
     numeric: NumericPolicy,
@@ -2444,7 +2444,7 @@ struct DecimalSpan {
 fn fixed_decimal_scan(
     raw: &[u8],
     start: usize,
-    constraints: &jmax_schema_ir::DecimalConstraints,
+    constraints: &crate::schema_ir::DecimalConstraints,
     numeric: NumericPolicy,
     max_string_bytes: u32,
     max_digits: u16,
@@ -3612,13 +3612,13 @@ mod tests {
         decimal_exponent: bool,
         object_count_bound: bool,
     ) -> Result<(ValidatedProgram, Selection)> {
-        use jmax_schema_ir::{ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode};
+        use crate::schema_ir::{ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode};
         let decimal = || {
             let mut c = ScalarConstraints::new(ValueKind::Decimal);
-            c.decimal = Some(jmax_schema_ir::DecimalConstraints {
-                policy: jmax_abi::DecimalPolicy {
+            c.decimal = Some(crate::schema_ir::DecimalConstraints {
+                policy: crate::abi::DecimalPolicy {
                     allow_exponent: decimal_exponent,
-                    ..jmax_abi::DecimalPolicy::spot_8()
+                    ..crate::abi::DecimalPolicy::spot_8()
                 },
                 minimum: None,
                 maximum: None,
@@ -3664,7 +3664,7 @@ mod tests {
                 max_properties: None,
             }),
         );
-        let resolved = jmax_schema_ir::resolve::resolve(
+        let resolved = crate::schema_ir::resolve::resolve(
             Schema {
                 name: "fixed_object".into(),
                 schema_id: SchemaId(9_001),
@@ -3674,7 +3674,7 @@ mod tests {
             },
             Default::default(),
         )?;
-        let program = jmax_schema_compile::compile(&resolved, &Default::default())?;
+        let program = crate::schema_compile::compile(&resolved, &Default::default())?;
         let selection = Selection {
             field_ids: (1..=8).map(FieldId).collect(),
             strict_validate_unselected: true,
@@ -3890,7 +3890,7 @@ mod tests {
     /// `{"rows":[{"n":int,"d":dec,"s":str,"f"?:bool}]}`; slot 0 is the array
     /// and slots 1..=4 are the item properties.
     fn item_rows_program() -> Result<ValidatedProgram> {
-        use jmax_schema_ir::{
+        use crate::schema_ir::{
             ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
         };
         let prop = |id: u32, name: &str, ty: u32, required: bool, slot: u32| Property {
@@ -3910,8 +3910,8 @@ mod tests {
             })
         };
         let mut decimal = ScalarConstraints::new(ValueKind::Decimal);
-        decimal.decimal = Some(jmax_schema_ir::DecimalConstraints {
-            policy: jmax_abi::DecimalPolicy::spot_8(),
+        decimal.decimal = Some(crate::schema_ir::DecimalConstraints {
+            policy: crate::abi::DecimalPolicy::spot_8(),
             minimum: None,
             maximum: None,
         });
@@ -3940,8 +3940,8 @@ mod tests {
                 TypeNode::Scalar(ScalarConstraints::new(ValueKind::Boolean)),
             ],
         };
-        let resolved = jmax_schema_ir::resolve::resolve(schema, Default::default())?;
-        jmax_schema_compile::compile(&resolved, &jmax_schema_compile::CompilerOptions::default())
+        let resolved = crate::schema_ir::resolve::resolve(schema, Default::default())?;
+        crate::schema_compile::compile(&resolved, &crate::schema_compile::CompilerOptions::default())
     }
 
     fn run_rows(

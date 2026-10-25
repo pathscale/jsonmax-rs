@@ -289,8 +289,8 @@ pub fn extract_rows_borrowed_with_scratch<'raw, 'scratch>(
     input: &'raw [u8],
     options: ParseOptions,
     scratch: &'scratch mut ValidationScratch,
-) -> Result<jmax_schema_vm::BorrowedRowsRef<'raw, 'scratch>> {
-    jmax_schema_vm::direct::extract_rows_borrowed_with_scratch(
+) -> Result<crate::schema_vm::BorrowedRowsRef<'raw, 'scratch>> {
+    crate::schema_vm::direct::extract_rows_borrowed_with_scratch(
         schema.program(),
         input,
         selection,
