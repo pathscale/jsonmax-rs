@@ -1750,6 +1750,12 @@ fn fixed_object_plan(
             };
             first_seen[first as usize] = true;
         }
+        let name_len = name.len() as u64;
+        let passes = match table.strategy {
+            KeyStrategy::Swar => u64::from(table.key_count) + 1,
+            KeyStrategy::PerfectHash { .. } => 2,
+            KeyStrategy::BucketedPerfectHash { .. } => 3,
+        };
         let width = name.len() + 3;
         let (pattern, pattern_mask) = if width <= 8 {
             let mut bytes = [0u8; 8];
@@ -1774,6 +1780,13 @@ fn fixed_object_plan(
             small_integer,
             pattern,
             pattern_mask,
+            key_work: 7 + name_len + (name_len + 8) * passes,
+            decimal_scale: constraints.decimal.as_ref().map_or(0, |d| d.policy.target_scale),
+            decimal_precision: constraints
+                .decimal
+                .as_ref()
+                .map_or(0, |d| d.policy.max_precision.min(38)),
+            unit_tick: constraints.decimal.as_ref().is_some_and(|d| d.policy.tick_step == 1),
         });
     }
     Ok(Some(FixedObjectPlan {

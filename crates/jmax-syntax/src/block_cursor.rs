@@ -78,13 +78,16 @@ pub(crate) fn check_duplicate_owner(limits: Limits, owner: DuplicatePolicyOwner)
 }
 
 impl<'a> BlockCursor<'a> {
-    pub fn new(
-        input: &'a [u8],
+    /// The failures `new` reports before it builds anything, so a caller can
+    /// defer construction and still fail in the same order.
+    #[inline(always)]
+    pub fn check_new(
+        input_len: usize,
         limits: Limits,
         numeric: Option<NumericPolicy>,
         dup_owner: DuplicatePolicyOwner,
-    ) -> Result<Self> {
-        frames::check_payload_growth(0, input.len(), limits)?;
+    ) -> Result<()> {
+        frames::check_payload_growth(0, input_len, limits)?;
         check_duplicate_owner(limits, dup_owner)?;
         if numeric.is_some_and(|policy| policy.max_exponent_abs < 0) {
             return Err(syntax_error(
@@ -93,6 +96,17 @@ impl<'a> BlockCursor<'a> {
                 "numeric exponent limit cannot be negative",
             ));
         }
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn new(
+        input: &'a [u8],
+        limits: Limits,
+        numeric: Option<NumericPolicy>,
+        dup_owner: DuplicatePolicyOwner,
+    ) -> Result<Self> {
+        Self::check_new(input.len(), limits, numeric, dup_owner)?;
         let dispatch = jmax_dispatch::Dispatch::new(input.len(), Default::default())?;
         Ok(Self::from_cache(
             input,
@@ -114,6 +128,7 @@ impl<'a> BlockCursor<'a> {
 
     /// Uses reusable strict-skip storage, returning it automatically on drop,
     /// including after lexical, policy, resource-limit, or allocation errors.
+    #[inline(always)]
     pub fn with_scratch(
         input: &'a [u8],
         limits: Limits,
@@ -128,6 +143,7 @@ impl<'a> BlockCursor<'a> {
         Ok(cursor)
     }
 
+    #[inline(always)]
     pub(crate) fn from_cache(
         input: &'a [u8],
         limits: Limits,
@@ -303,6 +319,15 @@ impl<'a> BlockCursor<'a> {
     #[inline(always)]
     pub fn skip_whitespace_uncached(&mut self) -> Result<Option<u8>> {
         if self.input.len() <= 512 {
+            // A value that starts at the cursor needs no block classification:
+            // refill classifies the skipped blocks in order when a later
+            // consumer asks for masks.
+            if self.failure.is_none()
+                && let Some(&byte) = self.input.get(self.cache.offset as usize)
+                && !matches!(byte, b' ' | b'\t' | b'\n' | b'\r')
+            {
+                return Ok(Some(byte));
+            }
             return self.skip_whitespace();
         }
         self.check_failure()?;

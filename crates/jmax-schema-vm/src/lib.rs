@@ -334,6 +334,18 @@ pub struct VmScratch {
     pub(crate) seen_masks: Vec<Vec<u64>>,
     pub(crate) slots: Vec<SlotValue>,
     pub(crate) selection_words: Vec<u64>,
+    /// The last successful selection index, keyed by program and field list.
+    pub(crate) selection_cache: Option<SelectionCache>,
+}
+
+/// A selection index that already passed validation for one program and one
+/// field list. Only inline-word indexes are cached; the steps the exact
+/// build charges are charged again on every hit.
+pub(crate) struct SelectionCache {
+    program: ValidatedProgram,
+    fields: Vec<FieldId>,
+    all: bool,
+    inline_words: [u64; 4],
 }
 
 /// Reusable direct-input interpreter storage and the last validated result.

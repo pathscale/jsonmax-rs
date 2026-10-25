@@ -263,6 +263,12 @@ pub struct FixedEntry {
     /// `"name":` as little-endian bytes under `pattern_mask`, when it fits in a word.
     pub pattern: u64,
     pub pattern_mask: u64,
+    /// Step cost of reading this key: `7 + n + (n + 8) * passes` for an `n` byte name.
+    pub key_work: u64,
+    /// Decimal properties: target scale, precision limit, and whether the tick is one unit.
+    pub decimal_scale: u8,
+    pub decimal_precision: u8,
+    pub unit_tick: bool,
 }
 
 /// A table whose object rejects unknown keys and holds only unconstrained
@@ -308,6 +314,10 @@ pub const fn scalar_kind_bit(kind: jmax_abi::syntax::ScalarKind) -> u8 {
 }
 
 impl ValidatedProgram {
+    /// True when both values share one validated program, not merely equal ones.
+    pub fn same_program(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.program, &other.program)
+    }
     pub fn program(&self) -> &CompiledProgram {
         &self.program
     }

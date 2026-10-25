@@ -446,3 +446,62 @@ fn warm_leaf_fast_path_stages_the_same_values_as_the_exact_engine() -> Result {
     assert_eq!(rows(&program, plain, &mut scratch)?, warm);
     Ok(())
 }
+
+#[test]
+fn decimal_conversion_matches_the_exact_engine_across_widths() -> Result {
+    let program = program()?;
+    // Whole parts of every length up to the precision limit, each with every
+    // fraction length, signed and unsigned.
+    let mut cells = Vec::new();
+    for whole in 1..=30usize {
+        for fraction in 0..=8usize {
+            for sign in ["", "-"] {
+                let mut digits = String::new();
+                for i in 0..whole {
+                    digits.push(char::from(b'1' + (i % 9) as u8));
+                }
+                if whole > 1 {
+                    // A leading zero is only legal as the whole part.
+                    digits.replace_range(0..1, "7");
+                }
+                let mut text = format!("{sign}{digits}");
+                if fraction > 0 {
+                    text.push('.');
+                    for i in 0..fraction {
+                        text.push(char::from(b'0' + ((i * 7 + whole) % 10) as u8));
+                    }
+                }
+                cells.push(text);
+            }
+        }
+    }
+    cells.push("0".into());
+    cells.push("0.00000001".into());
+    cells.push("99999999999.99999999".into());
+    cells.push("999999999999.99999999".into());
+    let mut accepted = 0;
+    let mut scratch = ValidationScratch::default();
+    for pair in cells.chunks(2) {
+        let plain = format!(
+            r#"{{"id":1,"rows":[],"pairs":[["{}","{}"]]}}"#,
+            pair[0],
+            pair.get(1).unwrap_or(&pair[0])
+        );
+        let escaped = plain.replace('.', "\\u002e");
+        let fast = rows(&program, plain.as_bytes(), &mut scratch);
+        let fast_again = rows(&program, plain.as_bytes(), &mut scratch);
+        let exact = rows(&program, escaped.as_bytes(), &mut scratch);
+        assert_eq!(fast.is_ok(), exact.is_ok(), "{plain}");
+        if let (Ok(fast), Ok(exact)) = (&fast, &exact) {
+            accepted += 1;
+            assert_eq!(fast, exact, "{plain}");
+        }
+        assert_eq!(
+            fast.map_err(|e| e.code),
+            fast_again.map_err(|e| e.code),
+            "{plain}"
+        );
+    }
+    assert!(accepted > 100, "{accepted}");
+    Ok(())
+}

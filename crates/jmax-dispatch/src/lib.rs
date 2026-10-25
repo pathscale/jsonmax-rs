@@ -151,9 +151,45 @@ pub struct DispatchReport {
 }
 
 /// Selects an automatic backend for this input-size hint.
+///
+/// The usable capabilities are probed once per process and reused: hardware
+/// and OS state do not change under a running process, and the native
+/// classifier bindings still check their own feature invariant when they are
+/// resolved. An input below every native threshold needs no resolution.
 pub fn dispatch(input_len: usize, policy: DispatchPolicy) -> Result<Dispatch> {
-    let (selected, _) = r#override::select(BackendOverride::Auto, input_len, policy)?;
-    Ok(selected)
+    let capabilities = cached_capabilities();
+    let candidate = choose::choose(input_len, capabilities, policy);
+    if candidate == BackendId::Scalar {
+        return Ok(portable::scalar());
+    }
+    Ok(portable::resolve_supported(candidate).unwrap_or_else(|_| portable::scalar()))
+}
+
+fn cached_capabilities() -> CpuCapabilities {
+    use core::sync::atomic::{AtomicU8, Ordering};
+    const READY: u8 = 0x80;
+    static CACHE: AtomicU8 = AtomicU8::new(0);
+    let packed = CACHE.load(Ordering::Relaxed);
+    if packed & READY != 0 {
+        return CpuCapabilities {
+            neon: packed & 1 != 0,
+            avx2: packed & 2 != 0,
+            avx512f: packed & 4 != 0,
+            avx512bw: packed & 8 != 0,
+            os_avx: packed & 16 != 0,
+            os_avx512: packed & 32 != 0,
+        };
+    }
+    let capabilities = detect::detect();
+    let packed = READY
+        | u8::from(capabilities.neon)
+        | (u8::from(capabilities.avx2) << 1)
+        | (u8::from(capabilities.avx512f) << 2)
+        | (u8::from(capabilities.avx512bw) << 3)
+        | (u8::from(capabilities.os_avx) << 4)
+        | (u8::from(capabilities.os_avx512) << 5);
+    CACHE.store(packed, Ordering::Relaxed);
+    capabilities
 }
 
 pub const fn backend_name(backend: BackendId) -> &'static str {
