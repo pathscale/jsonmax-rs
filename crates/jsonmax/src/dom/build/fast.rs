@@ -100,8 +100,7 @@ fn build_shaped<const FAST: bool>(
             } else {
                 scan_string_inline(&mut cursor, &mut scratch.decoded)?
             };
-            let key_index = tape_index(scratch.tape.len(), string.raw_token.offset)?;
-            append_string(&mut scratch.tape, TAPE_TAG_KEY, string, 0, NO_NODE)?;
+            let key_extended = append_string(&mut scratch.tape, TAPE_TAG_KEY, string, 0, NO_NODE)?;
             if limits.reject_duplicate_keys && !matched_shape_token {
                 let depth = scratch.stack.len() - 1;
                 if shapes.get(depth).is_none_or(|shape| shape.disabled) {
@@ -157,7 +156,7 @@ fn build_shaped<const FAST: bool>(
                 }
             }
             key_flags = TAPE_FLAG_HAS_KEY;
-            if scratch.tape[key_index as usize].has_flag(TAPE_FLAG_EXTENDED) {
+            if key_extended {
                 key_flags |= TAPE_FLAG_KEY_EXTENDED;
             }
             if cursor.skip_whitespace()? == Some(b':') {
@@ -206,12 +205,12 @@ fn append_value<const FAST: bool>(
     let parent = scratch.stack.last().map_or(NO_NODE, |frame| frame.node);
     if byte == b'[' && try_coordinate_ring(cursor, scratch, summary, key_flags, offset, parent)? {
         commit_child(scratch);
-        summary.nodes = increment(summary.nodes, offset)?;
+        summary.nodes = summary.nodes.wrapping_add(1);
         return Ok(());
     }
     if byte == b'[' && try_scalar_array(cursor, scratch, summary, key_flags, offset, parent)? {
         commit_child(scratch);
-        summary.nodes = increment(summary.nodes, offset)?;
+        summary.nodes = summary.nodes.wrapping_add(1);
         return Ok(());
     }
     match byte {
@@ -242,7 +241,7 @@ fn append_value<const FAST: bool>(
                 count: 0,
                 phase: Phase::First,
             });
-            summary.containers = increment(summary.containers, offset)?;
+            summary.containers = summary.containers.wrapping_add(1);
             summary.max_depth = summary.max_depth.max(scratch.stack.len() as u16);
         }
         b'"' => {
@@ -286,7 +285,7 @@ fn append_value<const FAST: bool>(
             ));
         }
     }
-    summary.nodes = increment(summary.nodes, offset)?;
+    summary.nodes = summary.nodes.wrapping_add(1);
     Ok(())
 }
 
@@ -601,7 +600,7 @@ fn try_scalar_array<const FAST: bool>(
             "DOM counter exceeds u32",
         )
     })?;
-    summary.containers = increment(summary.containers, offset)?;
+    summary.containers = summary.containers.wrapping_add(1);
     summary.max_depth = summary.max_depth.max((scratch.stack.len() + 1) as u16);
     Ok(true)
 }
