@@ -114,6 +114,7 @@ impl Dispatch {
     }
 
     pub fn classify_block(&self, input: &[u8; 64], carry: &mut ScanCarry) -> Result<BlockMasks> {
+        let _t = jmax_trace::span!(@ block_site(self.backend));
         (self.block_classifier)(input, carry)
     }
 
@@ -126,6 +127,7 @@ impl Dispatch {
 
     /// `input` is one block, at most 64 bytes, regardless of the selection hint.
     pub fn classify(&self, input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
+        let _t = jmax_trace::span!(SCAN_TAIL);
         (self.classifier)(input, carry)
     }
 }
@@ -208,4 +210,16 @@ pub(crate) fn unavailable_backend() -> Error {
         0,
         "requested scanner backend is unavailable",
     )
+}
+
+/// Trace site for a full-block classification by the given backend.
+#[allow(dead_code)]
+#[inline(always)]
+fn block_site(backend: BackendId) -> jmax_trace::Site {
+    match backend {
+        BackendId::Scalar => jmax_trace::site::SCAN_BLOCK_SCALAR,
+        BackendId::Neon => jmax_trace::site::SCAN_BLOCK_NEON,
+        BackendId::Avx2 => jmax_trace::site::SCAN_BLOCK_AVX2,
+        BackendId::Avx512 => jmax_trace::site::SCAN_BLOCK_AVX512,
+    }
 }

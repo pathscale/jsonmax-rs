@@ -41,6 +41,7 @@ pub fn validate(bytes: &[u8]) -> Result<Utf8Summary> {
 /// the backend. Invalid or incomplete UTF-8 returns `InvalidUtf8`, with source
 /// `Utf8` and the same byte offset as `core::str::Utf8Error::valid_up_to()`.
 pub fn validate_str(bytes: &[u8]) -> Result<&str> {
+    let _t = jmax_trace::span!(UTF8_VALIDATE);
     checked_len(bytes.len())?;
 
     // The package is ps-simdutf8, but its library target is named simdutf8.

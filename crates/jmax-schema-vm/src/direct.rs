@@ -171,6 +171,7 @@ impl Engine<'_, '_, '_> {
     }
 
     fn value(&mut self) -> Result<()> {
+        let _t = jmax_trace::span!(VM_DISPATCH);
         let byte = self.cursor.skip_whitespace_uncached()?.ok_or_else(|| {
             vm_error(
                 ErrorCode::UnexpectedEof,
@@ -277,6 +278,7 @@ impl Engine<'_, '_, '_> {
                 .state
                 .is_none_or(|id| !self.needed.get(id.0 as usize).copied().unwrap_or(false));
         if (self.query && unselected) || unconstrained {
+            let _t = jmax_trace::span!(VM_SKIP);
             let mode = if self.query && unselected {
                 SkipMode::QueryOnly
             } else if let Some(capability) = self.validated {
@@ -311,6 +313,7 @@ impl Engine<'_, '_, '_> {
                 self.cursor.advance(1);
             }
             _ => {
+                let _t = jmax_trace::span!(VM_SCALAR);
                 let (kind, span, reference) = match byte {
                     b'"' => {
                         let meta = self.cursor.scan_string_meta_uncached(self.decoded)?;
@@ -576,6 +579,7 @@ impl Engine<'_, '_, '_> {
     /// Minified scalar rows share a schema-derived plan and the preceding
     /// row's key order. Every miss is transactional and reuses the exact VM.
     fn fast_fixed_struct_array(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
+        let _t = jmax_trace::span!(VM_ARRAY);
         if pending
             .slot
             .is_some_and(|s| self.context.slots.get(s as usize) != Some(&SlotValue::Empty))
@@ -960,6 +964,7 @@ impl Engine<'_, '_, '_> {
     /// All state, cursor, decoded bytes, and work accounting are private until
     /// the whole array succeeds, so unsupported values return to the VM.
     fn fast_struct_array(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
+        let _t = jmax_trace::span!(VM_ARRAY);
         if pending.slot.is_some_and(|slot| {
             usize::try_from(slot)
                 .ok()
@@ -1250,6 +1255,7 @@ impl Engine<'_, '_, '_> {
     /// The independent cursor and budget make every unsuccessful attempt a
     /// transaction: its caller continues through the ordinary VM path.
     fn fast_decimal_pairs(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
+        let _t = jmax_trace::span!(VM_ARRAY);
         if pending.slot.is_some_and(|slot| {
             usize::try_from(slot)
                 .ok()
@@ -1395,6 +1401,7 @@ impl Engine<'_, '_, '_> {
     }
 
     fn object_key(&mut self) -> Result<()> {
+        let _t = jmax_trace::span!(VM_KEY);
         if self.cursor.peek_byte() != Some(b'"') {
             return Err(invalid(self.cursor.offset(), "expected object key"));
         }
@@ -1450,6 +1457,7 @@ impl Engine<'_, '_, '_> {
     fn run_value(&mut self) -> Result<()> {
         self.value()?;
         while !self.context.root_done {
+            let _d = jmax_trace::span!(VM_DISPATCH);
             let byte = self.cursor.skip_whitespace_uncached()?.ok_or_else(|| {
                 vm_error(
                     ErrorCode::UnexpectedEof,
@@ -2642,6 +2650,7 @@ fn execute_direct(
     validated: Option<ValidationCapability>,
     rows: bool,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(VM_RUN);
     prepare_output(scratch);
     let numeric = combined_numeric(program, numeric)?;
     let owner = if limits.syntax.reject_duplicate_keys {
@@ -2670,6 +2679,7 @@ fn execute_direct(
             )
         }
     });
+    let setup = jmax_trace::span!(VM_SETUP);
     // Construction is deferred until the fast whole-input path has declined,
     // but its failures keep their place ahead of the context's.
     BlockCursor::check_new(raw.len(), limits.syntax, cursor_numeric, owner)?;
@@ -2678,6 +2688,7 @@ fn execute_direct(
     } else {
         execute::new_context_capture(program, selection, limits, &mut scratch.vm, capture)?
     };
+    jmax_trace::end!(setup);
     let result = (|| {
         // Prepay input traversal, including strict-discard and query-jump work.
         context.budget.charge(raw.len() as u64, 0)?;
@@ -2855,6 +2866,7 @@ fn strict_root_input(
     numeric: NumericPolicy,
     scratch: &mut ValidationScratch,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(VM_STRICT_ROOT);
     let mut cursor = BlockCursor::with_scratch(
         raw,
         limits.syntax,
@@ -2929,6 +2941,7 @@ pub fn map_root_array_borrowed<T>(
     scratch: &mut ValidationScratch,
     mut map: impl FnMut(&[u8], &[u8], &[SlotValue]) -> T,
 ) -> Result<Vec<T>> {
+    let _t = jmax_trace::span!(VM_RUN);
     prepare_output(scratch);
     if let Err(error) = strict_selection(selection) {
         scratch.vm.slots.clear();
@@ -2937,6 +2950,7 @@ pub fn map_root_array_borrowed<T>(
     let numeric = combined_numeric(program, numeric)?;
     let mut element_syntax = limits.syntax;
     element_syntax.max_depth = element_syntax.max_depth.saturating_sub(1);
+    let setup = jmax_trace::span!(VM_SETUP);
     let mut cursor = BlockCursor::with_scratch(
         raw,
         element_syntax,
@@ -2948,6 +2962,7 @@ pub fn map_root_array_borrowed<T>(
     element_limits.syntax = element_syntax;
     let context =
         execute::new_context_capture(program, selection, element_limits, &mut scratch.vm, true);
+    jmax_trace::end!(setup);
     let mut context = match context {
         Ok(context) => context,
         Err(primary) => {
@@ -3109,6 +3124,7 @@ pub fn map_root_array_borrowed<T>(
         scratch.direct_decoded.clear();
         return Err(error.with_schema(program.image().header.schema_id, field));
     }
+    let _f = jmax_trace::span!(VM_FINISH);
     let mut rows = Vec::new();
     rows.try_reserve_exact(row_count).map_err(|_| resource(0))?;
     for row in 0..row_count {

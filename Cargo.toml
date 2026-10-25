@@ -3,6 +3,7 @@ resolver = "3"
 exclude = ["bench/harness", "bench/dcheck", "bench/native", "bench/icount", "crates/jmax-native-fixtures/fuzz"]
 members = [
   "crates/jmax-abi",
+  "crates/jmax-trace",
   "crates/jmax-buffer",
   "crates/jmax-error",
   "crates/jmax-dispatch",
@@ -60,6 +61,7 @@ nagoya = { path = "../nagoya", default-features = false, features = ["std"] }
 nago-http = { path = "../nago-http", default-features = false }
 nago-wss = { path = "../nago-wss", default-features = false }
 jmax-abi = { path = "crates/jmax-abi", version = "0.1.0", default-features = false }
+jmax-trace = { path = "crates/jmax-trace", version = "0.1.0", default-features = false }
 jmax-buffer = { path = "crates/jmax-buffer", version = "0.1.0", default-features = false }
 jmax-error = { path = "crates/jmax-error", version = "0.1.0", default-features = false }
 jmax-dispatch = { path = "crates/jmax-dispatch", version = "0.1.0", default-features = false }

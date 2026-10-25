@@ -219,6 +219,7 @@ pub fn run<I: EventInput>(
     selection: &Selection,
     limits: VmLimits,
 ) -> Result<ValidatedRun> {
+    let _t = jmax_trace::span!(VM_RUN);
     let result = (|| {
         let mut lengths = buffer_lengths(input.raw_bytes(), input.decoded_bytes(), &limits)?;
         let raw_owner = input.raw_bytes().as_ptr();
@@ -949,6 +950,7 @@ pub(crate) fn open_pending(
     pending: PendingValue,
     offset: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(VM_OBJECT);
     let depth = context
         .frames
         .len()
@@ -1265,6 +1267,7 @@ pub(crate) fn close(
     raw: &[u8],
     offset: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(VM_OBJECT);
     delimiter(
         raw,
         offset,

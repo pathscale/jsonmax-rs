@@ -549,8 +549,12 @@ fn build(
     numeric: Option<NumericPolicy>,
     scratch: &mut DomScratch,
 ) -> Result<Summary> {
+    let _t = jmax_trace::span!(DOM_BUILD);
     scratch.clear_keep_capacity();
-    prepare_fresh_buffers(raw, limits, scratch)?;
+    {
+        let _p = jmax_trace::span!(DOM_PREPARE);
+        prepare_fresh_buffers(raw, limits, scratch)?;
+    }
     // The specialized grammar handles general JSON too. BlockCursor remains
     // its authority for escaped strings, uncertain numbers, and diagnostics.
     let result = fast::build_inner(raw, limits, numeric, scratch).or_else(|_| {
@@ -664,6 +668,7 @@ fn build_inner(
     numeric: Option<NumericPolicy>,
     scratch: &mut DomScratch,
 ) -> Result<Summary> {
+    let _t = jmax_trace::span!(DOM_SLOW_BUILD);
     let mut cursor = BlockCursor::new(raw, limits, numeric, DuplicatePolicyOwner::Syntax)?;
     let mut summary = Summary::default();
     append_value(&mut cursor, scratch, &mut summary, 0, None)?;
@@ -896,6 +901,7 @@ fn append_number(
     key_flags: u32,
     parent: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(DOM_TAPE_PUSH);
     let index = tape_index(tape.len(), span.offset)?;
     let extended = span.len > TAPE_AUX_LEN_MASK;
     let width = if extended { 3 } else { 2 };
@@ -922,6 +928,7 @@ fn append_string(
     key_flags: u32,
     parent: u32,
 ) -> Result<bool> {
+    let _t = jmax_trace::span!(DOM_TAPE_PUSH);
     let index = tape_index(tape.len(), meta.raw_token.offset)?;
     let cooked = meta.cooked;
     let ascii = cooked.scalar_len == cooked.span.len;
@@ -1033,6 +1040,7 @@ fn check_duplicate(
     reference: StrRef,
     offset: u32,
 ) -> Result<()> {
+    let _t = jmax_trace::span!(DOM_DUP);
     if depth >= scratch.seen.len() {
         let additional = depth + 1 - scratch.seen.len();
         scratch.seen.reserve(additional, offset)?;

@@ -6,11 +6,14 @@ license.workspace = true
 publish.workspace = true
 
 [features]
+# Records per-site cycle counts through jmax-trace (off: marks compile to nothing).
+trace = ["jmax-trace/trace"]
 default = ["std"]
 alloc = ["jmax-abi/alloc"]
 std = ["alloc", "jmax-abi/std"]
 simd-utf8 = [] # Compatibility flag; complete-slice validation always uses SIMD.
 
 [dependencies]
+jmax-trace = { workspace = true }
 jmax-abi = { workspace = true }
 ps-simdutf8 = { workspace = true }

@@ -17,6 +17,7 @@ pub fn lex_number<'a>(
     offset: u32,
     policy: &NumericPolicy,
 ) -> Result<NumberToken<'a>> {
+    let _t = jmax_trace::span!(NUMBER_LEX);
     let input_len = checked_input_len(input)?;
     if policy.max_exponent_abs < 0 {
         return Err(Error::new(

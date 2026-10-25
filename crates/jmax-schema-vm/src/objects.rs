@@ -132,6 +132,7 @@ pub(crate) fn key_meta(
     limits: &VmLimits,
     budget: &mut VmBudget,
 ) -> Result<PendingValue> {
+    let _t = jmax_trace::span!(VM_KEY);
     let reference = meta.string.cooked;
     let bytes = reference
         .span

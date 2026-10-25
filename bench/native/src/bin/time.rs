@@ -4,6 +4,8 @@ use jmax_native_bench::alloc_metrics;
 mod measure;
 #[path = "../../../metrics.rs"]
 mod metrics;
+#[path = "../../../trace_report.rs"]
+mod trace_report;
 #[global_allocator]
 static GLOBAL: alloc_metrics::CountingPeakAlloc = alloc_metrics::CountingPeakAlloc;
 use jmax_native_bench::{CASES, Op, R, general, with_case};
@@ -34,6 +36,7 @@ fn report(case: &str, bytes: usize, ops: Vec<(&'static str, Op<'_>)>) -> R<()> {
                 None
             },
         )?;
+        trace_report::report(&format!("{case}/{name}"), &mut *op)?;
         let class = [
             "query-only",
             "strict-extract",

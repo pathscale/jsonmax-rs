@@ -45,6 +45,7 @@ pub fn parse_quoted(
     offset: u32,
     policy: &DecimalPolicy,
 ) -> Result<Decimal128> {
+    let _t = jmax_trace::span!(DECIMAL_PARSE);
     validate_policy(policy)?;
     let lexeme = lex::lex_quoted(input, offset, policy.allow_exponent)?;
     let accumulated = accumulate(&lexeme)?;

@@ -5,6 +5,8 @@ mod alloc_metrics;
 mod measure;
 #[path = "../../metrics.rs"]
 mod metrics;
+#[path = "../../trace_report.rs"]
+mod trace_report;
 #[global_allocator]
 static GLOBAL: alloc_metrics::CountingPeakAlloc = alloc_metrics::CountingPeakAlloc;
 mod common;

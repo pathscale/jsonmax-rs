@@ -14,6 +14,7 @@ use super::*;
 /// significands, halfway cases, and subnormals without an allocation or a lossy
 /// intermediate integer or floating-point scaling step.
 pub fn parse_f64(token: &NumberToken<'_>, policy: &NumericPolicy) -> Result<f64> {
+    let _t = jmax_trace::span!(NUMBER_FLOAT);
     let start = token.span().offset;
     if policy.max_exponent_abs < 0 {
         return Err(Error::new(
