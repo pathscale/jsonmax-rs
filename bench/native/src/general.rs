@@ -242,7 +242,7 @@ pub fn with_case<T>(
     common::native::check(name, b)?;
     let native_name = name.to_owned();
     jobs.push((
-        "jmax-native typed",
+        "jmax native typed",
         Box::new({
             let mut scratch = common::native::NativeScratch::default();
             move || {
@@ -329,7 +329,7 @@ fn typed_rows<'a, T: DeserializeOwned + PartialEq + Debug + 'a>(
         "sonic-rs typed reference"
     );
     jobs.push((
-        "jmax typed",
+        "jmax vm typed",
         Box::new({
             let mut scratch = jsonmax::endpoint::ValidationScratch::default();
             move || {
