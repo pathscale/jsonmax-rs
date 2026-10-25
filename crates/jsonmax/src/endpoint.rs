@@ -279,6 +279,27 @@ pub fn extract_borrowed_with_scratch<'raw, 'scratch>(
     )
 }
 
+/// Strict borrowed extraction that also stages the elements of every array
+/// property the program marks as a row group (see `ValidatedProgram::row_groups`).
+/// Rows are published only after the whole document passed strict EOF. The
+/// result borrows input and scratch independently, as `extract_borrowed_with_scratch`.
+pub fn extract_rows_borrowed_with_scratch<'raw, 'scratch>(
+    schema: &CompiledSchema,
+    selection: &Selection,
+    input: &'raw [u8],
+    options: ParseOptions,
+    scratch: &'scratch mut ValidationScratch,
+) -> Result<jmax_schema_vm::BorrowedRowsRef<'raw, 'scratch>> {
+    jmax_schema_vm::direct::extract_rows_borrowed_with_scratch(
+        schema.program(),
+        input,
+        selection,
+        vm_limits(options),
+        options.numeric,
+        scratch,
+    )
+}
+
 /// Query-only schema extraction preserves the owner and compiled slot indices.
 /// Skipped interiors are not fully validated; the result contains no proof.
 pub fn extract_query_payload(

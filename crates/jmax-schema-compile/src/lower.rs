@@ -186,13 +186,40 @@ fn path_counts(plans: &[NodePlan<'_>]) -> Result<Vec<u8>> {
     Ok(paths)
 }
 
+/// A property of an object that is the sole item type of an array reached by
+/// exactly one path may carry a slot even though the object occurs once per
+/// element: the rows API stages those slots on every element close. Anything
+/// else that can occur more than once is rejected.
+fn row_item_owner(plans: &[NodePlan<'_>], paths: &[u8], owner: usize) -> bool {
+    let mut parent = None;
+    let mut incoming = 0usize;
+    for (candidate, plan) in plans.iter().enumerate() {
+        for child in &plan.children {
+            if child.0 as usize == owner {
+                incoming += 1;
+                parent = Some(candidate);
+            }
+        }
+    }
+    let Some(parent) = parent else { return false };
+    if incoming != 1 || !matches!(plans[parent].node, TypeNode::Array(_)) || paths[parent] != 1 {
+        return false;
+    }
+    plans
+        .iter()
+        .flat_map(|plan| plan.children.iter())
+        .filter(|child| child.0 as usize == parent)
+        .count()
+        == 1
+}
+
 fn plan_slots(plans: &[NodePlan<'_>]) -> Result<Vec<SlotSpec>> {
     let paths = path_counts(plans)?;
     let mut slots = Vec::new();
     for (owner, plan) in plans.iter().enumerate() {
         for (property, &state) in plan.properties.iter().zip(&plan.children) {
             if let Some(slot) = property.slot {
-                if paths.get(owner).copied() != Some(1) {
+                if paths.get(owner).copied() != Some(1) && !row_item_owner(plans, &paths, owner) {
                     return Err(unsupported(property.field_id, "selected property can occur more than once"));
                 }
                 push(&mut slots, SlotSpec { slot, field_id: property.field_id, state })?;

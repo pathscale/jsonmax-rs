@@ -14,8 +14,8 @@ pub use jmax_abi::schema::{FieldId, Selection, SlotValue, StateId, ValidatedSlot
 pub use jmax_abi::span::{Span32, SpanSource, StrRef};
 pub use jmax_abi::syntax::{Event, Limits, ScalarKind};
 pub use jmax_schema_compile::{
-    CompiledProgram, ConstraintSet, KeyTable, PatternProgram, ProgramState, SlotSpec, StateKind,
-    ValidatedProgram,
+    CompiledProgram, ConstraintSet, KeyTable, PatternProgram, ProgramState, RowGroup, RowShape,
+    SlotSpec, StateKind, ValidatedProgram,
 };
 pub use jmax_schema_ir::ValueKind;
 
@@ -27,8 +27,8 @@ pub mod direct;
 pub mod execute;
 pub use direct::{
     extract_borrowed, extract_borrowed_with_scratch, extract_payload_direct,
-    extract_query_borrowed, extract_query_payload, validate_borrowed, validate_into,
-    validate_payload_direct,
+    extract_query_borrowed, extract_query_payload, extract_rows_borrowed_with_scratch,
+    validate_borrowed, validate_into, validate_payload_direct,
 };
 pub mod input {
     pub use crate::execute::CursorInput;
@@ -342,6 +342,7 @@ pub struct ValidationScratch {
     pub(crate) vm: VmScratch,
     pub(crate) output: Option<ValidatedSlots>,
     pub(crate) ordered: Vec<SlotValue>,
+    pub(crate) rows: Vec<RowBlock>,
     pub(crate) direct_decoded: Vec<u8>,
     pub(crate) direct_needed: Vec<bool>,
     pub(crate) direct_queue: Vec<StateId>,
@@ -353,6 +354,7 @@ impl Default for ValidationScratch {
             vm: VmScratch::default(),
             output: None,
             ordered: Vec::new(),
+            rows: Vec::new(),
             direct_decoded: Vec::new(),
             direct_needed: Vec::new(),
             direct_queue: Vec::new(),
@@ -456,6 +458,49 @@ pub struct BorrowedValidatedSlotsRef<'raw, 'scratch> {
     pub raw: &'raw [u8],
     pub decoded: &'scratch [u8],
     pub slots: &'scratch [SlotValue],
+    pub proof: ValidationProof,
+    pub capability: ValidationCapability,
+}
+
+/// The staged rows of one array property: `values` holds `width` slots per
+/// element, in document order. Item groups hold the element's captured
+/// properties in slot order (`Empty` for an absent optional property); leaf
+/// groups hold the element's scalars in array order.
+#[derive(Clone, Debug, Default)]
+pub struct RowBlock {
+    /// Capture slot of the array property this block belongs to.
+    pub array_slot: u32,
+    pub width: u32,
+    pub values: Vec<SlotValue>,
+}
+
+impl RowBlock {
+    /// Number of staged elements.
+    pub fn len(&self) -> usize {
+        match self.width {
+            0 => 0,
+            width => self.values.len() / width as usize,
+        }
+    }
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+    /// Element rows in document order.
+    pub fn rows(&self) -> core::slice::ChunksExact<'_, SlotValue> {
+        self.values.chunks_exact((self.width as usize).max(1))
+    }
+}
+
+/// A strict extraction that also stages the elements of every row group.
+/// Published only after the whole document passed strict EOF. `groups` lines
+/// up with `ValidatedProgram::row_groups`; the plain `slots` keep their
+/// compiled indices, with the per-element item slots left `Empty`.
+#[derive(Debug)]
+pub struct BorrowedRowsRef<'raw, 'scratch> {
+    pub raw: &'raw [u8],
+    pub decoded: &'scratch [u8],
+    pub slots: &'scratch [SlotValue],
+    pub groups: &'scratch [RowBlock],
     pub proof: ValidationProof,
     pub capability: ValidationCapability,
 }

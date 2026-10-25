@@ -383,6 +383,34 @@ pub(crate) fn new_context_capture<'a>(
     scratch: &mut VmScratch,
     capture: bool,
 ) -> Result<VmContext<'a>> {
+    if capture && program.requires_rows() {
+        return Err(vm_error(
+            ErrorCode::UnsupportedSchemaFeature,
+            0,
+            "program stages array rows; use the rows extraction API",
+        ));
+    }
+    new_context_inner(program, selection, limits, scratch, capture)
+}
+
+/// The rows API accepts programs with row groups; element slots are staged
+/// and cleared on every element close.
+pub(crate) fn new_context_rows<'a>(
+    program: &'a ValidatedProgram,
+    selection: &Selection,
+    limits: VmLimits,
+    scratch: &mut VmScratch,
+) -> Result<VmContext<'a>> {
+    new_context_inner(program, selection, limits, scratch, true)
+}
+
+fn new_context_inner<'a>(
+    program: &'a ValidatedProgram,
+    selection: &Selection,
+    limits: VmLimits,
+    scratch: &mut VmScratch,
+    capture: bool,
+) -> Result<VmContext<'a>> {
     let slots_len =
         usize::try_from(program.image().header.slot_count).map_err(|_| resource_error(0))?;
     if selection.field_ids.len() > slots_len {

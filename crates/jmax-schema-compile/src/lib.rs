@@ -12,7 +12,8 @@ pub use jmax_abi::schema::{
 pub use jmax_abi::span::Span32;
 pub use jmax_format::{FormatId, FormatOptions};
 pub use jmax_schema_ir::{
-    DecimalConstraints, EnumVariant, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId, ValueKind,
+    DecimalConstraints, EnumVariant, ResolvedSchema, ScalarConstraints, SchemaPolicy, TypeId,
+    ValueKind,
 };
 
 pub mod image;
@@ -218,6 +219,34 @@ pub(crate) struct ProgramIndexes {
     pub parents: Vec<Vec<StateId>>,
     pub required_masks: Vec<Vec<u64>>,
     pub fixed_objects: Vec<Option<FixedObjectPlan>>,
+    pub row_groups: Vec<RowGroup>,
+    /// Some group stages item slots, so only the rows API can run the program.
+    pub rows_only: bool,
+    /// Row group index by array property slot, or `u32::MAX`.
+    pub row_group_by_slot: Vec<u32>,
+}
+
+/// How one array property's elements are staged as rows by the rows API.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowShape {
+    /// Elements are objects whose captured properties hold the contiguous
+    /// slots `first_slot..first_slot + width`; each element yields one row.
+    Items { first_slot: u32, width: u32 },
+    /// Elements are arrays of exactly `width` scalars; each yields one row.
+    Leaf { width: u32 },
+}
+
+/// An array property with a capture slot whose elements are staged as rows.
+/// Derived once at image validation from the program; the image, its
+/// fingerprint and the IR are unchanged. A program with any row group is
+/// only executable through the rows API.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RowGroup {
+    /// Capture slot of the array property itself (it still receives the raw span).
+    pub array_slot: u32,
+    pub array_state: StateId,
+    pub item_state: StateId,
+    pub shape: RowShape,
 }
 
 /// A scalar property of a flat fixed object, as the direct VM's fast path reads it.
@@ -296,6 +325,21 @@ impl ValidatedProgram {
     /// The fast-path plan of a flat scalar object table, if it has one.
     pub fn fixed_object(&self, table: u32) -> Option<&FixedObjectPlan> {
         self.indexes.fixed_objects.get(table as usize)?.as_ref()
+    }
+    /// Array properties whose elements the rows API stages, in slot order.
+    pub fn row_groups(&self) -> &[RowGroup] {
+        &self.indexes.row_groups
+    }
+    /// Whether item slots make the rows API the only way to execute this program.
+    pub fn requires_rows(&self) -> bool {
+        self.indexes.rows_only
+    }
+    /// The row group of an array property slot, as an index into `row_groups`.
+    pub fn row_group_of_slot(&self, slot: u32) -> Option<usize> {
+        match self.indexes.row_group_by_slot.get(slot as usize) {
+            Some(&group) if group != u32::MAX => Some(group as usize),
+            _ => None,
+        }
     }
     pub fn dispatch(&self, id: StateId) -> Option<&CompiledStateDispatch> {
         self.indexes.dispatch.get(id.0 as usize)

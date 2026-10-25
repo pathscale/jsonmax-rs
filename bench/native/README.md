@@ -26,7 +26,7 @@ To aggregate multiple rounds, pass multiple TSV files to `bun ../tables.ts run1.
 | Route | Description |
 |---|---|
 | `typed / jmax native` | Generated zero-allocation AOT decoder with exact `Decimal128` parsing, strict unknown/duplicate key rejection, and default `VmLimits` |
-| `typed / jmax vm` | Schema bytecode VM only: one VM pass validates and fills one slot per field, then the struct is built from the slots. Present for `aggTrade` only: slots hold scalars or one whole raw container, so documents with arrays of levels have no pure VM route |
+| `typed / jmax vm` | Schema bytecode VM only: one VM pass validates and fills one slot per field, then the struct is built from the slots. Arrays use the rows API: the VM stages one row per array element (a fixed `[price, quantity]` pair, or one object of scalar fields) on element close and publishes them after strict EOF, so every payload has a VM row |
 | `typed / jmax native budget (diagnostic)` | `DIAG=1` only. Generated AOT decoder with `max_steps` raised to `2^28` |
 | `typed / jmax vm+native (diagnostic)` | `DIAG=1` only, not a VM route. Full `jmax-schema-vm` validation followed by native decoding |
 | `typed / <rival> String` | `serde` deserialization keeping decimal fields as owned `String`s |
