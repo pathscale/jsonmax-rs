@@ -346,6 +346,8 @@ pub(crate) struct SelectionCache {
     fields: Vec<FieldId>,
     all: bool,
     inline_words: [u64; 4],
+    /// Captured-entry mask of the last fixed object scanned, by key table.
+    pub(crate) fixed_selected: Option<(u32, u64)>,
 }
 
 /// Reusable direct-input interpreter storage and the last validated result.

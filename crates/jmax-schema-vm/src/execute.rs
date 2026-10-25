@@ -551,6 +551,7 @@ fn cached_selection_index(
             fields: selection.field_ids.clone(),
             all: index.all,
             inline_words: index.inline_words,
+            fixed_selected: None,
         });
     }
     Ok(index)

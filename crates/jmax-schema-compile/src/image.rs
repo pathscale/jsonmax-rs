@@ -9,8 +9,8 @@ use super::*;
 use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 use jmax_format::{HexCase, HexPolicy, Padding};
 use jmax_schema_ir::{
-    ArrayShape, Dialect, EnumShape, EnumVariant, ObjectShape, Property, ResolveLimits, Schema, TypeNode,
-    UnknownFormatPolicy,
+    ArrayShape, Dialect, EnumShape, EnumVariant, ObjectShape, Property, ResolveLimits, Schema,
+    TypeNode, UnknownFormatPolicy,
 };
 
 fn invalid(detail: &'static str) -> Error {
@@ -712,12 +712,16 @@ impl<'a> Reader<'a> {
             pattern: self.optional(Self::u32)?,
             format: self.optional(Self::format_id)?,
             nullable: self.boolean()?,
-            enum_variants: if is_enum { self.vector(12, u32::MAX, |reader| {
-                Ok(EnumVariant {
-                    name: reader.string(u32::MAX)?,
-                    discriminant: reader.i64()?,
-                })
-            })? } else { Vec::new() },
+            enum_variants: if is_enum {
+                self.vector(12, u32::MAX, |reader| {
+                    Ok(EnumVariant {
+                        name: reader.string(u32::MAX)?,
+                        discriminant: reader.i64()?,
+                    })
+                })?
+            } else {
+                Vec::new()
+            },
         })
     }
 
@@ -942,7 +946,11 @@ pub fn decode(bytes: &[u8], options: &CompilerOptions) -> Result<ValidatedProgra
     validate(program, options)
 }
 
-fn read_scalar(reader: &mut Reader<'_>, options: &CompilerOptions, nullable: bool) -> Result<ScalarConstraints> {
+fn read_scalar(
+    reader: &mut Reader<'_>,
+    options: &CompilerOptions,
+    nullable: bool,
+) -> Result<ScalarConstraints> {
     Ok(ScalarConstraints {
         kind: reader.value_kind()?,
         min_i64: reader.optional(Reader::i64)?,
@@ -1017,7 +1025,10 @@ fn reconstruct(bytes: &[u8], options: &CompilerOptions) -> Result<ResolvedSchema
             7 => {
                 let nullable = r.boolean()?;
                 let variants = r.vector(12, options.max_image_bytes, |r| {
-                    Ok(EnumVariant { name: r.string(options.max_image_bytes)?, discriminant: r.i64()? })
+                    Ok(EnumVariant {
+                        name: r.string(options.max_image_bytes)?,
+                        discriminant: r.i64()?,
+                    })
                 })?;
                 Ok(TypeNode::Enum(EnumShape { variants, nullable }))
             }
@@ -1146,9 +1157,7 @@ fn inspect(program: &CompiledProgram, options: &CompilerOptions) -> Result<()> {
             }
             _ => {}
         }
-        if !matches!(&state.kind, StateKind::Enum)
-            && !state.constraints.enum_variants.is_empty()
-        {
+        if !matches!(&state.kind, StateKind::Enum) && !state.constraints.enum_variants.is_empty() {
             return Err(invalid("non-enum state has enum variants"));
         }
         if state
@@ -1400,7 +1409,11 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
             StateKind::Scalar(ValueKind::Decimal | ValueKind::String) => bit(S::String),
             StateKind::Enum => bit(S::String) | bit(S::Number),
             StateKind::Object { .. } | StateKind::Array { .. } => 0,
-        } | if state.constraints.nullable { bit(S::Null) } else { 0 };
+        } | if state.constraints.nullable {
+            bit(S::Null)
+        } else {
+            0
+        };
         let has_constraints =
             state.kind != StateKind::Any || state.constraints != ConstraintSet::default();
         dispatch.push(CompiledStateDispatch {
@@ -1504,7 +1517,14 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
             .get(id)
             .and_then(|s| program.states.get(s.0 as usize));
         fixed_objects.push(match owner {
-            Some(owner) => fixed_object_plan(program, &field_slots, owner, table)?,
+            Some(owner) => fixed_object_plan(
+                program,
+                &field_slots,
+                &row_groups,
+                &row_group_by_slot,
+                owner,
+                table,
+            )?,
             None => None,
         });
     }
@@ -1654,6 +1674,8 @@ fn unsupported_rows(detail: &'static str) -> Error {
 fn fixed_object_plan(
     program: &CompiledProgram,
     field_slots: &[u32],
+    row_groups: &[RowGroup],
+    row_group_by_slot: &[u32],
     owner: &ProgramState,
     table: &KeyTable,
 ) -> Result<Option<FixedObjectPlan>> {
@@ -1684,40 +1706,81 @@ fn fixed_object_plan(
         let Some(state) = program.states.get(key.target_state as usize) else {
             return Ok(None);
         };
-        let StateKind::Scalar(kind) = state.kind else {
-            return Ok(None);
-        };
-        let constraints = &state.constraints;
-        let small_integer = match kind {
-            ValueKind::Decimal => {
-                let Some(decimal) = constraints.decimal.as_ref() else {
+        let mut rows_group = None;
+        let kind = match state.kind {
+            StateKind::Scalar(kind) => kind,
+            StateKind::Array { items: pair } => {
+                // The leaf pair arrays the rows fast path stages in one pass.
+                let Some(group) = key_slot(field_slots, program, key)
+                    .and_then(|slot| row_group_by_slot.get(slot as usize))
+                    .copied()
+                    .filter(|&group| group != u32::MAX)
+                else {
                     return Ok(None);
                 };
-                if jmax_decimal::validate_policy(&decimal.policy).is_err()
+                let leaf_pair = matches!(
+                    row_groups.get(group as usize).map(|g| g.shape),
+                    Some(RowShape::Leaf { width: 2 })
+                );
+                let decimal = program
+                    .states
+                    .get(pair.0 as usize)
+                    .and_then(|p| match p.kind {
+                        StateKind::Array { items } => program.states.get(items.0 as usize),
+                        _ => None,
+                    })
+                    .filter(|d| matches!(d.kind, StateKind::Scalar(ValueKind::Decimal)))
+                    .and_then(|d| d.constraints.decimal.as_ref());
+                let Some(decimal) = decimal else {
+                    return Ok(None);
+                };
+                if !leaf_pair
+                    || jmax_decimal::validate_policy(&decimal.policy).is_err()
                     || decimal.minimum.is_some()
                     || decimal.maximum.is_some()
                 {
                     return Ok(None);
                 }
-                false
-            }
-            ValueKind::Integer
-                if *constraints
-                    == (ConstraintSet {
-                        min_i64: constraints.min_i64,
-                        max_i64: constraints.max_i64,
-                        ..ConstraintSet::default()
-                    }) =>
-            {
-                matches!(constraints.min_i64, None | Some(i64::MIN))
-                    && matches!(constraints.max_i64, None | Some(i64::MAX))
-            }
-            ValueKind::String | ValueKind::Boolean | ValueKind::Null
-                if *constraints == ConstraintSet::default() =>
-            {
-                false
+                rows_group = Some(group);
+                ValueKind::Null
             }
             _ => return Ok(None),
+        };
+        let constraints = &state.constraints;
+        let small_integer = if rows_group.is_some() {
+            false
+        } else {
+            match kind {
+                ValueKind::Decimal => {
+                    let Some(decimal) = constraints.decimal.as_ref() else {
+                        return Ok(None);
+                    };
+                    if jmax_decimal::validate_policy(&decimal.policy).is_err()
+                        || decimal.minimum.is_some()
+                        || decimal.maximum.is_some()
+                    {
+                        return Ok(None);
+                    }
+                    false
+                }
+                ValueKind::Integer
+                    if *constraints
+                        == (ConstraintSet {
+                            min_i64: constraints.min_i64,
+                            max_i64: constraints.max_i64,
+                            ..ConstraintSet::default()
+                        }) =>
+                {
+                    matches!(constraints.min_i64, None | Some(i64::MIN))
+                        && matches!(constraints.max_i64, None | Some(i64::MAX))
+                }
+                ValueKind::String | ValueKind::Boolean | ValueKind::Null
+                    if *constraints == ConstraintSet::default() =>
+                {
+                    false
+                }
+                _ => return Ok(None),
+            }
         };
         let Some(name) = key.span.slice(&program.image.key_bytes) else {
             return Ok(None);
@@ -1781,18 +1844,48 @@ fn fixed_object_plan(
             pattern,
             pattern_mask,
             key_work: 7 + name_len + (name_len + 8) * passes,
-            decimal_scale: constraints.decimal.as_ref().map_or(0, |d| d.policy.target_scale),
+            decimal_scale: constraints
+                .decimal
+                .as_ref()
+                .map_or(0, |d| d.policy.target_scale),
             decimal_precision: constraints
                 .decimal
                 .as_ref()
                 .map_or(0, |d| d.policy.max_precision.min(38)),
-            unit_tick: constraints.decimal.as_ref().is_some_and(|d| d.policy.tick_step == 1),
+            unit_tick: constraints
+                .decimal
+                .as_ref()
+                .is_some_and(|d| d.policy.tick_step == 1),
+            rows_group,
         });
+    }
+    let has_rows = entries.iter().any(|e| e.rows_group.is_some());
+    let mut by_field: Vec<(u32, u8)> = keys
+        .iter()
+        .enumerate()
+        .map(|(local, key)| (key.field_id as u32, local as u8))
+        .collect();
+    by_field.sort_unstable();
+    let mut follow = [0xffu8; 64];
+    for pair in by_field.windows(2) {
+        follow[usize::from(pair[0].1)] = pair[1].1;
     }
     Ok(Some(FixedObjectPlan {
         entries,
         required,
         max_name_len,
+        has_rows,
+        first_entry: by_field.first().map_or(0xff, |&(_, local)| local),
+        follow,
         by_first_byte,
     }))
+}
+
+/// The capture slot of a key's property, if the schema names one.
+fn key_slot(field_slots: &[u32], program: &CompiledProgram, key: &KeyEntry) -> Option<u32> {
+    field_slots
+        .get(key.field_id as usize)
+        .filter(|&&s| s != EMPTY_KEY_SLOT)
+        .and_then(|&s| program.slots.get(s as usize))
+        .map(|spec| spec.slot)
 }

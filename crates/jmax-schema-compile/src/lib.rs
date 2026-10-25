@@ -269,6 +269,9 @@ pub struct FixedEntry {
     pub decimal_scale: u8,
     pub decimal_precision: u8,
     pub unit_tick: bool,
+    /// A slotted array of unit-tick decimal pairs staged by this row group;
+    /// `kind` is then a placeholder and `state` is the outer array.
+    pub rows_group: Option<u32>,
 }
 
 /// A table whose object rejects unknown keys and holds only unconstrained
@@ -283,6 +286,13 @@ pub struct FixedObjectPlan {
     pub required: u64,
     /// Longest key name, to compare against the request's string limit.
     pub max_name_len: u32,
+    /// Some entry is a row group array, so a scan opens two more frames.
+    pub has_rows: bool,
+    /// The entry whose property has the lowest field id, 0xff when empty.
+    pub first_entry: u8,
+    /// Entry index of the property with the next field id after each entry's
+    /// (0xff for the last): the order a document most often follows.
+    pub follow: [u8; 64],
     /// Entry index by first key byte when exactly one key starts with it, else 0xff.
     pub by_first_byte: [u8; 256],
 }

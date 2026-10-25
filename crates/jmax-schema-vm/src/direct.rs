@@ -806,21 +806,22 @@ impl Engine<'_, '_, '_> {
         else {
             return None;
         };
+        let plan = program.fixed_object(key_table)?;
         let scan = FixedScan::new(
             program,
-            program.fixed_object(key_table)?,
+            plan,
             self.cursor.input(),
             self.numeric,
             self.context.limits.syntax,
             self.context.frames.len().checked_add(1)?,
             self.context.frames.capacity(),
-            &self.context.selection,
+            FixedScan::selected_mask(plan, &self.context.selection),
         )?;
         let mut written = 0u64;
         let slots = &mut self.context.slots;
         let steps_left = self.context.budget.steps_left();
         let attempt = scan
-            .object(start as usize, slots, 0, &mut written)
+            .object(start as usize, slots, 0, &mut written, None)
             .and_then(|(end, work)| {
                 // The total is charged all at once, and only when it fits.
                 (work <= steps_left).then_some((u32::try_from(end - start as usize).ok()?, work))
@@ -898,7 +899,7 @@ impl Engine<'_, '_, '_> {
             // The array frame and the element's own frame.
             self.context.frames.len().saturating_add(2),
             self.context.frames.capacity(),
-            &self.context.selection,
+            FixedScan::selected_mask(plan, &self.context.selection),
         ) else {
             return Ok(None);
         };
@@ -926,7 +927,7 @@ impl Engine<'_, '_, '_> {
                 row[..width].fill(SlotValue::Empty);
                 let mut written = 0u64;
                 let Some((end, object_work)) =
-                    scan.object(at, &mut row[..width], first_slot, &mut written)
+                    scan.object(at, &mut row[..width], first_slot, &mut written, None)
                 else {
                     break 'scan false;
                 };
@@ -1538,6 +1539,18 @@ impl Engine<'_, '_, '_> {
     }
 }
 
+/// Row staging for a fixed scan that carries row group arrays: the blocks,
+/// their capacities on entry, and a copy of the budget that the arrays charge.
+/// A scan that misses rolls the blocks back and drops the copy.
+struct RowCtx<'r> {
+    blocks: &'r mut [RowBlock],
+    capacities: [usize; MAX_BLOCKS],
+    budget: VmBudget,
+}
+
+/// Most row groups a fixed root scan stages.
+const MAX_BLOCKS: usize = 8;
+
 /// Widest item row the array-level row fast path stages from the stack.
 const MAX_ROW: usize = 16;
 
@@ -1565,7 +1578,7 @@ impl<'a> FixedScan<'a> {
         limits: Limits,
         depth: usize,
         frame_capacity: usize,
-        selection: &'a extract::SelectionIndex,
+        selected: u64,
     ) -> Option<Self> {
         if plan.max_name_len > limits.max_string_bytes
             || depth > usize::from(limits.max_depth)
@@ -1581,13 +1594,20 @@ impl<'a> FixedScan<'a> {
             input,
             numeric,
             limits,
-            selected: plan
-                .entries
-                .iter()
-                .enumerate()
-                .filter(|(_, e)| e.slot.is_some_and(|s| extract::selected(selection, s)))
-                .fold(0u64, |mask, (i, _)| mask | 1u64 << i),
+            selected,
         })
+    }
+
+    /// Entry bits whose capture slot is selected.
+    fn selected_mask(
+        plan: &jmax_schema_compile::FixedObjectPlan,
+        selection: &extract::SelectionIndex,
+    ) -> u64 {
+        plan.entries
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.slot.is_some_and(|s| extract::selected(selection, s)))
+            .fold(0u64, |mask, (i, _)| mask | 1u64 << i)
     }
 
     /// Scan the object whose `{` is at `start`: the index after its `}` and
@@ -1602,6 +1622,7 @@ impl<'a> FixedScan<'a> {
         dst: &mut [SlotValue],
         base: u32,
         written: &mut u64,
+        mut rows: Option<&mut RowCtx<'_>>,
     ) -> Option<(usize, u64)> {
         let input = self.input;
         let plan = self.plan;
@@ -1612,6 +1633,7 @@ impl<'a> FixedScan<'a> {
         let mut seen = 0u64;
         let mut fields = 0usize;
         let mut work = 3u64;
+        let mut next_entry = usize::from(plan.first_entry);
         loop {
             let lead = *input.get(at)?;
             if lead == b'}' {
@@ -1625,7 +1647,13 @@ impl<'a> FixedScan<'a> {
             let word = rest
                 .first_chunk::<8>()
                 .map(|chunk| u64::from_le_bytes(*chunk));
-            let mut index = usize::from(plan.by_first_byte[usize::from(*rest.get(1)?)]);
+            // Keys usually arrive in schema order, so the next entry is tried
+            // first: its address does not wait on the input bytes.
+            let mut index = if next_entry < entries.len() {
+                next_entry
+            } else {
+                usize::from(plan.by_first_byte[usize::from(*rest.get(1)?)])
+            };
             let mut name_len = 0usize;
             let mut hit = false;
             if let Some(guessed) = entries.get(index) {
@@ -1642,6 +1670,22 @@ impl<'a> FixedScan<'a> {
                 };
             }
             if !hit {
+                index = usize::from(plan.by_first_byte[usize::from(*rest.get(1)?)]);
+                if let Some(guessed) = entries.get(index) {
+                    name_len = guessed.name.len as usize;
+                    hit = match word {
+                        Some(word) if guessed.pattern_mask != 0 => {
+                            (word ^ guessed.pattern) & guessed.pattern_mask == 0
+                        }
+                        _ => {
+                            let name = guessed.name.slice(self.key_bytes)?;
+                            rest.get(1..1 + name_len)? == name
+                                && rest.get(1 + name_len..3 + name_len)? == b"\":"
+                        }
+                    };
+                }
+            }
+            if !hit {
                 let end = rest[1..].iter().position(|&b| b == b'"')? + 1;
                 let key = &rest[1..end];
                 index = entries
@@ -1652,6 +1696,7 @@ impl<'a> FixedScan<'a> {
                     return None;
                 }
             }
+            next_entry = usize::from(plan.follow[index & 63]);
             let bit = 1u64 << index;
             // Repeated fields are the exact engine's to accept or reject.
             if seen & bit != 0 {
@@ -1671,6 +1716,40 @@ impl<'a> FixedScan<'a> {
                 target = Some(cell);
             }
             let (end, scalar_work) = match entry.kind {
+                _ if entry.rows_group.is_some() => {
+                    // Its staging charges land on the context's budget copy.
+                    let ctx = rows.as_deref_mut()?;
+                    let cell = target?;
+                    let outer = self.program.state(entry.state)?;
+                    let StateKind::Array { items: pair_id } = outer.kind else {
+                        return None;
+                    };
+                    let pair = self.program.state(pair_id)?;
+                    let StateKind::Array { items: decimal_id } = pair.kind else {
+                        return None;
+                    };
+                    let decimal = self
+                        .program
+                        .state(decimal_id)?
+                        .constraints
+                        .decimal
+                        .as_ref()?;
+                    let block = ctx.blocks.get_mut(entry.rows_group? as usize)?;
+                    let span = fixed_pair_rows(
+                        input,
+                        at as u32,
+                        decimal,
+                        &pair.constraints,
+                        &outer.constraints,
+                        self.numeric,
+                        limits,
+                        &mut ctx.budget,
+                        &mut block.values,
+                    )
+                    .ok()??;
+                    *cell = SlotValue::RawSpan(span);
+                    (at + span.len as usize, 0)
+                }
                 ValueKind::Decimal => {
                     if !entry.unit_tick {
                         return None;
@@ -2695,6 +2774,7 @@ fn execute_direct(
     };
     jmax_trace::end!(setup);
     let result = (|| {
+        let _c = jmax_trace::span!(VM_CONSTRAINT);
         // Prepay input traversal, including strict-discard and query-jump work.
         context.budget.charge(raw.len() as u64, 0)?;
         context.budget.retain(
@@ -2729,9 +2809,15 @@ fn execute_direct(
         }
         if capture
             && !query
-            && !rows
             && validated.is_none()
-            && fast_root_object(program, raw, &mut context, numeric)
+            && fast_root_object(
+                program,
+                raw,
+                &mut context,
+                numeric,
+                scratch.vm.selection_cache.as_mut(),
+                if rows { Some(&mut scratch.rows) } else { None },
+            )
         {
             return Ok(());
         }
@@ -2758,6 +2844,7 @@ fn execute_direct(
         engine.run()?;
         Ok(())
     })();
+    let _f = jmax_trace::span!(VM_FINISH);
     recover(context, &mut scratch.vm);
     if result.is_err() {
         scratch.vm.slots.clear();
@@ -2782,7 +2869,10 @@ fn fast_root_object(
     raw: &[u8],
     context: &mut VmContext<'_>,
     numeric: NumericPolicy,
+    cache: Option<&mut SelectionCache>,
+    rows: Option<&mut Vec<RowBlock>>,
 ) -> bool {
+    let _t = jmax_trace::span!(VM_FIXED_OBJ);
     #[cfg(test)]
     if tests::force_exact() {
         return false;
@@ -2804,27 +2894,67 @@ fn fast_root_object(
     let Some(plan) = program.fixed_object(key_table) else {
         return false;
     };
+    // The mask only depends on the program and the selection, which the
+    // selection cache already keys.
+    let selected = match cache {
+        Some(cache) => match cache.fixed_selected {
+            Some((table, mask)) if table == key_table => mask,
+            _ => {
+                let mask = FixedScan::selected_mask(plan, &context.selection);
+                cache.fixed_selected = Some((key_table, mask));
+                mask
+            }
+        },
+        None => FixedScan::selected_mask(plan, &context.selection),
+    };
     let Some(scan) = FixedScan::new(
         program,
         plan,
         raw,
         numeric,
         context.limits.syntax,
-        1,
+        // Row group arrays open an array frame and a pair frame below the root.
+        if plan.has_rows { 3 } else { 1 },
         context.frames.capacity(),
-        &context.selection,
+        selected,
     ) else {
         return false;
     };
+    let mut ctx = match rows {
+        Some(blocks) if plan.has_rows => {
+            if blocks.len() > MAX_BLOCKS {
+                return false;
+            }
+            let mut capacities = [0usize; MAX_BLOCKS];
+            for (cap, block) in capacities.iter_mut().zip(blocks.iter()) {
+                *cap = block.values.capacity();
+            }
+            Some(RowCtx {
+                blocks: blocks.as_mut_slice(),
+                capacities,
+                budget: context.budget.clone(),
+            })
+        }
+        // Without a rows run, a row group array is the exact engine's.
+        _ if plan.has_rows => return false,
+        _ => None,
+    };
     let mut written = 0u64;
-    let steps_left = context.budget.steps_left();
-    let accepted = match scan.object(0, &mut context.slots, 0, &mut written) {
+    let steps_left = ctx
+        .as_ref()
+        .map_or_else(|| context.budget.steps_left(), |c| c.budget.steps_left());
+    let accepted = match scan.object(0, &mut context.slots, 0, &mut written, ctx.as_mut()) {
         // One step for the root value token, then the object itself.
         Some((end, work)) if end == raw.len() && work < steps_left => Some(work + 1),
         _ => None,
     };
     match accepted {
         Some(work) => {
+            if let Some(ctx) = ctx {
+                context.budget = ctx.budget;
+                #[cfg(test)]
+                tests::ITEM_ROWS_TAKEN.with(|n| n.set(n.get() + 1));
+            }
             // Cannot fail: the total was checked against the steps left.
             if context.budget.charge(work, 0).is_err() {
                 return false;
@@ -2839,6 +2969,16 @@ fn fast_root_object(
                 written &= written - 1;
                 if let Some(slot) = plan.entries[index].slot {
                     context.slots[slot as usize] = SlotValue::Empty;
+                }
+            }
+            if let Some(ctx) = ctx {
+                // Staged rows and any capacity the attempt grew are undone, so
+                // the exact engine charges them as a cold run would.
+                for (block, &cap) in ctx.blocks.iter_mut().zip(&ctx.capacities) {
+                    block.values.clear();
+                    if block.values.capacity() != cap {
+                        block.values.shrink_to(cap);
+                    }
                 }
             }
             false
@@ -4054,6 +4194,143 @@ mod tests {
         Ok(())
     }
 
+    /// `{"e":str,"E":int,"b":[[dec,dec]..],"a":[[dec,dec]..]}`: slots 0..=3,
+    /// the two arrays being leaf row groups.
+    fn depth_rows_program() -> Result<ValidatedProgram> {
+        use jmax_schema_ir::{
+            ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
+        };
+        let prop = |id: u32, name: &str, ty: u32, required: bool, slot: u32| Property {
+            field_id: FieldId(id),
+            name: name.into(),
+            ty: TypeId(ty),
+            required,
+            slot: Some(slot),
+        };
+        let mut decimal = ScalarConstraints::new(ValueKind::Decimal);
+        decimal.decimal = Some(jmax_schema_ir::DecimalConstraints {
+            policy: jmax_abi::DecimalPolicy::spot_8(),
+            minimum: None,
+            maximum: None,
+        });
+        let schema = Schema {
+            name: "depth_rows".into(),
+            schema_id: SchemaId(7_073),
+            root: TypeId(0),
+            definitions: vec![],
+            nodes: vec![
+                TypeNode::Object(ObjectShape {
+                    nullable: false,
+                    properties: vec![
+                        prop(1, "e", 1, true, 0),
+                        prop(2, "E", 2, true, 1),
+                        prop(3, "b", 3, true, 2),
+                        prop(4, "a", 3, true, 3),
+                    ],
+                    reject_unknown: true,
+                    min_properties: None,
+                    max_properties: None,
+                }),
+                TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+                TypeNode::Scalar(ScalarConstraints::new(ValueKind::Integer)),
+                TypeNode::Array(ArrayShape {
+                    nullable: false,
+                    items: TypeId(4),
+                    min_items: None,
+                    max_items: Some(4),
+                }),
+                TypeNode::Array(ArrayShape {
+                    nullable: false,
+                    items: TypeId(5),
+                    min_items: Some(2),
+                    max_items: Some(2),
+                }),
+                TypeNode::Scalar(decimal),
+            ],
+        };
+        let resolved = jmax_schema_ir::resolve::resolve(schema, Default::default())?;
+        jmax_schema_compile::compile(&resolved, &jmax_schema_compile::CompilerOptions::default())
+    }
+
+    #[test]
+    fn root_rows_fast_path_matches_the_exact_engine_at_every_budget() -> Result<()> {
+        let program = depth_rows_program()?;
+        let inputs: [&[u8]; 17] = [
+            br#"{"e":"depthUpdate","E":123,"b":[],"a":[]}"#,
+            br#"{"e":"depthUpdate","E":123,"b":[["0.0024","10"]],"a":[["0.0026","0.5"],["1","2"]]}"#,
+            br#"{"a":[["1","2"]],"b":[["3.25","4"],["5","6"]],"E":9,"e":"x"}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"],["2","2"],["3","3"],["4","4"]],"a":[]}"#,
+            // Over the array count bound.
+            br#"{"e":"d","E":1,"b":[["1","1"],["2","2"],["3","3"],["4","4"],["5","5"]],"a":[]}"#,
+            // A miss in the second array, after a good first one.
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[["1","2.123456789"]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[["1"]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[["1","2","3"]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[[1,2]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":null}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"], ["2","2"]],"a":[]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"],],"a":[]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"b":[],"a":[]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[],"z":1}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[["-0","1"],["00.5","1"]]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"]],"a":[["1","1"]]"#,
+        ];
+        let mut fast = ValidationScratch::default();
+        let mut probe = ValidationScratch::default();
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        let mut exact = ValidationScratch::default();
+        for input in inputs {
+            let base = VmLimits::default();
+            let mut tight = 1u64;
+            while tight < 4_096
+                && run_rows(
+                    &program,
+                    input,
+                    VmLimits {
+                        max_steps: tight,
+                        ..base
+                    },
+                    &mut probe,
+                    true,
+                )
+                .is_err()
+            {
+                tight += 1;
+            }
+            let mut grid: Vec<(u64, u32, u16)> = Vec::new();
+            for max_steps in 0..tight + 8 {
+                grid.push((max_steps, base.max_scratch_bytes, base.syntax.max_depth));
+            }
+            for max_scratch_bytes in (0..6_000u32).step_by(8) {
+                grid.push((base.max_steps, max_scratch_bytes, base.syntax.max_depth));
+            }
+            for max_depth in 0..5u16 {
+                grid.push((base.max_steps, base.max_scratch_bytes, max_depth));
+            }
+            for (max_steps, max_scratch_bytes, max_depth) in grid {
+                let mut limits = VmLimits {
+                    max_steps,
+                    max_scratch_bytes,
+                    ..base
+                };
+                limits.syntax.max_depth = max_depth;
+                for round in 0..3 {
+                    let want = run_rows(&program, input, limits, &mut exact, true);
+                    let got = run_rows(&program, input, limits, &mut fast, false);
+                    assert_eq!(
+                        got,
+                        want,
+                        "round {round} steps {max_steps} scratch {max_scratch_bytes} depth {max_depth}: {}",
+                        alloc::string::String::from_utf8_lossy(input)
+                    );
+                }
+            }
+        }
+        assert!(ITEM_ROWS_TAKEN.with(Cell::get) > taken_before);
+        Ok(())
+    }
+
     #[test]
     fn cached_selection_charges_like_a_fresh_build() -> Result<()> {
         let (program, selection) = trade_program(false, false)?;
@@ -4128,6 +4405,63 @@ mod tests {
         assert!(run(&program, &duplicate, input, limits, &mut warm, true).is_err());
         assert!(run(&program, &selection, input, limits, &mut warm, true).is_ok());
         Ok(())
+    }
+
+    #[test]
+    fn quick_decimal_matches_the_general_scanner() {
+        let numeric = NumericPolicy {
+            allow_Quoted_int: false,
+            reject_non_finite_float: true,
+            reject_negative_zero: true,
+            max_exponent_abs: 0,
+        };
+        let constraints = jmax_schema_ir::DecimalConstraints {
+            policy: jmax_abi::DecimalPolicy::spot_8(),
+            minimum: None,
+            maximum: None,
+        };
+        let digits = b"0123456789";
+        let mut seen = 0u32;
+        for negative in [false, true] {
+            for whole in 1..=14usize {
+                for fraction in 0..=9usize {
+                    for seed in 0..40usize {
+                        let mut text = alloc::string::String::from("\"");
+                        if negative {
+                            text.push('-');
+                        }
+                        for i in 0..whole {
+                            let d = if i == 0 && whole > 1 && seed % 7 != 0 {
+                                1 + (seed / 3) % 9
+                            } else if seed % 7 == 0 {
+                                0
+                            } else {
+                                (i * 7 + seed) % 10
+                            };
+                            text.push(digits[d] as char);
+                        }
+                        if fraction > 0 || seed % 5 == 0 {
+                            text.push('.');
+                        }
+                        for i in 0..fraction {
+                            text.push(digits[(i * 3 + seed) % 10] as char);
+                        }
+                        text.push('"');
+                        text.push_str(",\"padding to twenty-four bytes\"");
+                        let raw = text.as_bytes();
+                        let got = quick_decimal(raw, 0, 8, 38, numeric, 4096, 40);
+                        let span = fixed_decimal_scan(raw, 0, &constraints, numeric, 4096, 40);
+                        if let Some((next, value)) = got {
+                            let span = span.expect("quick accepted what the scanner rejects");
+                            assert_eq!(next, span.next, "{text}");
+                            assert_eq!(Some(value), decimal_from_span(raw, &span, 8), "{text}");
+                            seen += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert!(seen > 500);
     }
 
     #[test]
