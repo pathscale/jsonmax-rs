@@ -13,4 +13,5 @@ std = ["alloc", "jmax-abi/std", "jmax-syntax/std"]
 [dependencies]
 jmax-abi = { workspace = true }
 jmax-syntax = { workspace = true }
+jmax-utf8 = { workspace = true }
 jmax-dispatch = { workspace = true }
