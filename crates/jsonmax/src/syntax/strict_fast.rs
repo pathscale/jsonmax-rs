@@ -49,6 +49,8 @@ const SHAPE_SLOTS: usize = 128;
 const SHAPE_MAX_KEYS: usize = 256;
 /// Containers a `flat_object` probe may nest below its starting object.
 const FLAT_MAX_NEST: usize = 8;
+/// Probes skipped after a failed one, per shape.
+const FLAT_BACKOFF: u8 = 3;
 
 #[derive(Clone, Copy, Debug)]
 struct ShapeKey {
@@ -63,6 +65,9 @@ struct ShapeKey {
 struct Shape {
     generation: u32,
     depth: u32,
+    /// Probes of `flat_members` to skip after one failed from this shape, so a shape whose
+    /// values never fit does not pay a failed scan per object.
+    flat_skip: core::cell::Cell<u8>,
     keys: Vec<ShapeKey>,
 }
 
@@ -725,7 +730,30 @@ impl Ctx<'_> {
         if shape.generation != self.s.generation || shape.depth as usize != depth {
             return None;
         }
-        let keys = &shape.keys;
+        if depth == base {
+            let skip = shape.flat_skip.get();
+            if skip > 0 {
+                shape.flat_skip.set(skip - 1);
+                return None;
+            }
+        }
+        let found = self.flat_keys(&shape.keys, i, depth, base, extra);
+        if found.is_none() && depth == base {
+            shape.flat_skip.set(FLAT_BACKOFF);
+        }
+        found
+    }
+
+    /// The members of an object spelled with `keys`; `i` is the opening quote of its first key.
+    fn flat_keys(
+        &self,
+        keys: &[ShapeKey],
+        mut i: usize,
+        depth: usize,
+        base: usize,
+        extra: &mut usize,
+    ) -> Option<usize> {
+        let input = self.input;
         let len = keys.len();
         if len > self.p.limits.max_fields_per_object as usize {
             return None;
@@ -796,6 +824,7 @@ impl Ctx<'_> {
         }
         shape.generation = *generation;
         shape.depth = depth as u32;
+        shape.flat_skip.set(0);
         shape.keys.extend(segment.iter().map(|e| ShapeKey {
             fingerprint: e.fingerprint,
             offset: e.offset,
