@@ -217,6 +217,39 @@ pub(crate) struct ProgramIndexes {
     pub dispatch: Vec<CompiledStateDispatch>,
     pub parents: Vec<Vec<StateId>>,
     pub required_masks: Vec<Vec<u64>>,
+    pub fixed_objects: Vec<Option<FixedObjectPlan>>,
+}
+
+/// A scalar property of a flat fixed object, as the direct VM's fast path reads it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedEntry {
+    /// Key bytes in the image key arena: plain ASCII with no quote or escape.
+    pub name: Span32,
+    pub kind: ValueKind,
+    pub state: StateId,
+    /// The capture slot of this property, if the schema names one.
+    pub slot: Option<u32>,
+    /// No integer bounds beyond the type's own range.
+    pub small_integer: bool,
+    /// `"name":` as little-endian bytes under `pattern_mask`, when it fits in a word.
+    pub pattern: u64,
+    pub pattern_mask: u64,
+}
+
+/// A table whose object rejects unknown keys and holds only unconstrained
+/// scalar properties that the direct VM can check and convert in one pass.
+/// Built once at image validation; presence says only that the shape is
+/// eligible, and the VM still verifies every value and falls back to the
+/// exact engine on any miss.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedObjectPlan {
+    pub entries: Vec<FixedEntry>,
+    /// Table-local bits of the required keys; tables hold at most 64 keys.
+    pub required: u64,
+    /// Longest key name, to compare against the request's string limit.
+    pub max_name_len: u32,
+    /// Entry index by first key byte when exactly one key starts with it, else 0xff.
+    pub by_first_byte: [u8; 256],
 }
 
 /// Immutable dispatch prepared after the canonical bytecode has been validated.
@@ -259,6 +292,10 @@ impl ValidatedProgram {
             .required_masks
             .get(table as usize)
             .map(Vec::as_slice)
+    }
+    /// The fast-path plan of a flat scalar object table, if it has one.
+    pub fn fixed_object(&self, table: u32) -> Option<&FixedObjectPlan> {
+        self.indexes.fixed_objects.get(table as usize)?.as_ref()
     }
     pub fn dispatch(&self, id: StateId) -> Option<&CompiledStateDispatch> {
         self.indexes.dispatch.get(id.0 as usize)

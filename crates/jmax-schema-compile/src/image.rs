@@ -1494,11 +1494,157 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
         }
         required_masks.push(mask);
     }
+    let mut fixed_objects = reserved(program.key_tables.len())?;
+    for (id, table) in program.key_tables.iter().enumerate() {
+        let owner = table_states
+            .get(id)
+            .and_then(|s| program.states.get(s.0 as usize));
+        fixed_objects.push(match owner {
+            Some(owner) => fixed_object_plan(program, &field_slots, owner, table)?,
+            None => None,
+        });
+    }
     Ok(ProgramIndexes {
         field_slots,
         table_states,
         dispatch,
         parents,
         required_masks,
+        fixed_objects,
     })
+}
+
+/// The direct VM's flat-object fast-path plan for one table, if its object
+/// qualifies. Anything unusual yields `None` and the exact engine runs.
+fn fixed_object_plan(
+    program: &CompiledProgram,
+    field_slots: &[u32],
+    owner: &ProgramState,
+    table: &KeyTable,
+) -> Result<Option<FixedObjectPlan>> {
+    let StateKind::Object {
+        reject_unknown: true,
+        ..
+    } = owner.kind
+    else {
+        return Ok(None);
+    };
+    let size = table.key_count as usize;
+    if owner.constraints != ConstraintSet::default() || size == 0 || size > 64 {
+        return Ok(None);
+    }
+    let Some(keys) = program
+        .image
+        .keys
+        .get(table.first_key as usize..table.first_key as usize + size)
+    else {
+        return Ok(None);
+    };
+    let mut entries = reserved(size)?;
+    let mut required = 0u64;
+    let mut by_first_byte = [0xffu8; 256];
+    let mut first_seen = [false; 256];
+    let mut max_name_len = 0u32;
+    for (local, key) in keys.iter().enumerate() {
+        let Some(state) = program.states.get(key.target_state as usize) else {
+            return Ok(None);
+        };
+        let StateKind::Scalar(kind) = state.kind else {
+            return Ok(None);
+        };
+        let constraints = &state.constraints;
+        let small_integer = match kind {
+            ValueKind::Decimal => {
+                let Some(decimal) = constraints.decimal.as_ref() else {
+                    return Ok(None);
+                };
+                if jmax_decimal::validate_policy(&decimal.policy).is_err()
+                    || decimal.minimum.is_some()
+                    || decimal.maximum.is_some()
+                {
+                    return Ok(None);
+                }
+                false
+            }
+            ValueKind::Integer
+                if *constraints
+                    == (ConstraintSet {
+                        min_i64: constraints.min_i64,
+                        max_i64: constraints.max_i64,
+                        ..ConstraintSet::default()
+                    }) =>
+            {
+                matches!(constraints.min_i64, None | Some(i64::MIN))
+                    && matches!(constraints.max_i64, None | Some(i64::MAX))
+            }
+            ValueKind::String | ValueKind::Boolean | ValueKind::Null
+                if *constraints == ConstraintSet::default() =>
+            {
+                false
+            }
+            _ => return Ok(None),
+        };
+        let Some(name) = key.span.slice(&program.image.key_bytes) else {
+            return Ok(None);
+        };
+        if name
+            .iter()
+            .any(|&b| !(0x20..0x80).contains(&b) || b == b'"' || b == b'\\')
+        {
+            return Ok(None);
+        }
+        let slot = match field_slots
+            .get(key.field_id as usize)
+            .filter(|&&s| s != EMPTY_KEY_SLOT)
+            .and_then(|&s| program.slots.get(s as usize))
+        {
+            Some(spec) if spec.state.0 != key.target_state => return Ok(None),
+            Some(spec) if spec.slot >= program.image.header.slot_count => return Ok(None),
+            Some(spec) => Some(spec.slot),
+            None => None,
+        };
+        if key.required_bit != NO_REQUIRED_BIT {
+            required |= 1u64 << local;
+        }
+        max_name_len = max_name_len.max(name.len() as u32);
+        if let Some(&first) = name.first() {
+            by_first_byte[first as usize] = if first_seen[first as usize] {
+                0xff
+            } else {
+                local as u8
+            };
+            first_seen[first as usize] = true;
+        }
+        let width = name.len() + 3;
+        let (pattern, pattern_mask) = if width <= 8 {
+            let mut bytes = [0u8; 8];
+            bytes[0] = b'"';
+            bytes[1..=name.len()].copy_from_slice(name);
+            bytes[name.len() + 1] = b'"';
+            bytes[name.len() + 2] = b':';
+            let mask = if width == 8 {
+                u64::MAX
+            } else {
+                (1u64 << (8 * width)) - 1
+            };
+            (u64::from_le_bytes(bytes), mask)
+        } else {
+            (0, 0)
+        };
+        entries.push(FixedEntry {
+            name: key.span,
+            kind,
+            state: StateId(key.target_state),
+            slot,
+            small_integer,
+            pattern,
+            pattern_mask,
+        });
+    }
+    Ok(Some(FixedObjectPlan {
+        entries,
+        required,
+        max_name_len,
+        by_first_byte,
+    }))
 }
