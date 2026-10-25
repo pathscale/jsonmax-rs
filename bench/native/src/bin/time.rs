@@ -18,7 +18,7 @@ fn report(case: &str, bytes: usize, ops: Vec<(&'static str, Op<'_>)>) -> R<()> {
         }
         let retained = if (name.starts_with("simd-json") && !name.ends_with("serialize")) {
             bytes
-        } else if name == "jmax vm+reparse" {
+        } else if name == jmax_native_bench::VM_NATIVE_DIAG_ROW {
             jmax_native_bench::VM_RETAINED.load(std::sync::atomic::Ordering::Relaxed)
         } else {
             0
