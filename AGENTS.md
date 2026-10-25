@@ -6,7 +6,9 @@ per-vendor file.
 ## House rules
 
 - No AI attribution anywhere: no `Co-Authored-By`, no session links, no "Generated with" lines
-  in commits, pull requests, comments or code.
+  in commits, pull requests, comments or code. Commit identity is `PathScale <no-reply@pathscale.com>`,
+  never a Claude or Anthropic name or email. Tools that create or edit a pull request can append a
+  footer; re-read the body after every create or edit and strip it.
 - No Python. Scripts are shell or Rust.
 - No em dashes in code, comments, docs or commit messages.
 - Never `git stash`. Stage your own paths only, with `git commit --only <paths>`.
