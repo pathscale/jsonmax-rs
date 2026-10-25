@@ -178,6 +178,9 @@ impl NativeContext {
     }
 }
 
+/// Objects with at most this many unknown keys check duplicates pairwise instead of sorting.
+const SMALL_UNKNOWN: usize = 8;
+
 /// The unknown keys of every open object, innermost last.
 #[derive(Default)]
 pub(crate) struct UnknownKeys {
@@ -213,18 +216,27 @@ impl UnknownKeys {
         let result = if reject_duplicates {
             let bytes = &self.bytes;
             let slice = self.entries.get_mut(mark..).ok_or(crate::Fail)?;
-            slice.sort_unstable_by_key(|entry| entry.hash);
             let key = |entry: &UnknownEntry| {
                 bytes.get(entry.start as usize..(entry.start + entry.len) as usize)
             };
             let mut duplicate = false;
-            for (index, entry) in slice.iter().enumerate() {
-                // Equal hashes are adjacent; compare each against its whole run.
-                for other in slice[index + 1..]
-                    .iter()
-                    .take_while(|other| other.hash == entry.hash)
-                {
-                    duplicate |= key(entry) == key(other);
+            if slice.len() <= SMALL_UNKNOWN {
+                // A few keys: compare every pair by hash, with no sort.
+                for (index, entry) in slice.iter().enumerate() {
+                    for other in &slice[index + 1..] {
+                        duplicate |= entry.hash == other.hash && key(entry) == key(other);
+                    }
+                }
+            } else {
+                slice.sort_unstable_by_key(|entry| entry.hash);
+                for (index, entry) in slice.iter().enumerate() {
+                    // Equal hashes are adjacent; compare each against its whole run.
+                    for other in slice[index + 1..]
+                        .iter()
+                        .take_while(|other| other.hash == entry.hash)
+                    {
+                        duplicate |= key(entry) == key(other);
+                    }
                 }
             }
             if duplicate { Err(crate::Fail) } else { Ok(()) }

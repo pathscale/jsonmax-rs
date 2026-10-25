@@ -82,9 +82,7 @@ impl<'a> Reader<'a> {
 
     #[inline(always)]
     pub fn skip_ws(&mut self) {
-        while let Some(b' ' | b'\t' | b'\r' | b'\n') = self.input.get(self.pos) {
-            self.pos += 1;
-        }
+        self.pos = jmax_syntax::skip_json_whitespace(self.input, self.pos);
     }
 
     /// The next non-whitespace byte, not consumed.
@@ -601,7 +599,24 @@ impl<'a> Reader<'a> {
         let content_start = start + 1;
         let window = &input[content_start..];
         let mut k = 0;
-        let reach = window.len().min(32);
+        let mut reach = window.len().min(32);
+        if let Some(block) = window.first_chunk::<32>() {
+            // Two vector blocks settle a short plain string with one branch: the first
+            // quote, backslash, control or non-ASCII byte is found without a per-byte loop.
+            let first = jmax_string::scan::first_special_or_high32(block);
+            if first < 32 {
+                k = first as usize;
+                if window[k] == b'"' {
+                    if k > max {
+                        return Err(Fail);
+                    }
+                    return Ok((Scanned::Ascii(&window[..k]), content_start + k + 1));
+                }
+            } else {
+                k = 32;
+            }
+            reach = 0;
+        }
         while k < reach {
             let byte = window[k];
             if byte == b'"' {
@@ -653,7 +668,11 @@ impl<'a> Reader<'a> {
         self.skip_ws();
         let start = u32::try_from(self.pos).map_err(|_| Fail)?;
         let limits = ctx.limits.syntax;
-        if self.pos <= self.input.len()
+        // Literals and flat containers are recognized by their first byte; every other value
+        // goes straight to the strict scanner.
+        let first = self.input.get(self.pos).copied();
+        if matches!(first, Some(b't' | b'f' | b'n'))
+            && self.pos <= self.input.len()
             && self.input.len() <= limits.max_payload_bytes as usize
             && depth <= limits.max_depth
             && ctx.numeric.max_exponent_abs >= 0
@@ -680,7 +699,8 @@ impl<'a> Reader<'a> {
                 return Ok(());
             }
         }
-        if self.input.len() <= limits.max_payload_bytes as usize
+        if matches!(first, Some(b'[' | b'{'))
+            && self.input.len() <= limits.max_payload_bytes as usize
             && depth < limits.max_depth
             && ctx.numeric.max_exponent_abs >= 0
         {

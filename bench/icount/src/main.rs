@@ -71,6 +71,19 @@ fn main() -> R<()> {
         _ => panic!("class/parser"),
     };
     for _ in 0..3 { f()?; }
+    if let Ok(batch) = std::env::var("BATCH") {
+        // Wall-time mode: `iters` batches of BATCH calls; prints sorted per-call ns quantiles.
+        let batch: u64 = batch.parse()?;
+        let mut v = Vec::new();
+        for _ in 0..iters {
+            let t = std::time::Instant::now();
+            for _ in 0..batch { f()?; }
+            v.push(t.elapsed().as_nanos() as u64 / batch);
+        }
+        v.sort();
+        println!("{} {} {}", v[0], v[v.len() / 10], v[v.len() / 2]);
+        return Ok(());
+    }
     let before = metrics::snapshot();
     for _ in 0..iters { f()?; }
     let after = metrics::snapshot();

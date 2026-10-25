@@ -20,6 +20,9 @@ use super::frames::KeyTable;
 use super::*;
 use jmax_abi::number::NumericPolicy;
 
+mod window;
+use window::Window;
+
 /// Keys compared linearly by fingerprint before a container switches to a table.
 const INLINE_KEYS: usize = 32;
 /// A float without an exponent and at most this many bytes cannot overflow or
@@ -57,7 +60,17 @@ struct ShapeKey {
     fingerprint: u64,
     offset: u32,
     len: u32,
+    /// The bytes that led into this key when it was recorded, from the comma after the previous
+    /// value to the first byte of this key's value (`,` whitespace `"key"` whitespace `:`
+    /// whitespace), spelled at `gap_offset` in the current input. Zero length: none (the first
+    /// key, or an unusual spelling). Equal bytes in the same grammatical place are the same
+    /// separator, the same key and the same colon, so one comparison replaces the token walk.
+    gap_offset: u32,
+    gap_len: u32,
 }
+
+/// Longest separator-key-colon run a shape memoizes.
+const GAP_MAX: usize = 64;
 
 /// The keys of the last closed object at a depth with this first key: all
 /// unescaped, pairwise distinct, spelled at `offset` in the current input.
@@ -96,9 +109,16 @@ pub(crate) struct FastScratch {
     /// Consecutive failed `flat_object` attempts, and the objects left to skip before the next probe.
     flat_misses: u8,
     flat_wait: u8,
+    /// The escape masker is a capability probe; probing per skipped value costs more than
+    /// skipping a short one, so it is resolved once per scratch.
+    masker: Option<jmax_string::EscapeMasker>,
 }
 
 impl FastScratch {
+    pub(crate) fn masker(&mut self) -> jmax_string::EscapeMasker {
+        *self.masker.get_or_insert_with(jmax_string::EscapeMasker::new)
+    }
+
     /// Forgets every memoized shape. Call whenever the input slice may differ
     /// from the one previous `accept` calls saw.
     pub(crate) fn new_input(&mut self) {
@@ -161,6 +181,7 @@ pub(crate) fn accept(
         memo_enabled: params.limits.reject_duplicate_keys
             && start <= input.len()
             && input.len() - start >= 256,
+        w: Window::EMPTY,
     };
     let result = ctx.run(start);
     let Ctx { decoded, .. } = ctx;
@@ -182,6 +203,7 @@ struct Ctx<'a> {
     s: &'a mut FastScratch,
     discarded: u32,
     memo_enabled: bool,
+    w: Window,
 }
 
 impl Ctx<'_> {
@@ -189,7 +211,7 @@ impl Ctx<'_> {
         let input = self.input;
         let mut i = start;
         loop {
-            i = skip_ws(input, i);
+            i = self.w.skip_ws(input, i);
             let byte = *input.get(i)?;
             match byte {
                 b'"' => i = self.string(i, false)?.0,
@@ -202,7 +224,7 @@ impl Ctx<'_> {
                         i = end;
                     } else {
                         self.open(true)?;
-                        i = skip_ws(input, i + 1);
+                        i = self.w.skip_ws(input, i + 1);
                         match *input.get(i)? {
                             b'}' => {
                                 i += 1;
@@ -229,7 +251,7 @@ impl Ctx<'_> {
                         i = end;
                     } else {
                         self.open(false)?;
-                        i = skip_ws(input, i + 1);
+                        i = self.w.skip_ws(input, i + 1);
                         if *input.get(i)? == b']' {
                             i += 1;
                             self.close()?;
@@ -249,7 +271,7 @@ impl Ctx<'_> {
             loop {
                 let Some(top) = self.s.levels.last() else {
                     if self.p.whole_input {
-                        i = skip_ws(input, i);
+                        i = self.w.skip_ws(input, i);
                         if i != input.len() {
                             return None;
                         }
@@ -257,12 +279,18 @@ impl Ctx<'_> {
                     return Some((i, self.discarded));
                 };
                 let object = top.object;
-                i = skip_ws(input, i);
+                if object && top.shape != NO_SHAPE {
+                    if let Some(next) = self.shape_gap(i) {
+                        i = self.w.skip_ws(input, next);
+                        break;
+                    }
+                }
+                i = self.w.skip_ws(input, i);
                 let byte = *input.get(i)?;
                 if object {
                     match byte {
                         b',' => {
-                            i = skip_ws(input, i + 1);
+                            i = self.w.skip_ws(input, i + 1);
                             if *input.get(i)? != b'"' {
                                 return None;
                             }
@@ -491,8 +519,8 @@ impl Ctx<'_> {
     }
 
     #[inline(always)]
-    fn colon(&self, next: usize) -> Option<usize> {
-        let j = skip_ws(self.input, next);
+    fn colon(&mut self, next: usize) -> Option<usize> {
+        let j = self.w.skip_ws(self.input, next);
         if *self.input.get(j)? != b':' {
             return None;
         }
@@ -549,6 +577,27 @@ impl Ctx<'_> {
         }
         self.s.levels[top].shape = NO_SHAPE;
         Some(None)
+    }
+
+    /// While an object follows a memoized shape: the next key by one comparison of the whole
+    /// separator-key-colon run against the memo's. `i` is just past the previous value.
+    /// Returns the offset of the byte after the run. A miss changes nothing.
+    #[inline(always)]
+    fn shape_gap(&mut self, i: usize) -> Option<usize> {
+        let level = self.s.levels.last_mut()?;
+        let shape = self.s.shapes.get(level.shape as usize)?;
+        let key = shape.keys.get(level.count as usize)?;
+        let gap = key.gap_len as usize;
+        let at = key.gap_offset as usize;
+        if gap == 0 || !gap_eq(self.input.get(i..i + gap)?, self.input.get(at..at + gap)?) {
+            return None;
+        }
+        let count = level.count.checked_add(1)?;
+        if count > self.p.limits.max_fields_per_object {
+            return None;
+        }
+        level.count = count;
+        Some(i + gap)
     }
 
     /// After the first key of an object: follow a memoized shape if one starts
@@ -614,29 +663,32 @@ impl Ctx<'_> {
             return None;
         }
         let mut extra = 0usize;
-        let end = self.flat_value(start, depth, depth, &mut extra)?;
+        let mut w = self.w;
+        let end = self.flat_value(&mut w, start, depth, depth, &mut extra);
+        self.w = w;
+        let end = end?;
         self.discarded = self.discarded.checked_add(u32::try_from(extra).ok()?)?;
         Some(end)
     }
 
     /// The value at `i` (not whitespace) whose container, if any, sits at `depth`.
     #[inline(always)]
-    fn flat_value(&self, i: usize, depth: usize, base: usize, extra: &mut usize) -> Option<usize> {
+    fn flat_value(&self, w: &mut Window, i: usize, depth: usize, base: usize, extra: &mut usize) -> Option<usize> {
         match *self.input.get(i)? {
-            b'{' => self.flat_members(i, depth, base, extra),
-            b'[' => self.flat_items(i, depth, base, extra),
-            _ => self.flat_scalar(i, extra),
+            b'{' => self.flat_members(w, i, depth, base, extra),
+            b'[' => self.flat_items(w, i, depth, base, extra),
+            _ => self.flat_scalar(w, i, extra),
         }
     }
 
     #[inline(always)]
-    fn flat_scalar(&self, i: usize, extra: &mut usize) -> Option<usize> {
+    fn flat_scalar(&self, w: &mut Window, i: usize, extra: &mut usize) -> Option<usize> {
         let input = self.input;
         match *input.get(i)? {
             b'"' => {
                 let limits = self.p.limits;
                 let content = i + 1;
-                let (j, ascii) = find_special_ascii(input, content);
+                let (j, ascii) = w.find_special_ascii(input, content);
                 match *input.get(j)? {
                     b'"' => {
                         if j - content > limits.max_string_bytes as usize {
@@ -676,6 +728,7 @@ impl Ctx<'_> {
     /// The array at `start`, which would open at `depth`.
     fn flat_items(
         &self,
+        w: &mut Window,
         start: usize,
         depth: usize,
         base: usize,
@@ -685,7 +738,7 @@ impl Ctx<'_> {
             return None;
         }
         let input = self.input;
-        let mut i = skip_ws(input, start + 1);
+        let mut i = w.skip_ws(input, start + 1);
         if *input.get(i)? == b']' {
             return Some(i + 1);
         }
@@ -696,10 +749,10 @@ impl Ctx<'_> {
             if count > max_items {
                 return None;
             }
-            i = self.flat_value(i, depth + 1, base, extra)?;
-            i = skip_ws(input, i);
+            i = self.flat_value(w, i, depth + 1, base, extra)?;
+            i = w.skip_ws(input, i);
             match *input.get(i)? {
-                b',' => i = skip_ws(input, i + 1),
+                b',' => i = w.skip_ws(input, i + 1),
                 b']' => return Some(i + 1),
                 _ => return None,
             }
@@ -710,6 +763,7 @@ impl Ctx<'_> {
     /// recorded shape, in order.
     fn flat_members(
         &self,
+        w: &mut Window,
         start: usize,
         depth: usize,
         base: usize,
@@ -719,14 +773,14 @@ impl Ctx<'_> {
             return None;
         }
         let input = self.input;
-        let mut i = skip_ws(input, start + 1);
+        let mut i = w.skip_ws(input, start + 1);
         match *input.get(i)? {
             b'}' => return Some(i + 1),
             b'"' => {}
             _ => return None,
         }
         let content = i + 1;
-        let (close, _) = find_special_ascii(input, content);
+        let (close, _) = w.find_special_ascii(input, content);
         if *input.get(close)? != b'"' {
             return None;
         }
@@ -742,7 +796,7 @@ impl Ctx<'_> {
                 return None;
             }
         }
-        let found = self.flat_keys(&shape.keys, i, depth, base, extra);
+        let found = self.flat_keys(w, &shape.keys, i, depth, base, extra);
         if found.is_none() && depth == base {
             shape.flat_skip.set(FLAT_BACKOFF);
         }
@@ -752,6 +806,7 @@ impl Ctx<'_> {
     /// The members of an object spelled with `keys`; `i` is the opening quote of its first key.
     fn flat_keys(
         &self,
+        w: &mut Window,
         keys: &[ShapeKey],
         mut i: usize,
         depth: usize,
@@ -764,28 +819,49 @@ impl Ctx<'_> {
             return None;
         }
         let mut k = 0;
+        // The first key: its opening quote is at `i`.
+        let key = *keys.first()?;
+        let n = key.len as usize + 1;
+        let at = key.offset as usize;
+        if !bytes_eq(input.get(i + 1..i + 1 + n)?, input.get(at..at + n)?) {
+            return None;
+        }
+        i = w.skip_ws(input, i + 1 + n);
+        if *input.get(i)? != b':' {
+            return None;
+        }
+        i = w.skip_ws(input, i + 1);
         loop {
-            // The key's bytes and its closing quote; the opening quote is at `i`.
-            let key = *keys.get(k)?;
-            let n = key.len as usize + 1;
-            let at = key.offset as usize;
-            if !bytes_eq(input.get(i + 1..i + 1 + n)?, input.get(at..at + n)?) {
-                return None;
-            }
-            i = skip_ws(input, i + 1 + n);
-            if *input.get(i)? != b':' {
-                return None;
-            }
-            i = skip_ws(input, i + 1);
-            i = self.flat_value(i, depth + 1, base, extra)?;
-            i = skip_ws(input, i);
+            i = self.flat_value(w, i, depth + 1, base, extra)?;
             k += 1;
+            if let Some(next) = keys.get(k) {
+                let gap = next.gap_len as usize;
+                if gap != 0 {
+                    let at = next.gap_offset as usize;
+                    if gap_eq(input.get(i..i + gap)?, input.get(at..at + gap)?) {
+                        i = w.skip_ws(input, i + gap);
+                        continue;
+                    }
+                }
+            }
+            i = w.skip_ws(input, i);
             match *input.get(i)? {
                 b',' => {
-                    i = skip_ws(input, i + 1);
+                    i = w.skip_ws(input, i + 1);
                     if k == len || *input.get(i)? != b'"' {
                         return None;
                     }
+                    let key = *keys.get(k)?;
+                    let n = key.len as usize + 1;
+                    let at = key.offset as usize;
+                    if !bytes_eq(input.get(i + 1..i + 1 + n)?, input.get(at..at + n)?) {
+                        return None;
+                    }
+                    i = w.skip_ws(input, i + 1 + n);
+                    if *input.get(i)? != b':' {
+                        return None;
+                    }
+                    i = w.skip_ws(input, i + 1);
                 }
                 b'}' => {
                     return if k == len { Some(i + 1) } else { None };
@@ -830,10 +906,16 @@ impl Ctx<'_> {
         shape.generation = *generation;
         shape.depth = depth as u32;
         shape.flat_skip.set(0);
-        shape.keys.extend(segment.iter().map(|e| ShapeKey {
-            fingerprint: e.fingerprint,
-            offset: e.offset,
-            len: e.len,
+        let input = self.input;
+        shape.keys.extend(segment.iter().enumerate().map(|(k, e)| {
+            let (gap_offset, gap_len) = if k == 0 { (0, 0) } else { key_gap(input, e.offset, e.len) };
+            ShapeKey {
+                fingerprint: e.fingerprint,
+                offset: e.offset,
+                len: e.len,
+                gap_offset,
+                gap_len,
+            }
         }));
     }
 
@@ -969,7 +1051,7 @@ impl Ctx<'_> {
         let _t = jmax_trace::span!(STRICT_FAST_STRING);
         let input = self.input;
         let content = i + 1;
-        let (mut j, ascii) = find_special_ascii(input, content);
+        let (mut j, ascii) = self.w.find_special_ascii(input, content);
         let byte = *input.get(j)?;
         if byte == b'"' {
             let len = j - content;
@@ -1300,6 +1382,57 @@ fn literal(input: &[u8], i: usize, spelling: &[u8]) -> Option<usize> {
     }
 }
 
+/// The separator-key-colon run leading into the key whose content starts at `offset`:
+/// `(start, len)` in `input`, or `(0, 0)` when it is not the usual `, "key" :` spelling or is long.
+fn key_gap(input: &[u8], offset: u32, len: u32) -> (u32, u32) {
+    let is_ws = |b: u8| matches!(b, b' ' | b'\n' | b'\r' | b'\t');
+    let Some(quote) = (offset as usize).checked_sub(1) else {
+        return (0, 0);
+    };
+    let mut start = quote;
+    while start > 0 && is_ws(input[start - 1]) {
+        start -= 1;
+    }
+    if start == 0 || input[start - 1] != b',' {
+        return (0, 0);
+    }
+    start -= 1;
+    let mut end = offset as usize + len as usize + 1;
+    while end < input.len() && is_ws(input[end]) {
+        end += 1;
+    }
+    if input.get(end) != Some(&b':') {
+        return (0, 0);
+    }
+    end += 1;
+    while end < input.len() && is_ws(input[end]) {
+        end += 1;
+    }
+    let gap = end - start;
+    if !(4..=GAP_MAX).contains(&gap) {
+        return (0, 0);
+    }
+    (start as u32, gap as u32)
+}
+
+/// Equality of two equally long slices of 4 to 64 bytes: overlapping word reads.
+#[inline(always)]
+fn gap_eq(a: &[u8], b: &[u8]) -> bool {
+    let n = a.len();
+    if n <= 16 {
+        return bytes_eq(a, b);
+    }
+    let rd = |s: &[u8], at: usize| u128::from_le_bytes(s[at..at + 16].try_into().unwrap_or_default());
+    let mut at = 0;
+    while at + 16 < n {
+        if rd(a, at) != rd(b, at) {
+            return false;
+        }
+        at += 16;
+    }
+    rd(a, n - 16) == rd(b, n - 16)
+}
+
 /// Equality of two slices of the same length, inline for short ones.
 #[inline(always)]
 fn bytes_eq(a: &[u8], b: &[u8]) -> bool {
@@ -1362,7 +1495,7 @@ fn load_word(input: &[u8], i: usize) -> u64 {
 
 /// Whitespace, with whole words of spaces (indentation) skipped at a time.
 #[inline(always)]
-fn skip_ws(input: &[u8], i: usize) -> usize {
+pub(crate) fn skip_ws(input: &[u8], i: usize) -> usize {
     if !matches!(input.get(i), Some(b' ' | b'\n' | b'\r' | b'\t')) {
         return i;
     }
@@ -1548,6 +1681,30 @@ unsafe fn special_ascii_sse2(input: &[u8]) -> (usize, bool) {
         let limit = arch::_mm_set1_epi8(0x1f);
         let mut offset = 0;
         let mut ascii = true;
+        if input.len() >= 32 {
+            // Most strings end inside the first 32 bytes: settle them with one branch.
+            let classify = |bytes| {
+                arch::_mm_or_si128(
+                    arch::_mm_or_si128(
+                        arch::_mm_cmpeq_epi8(bytes, quote),
+                        arch::_mm_cmpeq_epi8(bytes, slash),
+                    ),
+                    arch::_mm_cmpeq_epi8(arch::_mm_min_epu8(bytes, limit), bytes),
+                )
+            };
+            let a = arch::_mm_loadu_si128(input.as_ptr().cast());
+            let b = arch::_mm_loadu_si128(input.as_ptr().add(16).cast());
+            let mask = (arch::_mm_movemask_epi8(classify(a)) as u32)
+                | ((arch::_mm_movemask_epi8(classify(b)) as u32) << 16);
+            let high = (arch::_mm_movemask_epi8(a) as u32) | ((arch::_mm_movemask_epi8(b) as u32) << 16);
+            if mask != 0 {
+                let lane = mask.trailing_zeros() as usize;
+                let prefix = (1u32 << lane).wrapping_sub(1);
+                return (lane, high & prefix == 0);
+            }
+            ascii = high == 0;
+            offset = 32;
+        }
         while input.len() - offset >= 16 {
             let bytes = arch::_mm_loadu_si128(input.as_ptr().add(offset).cast());
             let special = arch::_mm_or_si128(

@@ -2029,7 +2029,7 @@ pub fn skip_strict_continuing(
             limits,
             numeric,
             max_depth: usize::from(limits.max_depth - current_depth),
-            masker: jmax_string::EscapeMasker::new(),
+            masker: scratch.fast.masker(),
             whole_input: false,
         };
         if let Some((end, _)) = super::strict_fast::accept(
