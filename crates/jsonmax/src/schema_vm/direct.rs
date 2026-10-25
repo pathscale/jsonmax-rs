@@ -426,6 +426,7 @@ impl Engine<'_, '_, '_> {
     /// one pass and stage every value. Any miss leaves no trace and the
     /// exact engine runs; only a resource failure is an error here.
     fn fast_leaf_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
+        let _t = jmax_trace::span!(VM_ROWS);
         let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
             return Ok(None);
         };
@@ -505,6 +506,7 @@ impl Engine<'_, '_, '_> {
     /// An item group's element has just completed: move its captured slots
     /// into the group's block and clear them for the next element.
     fn stage_element(&mut self) -> Result<()> {
+        let _t = jmax_trace::span!(VM_ROW_STAGE);
         let Some(slot) = self.context.frames.last().and_then(|frame| frame.slot) else {
             return Ok(());
         };
@@ -537,6 +539,7 @@ impl Engine<'_, '_, '_> {
     /// its array parent is an element of a slotted leaf-group array.
     #[inline]
     fn stage_leaf(&mut self, value: SlotValue, offset: u32) -> Result<()> {
+        let _t = jmax_trace::span!(VM_ROW_STAGE);
         let frames = &self.context.frames;
         let Some(outer) = frames.len().checked_sub(2).and_then(|i| frames.get(i)) else {
             return Ok(());
@@ -783,6 +786,7 @@ impl Engine<'_, '_, '_> {
     /// once the closing brace is seen, so each miss replays in the exact VM.
     /// The charge mirrors the exact engine's per-token work.
     fn fast_fixed_object(&mut self, pending: PendingValue, start: u32) -> Option<u32> {
+        let _t = jmax_trace::span!(VM_FIXED_OBJ);
         #[cfg(test)]
         if tests::force_exact() {
             return None;
@@ -846,6 +850,7 @@ impl Engine<'_, '_, '_> {
     /// capacity growth is charged exactly as the exact engine charges it, in
     /// the same order, because every accepted prefix is identical to its work.
     fn fast_item_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
+        let _t = jmax_trace::span!(VM_ROWS);
         #[cfg(test)]
         if tests::force_exact() {
             return Ok(None);

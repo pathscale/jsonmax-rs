@@ -524,6 +524,7 @@ fn cached_selection_index(
     budget: &mut VmBudget,
     scratch: &mut VmScratch,
 ) -> Result<extract::SelectionIndex> {
+    let _t = jmax_trace::span!(VM_SELECTION);
     if let Some(cache) = &scratch.selection_cache
         && cache.program.same_program(program)
         && cache.fields == selection.field_ids
