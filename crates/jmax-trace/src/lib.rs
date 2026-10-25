@@ -104,7 +104,7 @@ sites! {
     VM_FINISH = "vm finish / assemble",
     // native decoder
     NATIVE_DECODE = "native decode_into / decide (install, budget proof)",
-    NATIVE_SETUP = "native decode_core glue (generated code, excl. reader calls)",
+    NATIVE_SETUP = "native generated decoder body (field stores, budget, loop; excl. reader marks)",
     NATIVE_READER_OPEN = "native reader open / close container",
     NATIVE_KEY_DISPATCH = "native key dispatch",
     NATIVE_SCALAR_STRING = "native decode string",
