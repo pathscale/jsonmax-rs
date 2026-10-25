@@ -37,6 +37,7 @@ fn check_scalar_inner(
     budget: &mut VmBudget,
     trusted: bool,
 ) -> Result<SlotValue> {
+    let _t = jmax_trace::span!(VM_CONSTRAINT);
     let offset = value.span.offset;
     budget.charge(1, offset)?;
     let current = match state {

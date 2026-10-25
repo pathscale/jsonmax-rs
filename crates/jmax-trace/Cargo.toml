@@ -1,0 +1,11 @@
+[package]
+name = "jmax-trace"
+description = "Feature-gated cycle-counter trace marks for JSONMax hot phases"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# Records per-site ticks and hits. Off by default: every mark compiles to nothing.
+trace = []

@@ -10,6 +10,8 @@ mod compare;
 mod measure;
 #[path = "../../metrics.rs"]
 mod metrics;
+#[path = "../../trace_report.rs"]
+mod trace_report;
 fn main() -> common::R<()> {
     compare::run()
 }

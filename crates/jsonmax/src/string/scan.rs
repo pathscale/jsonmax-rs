@@ -96,6 +96,7 @@ pub fn first_special(bytes: &[u8]) -> Option<usize> {
 /// Once a closing quote is found, the entire raw content is validated as UTF-8;
 /// malformed sequences have source `Utf8` and point to their leading byte.
 pub fn scan_string(input: &[u8], opening_quote: u32) -> Result<StringScan> {
+    let _t = jmax_trace::span!(STRING_SCAN);
     let input_len = checked_scan_len(input.len())?;
     if opening_quote >= input_len {
         return Err(Error::new(

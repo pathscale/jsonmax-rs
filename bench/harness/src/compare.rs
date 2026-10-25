@@ -422,6 +422,7 @@ pub fn run() -> R<()> {
             job.retained += job.bytes;
         }
         let m = measure::run(&mut *job.run, job.retained, job.retained_get.as_deref())?;
+        crate::trace_report::report(&format!("{}/{} {}", job.corpus, job.class, job.parser), &mut *job.run)?;
         println!(
             "{}",
             measure::row(&job.corpus, job.class, job.parser, job.bytes, &m)

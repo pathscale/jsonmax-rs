@@ -81,6 +81,8 @@ pub use endpoint::CompiledSchema;
 /// explicit legacy parallel-table representation.
 pub use crate::dom::{BorrowedDocument, Document, DomScratch, TapeDocument};
 pub use crate::schema_aot::JsonDecodeBorrowed;
+/// Trace marks (`trace` feature): per-site tick counters, see `jmax-trace`.
+pub use jmax_trace as trace;
 
 /// Optional allocator availability. Enabling `rusty-alloc` does not install a
 /// global allocator. A binary consumer can install it once in its crate root:

@@ -5,6 +5,7 @@ use super::{checked_len, Error, ErrorCode, ErrorSource, Result};
 /// Validate a complete slice once through ps-simdutf8 and count Unicode scalars.
 /// Errors identify the first malformed sequence relative to `base_offset`.
 pub fn validate_and_count_scalars(bytes: &[u8], base_offset: u32) -> Result<u32> {
+    let _t = jmax_trace::span!(UTF8_COUNT);
     let len = checked_len(bytes.len())?;
     base_offset.checked_add(len).ok_or_else(|| {
         Error::new(

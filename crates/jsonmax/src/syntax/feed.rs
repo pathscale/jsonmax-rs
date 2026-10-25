@@ -49,6 +49,7 @@ pub fn push(state: &mut SyntaxState, bytes: &[u8]) -> Result<()> {
 /// Chunk exhaustion is always `NeedMore` until EOF is explicitly marked by the
 /// finish module. An emitted event leaves the cursor immediately after its token.
 pub fn next(state: &mut SyntaxState) -> Result<ScanStep> {
+    let _t = jmax_trace::span!(SYNTAX_FEED);
     if let Some(error) = state.failure.as_ref() {
         return Err(error.clone());
     }

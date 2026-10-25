@@ -9,6 +9,7 @@ use super::*;
 /// Quoted integers retain the policy already established by the lexer.
 /// Errors use the token's full source-span start and [`ErrorSource::Lexer`].
 pub fn parse_u64(token: &NumberToken<'_>) -> Result<u64> {
+    let _t = jmax_trace::span!(NUMBER_INT);
     require_integer(token)?;
     if token.is_negative() {
         return Err(overflow(token));
@@ -22,6 +23,7 @@ pub fn parse_u64(token: &NumberToken<'_>) -> Result<u64> {
 /// rejected, and every out-of-range integer reports [`ErrorCode::NumberOverflow`]
 /// at the token's full source-span start with [`ErrorSource::Lexer`].
 pub fn parse_i64(token: &NumberToken<'_>) -> Result<i64> {
+    let _t = jmax_trace::span!(NUMBER_INT);
     require_integer(token)?;
     let negative = token.is_negative();
     const MIN_MAGNITUDE: u64 = 1_u64 << 63;

@@ -136,11 +136,13 @@ impl NativeContext {
 
     /// Open an object scope for unknown-key tracking; pass the mark to `end_object`.
     pub fn begin_object(&self) -> usize {
+        let _t = jmax_trace::span!(NATIVE_READER_OPEN);
         self.unknown.entries.len()
     }
 
     /// Record a decoded unknown key of the object opened at `mark`.
     pub fn unknown_key(&mut self, key: &str) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_KEY_DISPATCH);
         self.unknown.push_key(key)?;
         self.unknown_key_bytes = self
             .unknown_key_bytes
@@ -170,6 +172,7 @@ impl NativeContext {
     /// Close the object opened at `mark`. With duplicate rejection on, two equal
     /// decoded unknown keys in it are a Fail. Always discards the object's keys.
     pub fn end_object(&mut self, mark: usize) -> NativeResult<()> {
+        let _t = jmax_trace::span!(NATIVE_READER_OPEN);
         self.unknown
             .finish(mark, self.limits.syntax.reject_duplicate_keys)
     }
