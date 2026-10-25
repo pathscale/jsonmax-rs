@@ -539,17 +539,25 @@ fn build(
     result
 }
 
+const SMALL_INPUT: usize = 512;
+
 /// Reserve the tape from source density without keeping a half-input sized
 /// tape for ordinary JSON. Count only the source spans that must be decoded;
 /// their raw lengths are a safe upper bound for the cooked arena.
 fn prepare_fresh_buffers(raw: &[u8], limits: Limits, scratch: &mut DomScratch) -> Result<()> {
     if scratch.tape.capacity() == 0 {
-        let words = initial_tape_words(raw)
-            .clamp(16, 1_048_576)
-            .min(limits.max_payload_bytes as usize);
+        // Small inputs skip the density sample: a flat guess costs less than
+        // the scan, and an undersized tape just grows.
+        let words = if raw.len() <= SMALL_INPUT {
+            raw.len() / 2 + 16
+        } else {
+            initial_tape_words(raw)
+        }
+        .clamp(16, 1_048_576)
+        .min(limits.max_payload_bytes as usize);
         reserve(&mut scratch.tape, words, 0)?;
     }
-    if scratch.decoded.capacity() == 0 && raw.contains(&b'\\') {
+    if scratch.decoded.capacity() == 0 && raw.len() > SMALL_INPUT && raw.contains(&b'\\') {
         let decoded = decoded_reservation(raw).min(limits.max_decoded_bytes as usize);
         if decoded != 0 {
             reserve(&mut scratch.decoded, decoded, 0)?;

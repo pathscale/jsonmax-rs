@@ -948,6 +948,11 @@ fn memo_slot(depth: usize, hash: u64) -> usize {
 }
 #[inline(always)]
 fn shape_open(shapes: &mut Shapes, depth: usize, offset: u32) -> Result<()> {
+    if depth == 0 {
+        // The root object occurs once, so a remembered shape can never repeat;
+        // level 0 is created disabled and stays that way.
+        return Ok(());
+    }
     if depth >= MAX_SHAPE_DEPTH {
         return Ok(());
     }
@@ -970,6 +975,7 @@ fn grow_levels(shapes: &mut Shapes, offset: u32) -> Result<()> {
     shapes
         .levels
         .resize_with(MAX_SHAPE_DEPTH, KeyShape::default);
+    shapes.levels[0].disabled = true;
     Ok(())
 }
 
