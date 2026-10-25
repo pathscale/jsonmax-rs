@@ -47,6 +47,8 @@ const NO_SHAPE: u32 = u32::MAX;
 const SHAPE_SLOTS: usize = 128;
 /// Longest key list a shape memo (and a table-mode segment) keeps.
 const SHAPE_MAX_KEYS: usize = 256;
+/// Containers a `flat_object` probe may nest below its starting object.
+const FLAT_MAX_NEST: usize = 8;
 
 #[derive(Clone, Copy, Debug)]
 struct ShapeKey {
@@ -86,12 +88,17 @@ pub(crate) struct FastScratch {
     /// recording start with the second object; deeper objects use exact tables.
     seen_objects: u64,
     generation: u32,
+    /// Consecutive failed `flat_object` attempts, and the objects left to skip before the next probe.
+    flat_misses: u8,
+    flat_wait: u8,
 }
 
 impl FastScratch {
     /// Forgets every memoized shape. Call whenever the input slice may differ
     /// from the one previous `accept` calls saw.
     pub(crate) fn new_input(&mut self) {
+        self.flat_misses = 0;
+        self.flat_wait = 0;
         self.seen_objects = 0;
         self.generation = self.generation.wrapping_add(1);
         if self.generation == 0 {
@@ -181,18 +188,26 @@ impl Ctx<'_> {
             match byte {
                 b'"' => i = self.string(i, false)?.0,
                 b'{' => {
-                    self.open(true)?;
-                    i = skip_ws(input, i + 1);
-                    match *input.get(i)? {
-                        b'}' => {
-                            i += 1;
-                            self.close()?;
+                    if let Some(end) = if self.memo_enabled {
+                        self.flat_object(i)
+                    } else {
+                        None
+                    } {
+                        i = end;
+                    } else {
+                        self.open(true)?;
+                        i = skip_ws(input, i + 1);
+                        match *input.get(i)? {
+                            b'}' => {
+                                i += 1;
+                                self.close()?;
+                            }
+                            b'"' => {
+                                i = self.key(i)?;
+                                continue;
+                            }
+                            _ => return None,
                         }
-                        b'"' => {
-                            i = self.key(i)?;
-                            continue;
-                        }
-                        _ => return None,
                     }
                 }
                 b'[' => {
@@ -555,6 +570,198 @@ impl Ctx<'_> {
         }
     }
 
+    /// Recognizes a value tree that repeats memoized object shapes, without pushing a
+    /// container frame per level: objects whose keys equal a recorded shape, arrays,
+    /// and scalars. The memo recorded those keys unescaped, valid and pairwise distinct,
+    /// so a byte-equal key needs no further check. The scan is transactional: it reads
+    /// only, and applies its decoded-byte accounting on success, so a miss leaves all
+    /// state untouched and the general loop decides, with every diagnostic.
+    ///
+    /// Gate: after a few consecutive misses the recognizer is only probed every 32nd
+    /// object, so documents without repeated shapes pay almost nothing.
+    #[inline(always)]
+    fn flat_object(&mut self, start: usize) -> Option<usize> {
+        if self.s.flat_misses >= 2 {
+            if self.s.flat_wait > 0 {
+                self.s.flat_wait -= 1;
+                return None;
+            }
+            self.s.flat_wait = 32;
+        }
+        let found = self.flat_probe(start);
+        self.s.flat_misses = if found.is_some() {
+            0
+        } else {
+            self.s.flat_misses.saturating_add(1).min(2)
+        };
+        found
+    }
+
+    #[inline(never)]
+    fn flat_probe(&mut self, start: usize) -> Option<usize> {
+        let depth = self.s.levels.len();
+        if self.s.shapes.is_empty() {
+            return None;
+        }
+        let mut extra = 0usize;
+        let end = self.flat_value(start, depth, depth, &mut extra)?;
+        self.discarded = self.discarded.checked_add(u32::try_from(extra).ok()?)?;
+        Some(end)
+    }
+
+    /// The value at `i` (not whitespace) whose container, if any, sits at `depth`.
+    #[inline(always)]
+    fn flat_value(&self, i: usize, depth: usize, base: usize, extra: &mut usize) -> Option<usize> {
+        match *self.input.get(i)? {
+            b'{' => self.flat_members(i, depth, base, extra),
+            b'[' => self.flat_items(i, depth, base, extra),
+            _ => self.flat_scalar(i, extra),
+        }
+    }
+
+    #[inline(always)]
+    fn flat_scalar(&self, i: usize, extra: &mut usize) -> Option<usize> {
+        let input = self.input;
+        match *input.get(i)? {
+            b'"' => {
+                let limits = self.p.limits;
+                let content = i + 1;
+                let (j, ascii) = find_special_ascii(input, content);
+                match *input.get(j)? {
+                    b'"' => {
+                        if j - content > limits.max_string_bytes as usize {
+                            return None;
+                        }
+                        if !ascii {
+                            jmax_utf8::validate::validate_str(&input[content..j]).ok()?;
+                        }
+                        Some(j + 1)
+                    }
+                    b'\\' => {
+                        let (end, len) = simple_escaped_string(input, i, j, ascii)?;
+                        *extra = extra.checked_add(len)?;
+                        let total = self
+                            .decoded
+                            .len()
+                            .checked_add(self.discarded as usize)?
+                            .checked_add(*extra)?;
+                        if end - content > limits.max_string_bytes as usize
+                            || total > limits.max_decoded_bytes as usize
+                        {
+                            return None;
+                        }
+                        Some(end + 1)
+                    }
+                    _ => None,
+                }
+            }
+            b'-' | b'0'..=b'9' => number_prefix(input, i, self.p.limits, self.p.numeric),
+            b't' => literal(input, i, b"true"),
+            b'f' => literal(input, i, b"false"),
+            b'n' => literal(input, i, b"null"),
+            _ => None,
+        }
+    }
+
+    /// The array at `start`, which would open at `depth`.
+    fn flat_items(
+        &self,
+        start: usize,
+        depth: usize,
+        base: usize,
+        extra: &mut usize,
+    ) -> Option<usize> {
+        if depth >= self.p.max_depth || depth - base >= FLAT_MAX_NEST {
+            return None;
+        }
+        let input = self.input;
+        let mut i = skip_ws(input, start + 1);
+        if *input.get(i)? == b']' {
+            return Some(i + 1);
+        }
+        let max_items = self.p.limits.max_array_items;
+        let mut count = 0u32;
+        loop {
+            count += 1;
+            if count > max_items {
+                return None;
+            }
+            i = self.flat_value(i, depth + 1, base, extra)?;
+            i = skip_ws(input, i);
+            match *input.get(i)? {
+                b',' => i = skip_ws(input, i + 1),
+                b']' => return Some(i + 1),
+                _ => return None,
+            }
+        }
+    }
+
+    /// The object at `start`, which would open at `depth`, spelled with the keys of a
+    /// recorded shape, in order.
+    fn flat_members(
+        &self,
+        start: usize,
+        depth: usize,
+        base: usize,
+        extra: &mut usize,
+    ) -> Option<usize> {
+        if depth >= self.p.max_depth || depth - base >= FLAT_MAX_NEST {
+            return None;
+        }
+        let input = self.input;
+        let mut i = skip_ws(input, start + 1);
+        match *input.get(i)? {
+            b'}' => return Some(i + 1),
+            b'"' => {}
+            _ => return None,
+        }
+        let content = i + 1;
+        let (close, _) = find_special_ascii(input, content);
+        if *input.get(close)? != b'"' {
+            return None;
+        }
+        let slot = shape_slot(depth, fingerprint(&input[content..close]));
+        let shape = self.s.shapes.get(slot)?;
+        if shape.generation != self.s.generation || shape.depth as usize != depth {
+            return None;
+        }
+        let keys = &shape.keys;
+        let len = keys.len();
+        if len > self.p.limits.max_fields_per_object as usize {
+            return None;
+        }
+        let mut k = 0;
+        loop {
+            // The key's bytes and its closing quote; the opening quote is at `i`.
+            let key = *keys.get(k)?;
+            let n = key.len as usize + 1;
+            let at = key.offset as usize;
+            if !bytes_eq(input.get(i + 1..i + 1 + n)?, input.get(at..at + n)?) {
+                return None;
+            }
+            i = skip_ws(input, i + 1 + n);
+            if *input.get(i)? != b':' {
+                return None;
+            }
+            i = skip_ws(input, i + 1);
+            i = self.flat_value(i, depth + 1, base, extra)?;
+            i = skip_ws(input, i);
+            k += 1;
+            match *input.get(i)? {
+                b',' => {
+                    i = skip_ws(input, i + 1);
+                    if k == len || *input.get(i)? != b'"' {
+                        return None;
+                    }
+                }
+                b'}' => {
+                    return if k == len { Some(i + 1) } else { None };
+                }
+                _ => return None,
+            }
+        }
+    }
+
     /// Remembers the keys of a closing object (all unescaped, distinct, inline).
     fn record_shape(&mut self, level: &Level) {
         let depth = self.s.levels.len();
@@ -749,8 +956,8 @@ impl Ctx<'_> {
         if byte < 0x20 {
             return None;
         }
-        if !capture && ascii {
-            if let Some((end, len)) = ascii_escaped_string(input, i, j) {
+        if !capture {
+            if let Some((end, len)) = simple_escaped_string(input, i, j, ascii) {
                 let total = self
                     .decoded
                     .len()
@@ -858,29 +1065,86 @@ fn integer_array(input: &[u8], mut i: usize, limits: Limits) -> Option<(usize, b
     }
 }
 
-/// Validate common ASCII escape strings while discovering their closing quote.
-/// Unicode escapes and non-ASCII runs use the established general decoder.
+/// Validate escaped strings (single-character and well-formed Unicode escapes) while finding their closing
+/// quote. Raw non-ASCII runs are checked as UTF-8 (they sit between ASCII delimiters,
+/// so each run is a whole-scalar sequence in any valid string) and pass through
+/// unchanged, so the decoded length follows from the raw length and the escapes.
+/// `prefix_ascii` says whether the bytes before the first backslash are ASCII.
+/// A lone surrogate or any other doubt uses the established general decoder.
 #[inline(never)]
-fn ascii_escaped_string(input: &[u8], opening: usize, mut slash: usize) -> Option<(usize, usize)> {
-    let mut escapes = 0usize;
+fn simple_escaped_string(
+    input: &[u8],
+    opening: usize,
+    mut slash: usize,
+    prefix_ascii: bool,
+) -> Option<(usize, usize)> {
+    if !prefix_ascii {
+        jmax_utf8::validate::validate_str(&input[opening + 1..slash]).ok()?;
+    }
+    // Raw bytes minus decoded bytes over all escapes seen so far.
+    let mut shrink = 0usize;
     loop {
-        if !matches!(
-            *input.get(slash + 1)?,
-            b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't'
-        ) {
-            return None;
-        }
-        escapes += 1;
-        let (end, ascii) = find_special_ascii(input, slash + 2);
+        let after = match *input.get(slash + 1)? {
+            b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {
+                shrink += 1;
+                slash + 2
+            }
+            b'u' => {
+                let high = hex_quad(input, slash + 2)?;
+                if (0xd800..=0xdbff).contains(&high) {
+                    if input.get(slash + 6..slash + 8)? != b"\\u" {
+                        return None;
+                    }
+                    let low = hex_quad(input, slash + 8)?;
+                    if !(0xdc00..=0xdfff).contains(&low) {
+                        return None;
+                    }
+                    // Twelve raw bytes, one four-byte scalar.
+                    shrink += 8;
+                    slash + 12
+                } else if (0xdc00..=0xdfff).contains(&high) {
+                    return None;
+                } else {
+                    let decoded = if high < 0x80 {
+                        1
+                    } else if high < 0x800 {
+                        2
+                    } else {
+                        3
+                    };
+                    shrink += 6 - decoded;
+                    slash + 6
+                }
+            }
+            _ => return None,
+        };
+        let (end, ascii) = find_special_ascii(input, after);
         if !ascii {
-            return None;
+            jmax_utf8::validate::validate_str(input.get(after..end)?).ok()?;
         }
         match *input.get(end)? {
-            b'"' => return Some((end, end - opening - 1 - escapes)),
+            b'"' => return Some((end, end - opening - 1 - shrink)),
             b'\\' => slash = end,
             _ => return None,
         }
     }
+}
+
+/// Four hex digits at `at`, as the exact decoder reads a Unicode escape.
+#[inline(always)]
+fn hex_quad(input: &[u8], at: usize) -> Option<u16> {
+    let digits = input.get(at..at.checked_add(4)?)?;
+    let mut value = 0u16;
+    for &byte in digits {
+        let digit = match byte {
+            b'0'..=b'9' => byte - b'0',
+            b'a'..=b'f' => byte - b'a' + 10,
+            b'A'..=b'F' => byte - b'A' + 10,
+            _ => return None,
+        };
+        value = (value << 4) | u16::from(digit);
+    }
+    Some(value)
 }
 
 /// Common short, nonzero-integer-part decimals. Other JSON numbers retain the
@@ -1069,7 +1333,41 @@ fn skip_ws(input: &[u8], i: usize) -> usize {
     if !matches!(input.get(next), Some(b' ' | b'\n' | b'\r' | b'\t')) {
         return next;
     }
-    next + whitespace_prefix(&input[next..])
+    let rest = &input[next..];
+    // Indentation runs are almost always shorter than one vector: settle them inline.
+    #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+    if rest.len() >= 16 {
+        let run = unsafe { whitespace_head_sse2(rest) };
+        if run < 16 {
+            return next + run;
+        }
+        return next + 16 + whitespace_prefix(&rest[16..]);
+    }
+    next + whitespace_prefix(rest)
+}
+
+/// Whitespace prefix length within the first 16 bytes (16 when all of them are whitespace).
+/// The caller guarantees at least 16 bytes.
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+#[inline(always)]
+unsafe fn whitespace_head_sse2(input: &[u8]) -> usize {
+    use core::arch::x86_64 as arch;
+    unsafe {
+        let bytes = arch::_mm_loadu_si128(input.as_ptr().cast());
+        let ws = arch::_mm_or_si128(
+            arch::_mm_or_si128(
+                arch::_mm_cmpeq_epi8(bytes, arch::_mm_set1_epi8(b' ' as i8)),
+                arch::_mm_cmpeq_epi8(bytes, arch::_mm_set1_epi8(b'\n' as i8)),
+            ),
+            arch::_mm_or_si128(
+                arch::_mm_cmpeq_epi8(bytes, arch::_mm_set1_epi8(b'\r' as i8)),
+                arch::_mm_cmpeq_epi8(bytes, arch::_mm_set1_epi8(b'\t' as i8)),
+            ),
+        );
+        (!(arch::_mm_movemask_epi8(ws) as u32))
+            .trailing_zeros()
+            .min(16) as usize
+    }
 }
 
 /// Bounded local whitespace scan. Short runs avoid vector setup; tails use

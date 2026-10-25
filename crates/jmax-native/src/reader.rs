@@ -40,6 +40,9 @@ enum Scanned<'c> {
 pub struct Reader<'a> {
     input: &'a [u8],
     pos: usize,
+    /// Set by `decode_into` after it reset the context's skip memo for this input, so
+    /// skipped values may share remembered key shapes. A hand-built reader never sets it.
+    shared_skip: bool,
 }
 
 /// Bytes that may follow a literal or number token.
@@ -53,7 +56,20 @@ const fn is_delim(byte: Option<u8>) -> bool {
 
 impl<'a> Reader<'a> {
     pub const fn new(input: &'a [u8]) -> Self {
-        Self { input, pos: 0 }
+        Self {
+            input,
+            pos: 0,
+            shared_skip: false,
+        }
+    }
+
+    /// A reader over `input` whose context's skip memo was just reset for it.
+    pub(crate) const fn new_shared_skip(input: &'a [u8]) -> Self {
+        Self {
+            input,
+            pos: 0,
+            shared_skip: true,
+        }
     }
 
     pub const fn input(&self) -> &'a [u8] {
@@ -502,8 +518,12 @@ impl<'a> Reader<'a> {
     pub fn unknown_key(&mut self, ctx: &mut NativeContext) -> NativeResult<()> {
         self.skip_ws();
         let max = ctx.limits.syntax.max_string_bytes as usize;
-        let (text, end) = self.string_in(max, &mut ctx.arena, self.pos)?;
-        ctx.unknown.push_key(text)?;
+        let (scanned, end) = self.scan_in(max, &mut ctx.arena, self.pos)?;
+        let text: &[u8] = match scanned {
+            Scanned::Ascii(bytes) => bytes,
+            Scanned::Text(text) => text.as_bytes(),
+        };
+        ctx.unknown.push_key_bytes(text)?;
         ctx.unknown_fields = ctx.unknown_fields.checked_add(1).ok_or(Fail)?;
         ctx.unknown_key_bytes = ctx
             .unknown_key_bytes
@@ -671,7 +691,12 @@ impl<'a> Reader<'a> {
             jmax_abi::syntax::DuplicatePolicyOwner::Disabled
         };
         ctx.skip_decoded.clear();
-        let end = jmax_syntax::skip_strict(
+        let skip = if self.shared_skip {
+            jmax_syntax::skip_strict_continuing
+        } else {
+            jmax_syntax::skip_strict
+        };
+        let end = skip(
             self.input,
             start,
             depth,

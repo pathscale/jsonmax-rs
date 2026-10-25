@@ -69,7 +69,8 @@ fn core_decode<T: NativeDecode>(
     ctx.unknown_key_bytes = 0;
     ctx.unknown_fields = 0;
     ctx.skipped_bytes = 0;
-    let mut reader = Reader::new(input);
+    ctx.skip.new_input();
+    let mut reader = Reader::new_shared_skip(input);
     T::decode_core(&mut reader, ctx, out)?;
     reader.end()?;
     Ok(())
