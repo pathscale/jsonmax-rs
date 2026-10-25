@@ -100,6 +100,9 @@ pub fn run() -> R<()> {
         CompileLimits::default_limits(),
     )?;
     let query = jsonmax::query::compile_paths(&["mode"])?;
+    let rows_schema = batch_schema(true)?;
+    let plain_schema = batch_schema(false)?;
+    let mut rows_scratch = jsonmax::endpoint::ValidationScratch::default();
     let mut rng = Rng(0x9e3779b97f4a7c15);
     let stdout = std::io::stdout();
     let mut lock = stdout.lock();
@@ -121,6 +124,9 @@ pub fn run() -> R<()> {
         }
         let mut out = String::new();
         let _ = writeln!(out, "#{i} base{bi} len{}", input.len());
+        if bi == 12 || bi == 8 {
+            check_rows(&rows_schema, &plain_schema, &mut rows_scratch, &input, options());
+        }
         if bi >= SMALL.len() {
             // big inputs: only default limits to keep it fast
             let o = options();
@@ -136,4 +142,64 @@ pub fn run() -> R<()> {
         lock.write_all(out.as_bytes())?;
     }
     Ok(())
+}
+
+/// A batch schema whose `records` items are open objects. With `rows` the
+/// three item fields carry slots (rows API); without, only the array does.
+fn batch_schema(rows: bool) -> R<jsonmax::CompiledSchema> {
+    let prop = |id: u32, name: &str, ty: u32, required: bool, slot: u32| Property {
+        field_id: FieldId(id),
+        name: name.into(),
+        ty: TypeId(ty),
+        required,
+        slot: Some(slot),
+    };
+    let item_slot = |slot: u32| if rows { slot } else { slot + 100 };
+    let mut item: Vec<Property> = vec![
+        prop(4, "request_id", 4, true, item_slot(3)),
+        prop(5, "endpoint", 5, false, item_slot(4)),
+        prop(6, "method", 6, false, item_slot(5)),
+    ];
+    if !rows {
+        for p in &mut item {
+            p.slot = None;
+        }
+    }
+    let nodes = vec![
+        TypeNode::Object(ObjectShape {
+            nullable: false,
+            properties: vec![
+                prop(1, "batch_id", 3, true, 0),
+                prop(2, "request_count", 7, true, 1),
+                prop(3, "records", 1, true, 2),
+            ],
+            reject_unknown: false,
+            min_properties: None,
+            max_properties: None,
+        }),
+        TypeNode::Array(jmax_schema_ir::ArrayShape { nullable: false, items: TypeId(2), min_items: None, max_items: None }),
+        TypeNode::Object(ObjectShape { nullable: false, properties: item, reject_unknown: false, min_properties: None, max_properties: None }),
+        TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+        TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+        TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+        TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
+        TypeNode::Scalar(ScalarConstraints::new(ValueKind::Integer)),
+    ];
+    Ok(jsonmax::endpoint::compile_native_schema(
+        &Schema { name: "batch".into(), schema_id: jsonmax::SchemaId(3), root: TypeId(0), nodes, definitions: vec![] },
+        CompileLimits::default_limits(),
+    )?)
+}
+
+/// The rows API must accept and reject exactly what plain extraction of the
+/// same schema (without item slots) does, and stage one row per record.
+fn check_rows(rows: &jsonmax::CompiledSchema, plain: &jsonmax::CompiledSchema, scratch: &mut jsonmax::endpoint::ValidationScratch, input: &[u8], o: ParseOptions) {
+    let selection = Selection { field_ids: vec![], strict_validate_unselected: true };
+    let want = jsonmax::endpoint::extract_borrowed(plain, &selection, input, o).map(|s| s.slots.len());
+    let got = jsonmax::endpoint::extract_rows_borrowed_with_scratch(rows, &selection, input, o, scratch);
+    match (want, got) {
+        (Ok(_), Ok(out)) => assert_eq!(out.groups.len(), 1, "rows group count"),
+        (Err(a), Err(b)) => assert_eq!(a.code, b.code, "rows error code on {:?}", String::from_utf8_lossy(input)),
+        (a, b) => panic!("rows/plain disagree on {:?}: {:?} vs {:?}", String::from_utf8_lossy(input), a.map(|_| ()), b.map(|_| ())),
+    }
 }

@@ -149,6 +149,8 @@ struct Engine<'a, 'ctx, 'buf> {
     // Only supplied by a live immutable BorrowedValidatedSlots guard, never
     // by accepting an arbitrary Copy pointer token from caller code.
     validated: Option<ValidationCapability>,
+    // Row staging for the rows API: one block per program row group.
+    rows: Option<&'buf mut Vec<RowBlock>>,
 }
 
 impl Engine<'_, '_, '_> {
@@ -189,7 +191,25 @@ impl Engine<'_, '_, '_> {
 
     fn value_pending(&mut self, byte: u8, pending: PendingValue) -> Result<()> {
         let offset = self.cursor.offset();
-        if byte == b'[' && !self.query {
+        if byte == b'['
+            && !self.query
+            && self.rows.is_some()
+            && let Some(span) = self.fast_leaf_rows(pending, offset)?
+        {
+            if let Some(slot) = pending.slot {
+                extract::store(
+                    &mut self.context.slots,
+                    slot,
+                    SlotValue::RawSpan(span),
+                    offset,
+                )?;
+            }
+            if self.context.frames.is_empty() {
+                self.context.root_done = true;
+            }
+            return Ok(());
+        }
+        if byte == b'[' && !self.query && !self.in_row_group(pending.slot) {
             if let Some(span) = self
                 .fast_fixed_struct_array(pending, offset)
                 .or_else(|| self.fast_struct_array(pending, offset))
@@ -382,6 +402,8 @@ impl Engine<'_, '_, '_> {
                 )?;
                 if let Some(slot) = pending.slot {
                     extract::store(&mut self.context.slots, slot, value, offset)?;
+                } else if self.rows.is_some() {
+                    self.stage_leaf(value, offset)?;
                 }
                 if self.context.frames.is_empty() {
                     self.context.root_done = true;
@@ -389,6 +411,160 @@ impl Engine<'_, '_, '_> {
             }
         }
         Ok(())
+    }
+
+    /// A slotted leaf-group array of unit-tick decimal pairs: validate it in
+    /// one pass and stage every value. Any miss leaves no trace and the
+    /// exact engine runs; only a resource failure is an error here.
+    fn fast_leaf_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
+        let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
+            return Ok(None);
+        };
+        let program = self.context.program;
+        let Some(group) = program.row_group_of_slot(slot) else {
+            return Ok(None);
+        };
+        if !matches!(
+            program.row_groups()[group].shape,
+            RowShape::Leaf { width: 2 }
+        ) || self.context.slots.get(slot as usize) != Some(&SlotValue::Empty)
+        {
+            return Ok(None);
+        }
+        let Some(outer) = program.state(state) else {
+            return Ok(None);
+        };
+        let StateKind::Array { items: pair_id } = outer.kind else {
+            return Ok(None);
+        };
+        let (Some(pair), depth) = (program.state(pair_id), self.context.frames.len()) else {
+            return Ok(None);
+        };
+        let StateKind::Array { items: decimal_id } = pair.kind else {
+            return Ok(None);
+        };
+        let Some(StateKind::Scalar(ValueKind::Decimal)) =
+            program.state(decimal_id).map(|s| &s.kind)
+        else {
+            return Ok(None);
+        };
+        let Some(decimal) = program
+            .state(decimal_id)
+            .and_then(|s| s.constraints.decimal.as_ref())
+        else {
+            return Ok(None);
+        };
+        if decimal.minimum.is_some()
+            || decimal.maximum.is_some()
+            || jmax_decimal::validate_policy(&decimal.policy).is_err()
+            || depth + 2 > usize::from(self.context.limits.syntax.max_depth)
+            // Warm frames must already cover both levels, as in the reference engine.
+            || self.context.frames.capacity() < depth + 2
+        {
+            return Ok(None);
+        }
+        let Some(block) = self.rows.as_mut().and_then(|rows| rows.get_mut(group)) else {
+            return Ok(None);
+        };
+        let mut tight_budget = self.context.budget.clone();
+        let Some(span) = fixed_pair_rows(
+            self.cursor.input(),
+            start,
+            decimal,
+            &pair.constraints,
+            &outer.constraints,
+            self.numeric,
+            self.context.limits.syntax,
+            &mut tight_budget,
+            &mut block.values,
+        )?
+        else {
+            return Ok(None);
+        };
+        self.cursor.advance(span.len);
+        self.context.budget = tight_budget;
+        Ok(Some(span))
+    }
+
+    /// Whether an array about to open is a row group of an active rows run.
+    #[inline]
+    fn in_row_group(&self, slot: Option<u32>) -> bool {
+        self.rows.is_some()
+            && slot.is_some_and(|slot| self.context.program.row_group_of_slot(slot).is_some())
+    }
+
+    /// An item group's element has just completed: move its captured slots
+    /// into the group's block and clear them for the next element.
+    fn stage_element(&mut self) -> Result<()> {
+        let Some(slot) = self.context.frames.last().and_then(|frame| frame.slot) else {
+            return Ok(());
+        };
+        let program = self.context.program;
+        let Some(group) = program.row_group_of_slot(slot) else {
+            return Ok(());
+        };
+        let RowShape::Items { first_slot, width } = program.row_groups()[group].shape else {
+            return Ok(());
+        };
+        let offset = self.cursor.offset();
+        let (start, end) = (first_slot as usize, first_slot as usize + width as usize);
+        let row =
+            self.context.slots.get_mut(start..end).ok_or_else(|| {
+                vm_error(ErrorCode::InternalError, offset, "row slots out of range")
+            })?;
+        let Some(block) = self.rows.as_mut().and_then(|rows| rows.get_mut(group)) else {
+            return Err(vm_error(
+                ErrorCode::InternalError,
+                offset,
+                "missing row block",
+            ));
+        };
+        push_staged(&mut self.context.budget, &mut block.values, row, offset)?;
+        row.fill(SlotValue::Empty);
+        Ok(())
+    }
+
+    /// A scalar without a slot may be one value of a leaf group's element:
+    /// its array parent is an element of a slotted leaf-group array.
+    #[inline]
+    fn stage_leaf(&mut self, value: SlotValue, offset: u32) -> Result<()> {
+        let frames = &self.context.frames;
+        let Some(outer) = frames.len().checked_sub(2).and_then(|i| frames.get(i)) else {
+            return Ok(());
+        };
+        let Some(slot) = outer.slot else {
+            return Ok(());
+        };
+        if !matches!(outer.kind, FrameKind::Array { .. }) {
+            return Ok(());
+        }
+        let program = self.context.program;
+        let Some(group) = program.row_group_of_slot(slot) else {
+            return Ok(());
+        };
+        if !matches!(program.row_groups()[group].shape, RowShape::Leaf { .. }) {
+            return Ok(());
+        }
+        if value == SlotValue::Empty {
+            return Err(vm_error(
+                ErrorCode::ConstraintViolation,
+                offset,
+                "a staged value cannot be Empty",
+            ));
+        }
+        let Some(block) = self.rows.as_mut().and_then(|rows| rows.get_mut(group)) else {
+            return Err(vm_error(
+                ErrorCode::InternalError,
+                offset,
+                "missing row block",
+            ));
+        };
+        push_staged(
+            &mut self.context.budget,
+            &mut block.values,
+            core::slice::from_ref(&value),
+            offset,
+        )
     }
 
     /// Minified scalar rows share a schema-derived plan and the preceding
@@ -714,22 +890,12 @@ impl Engine<'_, '_, '_> {
                 let (end, scalar_work) = fixed_property_end(input, at, property, numeric, limits)?;
                 if let Some(slot) = entry.slot.filter(|&s| extract::selected(selection, s)) {
                     let value = match entry.kind {
-                        ValueKind::Decimal => {
-                            // SAFETY: fixed_decimal_end accepted only ASCII digits, a sign and a point.
-                            let text =
-                                unsafe { core::str::from_utf8_unchecked(&input[at + 1..end - 1]) };
-                            let mut scratch = snapshot.clone();
-                            SlotValue::Decimal(
-                                constraints::decimal(
-                                    text,
-                                    state?.constraints.decimal.as_ref()?,
-                                    &program.program().policy.numeric,
-                                    &mut scratch,
-                                    at as u32,
-                                )
-                                .ok()?,
-                            )
-                        }
+                        // fixed_decimal_end accepted a unit-tick string: only ASCII
+                        // digits, a sign and a point, at most target_scale decimals.
+                        ValueKind::Decimal => validated_decimal(
+                            &input[at + 1..end - 1],
+                            state?.constraints.decimal.as_ref()?.policy.target_scale,
+                        )?,
                         ValueKind::String => SlotValue::Str(StrRef {
                             span: Span32::new(at as u32 + 1, (end - at - 2) as u32),
                             source: SpanSource::RawPayload,
@@ -1320,19 +1486,26 @@ impl Engine<'_, '_, '_> {
                     frame.phase = FramePhase::ArrayCommaOrEnd;
                     self.value()?;
                 }
-                FramePhase::ArrayCommaOrEnd => match byte {
-                    b']' => self.close(ContainerKind::Array)?,
-                    b',' => {
-                        frame.phase = FramePhase::ArrayValueOrEnd;
-                        self.cursor.advance(1);
+                FramePhase::ArrayCommaOrEnd => {
+                    if self.rows.is_some() && (byte == b',' || byte == b']') {
+                        self.stage_element()?;
                     }
-                    _ => {
-                        return Err(invalid(
-                            self.cursor.offset(),
-                            "expected array comma or close",
-                        ));
+                    match byte {
+                        b']' => self.close(ContainerKind::Array)?,
+                        b',' => {
+                            if let Some(frame) = self.context.frames.last_mut() {
+                                frame.phase = FramePhase::ArrayValueOrEnd;
+                            }
+                            self.cursor.advance(1);
+                        }
+                        _ => {
+                            return Err(invalid(
+                                self.cursor.offset(),
+                                "expected array comma or close",
+                            ));
+                        }
                     }
-                },
+                }
                 _ => {
                     return Err(invalid(
                         self.cursor.offset(),
@@ -1528,6 +1701,200 @@ fn fixed_pair_array(
     Some(Span32::new(start, u32::try_from(at - start as usize).ok()?))
 }
 
+const POW10: [u128; 39] = {
+    let mut table = [1u128; 39];
+    let mut index = 1;
+    while index < 39 {
+        table[index] = table[index - 1] * 10;
+        index += 1;
+    }
+    table
+};
+
+/// `fixed_decimal_end` plus the decoded value, for the rows API. The string
+/// was just verified as a unit-tick decimal, so the coefficient fits i128.
+#[inline(always)]
+fn fixed_decimal_value(
+    raw: &[u8],
+    start: usize,
+    constraints: &jmax_schema_ir::DecimalConstraints,
+    numeric: NumericPolicy,
+    max_string_bytes: u32,
+    max_digits: u16,
+) -> Option<(usize, u64, SlotValue)> {
+    let (next, work) = fixed_decimal_end(
+        raw,
+        start,
+        constraints,
+        numeric,
+        max_string_bytes,
+        max_digits,
+    )?;
+    let value = validated_decimal(
+        raw.get(start + 1..next - 1)?,
+        constraints.policy.target_scale,
+    )?;
+    Some((next, work, value))
+}
+
+/// The value of a string `fixed_decimal_end` accepted: sign, digits and at
+/// most one point, never more than `target_scale` fractional digits.
+#[inline(always)]
+fn validated_decimal(content: &[u8], scale: u8) -> Option<SlotValue> {
+    let (negative, digits) = match content.split_first() {
+        Some((b'-', rest)) => (true, rest),
+        _ => (false, content),
+    };
+    let (whole, fraction) = match digits.iter().position(|&b| b == b'.') {
+        Some(dot) => (&digits[..dot], &digits[dot + 1..]),
+        None => (digits, &digits[..0]),
+    };
+    let padding = usize::from(scale).checked_sub(fraction.len())?;
+    let mut coefficient = if whole.len() + fraction.len() <= 19 {
+        // At most nineteen digits fit u64; one widening multiply pads the scale.
+        let whole = ascii_digits(whole);
+        let fraction_value = ascii_digits(fraction);
+        u128::from(whole * POW10_U64[fraction.len()] + fraction_value)
+    } else {
+        let mut wide = 0u128;
+        for &byte in whole.iter().chain(fraction) {
+            wide = wide * 10 + u128::from(byte - b'0');
+        }
+        wide
+    };
+    coefficient *= *POW10.get(padding)?;
+    let coefficient = coefficient as i128;
+    Some(SlotValue::Decimal(jmax_abi::number::Decimal128::new(
+        if negative { -coefficient } else { coefficient },
+        scale,
+    )))
+}
+
+const POW10_U64: [u64; 20] = {
+    let mut table = [1u64; 20];
+    let mut index = 1;
+    while index < 20 {
+        table[index] = table[index - 1] * 10;
+        index += 1;
+    }
+    table
+};
+
+/// Up to nineteen ASCII digits, eight at a time.
+#[inline(always)]
+fn ascii_digits(mut digits: &[u8]) -> u64 {
+    let mut value = 0u64;
+    while let Some((chunk, rest)) = digits.split_first_chunk::<8>() {
+        let mut word = u64::from_le_bytes(*chunk) & 0x0F0F_0F0F_0F0F_0F0F;
+        word = word.wrapping_mul(2561) >> 8;
+        word = (word & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601) >> 16;
+        word = (word & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001) >> 32;
+        value = value * 100_000_000 + word;
+        digits = rest;
+    }
+    for &byte in digits {
+        value = value * 10 + u64::from(byte - b'0');
+    }
+    value
+}
+
+/// `fixed_pair_array` that also appends every decimal to `rows`. A miss
+/// (`Ok(None)`) leaves `rows` as it was; `Err` is a resource failure the
+/// exact engine would report too.
+fn fixed_pair_rows(
+    raw: &[u8],
+    start: u32,
+    decimal: &jmax_schema_ir::DecimalConstraints,
+    pair: &ConstraintSet,
+    outer: &ConstraintSet,
+    numeric: NumericPolicy,
+    limits: Limits,
+    budget: &mut VmBudget,
+    rows: &mut Vec<SlotValue>,
+) -> Result<Option<Span32>> {
+    let len0 = rows.len();
+    let cap0 = rows.capacity();
+    let mut at = start as usize;
+    let miss = |rows: &mut Vec<SlotValue>| {
+        rows.truncate(len0);
+        Ok(None)
+    };
+    if raw.get(at) != Some(&b'[') {
+        return miss(rows);
+    }
+    at += 1;
+    let mut count = 0u32;
+    let mut scalar_work = 0u64;
+    if raw.get(at) != Some(&b']') {
+        if limits.max_array_items < 2 || constraints::check_count(pair, 2, start).is_err() {
+            return miss(rows);
+        }
+        loop {
+            if count >= limits.max_array_items || raw.get(at) != Some(&b'[') {
+                return miss(rows);
+            }
+            at += 1;
+            let mut values = [SlotValue::Empty; 2];
+            for (index, value) in values.iter_mut().enumerate() {
+                let Some((end, work, decoded)) = fixed_decimal_value(
+                    raw,
+                    at,
+                    decimal,
+                    numeric,
+                    limits.max_string_bytes,
+                    limits.max_number_digits,
+                ) else {
+                    return miss(rows);
+                };
+                scalar_work += work;
+                at = end;
+                *value = decoded;
+                let expected = if index == 0 { b',' } else { b']' };
+                if raw.get(at) != Some(&expected) {
+                    return miss(rows);
+                }
+                at += 1;
+            }
+            rows.try_reserve(2).map_err(|_| resource(at as u32))?;
+            rows.extend_from_slice(&values);
+            count += 1;
+            if raw.get(at) == Some(&b']') {
+                break;
+            }
+            if raw.get(at) != Some(&b',') {
+                return miss(rows);
+            }
+            at += 1;
+        }
+    }
+    if constraints::check_count(outer, count, at as u32).is_err() {
+        return miss(rows);
+    }
+    let growth = rows
+        .capacity()
+        .checked_sub(cap0)
+        .and_then(|n| n.checked_mul(core::mem::size_of::<SlotValue>()))
+        .and_then(|n| u32::try_from(n).ok())
+        .ok_or_else(|| resource(start))?;
+    budget.retain(growth, start)?;
+    // The exact engine also pays one step for each staged value.
+    let staged = u64::from(count) * 2;
+    if budget
+        .charge(
+            scalar_work + staged + if count == 0 { 1 } else { u64::from(count) * 5 },
+            start,
+        )
+        .is_err()
+    {
+        return miss(rows);
+    }
+    at += 1;
+    match u32::try_from(at - start as usize) {
+        Ok(len) => Ok(Some(Span32::new(start, len))),
+        Err(_) => miss(rows),
+    }
+}
+
 /// A unit-tick decimal whose precision including scale padding fits i128.
 /// Exact zero-padding needs no coefficient construction in validation-only
 /// execution. Other rescalings retain the general decimal implementation.
@@ -1715,6 +2082,7 @@ fn execute_direct(
     capture: bool,
     query: bool,
     validated: Option<ValidationCapability>,
+    rows: bool,
 ) -> Result<()> {
     prepare_output(scratch);
     let numeric = combined_numeric(program, numeric)?;
@@ -1751,8 +2119,11 @@ fn execute_direct(
         owner,
         &mut scratch.direct_skip,
     )?;
-    let mut context =
-        execute::new_context_capture(program, selection, limits, &mut scratch.vm, capture)?;
+    let mut context = if rows {
+        execute::new_context_rows(program, selection, limits, &mut scratch.vm)?
+    } else {
+        execute::new_context_capture(program, selection, limits, &mut scratch.vm, capture)?
+    };
     let result = (|| {
         // Prepay input traversal, including strict-discard and query-jump work.
         context.budget.charge(raw.len() as u64, 0)?;
@@ -1775,6 +2146,9 @@ fn execute_direct(
             .map_err(|_| resource(0))?,
             0,
         )?;
+        if rows {
+            setup_row_blocks(&mut scratch.rows, program, &mut context.budget)?;
+        }
         if query {
             selected_states(
                 &mut context,
@@ -1793,6 +2167,7 @@ fn execute_direct(
             numeric,
             decoded_capacity,
             validated,
+            rows: if rows { Some(&mut scratch.rows) } else { None },
         };
         engine.run()?;
         Ok(())
@@ -1801,6 +2176,9 @@ fn execute_direct(
     if result.is_err() {
         scratch.vm.slots.clear();
         scratch.direct_decoded.clear();
+        for block in &mut scratch.rows {
+            block.values.clear();
+        }
     }
     result.map_err(|error: Error| {
         let field = error.field_id;
@@ -2008,6 +2386,7 @@ pub fn map_root_array_borrowed<T>(
                     numeric,
                     decoded_capacity,
                     validated: None,
+                    rows: None,
                 };
                 let (next_cursor, row_result) = {
                     let mut engine = engine;
@@ -2163,6 +2542,7 @@ pub fn validate_borrowed_into(
         false,
         false,
         None,
+        false,
     )?;
     proofs(program, raw, &scratch.direct_decoded, limits, numeric)
 }
@@ -2222,6 +2602,7 @@ pub fn extract_borrowed<'a>(
         true,
         false,
         None,
+        false,
     )?;
     let (proof, capability) = proofs(program, raw, &scratch.direct_decoded, limits, numeric)?;
     Ok(BorrowedValidatedSlots {
@@ -2248,13 +2629,134 @@ pub fn extract_borrowed_with_scratch<'raw, 'scratch>(
         return Err(error);
     }
     execute_direct(
-        program, raw, selection, limits, numeric, scratch, true, false, None,
+        program, raw, selection, limits, numeric, scratch, true, false, None, false,
     )?;
     let (proof, capability) = proofs(program, raw, &scratch.direct_decoded, limits, numeric)?;
     Ok(BorrowedValidatedSlotsRef {
         raw,
         decoded: &scratch.direct_decoded,
         slots: &scratch.vm.slots,
+        proof,
+        capability,
+    })
+}
+
+/// Append staged values, charging capacity growth like the root-array stage.
+fn push_staged(
+    budget: &mut VmBudget,
+    buffer: &mut Vec<SlotValue>,
+    values: &[SlotValue],
+    offset: u32,
+) -> Result<()> {
+    if buffer.capacity() - buffer.len() < values.len() {
+        let old = buffer.capacity();
+        buffer
+            .try_reserve(values.len())
+            .map_err(|_| resource(offset))?;
+        let growth = buffer
+            .capacity()
+            .checked_sub(old)
+            .and_then(|n| n.checked_mul(core::mem::size_of::<SlotValue>()))
+            .and_then(|n| u32::try_from(n).ok())
+            .ok_or_else(|| resource(offset))?;
+        budget.retain(growth, offset)?;
+    }
+    buffer.extend_from_slice(values);
+    budget.charge(values.len() as u64, offset)
+}
+
+/// Shape the retained blocks to the program's groups and charge their
+/// carried capacity, as the root-array stage does for its staging buffer.
+fn setup_row_blocks(
+    blocks: &mut Vec<RowBlock>,
+    program: &ValidatedProgram,
+    budget: &mut VmBudget,
+) -> Result<()> {
+    let groups = program.row_groups();
+    blocks.truncate(groups.len());
+    if blocks.len() < groups.len() {
+        blocks
+            .try_reserve_exact(groups.len() - blocks.len())
+            .map_err(|_| resource(0))?;
+        blocks.resize_with(groups.len(), RowBlock::default);
+    }
+    let mut bytes = blocks
+        .capacity()
+        .checked_mul(core::mem::size_of::<RowBlock>())
+        .ok_or_else(|| resource(0))?;
+    for (block, group) in blocks.iter_mut().zip(groups) {
+        block.values.clear();
+        block.array_slot = group.array_slot;
+        block.width = match group.shape {
+            RowShape::Items { width, .. } | RowShape::Leaf { width } => width,
+        };
+        bytes = bytes
+            .checked_add(
+                block
+                    .values
+                    .capacity()
+                    .checked_mul(core::mem::size_of::<SlotValue>())
+                    .ok_or_else(|| resource(0))?,
+            )
+            .ok_or_else(|| resource(0))?;
+    }
+    budget.retain(u32::try_from(bytes).map_err(|_| resource(0))?, 0)
+}
+
+/// An item group stages the properties of its elements, so selecting any of
+/// them without the array itself would capture the same slot twice.
+fn rows_selection(program: &ValidatedProgram, selection: &Selection) -> Result<()> {
+    if selection.field_ids.is_empty() {
+        return Ok(());
+    }
+    let chosen = |slot: u32| {
+        selection.field_ids.iter().any(|field| {
+            program
+                .slot_for_field(*field)
+                .is_some_and(|spec| spec.slot == slot)
+        })
+    };
+    for group in program.row_groups() {
+        if let RowShape::Items { first_slot, width } = group.shape {
+            if !chosen(group.array_slot) && (first_slot..first_slot + width).any(chosen) {
+                return Err(vm_error(
+                    ErrorCode::UnsupportedSchemaFeature,
+                    0,
+                    "row item fields require their array field in the selection",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Strict extraction that also stages the elements of the program's row
+/// groups. Nothing is published unless the whole document, including strict
+/// EOF, validated; `groups` line up with `ValidatedProgram::row_groups`.
+pub fn extract_rows_borrowed_with_scratch<'raw, 'scratch>(
+    program: &ValidatedProgram,
+    raw: &'raw [u8],
+    selection: &Selection,
+    limits: VmLimits,
+    numeric: NumericPolicy,
+    scratch: &'scratch mut ValidationScratch,
+) -> Result<BorrowedRowsRef<'raw, 'scratch>> {
+    if let Err(error) =
+        strict_selection(selection).and_then(|()| rows_selection(program, selection))
+    {
+        prepare_output(scratch);
+        scratch.vm.slots.clear();
+        return Err(error);
+    }
+    execute_direct(
+        program, raw, selection, limits, numeric, scratch, true, false, None, true,
+    )?;
+    let (proof, capability) = proofs(program, raw, &scratch.direct_decoded, limits, numeric)?;
+    Ok(BorrowedRowsRef {
+        raw,
+        decoded: &scratch.direct_decoded,
+        slots: &scratch.vm.slots,
+        groups: &scratch.rows,
         proof,
         capability,
     })
@@ -2298,6 +2800,7 @@ pub fn extract_payload_into<'a>(
         true,
         false,
         None,
+        false,
     )?;
     let (proof, _) = proofs(
         program,
@@ -2338,6 +2841,7 @@ pub fn extract_query_borrowed<'a>(
         true,
         !selection.strict_validate_unselected,
         None,
+        false,
     )?;
     Ok(BorrowedQuerySlots {
         raw,
@@ -2394,6 +2898,7 @@ pub fn extract_validated_borrowed<'a>(
         true,
         false,
         capability,
+        false,
     )?;
     let (proof, capability) = proofs(program, raw, &scratch.direct_decoded, limits, numeric)?;
     Ok(BorrowedValidatedSlots {
