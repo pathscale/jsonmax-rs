@@ -1,6 +1,9 @@
 //! Schema validation state and the ownership boundary for publishing ABI proofs.
 #![deny(unsafe_op_in_unsafe_fn)]
 
+extern crate alloc;
+#[cfg(test)]
+extern crate std;
 use alloc::{boxed::Box, vec::Vec};
 pub use crate::abi::buffer::{Payload, ValidationCapability, ValidationProof};
 pub use crate::abi::error::{Error, ErrorCode, ErrorSource, Result};
@@ -153,6 +156,9 @@ pub struct ObjectState {
     pub unknown_keys: UnknownKeyTable,
     pub property_count: u32,
     pub pending: Option<PendingValue>,
+    /// The compiled table rejects unknown keys, so no key is ever retained
+    /// and cooked-key hashes are never read.
+    pub(crate) rejects_unknown: bool,
 }
 
 impl ObjectState {

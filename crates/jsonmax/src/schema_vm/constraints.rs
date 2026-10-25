@@ -515,7 +515,7 @@ fn number_grammar<'a>(
 }
 
 /// Called only after the complete integer grammar has been checked.
-fn integer(bytes: &[u8], negative: bool, offset: u32) -> Result<SlotValue> {
+pub(crate) fn integer(bytes: &[u8], negative: bool, offset: u32) -> Result<SlotValue> {
     if negative {
         let mut value = 0i64;
         for &digit in bytes.get(1..).ok_or_else(|| internal(offset))? {
@@ -554,7 +554,7 @@ fn float(bytes: &[u8], policy: &NumericPolicy, offset: u32) -> Result<SlotValue>
     Ok(SlotValue::F64Bits(value.to_bits()))
 }
 
-fn decimal(
+pub(crate) fn decimal(
     text: &str,
     constraints: &DecimalConstraints,
     numeric: &NumericPolicy,
