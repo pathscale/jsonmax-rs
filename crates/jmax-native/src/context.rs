@@ -190,11 +190,15 @@ impl UnknownKeys {
     }
 
     pub(crate) fn push_key(&mut self, key: &str) -> NativeResult<()> {
+        self.push_key_bytes(key.as_bytes())
+    }
+
+    pub(crate) fn push_key_bytes(&mut self, key: &[u8]) -> NativeResult<()> {
         let start = u32::try_from(self.bytes.len()).map_err(|_| crate::Fail)?;
         let len = u32::try_from(key.len()).map_err(|_| crate::Fail)?;
-        self.bytes.extend_from_slice(key.as_bytes());
+        self.bytes.extend_from_slice(key);
         self.entries.push(UnknownEntry {
-            hash: key_hash(key.as_bytes()),
+            hash: key_hash(key),
             start,
             len,
         });
@@ -233,11 +237,33 @@ impl UnknownKeys {
 }
 
 fn key_hash(bytes: &[u8]) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325u64;
-    for &byte in bytes {
-        hash = (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3);
+    // Every byte takes part, a word at a time; equal keys hash equal and the
+    // duplicate check still compares bytes, so only the spread matters.
+    const K: u64 = 0x9e37_79b9_7f4a_7c15;
+    let n = bytes.len();
+    let word = |at: usize| u64::from_le_bytes(bytes[at..at + 8].try_into().unwrap_or_default());
+    let mut hash = (n as u64).wrapping_mul(K);
+    if n >= 8 {
+        let mut at = 0;
+        while at + 8 < n {
+            hash = (hash ^ word(at)).wrapping_mul(K);
+            hash ^= hash >> 32;
+            at += 8;
+        }
+        hash = (hash ^ word(n - 8)).wrapping_mul(K);
+    } else {
+        let small = if n >= 4 {
+            let low = u32::from_le_bytes(bytes[..4].try_into().unwrap_or_default());
+            let high = u32::from_le_bytes(bytes[n - 4..].try_into().unwrap_or_default());
+            u64::from(low) | u64::from(high) << 32
+        } else if n > 0 {
+            u64::from(bytes[0]) | u64::from(bytes[n / 2]) << 8 | u64::from(bytes[n - 1]) << 16
+        } else {
+            0
+        };
+        hash = (hash ^ small).wrapping_mul(K);
     }
-    hash
+    hash ^ (hash >> 29)
 }
 
 /// The bound grows with the length, so the safe lengths form a prefix.
