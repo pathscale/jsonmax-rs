@@ -2717,14 +2717,15 @@ fn rows_selection(program: &ValidatedProgram, selection: &Selection) -> Result<(
         })
     };
     for group in program.row_groups() {
-        if let RowShape::Items { first_slot, width } = group.shape {
-            if !chosen(group.array_slot) && (first_slot..first_slot + width).any(chosen) {
-                return Err(vm_error(
-                    ErrorCode::UnsupportedSchemaFeature,
-                    0,
-                    "row item fields require their array field in the selection",
-                ));
-            }
+        if let RowShape::Items { first_slot, width } = group.shape
+            && !chosen(group.array_slot)
+            && (first_slot..first_slot + width).any(chosen)
+        {
+            return Err(vm_error(
+                ErrorCode::UnsupportedSchemaFeature,
+                0,
+                "row item fields require their array field in the selection",
+            ));
         }
     }
     Ok(())
