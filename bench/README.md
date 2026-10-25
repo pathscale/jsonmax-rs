@@ -36,7 +36,7 @@ NODUP=1 DIFF=3000 ./target/release/jmax-harness | md5sum
 ## Running the General Corpus Benchmarks
 
 ```sh
-bench/compare.sh 3                       # 3 rounds, renders markdown table to stdout
+bench/compare.sh                         # 1 round (pass N for more), summary then full tables on stdout; DIAG=1 adds memcpy
 SAMPLES=201 OUT=run.tsv bench/compare.sh 5 > run.md
 ```
 

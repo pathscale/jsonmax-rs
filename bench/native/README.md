@@ -1,18 +1,18 @@
 # Native Decoder Benchmarks (`jmax-native-bench`)
 
-Compares generated `jmax-native` AOT decoders against `serde_json`, `sonic-rs`, `simd-json`, `jiter`, and `ps-pikkr` across four Binance exchange payloads (`aggTrade`, `depth_20`, `depth_1000`, `trades_100`) and the six general corpora.
+Compares generated `jmax native` AOT decoders against `serde_json`, `sonic-rs`, `simd-json`, `jiter`, and `ps-pikkr` across four Binance exchange payloads (`aggTrade`, `depth_20`, `depth_1000`, `trades_100`) and the six general corpora.
 
 ## Running
 
 ```sh
 cd bench/native
 cargo build --release -j 4
-./target/release/time > run.tsv
+./target/release/time > run.tsv        # DIAG=1 adds the diagnostic rows
 ./tables.sh run.tsv
 ./icount.sh 128 > instructions.tsv
 ```
 
-To aggregate multiple rounds, pass multiple TSV files to `bun ../tables.ts run1.tsv run2.tsv run3.tsv`.
+To aggregate multiple rounds, pass multiple TSV files to `bun ../tables.ts run1.tsv run2.tsv run3.tsv`. The output starts with a summary (each jmax route against the best rival of its class, WIN or LOSS) followed by the full tables.
 
 ## Payloads and Routes
 
@@ -25,9 +25,10 @@ To aggregate multiple rounds, pass multiple TSV files to `bun ../tables.ts run1.
 
 | Route | Description |
 |---|---|
-| `typed / jmax-native` | Generated zero-allocation AOT decoder with exact `Decimal128` parsing, strict unknown/duplicate key rejection, and default `VmLimits` |
-| `typed / jmax-native budget` | Generated AOT decoder with `max_steps` raised to `2^28` |
-| `typed / jmax vm+reparse` | Full `jmax-schema-vm` validation followed by native decoding |
+| `typed / jmax native` | Generated zero-allocation AOT decoder with exact `Decimal128` parsing, strict unknown/duplicate key rejection, and default `VmLimits` |
+| `typed / jmax vm` | Schema bytecode VM only: one VM pass validates and fills one slot per field, then the struct is built from the slots. Present for `aggTrade` only: slots hold scalars or one whole raw container, so documents with arrays of levels have no pure VM route |
+| `typed / jmax native budget (diagnostic)` | `DIAG=1` only. Generated AOT decoder with `max_steps` raised to `2^28` |
+| `typed / jmax vm+native (diagnostic)` | `DIAG=1` only, not a VM route. Full `jmax-schema-vm` validation followed by native decoding |
 | `typed / <rival> String` | `serde` deserialization keeping decimal fields as owned `String`s |
 | `typed / <rival> fixed` | `serde` deserialization parsing decimal fields into `10^8`-scaled `i64` fixed-point values |
 

@@ -113,9 +113,9 @@ Summary of three-round medians on Apple M4 Max (`aarch64`). Each cell reports **
 
 | Route | `aggTrade` (137 B) | `depth_20` (1.2 KB) | `depth_1000` (63.6 KB) | `trades_100` (14.6 KB) |
 |---|---:|---:|---:|---:|
-| **`typed / jmax-native`** | **1608 MB/s (83 ns; 0 allocs)** | **1350 MB/s (916 ns; 0 allocs)** | **1485 MB/s (42.4 us; 0 allocs)** | **1449 MB/s (9.9 us; 0 allocs)** |
-| **`typed / jmax-native budget`** | **1558 MB/s (84 ns; 0 allocs)** | **1356 MB/s (917 ns; 0 allocs)** | **1466 MB/s (41.5 us; 0 allocs)** | **1475 MB/s (9.7 us; 0 allocs)** |
-| `typed / jmax vm+reparse` | 150 MB/s (917 ns; 0 allocs) | 522 MB/s (2.4 us; 0 allocs) | 814 MB/s (75.7 us; 0 allocs) | 871 MB/s (16.6 us; 0 allocs) |
+| **`typed / jmax native`** | **1608 MB/s (83 ns; 0 allocs)** | **1350 MB/s (916 ns; 0 allocs)** | **1485 MB/s (42.4 us; 0 allocs)** | **1449 MB/s (9.9 us; 0 allocs)** |
+| **`typed / jmax native budget (diagnostic)`** | **1558 MB/s (84 ns; 0 allocs)** | **1356 MB/s (917 ns; 0 allocs)** | **1466 MB/s (41.5 us; 0 allocs)** | **1475 MB/s (9.7 us; 0 allocs)** |
+| `typed / jmax vm+native (diagnostic)` | 150 MB/s (917 ns; 0 allocs) | 522 MB/s (2.4 us; 0 allocs) | 814 MB/s (75.7 us; 0 allocs) | 871 MB/s (16.6 us; 0 allocs) |
 | `typed / sonic-rs fixed` | 865 MB/s (167 ns; 2 allocs) | 924 MB/s (1.3 us; 10 allocs) | 1068 MB/s (56.3 us; 18 allocs) | 837 MB/s (17.1 us; 206 allocs) |
 | `typed / serde_json fixed` | 610 MB/s (209 ns; 2 allocs) | 623 MB/s (1.9 us; 10 allocs) | 722 MB/s (87.9 us; 18 allocs) | 587 MB/s (24.7 us; 206 allocs) |
 | `typed / simd-json fixed` | 577 MB/s (250 ns; 11 allocs) | 729 MB/s (1.7 us; 13 allocs) | 833 MB/s (73.0 us; 10 allocs) | 763 MB/s (18.8 us; 210 allocs) |
@@ -129,8 +129,8 @@ Summary of three-round medians on Apple M4 Max (`aarch64`). Each cell reports **
 | `validate / serde_json` | 2195 MB/s (286 us; 2) | 2059 MB/s (792 us; 1) | 1918 MB/s (1.17 ms; 1) | 2449 MB/s (26.3 us; 1) | 1829 MB/s (68.7 us; 1) | 1085 MB/s (91.4 us; 1) |
 | `validate / sonic-rs ignored` | 2189 MB/s (285 us; 0) | 3012 MB/s (563 us; 0) | 2009 MB/s (1.09 ms; 0) | 2367 MB/s (26.7 us; 0) | 1754 MB/s (70.7 us; 0) | 1165 MB/s (87.9 us; 0) |
 | `validate / jiter` | 2777 MB/s (224 us; 0) | 2440 MB/s (678 us; 0) | 1683 MB/s (1.33 ms; 0) | 3220 MB/s (19.5 us; 0) | 2250 MB/s (55.8 us; 0) | 1670 MB/s (59.1 us; 0) |
-| **`typed / jmax-native`** | **2508 MB/s (251 us; 1)** | 2879 MB/s (589 us; 1) | **2518 MB/s (907 us; 1)** | 2136 MB/s (30.0 us; 61) | **1994 MB/s (63.0 us; 1)** | **1334 MB/s (75.9 us; 2)** |
-| **`typed / jmax`** | **2472 MB/s (253 us; 1)** | 2862 MB/s (597 us; 1) | **2536 MB/s (917 us; 1)** | 1375 MB/s (45.4 us; 61) | 1961 MB/s (64.6 us; 1) | **1308 MB/s (76.0 us; 2)** |
+| **`typed / jmax native`** | **2508 MB/s (251 us; 1)** | 2879 MB/s (589 us; 1) | **2518 MB/s (907 us; 1)** | 2136 MB/s (30.0 us; 61) | **1994 MB/s (63.0 us; 1)** | **1334 MB/s (75.9 us; 2)** |
+| **`typed / jmax vm`** | **2472 MB/s (253 us; 1)** | 2862 MB/s (597 us; 1) | **2536 MB/s (917 us; 1)** | 1375 MB/s (45.4 us; 61) | 1961 MB/s (64.6 us; 1) | **1308 MB/s (76.0 us; 2)** |
 | `typed / serde_json` | 2172 MB/s (290 us; 2) | 2070 MB/s (800 us; 2) | 1873 MB/s (1.18 ms; 2) | 2317 MB/s (27.6 us; 65) | 1836 MB/s (69.3 us; 2) | 1080 MB/s (94.2 us; 3) |
 | `typed / sonic-rs` | 2167 MB/s (284 us; 1) | 2970 MB/s (575 us; 1) | 1983 MB/s (1.09 ms; 1) | 2375 MB/s (27.3 us; 64) | 1745 MB/s (75.0 us; 1) | 1159 MB/s (86.5 us; 2) |
 | `typed / simd-json` | 2383 MB/s (267 us; 7) | 2703 MB/s (631 us; 7) | 1193 MB/s (1.87 ms; 8) | 2487 MB/s (25.5 us; 68) | 2387 MB/s (51.5 us; 8) | 1162 MB/s (86.4 us; 10) |
