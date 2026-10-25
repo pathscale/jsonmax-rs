@@ -1,0 +1,18 @@
+[package]
+name = "jmax-native-fixtures"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Generated native decoders and differential tests against the schema VM."
+
+[dependencies]
+jmax-abi = { workspace = true, features = ["std"] }
+jmax-native = { workspace = true, features = ["std"] }
+jmax-schema-aot = { workspace = true, features = ["std"] }
+jmax-schema-vm = { workspace = true, features = ["std"] }
+jmax-syntax = { workspace = true, features = ["std"] }
+jmax-decimal = { workspace = true, features = ["std"] }
+jmax-endpoint-model = { workspace = true, features = ["std"] }
+jmax-endpoint-ron = { workspace = true, features = ["std"] }
+jmax-codegen-rust = { workspace = true, features = ["std"] }

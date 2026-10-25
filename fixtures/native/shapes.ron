@@ -1,0 +1,52 @@
+// Every shape the native emitter supports, in one model: unsigned and signed
+// 32 bit integers, binary64, booleans, strings, nested structs by reference,
+// arrays of structs, strings, integers and arrays, a homogeneous tuple, a
+// decimal, and optional scalars, strings, arrays, structs and decimals.
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "Point", ty: Struct(
+            name: "Point",
+            fields: [
+                Field(name: "x", ty: Int64),
+                Field(name: "y", ty: Int64),
+            ],
+        )),
+        Definition(name: "Pair", ty: Struct(
+            name: "Pair",
+            fields: [
+                Field(name: "low", ty: Int64),
+                Field(name: "high", ty: Int64),
+            ],
+        )),
+        Definition(name: "Tag", ty: Struct(
+            name: "Tag",
+            fields: [
+                Field(name: "name", ty: String),
+                Field(name: "weight", ty: Optional(Float64)),
+            ],
+        )),
+        Definition(name: "Shape", ty: Struct(
+            name: "Shape",
+            fields: [
+                Field(name: "id", ty: UInt32),
+                Field(name: "delta", ty: Int32),
+                Field(name: "ratio", ty: Float64),
+                Field(name: "ok", ty: Boolean),
+                Field(name: "type", ty: String),
+                Field(name: "origin", ty: StructRef("Point")),
+                Field(name: "tags", ty: Vec(StructRef("Tag"))),
+                Field(name: "names", ty: Vec(String)),
+                Field(name: "grid", ty: Vec(Vec(Int64))),
+                Field(name: "pairs", ty: Vec(StructRef("Pair"))),
+                Field(name: "price", ty: BlockchainDecimal),
+                Field(name: "note", ty: Optional(String)),
+                Field(name: "extra", ty: Optional(Vec(Int32))),
+                Field(name: "pin", ty: Optional(StructRef("Tag"))),
+                Field(name: "cost", ty: Optional(BlockchainDecimal)),
+                Field(name: "flag", ty: Optional(Boolean)),
+                Field(name: "count", ty: Optional(UInt32)),
+            ],
+        )),
+    ],
+)

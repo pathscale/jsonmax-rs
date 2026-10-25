@@ -1,0 +1,25 @@
+[package]
+name = "jmax-dispatch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = [
+    "alloc",
+    "jmax-abi/std",
+    "jmax-scan-scalar/std",
+    "jmax-scan-neon/std",
+    "jmax-scan-avx2/std",
+    "jmax-scan-avx512/std",
+]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-scan-scalar = { workspace = true }
+jmax-scan-neon = { workspace = true }
+jmax-scan-avx2 = { workspace = true }
+jmax-scan-avx512 = { workspace = true }

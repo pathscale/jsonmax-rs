@@ -1,0 +1,29 @@
+// The REST aggTrades reply as a batch: an object holding the trades, because a
+// native root is an object. Same trade record as fixtures/native/binance.ron.
+Config(
+    version: "1.0.0",
+    definitions: [
+        Definition(name: "AggTrade", ty: Struct(
+            name: "AggTrade",
+            fields: [
+                Field(name: "e", ty: String),
+                Field(name: "E", ty: TimeStampMs),
+                Field(name: "s", ty: String),
+                Field(name: "a", ty: Int64),
+                Field(name: "p", ty: BlockchainDecimal),
+                Field(name: "q", ty: BlockchainDecimal),
+                Field(name: "f", ty: Int64),
+                Field(name: "l", ty: Int64),
+                Field(name: "T", ty: TimeStampMs),
+                Field(name: "m", ty: Boolean),
+                Field(name: "M", ty: Optional(Boolean)),
+            ],
+        )),
+        Definition(name: "TradeBatch", ty: Struct(
+            name: "TradeBatch",
+            fields: [
+                Field(name: "trades", ty: Vec(StructRef("AggTrade"))),
+            ],
+        )),
+    ],
+)

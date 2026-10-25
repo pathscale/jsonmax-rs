@@ -1,0 +1,6 @@
+// Native decoder specification for fixtures/native/shapes.ron.
+NativeSpec(
+    roots: ["Shape"],
+    tuples: ["Pair"],
+    reject_unknown: true,
+)

@@ -1,0 +1,31 @@
+[package]
+name = "jmax-icount"
+version = "0.1.0"
+publish = false
+edition = "2024"
+
+[dependencies]
+serde = "1"
+serde_derive = "1"
+serde_json = "1"
+rusty_alloc = { package = "ps-rusty_alloc", path = "../../../ps-rusty_alloc" }
+jsonmax = { path = "../../crates/jsonmax" }
+jmax-abi = { path = "../../crates/jmax-abi" }
+jmax-dom = { path = "../../crates/jmax-dom" }
+jmax-encode = { path = "../../crates/jmax-encode" }
+jmax-schema-ir = { path = "../../crates/jmax-schema-ir" }
+jmax-schema-vm = { path = "../../crates/jmax-schema-vm" }
+jmax-schema-aot = { path = "../../crates/jmax-schema-aot" }
+jmax-native = { path = "../../crates/jmax-native" }
+jiter = "0.17.0"
+json = "0.12.4"
+simd-json = "0.18.1"
+sonic-rs = "0.5.10"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = "line-tables-only"
+
+[workspace]

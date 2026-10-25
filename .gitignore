@@ -1,0 +1,15 @@
+.DS_Store
+Cargo.lock
+**/Cargo.lock
+/target/
+**/target/
+*.log
+*.tar.gz
+*.tgz
+*.tar
+*.profraw
+.env
+.env.*
+!.env.example
+!.env.sample
+/bench/data/*.json

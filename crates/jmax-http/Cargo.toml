@@ -1,0 +1,26 @@
+[package]
+name = "jmax-http"
+description = "Bounded HTTP message handling for PathScale"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Enables the std feature in jmax-abi; the crate itself remains no_std.
+default = ["std"]
+# Enables heap-backed APIs without enabling std.
+alloc = ["jmax-abi/alloc"]
+# Enables standard-library support in jmax-abi.
+std = ["alloc", "jmax-abi/std"]
+# Adds the Nagoya HTTP client adapter.
+nago-http-client = ["dep:nago-http"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-buffer = { workspace = true }
+jmax-schema-vm = { workspace = true }
+jmax-encode = { workspace = true }
+jmax-nagoya = { workspace = true }
+bytes = { workspace = true }
+nago-http = { workspace = true, optional = true }

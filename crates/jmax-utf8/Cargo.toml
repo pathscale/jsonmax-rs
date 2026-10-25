@@ -1,0 +1,16 @@
+[package]
+name = "jmax-utf8"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc"]
+std = ["alloc", "jmax-abi/std"]
+simd-utf8 = [] # Compatibility flag; complete-slice validation always uses SIMD.
+
+[dependencies]
+jmax-abi = { workspace = true }
+ps-simdutf8 = { workspace = true }

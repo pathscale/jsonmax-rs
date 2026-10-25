@@ -1,0 +1,16 @@
+[package]
+name = "jmax-dom"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = ["std"]
+alloc = ["jmax-abi/alloc", "jmax-syntax/alloc"]
+std = ["alloc", "jmax-abi/std", "jmax-syntax/std"]
+
+[dependencies]
+jmax-abi = { workspace = true }
+jmax-syntax = { workspace = true }
+jmax-dispatch = { workspace = true }

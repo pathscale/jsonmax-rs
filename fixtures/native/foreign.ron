@@ -1,0 +1,12 @@
+Config(version: "1.0.0", definitions: [
+    Definition(name: "Side", ty: Enum(name: "Side", variants: [
+        EnumVariant(name: "Bid", value: -2, description: ""),
+        EnumVariant(name: "Ask", value: 7, description: ""),
+    ])),
+    Definition(name: "Quote", ty: Struct(name: "Quote", fields: [
+        Field(name: "id", ty: NanoId(len: 2)),
+        Field(name: "label", ty: String),
+        Field(name: "price", ty: BlockchainDecimal),
+        Field(name: "side", ty: EnumRef(name: "Side", prefixed_name: false)),
+    ])),
+])
