@@ -159,6 +159,7 @@ pub struct DispatchReport {
 /// classifier bindings still check their own feature invariant when they are
 /// resolved. An input below every native threshold needs no resolution.
 pub fn dispatch(input_len: usize, policy: DispatchPolicy) -> Result<Dispatch> {
+    let _t = jmax_trace::span!(CPU_DISPATCH);
     let capabilities = cached_capabilities();
     let candidate = choose::choose(input_len, capabilities, policy);
     if candidate == BackendId::Scalar {

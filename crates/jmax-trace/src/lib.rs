@@ -47,6 +47,7 @@ sites! {
     SCAN_BLOCK_AVX2 = "scan classify block (avx2)",
     SCAN_BLOCK_AVX512 = "scan classify block (avx512)",
     SCAN_TAIL = "scan classify partial tail block",
+    CPU_DISPATCH = "cpu dispatch resolve (cached capabilities)",
     SCAN_STRING_SPECIAL = "scan string_special(_ascii) short scan",
     SCAN_WHITESPACE = "scan whitespace_prefix short scan",
     // syntax: block cursor, strict syntax, strict_fast
@@ -98,6 +99,10 @@ sites! {
     VM_SCALAR = "vm scalar check",
     VM_SLOT_STORE = "vm slot store",
     VM_ARRAY = "vm array / item group",
+    VM_ROWS = "vm item-row fast path (fast_item_rows, fast_leaf_rows)",
+    VM_ROW_STAGE = "vm row group stage (element and leaf slots)",
+    VM_FIXED_OBJ = "vm flat fixed-object fast path",
+    VM_SELECTION = "vm cached selection index",
     VM_SKIP = "vm skip unknown value",
     VM_CONSTRAINT = "vm constraints / budget",
     VM_DIRECT = "vm direct path (excl. children)",
