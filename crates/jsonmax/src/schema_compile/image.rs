@@ -1479,6 +1479,10 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
         }
         cursor += 1;
     }
+    let (row_groups, row_group_by_slot) = derive_row_groups(program, &field_slots, &parents)?;
+    let rows_only = row_groups
+        .iter()
+        .any(|group| matches!(group.shape, RowShape::Items { .. }));
     let mut required_masks = reserved(program.key_tables.len())?;
     for table in &program.key_tables {
         let mut mask = reserved((table.key_count as usize + 63) / 64)?;
@@ -1511,9 +1515,140 @@ fn build_indexes(program: &CompiledProgram) -> Result<ProgramIndexes> {
         parents,
         required_masks,
         fixed_objects,
+        row_groups,
+        rows_only,
+        row_group_by_slot,
     })
 }
 
+/// Widest row a leaf or item group may stage.
+const MAX_ROW_WIDTH: u32 = 64;
+
+/// Row groups of the rows API: slotted array properties of object items with
+/// contiguous item slots, or of fixed-length arrays of scalars. A slotted
+/// array of anything else keeps its plain raw-span capture.
+fn derive_row_groups(
+    program: &CompiledProgram,
+    field_slots: &[u32],
+    parents: &[Vec<StateId>],
+) -> Result<(Vec<RowGroup>, Vec<u32>)> {
+    let mut groups: Vec<RowGroup> = Vec::new();
+    let mut by_slot = reserved(program.slots.len())?;
+    by_slot.resize(program.slots.len(), u32::MAX);
+    for spec in &program.slots {
+        let Some(array) = program.states.get(spec.state.0 as usize) else {
+            continue;
+        };
+        let StateKind::Array { items } = array.kind else {
+            continue;
+        };
+        let item = program
+            .states
+            .get(items.0 as usize)
+            .ok_or_else(|| invalid("invalid array item state"))?;
+        let shape = match item.kind {
+            StateKind::Object { key_table, .. } => {
+                let table = program
+                    .key_tables
+                    .get(key_table as usize)
+                    .ok_or_else(|| invalid("invalid item key table"))?;
+                let mut slots = Vec::new();
+                for key in program
+                    .image
+                    .keys
+                    .get(table.first_key as usize..(table.first_key + table.key_count) as usize)
+                    .ok_or_else(|| invalid("invalid item key range"))?
+                {
+                    let slot = field_slots
+                        .get(usize::from(key.field_id))
+                        .copied()
+                        .filter(|&slot| slot != EMPTY_KEY_SLOT);
+                    if let Some(slot) = slot {
+                        let target = program
+                            .states
+                            .get(key.target_state as usize)
+                            .ok_or_else(|| invalid("invalid item property state"))?;
+                        if matches!(
+                            target.kind,
+                            StateKind::Array { .. } | StateKind::Object { .. }
+                        ) {
+                            return Err(unsupported_rows("row item slots must hold scalars"));
+                        }
+                        slots.try_reserve(1).map_err(|_| budget())?;
+                        slots.push(slot);
+                    }
+                }
+                if slots.is_empty() {
+                    continue;
+                }
+                slots.sort_unstable();
+                let first = slots[0];
+                let width = u32::try_from(slots.len()).map_err(|_| budget())?;
+                if width > MAX_ROW_WIDTH
+                    || slots
+                        .iter()
+                        .enumerate()
+                        .any(|(i, &s)| s != first + i as u32)
+                {
+                    return Err(unsupported_rows("row item slots must be contiguous"));
+                }
+                if parents[spec.state.0 as usize].len() != 1 || parents[items.0 as usize].len() != 1
+                {
+                    return Err(unsupported_rows("row item slots must belong to one array"));
+                }
+                RowShape::Items {
+                    first_slot: first,
+                    width,
+                }
+            }
+            StateKind::Array { items: leaf } => {
+                let (Some(min), Some(max)) =
+                    (item.constraints.min_count, item.constraints.max_count)
+                else {
+                    continue;
+                };
+                let scalar = program.states.get(leaf.0 as usize);
+                if min != max
+                    || min == 0
+                    || min > MAX_ROW_WIDTH
+                    || item.constraints.nullable
+                    || !scalar.is_some_and(|s| {
+                        matches!(s.kind, StateKind::Scalar(_)) && !s.constraints.nullable
+                    })
+                {
+                    continue;
+                }
+                RowShape::Leaf { width: min }
+            }
+            _ => continue,
+        };
+        by_slot[spec.slot as usize] = u32::try_from(groups.len()).map_err(|_| budget())?;
+        groups.try_reserve(1).map_err(|_| budget())?;
+        groups.push(RowGroup {
+            array_slot: spec.slot,
+            array_state: spec.state,
+            item_state: items,
+            shape,
+        });
+    }
+    // Item slots must not overlap, or two arrays would stage the same columns.
+    let mut ranges: Vec<(u32, u32)> = groups
+        .iter()
+        .filter_map(|g| match g.shape {
+            RowShape::Items { first_slot, width } => Some((first_slot, first_slot + width)),
+            RowShape::Leaf { .. } => None,
+        })
+        .collect();
+    ranges.sort_unstable();
+    if ranges.windows(2).any(|w| w[0].1 > w[1].0) {
+        return Err(unsupported_rows("row item slots overlap"));
+    }
+    Ok((groups, by_slot))
+}
+
+fn unsupported_rows(detail: &'static str) -> Error {
+    compile_error(ErrorCode::UnsupportedSchemaFeature, detail)
+}
 /// The direct VM's flat-object fast-path plan for one table, if its object
 /// qualifies. Anything unusual yields `None` and the exact engine runs.
 fn fixed_object_plan(
