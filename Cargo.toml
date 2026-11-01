@@ -2,7 +2,6 @@
 resolver = "3"
 exclude = ["bench/harness", "bench/dcheck", "bench/native", "bench/icount", "crates/jmax-native-fixtures/fuzz"]
 members = [
-  "crates/jmax-trace",
   "crates/jsonmax",
   "crates/jsonmax-derive",
   "crates/jmax-compat",
@@ -21,7 +20,6 @@ repository = "https://github.com/pathscale/jsonmax-rs"
 
 [workspace.dependencies]
 bytes = { version = "1", default-features = false }
-jmax-trace = { path = "crates/jmax-trace", version = "0.1.0", default-features = false }
 ps-simdutf8 = { version = "0.1.6", default-features = false }
 rusty_alloc = { package = "ps-rusty_alloc", version = "2.3.3" }
 nagoya = { version = "0.1.19", default-features = false, features = ["std"] }

@@ -1735,7 +1735,7 @@ fn fixed_object_plan(
                     return Ok(None);
                 };
                 if !leaf_pair
-                    || jmax_decimal::validate_policy(&decimal.policy).is_err()
+                    || crate::decimal::validate_policy(&decimal.policy).is_err()
                     || decimal.minimum.is_some()
                     || decimal.maximum.is_some()
                 {
@@ -1755,7 +1755,7 @@ fn fixed_object_plan(
                     let Some(decimal) = constraints.decimal.as_ref() else {
                         return Ok(None);
                     };
-                    if jmax_decimal::validate_policy(&decimal.policy).is_err()
+                    if crate::decimal::validate_policy(&decimal.policy).is_err()
                         || decimal.minimum.is_some()
                         || decimal.maximum.is_some()
                     {

@@ -1,18 +1,24 @@
 //! Row groups stage per-element slots and publish them only after strict EOF.
 
+<<<<<<<< HEAD:crates/jsonmax/tests/row_groups.rs
 use jsonmax::{abi as jmax_abi, schema_compile as jmax_schema_compile};
 use jsonmax::{schema_ir as jmax_schema_ir, schema_vm as jmax_schema_vm};
 use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 use jmax_schema_compile::{CompilerOptions, RowShape, ValidatedProgram};
 use jmax_schema_ir::{
+========
+use jsonmax::abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
+use jsonmax::schema_compile::{CompilerOptions, RowShape, ValidatedProgram};
+use jsonmax::schema_ir::{
+>>>>>>>> a497bc8 (Publish as two crates: jsonmax and jsonmax-derive):crates/jsonmax/tests/schema_vm__row_groups.rs
     ArrayShape, DecimalConstraints, FieldId, ObjectShape, Property, ScalarConstraints, Schema,
     SchemaId, TypeId, TypeNode, ValueKind,
 };
-use jmax_schema_vm::{
+use jsonmax::schema_vm::{
     ErrorCode, Selection, SlotValue, ValidationScratch, VmLimits, direct, resolve_str,
 };
 
-type Result<T = ()> = jmax_schema_vm::Result<T>;
+type Result<T = ()> = jsonmax::schema_vm::Result<T>;
 
 fn prop(id: u32, name: &str, ty: u32, required: bool, slot: u32) -> Property {
     Property {
@@ -93,8 +99,8 @@ fn item_properties() -> Vec<Property> {
 }
 
 fn compile(schema: Schema) -> Result<ValidatedProgram> {
-    let resolved = jmax_schema_ir::resolve::resolve(schema, Default::default())?;
-    jmax_schema_compile::compile(&resolved, &CompilerOptions::default())
+    let resolved = jsonmax::schema_ir::resolve::resolve(schema, Default::default())?;
+    jsonmax::schema_compile::compile(&resolved, &CompilerOptions::default())
 }
 
 fn program() -> Result<ValidatedProgram> {

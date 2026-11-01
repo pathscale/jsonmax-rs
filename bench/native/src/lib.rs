@@ -323,11 +323,11 @@ pub struct AggTradeVm {
 }
 impl AggTradeVm {
     pub fn new() -> R<Self> {
-        use jmax_schema_ir::{ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind};
+        use jsonmax::schema_ir::{ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind};
         let decimal = || {
             let mut c = ScalarConstraints::new(ValueKind::Decimal);
-            c.decimal = Some(jmax_schema_ir::DecimalConstraints {
-                policy: jmax_abi::DecimalPolicy::spot_8(),
+            c.decimal = Some(jsonmax::schema_ir::DecimalConstraints {
+                policy: jsonmax::abi::DecimalPolicy::spot_8(),
                 minimum: None,
                 maximum: None,
             });
@@ -392,8 +392,8 @@ impl AggTradeVm {
         let text = |n: usize| -> R<String> {
             let SlotValue::Str(r) = s.slots[n] else { return Err(err("string slot")) };
             let base = match r.source {
-                jmax_abi::span::SpanSource::RawPayload => s.raw,
-                jmax_abi::span::SpanSource::DecodedArena => s.decoded,
+                jsonmax::abi::span::SpanSource::RawPayload => s.raw,
+                jsonmax::abi::span::SpanSource::DecodedArena => s.decoded,
             };
             Ok(std::str::from_utf8(r.span.slice(base).ok_or_else(|| err("span"))?).map_err(err)?.to_owned())
         };
@@ -404,7 +404,7 @@ impl AggTradeVm {
                 _ => Err(err("int slot")),
             }
         };
-        let dec = |n: usize| -> R<jmax_native::Decimal128> {
+        let dec = |n: usize| -> R<jsonmax::native::Decimal128> {
             match s.slots[n] {
                 SlotValue::Decimal(d) => Ok(d),
                 _ => Err(err("decimal slot")),
@@ -440,8 +440,8 @@ mod slotvals {
     pub fn text(raw: &[u8], decoded: &[u8], v: SlotValue) -> R<String> {
         let SlotValue::Str(r) = v else { return Err(err("string slot")) };
         let base = match r.source {
-            jmax_abi::span::SpanSource::RawPayload => raw,
-            jmax_abi::span::SpanSource::DecodedArena => decoded,
+            jsonmax::abi::span::SpanSource::RawPayload => raw,
+            jsonmax::abi::span::SpanSource::DecodedArena => decoded,
         };
         Ok(std::str::from_utf8(r.span.slice(base).ok_or_else(|| err("span"))?).map_err(err)?.to_owned())
     }
@@ -452,7 +452,7 @@ mod slotvals {
             _ => Err(err("int slot")),
         }
     }
-    pub fn dec(v: SlotValue) -> R<jmax_native::Decimal128> {
+    pub fn dec(v: SlotValue) -> R<jsonmax::native::Decimal128> {
         match v {
             SlotValue::Decimal(d) => Ok(d),
             _ => Err(err("decimal slot")),
@@ -467,10 +467,10 @@ mod slotvals {
     }
 }
 
-fn spot_decimal() -> jmax_schema_ir::ScalarConstraints {
-    let mut c = jmax_schema_ir::ScalarConstraints::new(jmax_schema_ir::ValueKind::Decimal);
-    c.decimal = Some(jmax_schema_ir::DecimalConstraints {
-        policy: jmax_abi::DecimalPolicy::spot_8(),
+fn spot_decimal() -> jsonmax::schema_ir::ScalarConstraints {
+    let mut c = jsonmax::schema_ir::ScalarConstraints::new(jsonmax::schema_ir::ValueKind::Decimal);
+    c.decimal = Some(jsonmax::schema_ir::DecimalConstraints {
+        policy: jsonmax::abi::DecimalPolicy::spot_8(),
         minimum: None,
         maximum: None,
     });
@@ -479,18 +479,18 @@ fn spot_decimal() -> jmax_schema_ir::ScalarConstraints {
 
 /// Append a scalar node and return a property that refers to it.
 fn scalar_property(
-    nodes: &mut Vec<jmax_schema_ir::TypeNode>,
+    nodes: &mut Vec<jsonmax::schema_ir::TypeNode>,
     field: u32,
     name: &str,
-    constraints: jmax_schema_ir::ScalarConstraints,
+    constraints: jsonmax::schema_ir::ScalarConstraints,
     required: bool,
     slot: u32,
-) -> jmax_schema_ir::Property {
-    nodes.push(jmax_schema_ir::TypeNode::Scalar(constraints));
-    jmax_schema_ir::Property {
+) -> jsonmax::schema_ir::Property {
+    nodes.push(jsonmax::schema_ir::TypeNode::Scalar(constraints));
+    jsonmax::schema_ir::Property {
         field_id: jsonmax::FieldId(field),
         name: name.into(),
-        ty: jmax_schema_ir::TypeId(nodes.len() as u32 - 1),
+        ty: jsonmax::schema_ir::TypeId(nodes.len() as u32 - 1),
         required,
         slot: Some(slot),
     }
@@ -498,8 +498,8 @@ fn scalar_property(
 
 /// A fixed `[price, quantity]` level array inside an open-ended list: appends
 /// the list and level nodes and returns the list node's id.
-fn levels_node(nodes: &mut Vec<jmax_schema_ir::TypeNode>) -> jmax_schema_ir::TypeId {
-    use jmax_schema_ir::{ArrayShape, TypeId, TypeNode};
+fn levels_node(nodes: &mut Vec<jsonmax::schema_ir::TypeNode>) -> jsonmax::schema_ir::TypeId {
+    use jsonmax::schema_ir::{ArrayShape, TypeId, TypeNode};
     let list = nodes.len() as u32;
     nodes.push(TypeNode::Array(ArrayShape { nullable: false, items: TypeId(list + 1), min_items: None, max_items: None }));
     nodes.push(TypeNode::Array(ArrayShape { nullable: false, items: TypeId(list + 2), min_items: Some(2), max_items: Some(2) }));
@@ -507,8 +507,8 @@ fn levels_node(nodes: &mut Vec<jmax_schema_ir::TypeNode>) -> jmax_schema_ir::Typ
     TypeId(list)
 }
 
-fn root_object(properties: Vec<jmax_schema_ir::Property>) -> jmax_schema_ir::TypeNode {
-    jmax_schema_ir::TypeNode::Object(jmax_schema_ir::ObjectShape {
+fn root_object(properties: Vec<jsonmax::schema_ir::Property>) -> jsonmax::schema_ir::TypeNode {
+    jsonmax::schema_ir::TypeNode::Object(jsonmax::schema_ir::ObjectShape {
         nullable: false,
         properties,
         reject_unknown: true,
@@ -517,15 +517,15 @@ fn root_object(properties: Vec<jmax_schema_ir::Property>) -> jmax_schema_ir::Typ
     })
 }
 
-fn compile_rows(name: &str, id: u32, nodes: Vec<jmax_schema_ir::TypeNode>) -> R<jsonmax::CompiledSchema> {
+fn compile_rows(name: &str, id: u32, nodes: Vec<jsonmax::schema_ir::TypeNode>) -> R<jsonmax::CompiledSchema> {
     jsonmax::endpoint::compile_native_schema(
-        &jmax_schema_ir::Schema { name: name.into(), schema_id: jsonmax::SchemaId(id), root: jmax_schema_ir::TypeId(0), nodes, definitions: vec![] },
+        &jsonmax::schema_ir::Schema { name: name.into(), schema_id: jsonmax::SchemaId(id), root: jsonmax::schema_ir::TypeId(0), nodes, definitions: vec![] },
         jsonmax::CompileLimits::default_limits(),
     )
     .map_err(err)
 }
 
-fn level_boxes(block: &jmax_schema_vm::RowBlock) -> R<Vec<Box<bm::PriceLevel>>> {
+fn level_boxes(block: &jsonmax::schema_vm::RowBlock) -> R<Vec<Box<bm::PriceLevel>>> {
     let mut out = Vec::with_capacity(block.len());
     for row in block.rows() {
         out.push(Box::new(bm::PriceLevel { price: slotvals::dec(row[0])?, quantity: slotvals::dec(row[1])? }));
@@ -533,7 +533,7 @@ fn level_boxes(block: &jmax_schema_vm::RowBlock) -> R<Vec<Box<bm::PriceLevel>>> 
     Ok(out)
 }
 
-fn block_for(out: &jmax_schema_vm::BorrowedRowsRef<'_, '_>, slot: u32) -> R<usize> {
+fn block_for(out: &jsonmax::schema_vm::BorrowedRowsRef<'_, '_>, slot: u32) -> R<usize> {
     out.groups.iter().position(|g| g.array_slot == slot).ok_or_else(|| err("missing row group"))
 }
 
@@ -547,7 +547,7 @@ pub struct DepthUpdateVm {
 }
 impl DepthUpdateVm {
     pub fn new() -> R<Self> {
-        use jmax_schema_ir::{ScalarConstraints as C, ValueKind as K};
+        use jsonmax::schema_ir::{ScalarConstraints as C, ValueKind as K};
         let mut nodes = vec![];
         nodes.push(root_object(vec![]));
         let mut props = vec![
@@ -559,7 +559,7 @@ impl DepthUpdateVm {
         ];
         let book = levels_node(&mut nodes);
         for (field, name, slot) in [(6, "b", 5), (7, "a", 6)] {
-            props.push(jmax_schema_ir::Property { field_id: jsonmax::FieldId(field), name: name.into(), ty: book, required: true, slot: Some(slot) });
+            props.push(jsonmax::schema_ir::Property { field_id: jsonmax::FieldId(field), name: name.into(), ty: book, required: true, slot: Some(slot) });
         }
         nodes[0] = root_object(props);
         let schema = compile_rows("depthUpdate", 2, nodes)?;
@@ -589,12 +589,12 @@ pub struct DepthSnapshotVm {
 }
 impl DepthSnapshotVm {
     pub fn new() -> R<Self> {
-        use jmax_schema_ir::{ScalarConstraints as C, ValueKind as K};
+        use jsonmax::schema_ir::{ScalarConstraints as C, ValueKind as K};
         let mut nodes = vec![root_object(vec![])];
         let mut props = vec![scalar_property(&mut nodes, 1, "lastUpdateId", C::new(K::Integer), true, 0)];
         let book = levels_node(&mut nodes);
         for (field, name, slot) in [(2, "bids", 1), (3, "asks", 2)] {
-            props.push(jmax_schema_ir::Property { field_id: jsonmax::FieldId(field), name: name.into(), ty: book, required: true, slot: Some(slot) });
+            props.push(jsonmax::schema_ir::Property { field_id: jsonmax::FieldId(field), name: name.into(), ty: book, required: true, slot: Some(slot) });
         }
         nodes[0] = root_object(props);
         let schema = compile_rows("depthSnapshot", 3, nodes)?;
@@ -621,7 +621,7 @@ pub struct TradesVm {
 }
 impl TradesVm {
     pub fn new() -> R<Self> {
-        use jmax_schema_ir::{ArrayShape, Property, TypeId, TypeNode, ScalarConstraints as C, ValueKind as K};
+        use jsonmax::schema_ir::{ArrayShape, Property, TypeId, TypeNode, ScalarConstraints as C, ValueKind as K};
         let mut nodes = vec![root_object(vec![])];
         // Node 1 is the trades list, node 2 its element object.
         nodes.push(TypeNode::Array(ArrayShape { nullable: false, items: TypeId(2), min_items: None, max_items: None }));

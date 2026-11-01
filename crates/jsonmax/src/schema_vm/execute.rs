@@ -219,7 +219,7 @@ pub fn run<I: EventInput>(
     selection: &Selection,
     limits: VmLimits,
 ) -> Result<ValidatedRun> {
-    let _t = jmax_trace::span!(VM_RUN);
+    let _t = crate::trace::span!(VM_RUN);
     let result = (|| {
         let mut lengths = buffer_lengths(input.raw_bytes(), input.decoded_bytes(), &limits)?;
         let raw_owner = input.raw_bytes().as_ptr();
@@ -524,7 +524,7 @@ fn cached_selection_index(
     budget: &mut VmBudget,
     scratch: &mut VmScratch,
 ) -> Result<extract::SelectionIndex> {
-    let _t = jmax_trace::span!(VM_SELECTION);
+    let _t = crate::trace::span!(VM_SELECTION);
     if let Some(cache) = &scratch.selection_cache
         && cache.program.same_program(program)
         && cache.fields == selection.field_ids
@@ -952,7 +952,7 @@ pub(crate) fn open_pending(
     pending: PendingValue,
     offset: u32,
 ) -> Result<()> {
-    let _t = jmax_trace::span!(VM_OBJECT);
+    let _t = crate::trace::span!(VM_OBJECT);
     let depth = context
         .frames
         .len()
@@ -1269,7 +1269,7 @@ pub(crate) fn close(
     raw: &[u8],
     offset: u32,
 ) -> Result<()> {
-    let _t = jmax_trace::span!(VM_OBJECT);
+    let _t = crate::trace::span!(VM_OBJECT);
     delimiter(
         raw,
         offset,

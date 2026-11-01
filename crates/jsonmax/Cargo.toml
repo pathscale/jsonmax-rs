@@ -11,7 +11,7 @@ categories = ["parser-implementations", "encoding", "no-std"]
 
 [features]
 # Records per-site cycle counts through jmax-trace (off: marks compile to nothing).
-trace = ["jmax-trace/trace"]
+trace = []
 # Enables standard-library support by default.
 default = ["std"]
 # Enables heap-backed APIs without enabling std.
@@ -32,7 +32,6 @@ rusty-alloc = ["std", "dep:rusty_alloc"]
 cli = ["rusty-alloc"]
 
 [dependencies]
-jmax-trace = { workspace = true }
 bytes = { workspace = true }
 ps-simdutf8 = { workspace = true }
 rusty_alloc = { workspace = true, optional = true }

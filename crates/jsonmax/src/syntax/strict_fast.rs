@@ -165,7 +165,7 @@ pub(crate) fn accept(
     decoded: &mut Vec<u8>,
     scratch: &mut FastScratch,
 ) -> Option<(usize, u32)> {
-    let _t = jmax_trace::span!(STRICT_FAST_RUN);
+    let _t = crate::trace::span!(STRICT_FAST_RUN);
     let len0 = decoded.len();
     let cap0 = decoded.capacity();
     scratch.levels.clear();
@@ -390,7 +390,7 @@ impl Ctx<'_> {
     /// before any scratch or decoded state has changed.
     #[inline(always)]
     fn numeric_array(&mut self, start: usize) -> Option<usize> {
-        let _t = jmax_trace::span!(STRICT_FAST_ARRAY);
+        let _t = crate::trace::span!(STRICT_FAST_ARRAY);
         if self.s.levels.len() >= self.p.max_depth {
             return None;
         }
@@ -443,7 +443,7 @@ impl Ctx<'_> {
     /// The scan is transactional: a miss leaves all parser state untouched.
     #[inline(never)]
     fn numeric_matrix(&self, start: usize) -> Option<usize> {
-        let _t = jmax_trace::span!(STRICT_FAST_ARRAY);
+        let _t = crate::trace::span!(STRICT_FAST_ARRAY);
         let input = self.input;
         let mut i = skip_ws(input, start + 1);
         if *input.get(i)? != b'['
@@ -488,7 +488,7 @@ impl Ctx<'_> {
     /// and the colon. Returns the offset after the colon.
     #[inline(always)]
     fn key(&mut self, i: usize) -> Option<usize> {
-        let _t = jmax_trace::span!(STRICT_FAST_KEY);
+        let _t = crate::trace::span!(STRICT_FAST_KEY);
         let reject_dup = self.p.limits.reject_duplicate_keys;
         let top = self.s.levels.len().checked_sub(1)?;
         if self.memo_enabled && reject_dup && self.s.levels[top].shape != NO_SHAPE {
@@ -534,7 +534,7 @@ impl Ctx<'_> {
     /// takes the ordinary path. `None`: decline.
     #[inline(always)]
     fn shape_key(&mut self, i: usize, top: usize) -> Option<Option<usize>> {
-        let _t = jmax_trace::span!(STRICT_FAST_SHAPE);
+        let _t = crate::trace::span!(STRICT_FAST_SHAPE);
         let level = self.s.levels[top];
         let input = self.input;
         let content = i + 1;
@@ -695,7 +695,7 @@ impl Ctx<'_> {
                             return None;
                         }
                         if !ascii {
-                            jmax_utf8::validate::validate_str(&input[content..j]).ok()?;
+                            crate::utf8::validate::validate_str(&input[content..j]).ok()?;
                         }
                         Some(j + 1)
                     }
@@ -920,7 +920,7 @@ impl Ctx<'_> {
     }
 
     fn check_unique(&mut self, cooked: Cooked) -> Option<()> {
-        let _t = jmax_trace::span!(STRICT_FAST_SHAPE);
+        let _t = crate::trace::span!(STRICT_FAST_SHAPE);
         let input = self.input;
         let start = cooked.offset as usize;
         let end = start.checked_add(cooked.len as usize)?;
@@ -1048,7 +1048,7 @@ impl Ctx<'_> {
     /// the exact loop captures the cooked bytes (keys under duplicate rejection).
     #[inline(always)]
     fn string(&mut self, i: usize, capture: bool) -> Option<(usize, Cooked)> {
-        let _t = jmax_trace::span!(STRICT_FAST_STRING);
+        let _t = crate::trace::span!(STRICT_FAST_STRING);
         let input = self.input;
         let content = i + 1;
         let (mut j, ascii) = self.w.find_special_ascii(input, content);
@@ -1142,7 +1142,7 @@ impl Ctx<'_> {
     /// the numeric policy, deciding exactly the accepting cases of `number_inner`.
     #[inline(always)]
     fn number(&mut self, i: usize) -> Option<usize> {
-        let _t = jmax_trace::span!(STRICT_FAST_NUMBER);
+        let _t = crate::trace::span!(STRICT_FAST_NUMBER);
         number_prefix(self.input, i, self.p.limits, self.p.numeric)
     }
 }
@@ -1198,7 +1198,7 @@ fn simple_escaped_string(
     prefix_ascii: bool,
 ) -> Option<(usize, usize)> {
     if !prefix_ascii {
-        jmax_utf8::validate::validate_str(&input[opening + 1..slash]).ok()?;
+        crate::utf8::validate::validate_str(&input[opening + 1..slash]).ok()?;
     }
     // Raw bytes minus decoded bytes over all escapes seen so far.
     let mut shrink = 0usize;
@@ -1239,7 +1239,7 @@ fn simple_escaped_string(
         };
         let (end, ascii) = find_special_ascii(input, after);
         if !ascii {
-            jmax_utf8::validate::validate_str(input.get(after..end)?).ok()?;
+            crate::utf8::validate::validate_str(input.get(after..end)?).ok()?;
         }
         match *input.get(end)? {
             b'"' => return Some((end, end - opening - 1 - shrink)),

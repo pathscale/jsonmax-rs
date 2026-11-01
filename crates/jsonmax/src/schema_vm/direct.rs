@@ -171,7 +171,7 @@ impl Engine<'_, '_, '_> {
     }
 
     fn value(&mut self) -> Result<()> {
-        let _t = jmax_trace::span!(VM_DISPATCH);
+        let _t = crate::trace::span!(VM_DISPATCH);
         let byte = self.cursor.skip_whitespace_uncached()?.ok_or_else(|| {
             vm_error(
                 ErrorCode::UnexpectedEof,
@@ -278,7 +278,7 @@ impl Engine<'_, '_, '_> {
                 .state
                 .is_none_or(|id| !self.needed.get(id.0 as usize).copied().unwrap_or(false));
         if (self.query && unselected) || unconstrained {
-            let _t = jmax_trace::span!(VM_SKIP);
+            let _t = crate::trace::span!(VM_SKIP);
             let mode = if self.query && unselected {
                 SkipMode::QueryOnly
             } else if let Some(capability) = self.validated {
@@ -313,7 +313,7 @@ impl Engine<'_, '_, '_> {
                 self.cursor.advance(1);
             }
             _ => {
-                let _t = jmax_trace::span!(VM_SCALAR);
+                let _t = crate::trace::span!(VM_SCALAR);
                 let (kind, span, reference) = match byte {
                     b'"' => {
                         let meta = self.cursor.scan_string_meta_uncached(self.decoded)?;
@@ -426,7 +426,7 @@ impl Engine<'_, '_, '_> {
     /// one pass and stage every value. Any miss leaves no trace and the
     /// exact engine runs; only a resource failure is an error here.
     fn fast_leaf_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
-        let _t = jmax_trace::span!(VM_ROWS);
+        let _t = crate::trace::span!(VM_ROWS);
         let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
             return Ok(None);
         };
@@ -466,7 +466,7 @@ impl Engine<'_, '_, '_> {
         };
         if decimal.minimum.is_some()
             || decimal.maximum.is_some()
-            || jmax_decimal::validate_policy(&decimal.policy).is_err()
+            || crate::decimal::validate_policy(&decimal.policy).is_err()
             || depth + 2 > usize::from(self.context.limits.syntax.max_depth)
             // Warm frames must already cover both levels, as in the reference engine.
             || self.context.frames.capacity() < depth + 2
@@ -506,7 +506,7 @@ impl Engine<'_, '_, '_> {
     /// An item group's element has just completed: move its captured slots
     /// into the group's block and clear them for the next element.
     fn stage_element(&mut self) -> Result<()> {
-        let _t = jmax_trace::span!(VM_ROW_STAGE);
+        let _t = crate::trace::span!(VM_ROW_STAGE);
         let Some(slot) = self.context.frames.last().and_then(|frame| frame.slot) else {
             return Ok(());
         };
@@ -539,7 +539,7 @@ impl Engine<'_, '_, '_> {
     /// its array parent is an element of a slotted leaf-group array.
     #[inline]
     fn stage_leaf(&mut self, value: SlotValue, offset: u32) -> Result<()> {
-        let _t = jmax_trace::span!(VM_ROW_STAGE);
+        let _t = crate::trace::span!(VM_ROW_STAGE);
         let frames = &self.context.frames;
         let Some(outer) = frames.len().checked_sub(2).and_then(|i| frames.get(i)) else {
             return Ok(());
@@ -582,7 +582,7 @@ impl Engine<'_, '_, '_> {
     /// Minified scalar rows share a schema-derived plan and the preceding
     /// row's key order. Every miss is transactional and reuses the exact VM.
     fn fast_fixed_struct_array(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
-        let _t = jmax_trace::span!(VM_ARRAY);
+        let _t = crate::trace::span!(VM_ARRAY);
         if pending
             .slot
             .is_some_and(|s| self.context.slots.get(s as usize) != Some(&SlotValue::Empty))
@@ -786,7 +786,7 @@ impl Engine<'_, '_, '_> {
     /// once the closing brace is seen, so each miss replays in the exact VM.
     /// The charge mirrors the exact engine's per-token work.
     fn fast_fixed_object(&mut self, pending: PendingValue, start: u32) -> Option<u32> {
-        let _t = jmax_trace::span!(VM_FIXED_OBJ);
+        let _t = crate::trace::span!(VM_FIXED_OBJ);
         #[cfg(test)]
         if tests::force_exact() {
             return None;
@@ -851,7 +851,7 @@ impl Engine<'_, '_, '_> {
     /// capacity growth is charged exactly as the exact engine charges it, in
     /// the same order, because every accepted prefix is identical to its work.
     fn fast_item_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
-        let _t = jmax_trace::span!(VM_ROWS);
+        let _t = crate::trace::span!(VM_ROWS);
         #[cfg(test)]
         if tests::force_exact() {
             return Ok(None);
@@ -970,7 +970,7 @@ impl Engine<'_, '_, '_> {
     /// All state, cursor, decoded bytes, and work accounting are private until
     /// the whole array succeeds, so unsupported values return to the VM.
     fn fast_struct_array(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
-        let _t = jmax_trace::span!(VM_ARRAY);
+        let _t = crate::trace::span!(VM_ARRAY);
         if pending.slot.is_some_and(|slot| {
             usize::try_from(slot)
                 .ok()
@@ -1261,7 +1261,7 @@ impl Engine<'_, '_, '_> {
     /// The independent cursor and budget make every unsuccessful attempt a
     /// transaction: its caller continues through the ordinary VM path.
     fn fast_decimal_pairs(&mut self, pending: PendingValue, start: u32) -> Option<Span32> {
-        let _t = jmax_trace::span!(VM_ARRAY);
+        let _t = crate::trace::span!(VM_ARRAY);
         if pending.slot.is_some_and(|slot| {
             usize::try_from(slot)
                 .ok()
@@ -1407,7 +1407,7 @@ impl Engine<'_, '_, '_> {
     }
 
     fn object_key(&mut self) -> Result<()> {
-        let _t = jmax_trace::span!(VM_KEY);
+        let _t = crate::trace::span!(VM_KEY);
         if self.cursor.peek_byte() != Some(b'"') {
             return Err(invalid(self.cursor.offset(), "expected object key"));
         }
@@ -1463,7 +1463,7 @@ impl Engine<'_, '_, '_> {
     fn run_value(&mut self) -> Result<()> {
         self.value()?;
         while !self.context.root_done {
-            let _d = jmax_trace::span!(VM_DISPATCH);
+            let _d = crate::trace::span!(VM_DISPATCH);
             let byte = self.cursor.skip_whitespace_uncached()?.ok_or_else(|| {
                 vm_error(
                     ErrorCode::UnexpectedEof,
@@ -1600,7 +1600,7 @@ impl<'a> FixedScan<'a> {
 
     /// Entry bits whose capture slot is selected.
     fn selected_mask(
-        plan: &jmax_schema_compile::FixedObjectPlan,
+        plan: &crate::schema_compile::FixedObjectPlan,
         selection: &extract::SelectionIndex,
     ) -> u64 {
         plan.entries
@@ -2734,7 +2734,7 @@ fn execute_direct(
     validated: Option<ValidationCapability>,
     rows: bool,
 ) -> Result<()> {
-    let _t = jmax_trace::span!(VM_RUN);
+    let _t = crate::trace::span!(VM_RUN);
     prepare_output(scratch);
     let numeric = combined_numeric(program, numeric)?;
     let owner = if limits.syntax.reject_duplicate_keys {
@@ -2763,7 +2763,7 @@ fn execute_direct(
             )
         }
     });
-    let setup = jmax_trace::span!(VM_SETUP);
+    let setup = crate::trace::span!(VM_SETUP);
     // Construction is deferred until the fast whole-input path has declined,
     // but its failures keep their place ahead of the context's.
     BlockCursor::check_new(raw.len(), limits.syntax, cursor_numeric, owner)?;
@@ -2772,9 +2772,9 @@ fn execute_direct(
     } else {
         execute::new_context_capture(program, selection, limits, &mut scratch.vm, capture)?
     };
-    jmax_trace::end!(setup);
+    crate::trace::end!(setup);
     let result = (|| {
-        let _c = jmax_trace::span!(VM_CONSTRAINT);
+        let _c = crate::trace::span!(VM_CONSTRAINT);
         // Prepay input traversal, including strict-discard and query-jump work.
         context.budget.charge(raw.len() as u64, 0)?;
         context.budget.retain(
@@ -2844,7 +2844,7 @@ fn execute_direct(
         engine.run()?;
         Ok(())
     })();
-    let _f = jmax_trace::span!(VM_FINISH);
+    let _f = crate::trace::span!(VM_FINISH);
     recover(context, &mut scratch.vm);
     if result.is_err() {
         scratch.vm.slots.clear();
@@ -2872,7 +2872,7 @@ fn fast_root_object(
     cache: Option<&mut SelectionCache>,
     rows: Option<&mut Vec<RowBlock>>,
 ) -> bool {
-    let _t = jmax_trace::span!(VM_FIXED_OBJ);
+    let _t = crate::trace::span!(VM_FIXED_OBJ);
     #[cfg(test)]
     if tests::force_exact() {
         return false;
@@ -3011,7 +3011,7 @@ fn strict_root_input(
     numeric: NumericPolicy,
     scratch: &mut ValidationScratch,
 ) -> Result<()> {
-    let _t = jmax_trace::span!(VM_STRICT_ROOT);
+    let _t = crate::trace::span!(VM_STRICT_ROOT);
     let mut cursor = BlockCursor::with_scratch(
         raw,
         limits.syntax,
@@ -3086,7 +3086,7 @@ pub fn map_root_array_borrowed<T>(
     scratch: &mut ValidationScratch,
     mut map: impl FnMut(&[u8], &[u8], &[SlotValue]) -> T,
 ) -> Result<Vec<T>> {
-    let _t = jmax_trace::span!(VM_RUN);
+    let _t = crate::trace::span!(VM_RUN);
     prepare_output(scratch);
     if let Err(error) = strict_selection(selection) {
         scratch.vm.slots.clear();
@@ -3095,7 +3095,7 @@ pub fn map_root_array_borrowed<T>(
     let numeric = combined_numeric(program, numeric)?;
     let mut element_syntax = limits.syntax;
     element_syntax.max_depth = element_syntax.max_depth.saturating_sub(1);
-    let setup = jmax_trace::span!(VM_SETUP);
+    let setup = crate::trace::span!(VM_SETUP);
     let mut cursor = BlockCursor::with_scratch(
         raw,
         element_syntax,
@@ -3107,7 +3107,7 @@ pub fn map_root_array_borrowed<T>(
     element_limits.syntax = element_syntax;
     let context =
         execute::new_context_capture(program, selection, element_limits, &mut scratch.vm, true);
-    jmax_trace::end!(setup);
+    crate::trace::end!(setup);
     let mut context = match context {
         Ok(context) => context,
         Err(primary) => {
@@ -3269,7 +3269,7 @@ pub fn map_root_array_borrowed<T>(
         scratch.direct_decoded.clear();
         return Err(error.with_schema(program.image().header.schema_id, field));
     }
-    let _f = jmax_trace::span!(VM_FINISH);
+    let _f = crate::trace::span!(VM_FINISH);
     let mut rows = Vec::new();
     rows.try_reserve_exact(row_count).map_err(|_| resource(0))?;
     for row in 0..row_count {
@@ -4197,7 +4197,7 @@ mod tests {
     /// `{"e":str,"E":int,"b":[[dec,dec]..],"a":[[dec,dec]..]}`: slots 0..=3,
     /// the two arrays being leaf row groups.
     fn depth_rows_program() -> Result<ValidatedProgram> {
-        use jmax_schema_ir::{
+        use crate::schema_ir::{
             ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
         };
         let prop = |id: u32, name: &str, ty: u32, required: bool, slot: u32| Property {
@@ -4208,8 +4208,8 @@ mod tests {
             slot: Some(slot),
         };
         let mut decimal = ScalarConstraints::new(ValueKind::Decimal);
-        decimal.decimal = Some(jmax_schema_ir::DecimalConstraints {
-            policy: jmax_abi::DecimalPolicy::spot_8(),
+        decimal.decimal = Some(crate::schema_ir::DecimalConstraints {
+            policy: crate::abi::DecimalPolicy::spot_8(),
             minimum: None,
             maximum: None,
         });
@@ -4248,8 +4248,8 @@ mod tests {
                 TypeNode::Scalar(decimal),
             ],
         };
-        let resolved = jmax_schema_ir::resolve::resolve(schema, Default::default())?;
-        jmax_schema_compile::compile(&resolved, &jmax_schema_compile::CompilerOptions::default())
+        let resolved = crate::schema_ir::resolve::resolve(schema, Default::default())?;
+        crate::schema_compile::compile(&resolved, &crate::schema_compile::CompilerOptions::default())
     }
 
     #[test]
@@ -4415,8 +4415,8 @@ mod tests {
             reject_negative_zero: true,
             max_exponent_abs: 0,
         };
-        let constraints = jmax_schema_ir::DecimalConstraints {
-            policy: jmax_abi::DecimalPolicy::spot_8(),
+        let constraints = crate::schema_ir::DecimalConstraints {
+            policy: crate::abi::DecimalPolicy::spot_8(),
             minimum: None,
             maximum: None,
         };

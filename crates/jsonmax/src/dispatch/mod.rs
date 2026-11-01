@@ -113,7 +113,7 @@ impl Dispatch {
     }
 
     pub fn classify_block(&self, input: &[u8; 64], carry: &mut ScanCarry) -> Result<BlockMasks> {
-        let _t = jmax_trace::span!(@ block_site(self.backend));
+        let _t = crate::trace::span!(@ block_site(self.backend));
         (self.block_classifier)(input, carry)
     }
 
@@ -126,7 +126,7 @@ impl Dispatch {
 
     /// `input` is one block, at most 64 bytes, regardless of the selection hint.
     pub fn classify(&self, input: &[u8], carry: &mut ScanCarry) -> Result<BlockMasks> {
-        let _t = jmax_trace::span!(SCAN_TAIL);
+        let _t = crate::trace::span!(SCAN_TAIL);
         (self.classifier)(input, carry)
     }
 }
@@ -158,7 +158,7 @@ pub struct DispatchReport {
 /// classifier bindings still check their own feature invariant when they are
 /// resolved. An input below every native threshold needs no resolution.
 pub fn dispatch(input_len: usize, policy: DispatchPolicy) -> Result<Dispatch> {
-    let _t = jmax_trace::span!(CPU_DISPATCH);
+    let _t = crate::trace::span!(CPU_DISPATCH);
     let capabilities = cached_capabilities();
     let candidate = choose::choose(input_len, capabilities, policy);
     if candidate == BackendId::Scalar {
@@ -215,11 +215,11 @@ pub(crate) fn unavailable_backend() -> Error {
 /// Trace site for a full-block classification by the given backend.
 #[allow(dead_code)]
 #[inline(always)]
-fn block_site(backend: BackendId) -> jmax_trace::Site {
+fn block_site(backend: BackendId) -> crate::trace::Site {
     match backend {
-        BackendId::Scalar => jmax_trace::site::SCAN_BLOCK_SCALAR,
-        BackendId::Neon => jmax_trace::site::SCAN_BLOCK_NEON,
-        BackendId::Avx2 => jmax_trace::site::SCAN_BLOCK_AVX2,
-        BackendId::Avx512 => jmax_trace::site::SCAN_BLOCK_AVX512,
+        BackendId::Scalar => crate::trace::site::SCAN_BLOCK_SCALAR,
+        BackendId::Neon => crate::trace::site::SCAN_BLOCK_NEON,
+        BackendId::Avx2 => crate::trace::site::SCAN_BLOCK_AVX2,
+        BackendId::Avx512 => crate::trace::site::SCAN_BLOCK_AVX512,
     }
 }

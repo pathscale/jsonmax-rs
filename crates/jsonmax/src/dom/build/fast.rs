@@ -29,7 +29,7 @@ fn build_shaped<const FAST: bool>(
     scratch: &mut DomScratch,
     shapes: &mut Shapes,
 ) -> Result<Summary> {
-    let setup = jmax_trace::span!(DOM_SETUP);
+    let setup = crate::trace::span!(DOM_SETUP);
     let mut cursor = FastDomCursor::<FAST>(BlockCursor::new(
         raw,
         limits,
@@ -37,7 +37,7 @@ fn build_shaped<const FAST: bool>(
         DuplicatePolicyOwner::Syntax,
     )?);
     let mut summary = Summary::default();
-    jmax_trace::end!(setup);
+    crate::trace::end!(setup);
     append_value(&mut cursor, scratch, &mut summary, shapes, 0, None)?;
     while let Some(mut frame) = scratch.stack.last().copied() {
         let mut byte = cursor.skip_whitespace()?.ok_or_else(|| {
@@ -84,7 +84,7 @@ fn build_shaped<const FAST: bool>(
                     "expected an object member key",
                 ));
             }
-            let key_span = jmax_trace::span!(DOM_FAST_KEY);
+            let key_span = crate::trace::span!(DOM_FAST_KEY);
             let matched = if limits.reject_duplicate_keys {
                 match_shape_token(
                     shapes,
@@ -103,7 +103,7 @@ fn build_shaped<const FAST: bool>(
             } else {
                 scan_string_inline(&mut cursor, &mut scratch.decoded)?
             };
-            jmax_trace::end!(key_span);
+            crate::trace::end!(key_span);
             let key_extended = append_string(&mut scratch.tape, TAPE_TAG_KEY, string, 0, NO_NODE)?;
             if limits.reject_duplicate_keys && !matched_shape_token {
                 let depth = scratch.stack.len() - 1;
@@ -125,7 +125,7 @@ fn build_shaped<const FAST: bool>(
                 } else {
                     // The hash only places keys in this builder's private table;
                     // matches are always confirmed on the cooked bytes.
-                    let _s = jmax_trace::span!(DOM_SHAPE);
+                    let _s = crate::trace::span!(DOM_SHAPE);
                     let (hash, matched_shape, matched_prefix_len) = shape_hash(
                         shapes,
                         depth,
@@ -183,7 +183,7 @@ fn build_shaped<const FAST: bool>(
         )?;
     }
     {
-        let _f = jmax_trace::span!(DOM_FINISH);
+        let _f = crate::trace::span!(DOM_FINISH);
         cursor.finish_eof()?;
     }
     Ok(summary)
@@ -223,7 +223,7 @@ fn append_value<const FAST: bool>(
     }
     match byte {
         b'{' | b'[' => {
-            let _t = jmax_trace::span!(DOM_FAST_CONTAINER);
+            let _t = crate::trace::span!(DOM_FAST_CONTAINER);
             if scratch.stack.len() >= cursor.limits().max_depth as usize {
                 return Err(syntax_error(
                     ErrorCode::DepthLimitExceeded,
@@ -254,19 +254,19 @@ fn append_value<const FAST: bool>(
             summary.max_depth = summary.max_depth.max(scratch.stack.len() as u16);
         }
         b'"' => {
-            let _t = jmax_trace::span!(DOM_FAST_STRING);
+            let _t = crate::trace::span!(DOM_FAST_STRING);
             let meta = scan_string_inline(cursor, &mut scratch.decoded)?;
             append_string(&mut scratch.tape, TAG_STRING, meta, key_flags, parent)?;
             commit_child(scratch);
         }
         b'-' | b'0'..=b'9' => {
-            let _t = jmax_trace::span!(DOM_FAST_NUMBER);
+            let _t = crate::trace::span!(DOM_FAST_NUMBER);
             let span = cursor.scan_number_span()?;
             append_number(&mut scratch.tape, span, key_flags, parent)?;
             commit_child(scratch);
         }
         b'n' | b't' | b'f' => {
-            let _t = jmax_trace::span!(DOM_FAST_LITERAL);
+            let _t = crate::trace::span!(DOM_FAST_LITERAL);
             let (kind, span) = cursor.scan_literal()?;
             let tag = match kind {
                 TokenKind::Null => TAG_NULL,
@@ -358,7 +358,7 @@ fn try_coordinate_ring<const FAST: bool>(
     offset: u32,
     parent: u32,
 ) -> Result<bool> {
-    let _t = jmax_trace::span!(DOM_FAST_SCALAR_ARRAY);
+    let _t = crate::trace::span!(DOM_FAST_SCALAR_ARRAY);
     if scratch
         .stack
         .len()
@@ -497,7 +497,7 @@ fn try_scalar_array<const FAST: bool>(
     offset: u32,
     parent: u32,
 ) -> Result<bool> {
-    let _t = jmax_trace::span!(DOM_FAST_SCALAR_ARRAY);
+    let _t = crate::trace::span!(DOM_FAST_SCALAR_ARRAY);
     if scratch.stack.len() >= usize::from(cursor.limits().max_depth) {
         return Ok(false);
     }
@@ -814,7 +814,7 @@ fn close<const FAST: bool>(
     scratch: &mut DomScratch,
     shapes: &mut Shapes,
 ) -> Result<()> {
-    let _t = jmax_trace::span!(DOM_FAST_CLOSE);
+    let _t = crate::trace::span!(DOM_FAST_CLOSE);
     let frame = scratch.stack.pop().ok_or_else(|| {
         dom_error(
             ErrorCode::InternalError,

@@ -272,7 +272,7 @@ impl<'a> BlockCursor<'a> {
                 "invalid block cursor refill",
             ));
         }
-        let _t = jmax_trace::span!(CURSOR_REFILL);
+        let _t = crate::trace::span!(CURSOR_REFILL);
         while self.cache.block_end <= position {
             let start = self.cache.block_end as usize;
             let end = (start + 64).min(self.input.len());
@@ -360,7 +360,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline(never)]
     fn skip_whitespace_general(&mut self) -> Result<Option<u8>> {
-        let _t = jmax_trace::span!(CURSOR_WHITESPACE);
+        let _t = crate::trace::span!(CURSOR_WHITESPACE);
         self.check_failure()?;
         let result = self.whitespace_inner();
         self.retain(result)
@@ -395,7 +395,7 @@ impl<'a> BlockCursor<'a> {
     /// that advance directly over preceding tokens avoid classifying that
     /// skipped prefix merely to recover a later Unicode or escaped string.
     pub fn scan_string_meta_uncached(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
-        let _t = jmax_trace::span!(CURSOR_STRING);
+        let _t = crate::trace::span!(CURSOR_STRING);
         if self.input.len() <= 512 {
             return self.scan_string_meta(decoded);
         }
@@ -461,7 +461,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline(never)]
     fn scan_string_meta_general(&mut self, decoded: &mut Vec<u8>) -> Result<StringMeta> {
-        let _t = jmax_trace::span!(CURSOR_STRING);
+        let _t = crate::trace::span!(CURSOR_STRING);
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = self.scan_string_inner(decoded, true);
@@ -741,7 +741,7 @@ impl<'a> BlockCursor<'a> {
     }
     #[inline]
     pub fn scan_number_span(&mut self) -> Result<Span32> {
-        let _t = jmax_trace::span!(CURSOR_NUMBER);
+        let _t = crate::trace::span!(CURSOR_NUMBER);
         self.check_failure()?;
         let result = self.number_inner();
         self.retain(result)
@@ -763,7 +763,7 @@ impl<'a> BlockCursor<'a> {
     /// side effects; use `scan_number_span` for the authoritative diagnostic.
     #[inline]
     pub fn try_scan_number_span_fast(&mut self) -> Option<Span32> {
-        let _t = jmax_trace::span!(CURSOR_NUMBER);
+        let _t = crate::trace::span!(CURSOR_NUMBER);
         if self.failure.is_some() {
             return None;
         }
@@ -879,7 +879,7 @@ impl<'a> BlockCursor<'a> {
         }
     }
     pub fn scan_literal(&mut self) -> Result<(TokenKind, Span32)> {
-        let _t = jmax_trace::span!(CURSOR_LITERAL);
+        let _t = crate::trace::span!(CURSOR_LITERAL);
         self.check_failure()?;
         let result = self.literal_inner();
         self.retain(result)
@@ -1148,7 +1148,7 @@ impl<'a> BlockCursor<'a> {
         current_depth: u16,
         mode: SkipMode,
     ) -> Result<Span32> {
-        let _t = jmax_trace::span!(CURSOR_SKIP);
+        let _t = crate::trace::span!(CURSOR_SKIP);
         self.check_failure()?;
         let checkpoint = decoded.len();
         let result = (|| {

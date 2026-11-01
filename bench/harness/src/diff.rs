@@ -177,7 +177,7 @@ fn batch_schema(rows: bool) -> R<jsonmax::CompiledSchema> {
             min_properties: None,
             max_properties: None,
         }),
-        TypeNode::Array(jmax_schema_ir::ArrayShape { nullable: false, items: TypeId(2), min_items: None, max_items: None }),
+        TypeNode::Array(jsonmax::schema_ir::ArrayShape { nullable: false, items: TypeId(2), min_items: None, max_items: None }),
         TypeNode::Object(ObjectShape { nullable: false, properties: item, reject_unknown: false, min_properties: None, max_properties: None }),
         TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),
         TypeNode::Scalar(ScalarConstraints::new(ValueKind::String)),

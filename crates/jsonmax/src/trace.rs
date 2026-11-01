@@ -16,8 +16,9 @@
 //! Each mark costs about one counter read at entry and one at exit, so tiny
 //! per-token sites inflate themselves; `calibrate` measures an empty span so a
 //! report can subtract it.
-#![no_std]
 #![forbid(unsafe_op_in_unsafe_fn)]
+
+pub use crate::{span, end};
 
 /// Identifier of one trace site: an index into the static slot table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -217,7 +218,7 @@ pub use imp::Guard;
 /// True when the crate was built with the `trace` feature.
 pub const ENABLED: bool = cfg!(feature = "trace");
 
-/// Opens a span for `site`; bind the result: `let _t = jmax_trace::span!(SITE);`.
+/// Opens a span for `site`; bind the result: `let _t = crate::trace::span!(SITE);`.
 #[inline(always)]
 pub fn enter(site: Site) -> Guard {
     imp::enter(site)
@@ -249,19 +250,19 @@ pub fn calibrate() -> u64 {
 }
 
 
-/// `span!(NAME)` opens a scoped span for `jmax_trace::site::NAME`;
+/// `span!(NAME)` opens a scoped span for `crate::trace::site::NAME`;
 /// `span!(@ expr)` takes any `Site` expression. Bind the result:
-/// `let _t = jmax_trace::span!(NAME);`. With the feature off it expands to a
+/// `let _t = crate::trace::span!(NAME);`. With the feature off it expands to a
 /// unit value, with no function call even before optimization, so it cannot
 /// move inlining decisions.
 #[cfg(feature = "trace")]
 #[macro_export]
 macro_rules! span {
     (@ $site:expr) => {
-        $crate::enter($site)
+        $crate::trace::enter($site)
     };
     ($name:ident) => {
-        $crate::enter($crate::site::$name)
+        $crate::trace::enter($crate::trace::site::$name)
     };
 }
 
@@ -270,10 +271,10 @@ macro_rules! span {
 #[macro_export]
 macro_rules! span {
     (@ $site:expr) => {
-        $crate::Guard
+        $crate::trace::Guard
     };
     ($name:ident) => {
-        $crate::Guard
+        $crate::trace::Guard
     };
 }
 
