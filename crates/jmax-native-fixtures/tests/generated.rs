@@ -103,8 +103,8 @@ fn open_depth_snapshot() {
 
 #[test]
 fn embedded_programs_equal_the_independently_lowered_ones() {
-    use jmax_native::NativeDecode;
-    let pairs: [(&str, jmax_native::Result<jmax_native::ValidatedProgram>); 3] = [
+    use jsonmax::native::NativeDecode;
+    let pairs: [(&str, jsonmax::native::Result<jsonmax::native::ValidatedProgram>); 3] = [
         ("AggTrade", binance::models::AggTrade::build_program()),
         ("DepthUpdate", binance::models::DepthUpdate::build_program()),
         ("DepthSnapshot", binance::models::DepthSnapshot::build_program()),
@@ -121,8 +121,8 @@ fn embedded_programs_equal_the_independently_lowered_ones() {
 
 #[test]
 fn seeds_decode_to_the_expected_values() {
-    use jmax_abi::number::{Decimal128, NumericPolicy};
-    use jmax_native::{decode_into, NativeContext, VmLimits};
+    use jsonmax::abi::number::{Decimal128, NumericPolicy};
+    use jsonmax::native::{decode_into, NativeContext, VmLimits};
     let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
     let mut trade = binance::models::AggTrade::default();
     decode_into(&mut ctx, AGG_TRADE.as_bytes(), &mut trade).unwrap();
@@ -143,8 +143,8 @@ fn seeds_decode_to_the_expected_values() {
     assert_eq!(trade.best_match, None);
 }
 
-fn dump(program: &jmax_native::ValidatedProgram) -> Vec<u8> {
-    jmax_schema_aot::dump_program(program).unwrap()
+fn dump(program: &jsonmax::native::ValidatedProgram) -> Vec<u8> {
+    jsonmax::schema_aot::dump_program(program).unwrap()
 }
 
 fn shape_seeds(open: bool) -> Vec<Vec<u8>> {
@@ -189,8 +189,8 @@ fn open_shape() {
 
 #[test]
 fn shape_seed_decodes_to_the_expected_value() {
-    use jmax_abi::number::{Decimal128, NumericPolicy};
-    use jmax_native::{decode_into, NativeContext, VmLimits};
+    use jsonmax::abi::number::{Decimal128, NumericPolicy};
+    use jsonmax::native::{decode_into, NativeContext, VmLimits};
     let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
     let mut shape = shapes::models::Shape::default();
     decode_into(&mut ctx, SHAPE.as_bytes(), &mut shape).unwrap();
@@ -279,8 +279,8 @@ fn open_formats() {
 
 #[test]
 fn formats_seed_decodes_to_the_expected_value() {
-    use jmax_abi::number::NumericPolicy;
-    use jmax_native::{decode_into, NativeContext, VmLimits};
+    use jsonmax::abi::number::NumericPolicy;
+    use jsonmax::native::{decode_into, NativeContext, VmLimits};
     let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
     let mut ids = formats::models::Ids::default();
     decode_into(&mut ctx, FORMATS_DOC.as_bytes(), &mut ids).unwrap();
@@ -352,8 +352,8 @@ fn open_null_shape() {
 
 #[test]
 fn null_optionals_decode_as_absent_and_reset_the_output() {
-    use jmax_abi::number::NumericPolicy;
-    use jmax_native::{decode_into, NativeContext, VmLimits};
+    use jsonmax::abi::number::NumericPolicy;
+    use jsonmax::native::{decode_into, NativeContext, VmLimits};
     let mut ctx = NativeContext::new(VmLimits::default(), NumericPolicy::strict_default());
     let mut shape = shapes_null::models::Shape::default();
     decode_into(&mut ctx, SHAPE.as_bytes(), &mut shape).unwrap();

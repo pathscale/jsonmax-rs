@@ -1,4 +1,4 @@
-use jmax_abi::schema::SchemaFieldIr;
+use jsonmax::abi::schema::SchemaFieldIr;
 use jsonmax::{
     CompileLimits, ErrorCode, ErrorSource, FieldId, ParseOptions, Payload, SchemaId, SchemaIr,
     Selection, SlotValue, endpoint, parse,
@@ -9,7 +9,7 @@ fn schema() -> jsonmax::Result<endpoint::CompiledSchema> {
         field_id: FieldId(1),
         name: "value".into(),
         required: true,
-        scalar_kind: Some(jmax_abi::syntax::ScalarKind::Number),
+        scalar_kind: Some(jsonmax::abi::syntax::ScalarKind::Number),
         format: None,
         min_len: None,
         max_len: None,

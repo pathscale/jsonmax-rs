@@ -3,11 +3,11 @@
 use std::vec::Vec;
 use core::mem::size_of;
 
-use jmax_abi::{
+use jsonmax::abi::{
     error::{Error, ErrorCode, ErrorSource},
     node::TapeWord,
 };
-use jmax_encode::{EncodeLimits, JsonWriter};
+use jsonmax::encoder::{EncodeLimits, JsonWriter};
 
 use crate::{
     BenchmarkConfig, BenchmarkMode, BenchmarkOperation, BenchmarkReport, Clock, Observation,
@@ -249,7 +249,7 @@ fn mode_tag(mode: BenchmarkMode) -> u64 {
 
 fn emit_document(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> {
     let limits = writer_limits(out)?;
-    jmax_encode::typed::write_tape_document(document, out, limits).map(|_| ())
+    jsonmax::encoder::typed::write_tape_document(document, out, limits).map(|_| ())
 }
 
 fn emit_escaped(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> {
@@ -259,7 +259,7 @@ fn emit_escaped(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> {
             emit_text_quoted(key, out)?;
             seen = true;
         }
-        if node.kind() == jmax_dom::NodeKind::String {
+        if node.kind() == jsonmax::dom::NodeKind::String {
             emit_text_quoted(node.string()?, out)?;
             seen = true;
         }
@@ -276,7 +276,7 @@ fn emit_escaped(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> {
 fn emit_formatted(document: &jsonmax::Document, out: &mut Vec<u8>) -> Result<()> {
     let mut count = 0usize;
     for node in document.nodes() {
-        if node.kind() != jmax_dom::NodeKind::Number {
+        if node.kind() != jsonmax::dom::NodeKind::Number {
             continue;
         }
         let lexeme = node.raw()?;
@@ -320,7 +320,7 @@ fn verify_escaped(document: &jsonmax::Document) -> Result<()> {
             verify_one_string(key)?;
             found = true;
         }
-        if node.kind() == jmax_dom::NodeKind::String {
+        if node.kind() == jsonmax::dom::NodeKind::String {
             verify_one_string(node.string()?)?;
             found = true;
         }
@@ -351,7 +351,7 @@ fn verify_one_string(expected: &str) -> Result<()> {
 fn verify_formatted(document: &jsonmax::Document) -> Result<()> {
     let mut count = 0usize;
     for node in document.nodes() {
-        if node.kind() != jmax_dom::NodeKind::Number {
+        if node.kind() != jsonmax::dom::NodeKind::Number {
             continue;
         }
         let lexeme = node.raw()?;
@@ -502,7 +502,7 @@ struct ReuseSerialize {
     next: usize,
     warm: bool,
     output: jsonmax::OutputBuffer,
-    frames: jmax_encode::WriterScratch,
+    frames: jsonmax::encoder::WriterScratch,
 }
 impl BenchmarkOperation for ReuseSerialize {
     fn name(&self) -> &str {

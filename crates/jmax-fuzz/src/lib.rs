@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
-pub use jmax_abi::{
+pub use jsonmax::abi::{
     buffer::Payload,
     error::{Error, ErrorCode, ErrorSource, Result},
     number::{ConvertedNumber, Decimal128, DecimalPolicy, NumericPolicy},

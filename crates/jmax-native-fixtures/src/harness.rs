@@ -4,14 +4,14 @@
 //! Every assertion names the input, so a failure reproduces from its message.
 
 use crate::regen::{model, spec, Fixture};
-use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
-use jmax_abi::syntax::{DuplicatePolicyOwner, Event, Limits, ScalarKind, ScanStep};
-use jmax_endpoint_model::native::schema_graph_for;
-use jmax_endpoint_model::registry::build_registry;
-use jmax_endpoint_model::SchemaId;
-use jmax_native::{Error, ErrorCode, NativeContext, NativeDecode, Reader, VmLimits, decode_into};
-use jmax_schema_aot::{compile_graph, ValidatedProgram};
-use jmax_schema_vm::ValidationScratch;
+use jsonmax::abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
+use jsonmax::abi::syntax::{DuplicatePolicyOwner, Event, Limits, ScalarKind, ScanStep};
+use jsonmax::endpoint_model::native::schema_graph_for;
+use jsonmax::endpoint_model::registry::build_registry;
+use jsonmax::endpoint_model::SchemaId;
+use jsonmax::native::{Error, ErrorCode, NativeContext, NativeDecode, Reader, VmLimits, decode_into};
+use jsonmax::schema_aot::{compile_graph, ValidatedProgram};
+use jsonmax::schema_vm::ValidationScratch;
 
 pub const AGG_TRADE: &str = r#"{"e":"aggTrade","E":123456789,"s":"BNBBTC","a":12345,"p":"0.00100000","q":"100.00000000","f":100,"l":105,"T":123456785,"m":true,"M":true}"#;
 
@@ -119,14 +119,14 @@ pub enum Json {
 pub fn tree(input: &[u8]) -> Option<Json> {
     let mut limits = Limits::strict_default();
     limits.reject_duplicate_keys = false;
-    let mut cursor = jmax_syntax::BlockCursor::new(input, limits, None, DuplicatePolicyOwner::Disabled).ok()?;
+    let mut cursor = jsonmax::syntax::BlockCursor::new(input, limits, None, DuplicatePolicyOwner::Disabled).ok()?;
     let mut decoded = Vec::new();
     let mut stack: Vec<(Json, Option<String>)> = Vec::new();
     let mut root = None;
-    let text = |cursor_decoded: &[u8], reference: jmax_abi::span::StrRef| -> String {
+    let text = |cursor_decoded: &[u8], reference: jsonmax::abi::span::StrRef| -> String {
         let bytes = match reference.source {
-            jmax_abi::span::SpanSource::RawPayload => reference.span.slice(input),
-            jmax_abi::span::SpanSource::DecodedArena => reference.span.slice(cursor_decoded),
+            jsonmax::abi::span::SpanSource::RawPayload => reference.span.slice(input),
+            jsonmax::abi::span::SpanSource::DecodedArena => reference.span.slice(cursor_decoded),
         };
         String::from_utf8_lossy(bytes.unwrap()).into_owned()
     };
@@ -196,7 +196,7 @@ impl Json {
     }
     pub fn decimal(&self) -> Option<Decimal128> {
         let quoted = format!("\"{}\"", self.string()?);
-        jmax_decimal::parse::parse_quoted(quoted.as_bytes(), 0, &DecimalPolicy::spot_8()).ok()
+        jsonmax::decimal::parse::parse_quoted(quoted.as_bytes(), 0, &DecimalPolicy::spot_8()).ok()
     }
 }
 
@@ -312,7 +312,7 @@ pub fn limit_variants() -> Vec<VmLimits> {
 }
 
 fn run_vm(program: &ValidatedProgram, input: &[u8], limits: VmLimits) -> Result<(), Error> {
-    jmax_schema_vm::direct::validate_borrowed_into(
+    jsonmax::schema_vm::direct::validate_borrowed_into(
         program,
         input,
         limits,
@@ -365,7 +365,7 @@ where
     let shown = || String::from_utf8_lossy(input).into_owned();
     tally.inputs += 1;
     let vm = run_vm(&subject.program, input, limits);
-    let safe = jmax_schema_vm::budget_safe(&subject.program, input.len(), limits);
+    let safe = jsonmax::schema_vm::budget_safe(&subject.program, input.len(), limits);
 
     let mut core_out = T::default();
     let mut reader = Reader::new(input);

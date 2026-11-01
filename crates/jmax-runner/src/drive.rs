@@ -5,7 +5,7 @@
 //! separate pass so every active connection is attempted even after an error.
 
 use super::*;
-use jmax_dom::{navigate, scalar, Document, Node, NodeKind};
+use jsonmax::dom::{navigate, scalar, Document, Node, NodeKind};
 
 /// Validate exactly one complete JSON value under the canonical strict limits.
 pub fn validate_reply(input: &[u8]) -> Result<()> {
@@ -28,7 +28,7 @@ pub fn validate_reply(input: &[u8]) -> Result<()> {
 /// include the selected value, expected value, path, or reply body.
 pub fn assert_reply(reply: &Reply, path: &str, expected: &Expectation) -> Result<()> {
     let document = parse_reply(reply.body.clone())?;
-    let compiled = jmax_path::compile::compile_strings(&[path], jmax_path::PathLimits::default())
+    let compiled = jsonmax::path::compile::compile_strings(&[path], jsonmax::path::PathLimits::default())
         .map_err(|_| invalid(None, "assert.path must be a valid native selector path within path limits"))?;
     if let Expectation::ErrorCode(code) = expected {
         if !path.is_empty() {
@@ -61,15 +61,15 @@ pub fn assert_reply(reply: &Reply, path: &str, expected: &Expectation) -> Result
 }
 
 fn parse_reply(payload: Payload) -> Result<Document> {
-    Ok(jmax_dom::build::parse(payload, Limits::strict_default())?)
+    Ok(jsonmax::dom::build::parse(payload, Limits::strict_default())?)
 }
 
-fn select<'a>(document: &'a Document, segments: &[jmax_path::Segment]) -> Option<Node<'a>> {
+fn select<'a>(document: &'a Document, segments: &[jsonmax::path::Segment]) -> Option<Node<'a>> {
     let mut selected = navigate::root(document);
     for segment in segments {
         selected = match segment {
-            jmax_path::Segment::Key(key) => navigate::object(selected).ok()?.get(key)?,
-            jmax_path::Segment::Index(index) => {
+            jsonmax::path::Segment::Key(key) => navigate::object(selected).ok()?.get(key)?,
+            jsonmax::path::Segment::Index(index) => {
                 let index = usize::try_from(*index).ok()?;
                 navigate::array(selected).ok()?.get(index)?
             }

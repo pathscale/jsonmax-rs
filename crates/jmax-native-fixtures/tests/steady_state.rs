@@ -4,8 +4,8 @@
 //! decoders that accept unknown keys) builds a fresh VM scratch per call, by
 //! contract, and is outside this guarantee.
 
-use jmax_abi::number::NumericPolicy;
-use jmax_native::{decode_into, NativeContext, VmLimits};
+use jsonmax::abi::number::NumericPolicy;
+use jsonmax::native::{decode_into, NativeContext, VmLimits};
 use jmax_native_fixtures::binance;
 use jmax_native_fixtures::harness::{depth_document, snapshot_document, AGG_TRADE};
 use std::alloc::{GlobalAlloc, Layout, System};

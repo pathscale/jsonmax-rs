@@ -9,9 +9,48 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
+extern crate self as jsonmax;
+
+pub mod abi;
+pub mod buffer;
+pub mod error;
+pub mod dispatch;
+pub mod scan_scalar;
+pub mod scan_neon;
+pub mod scan_avx2;
+pub mod scan_avx512;
+pub mod utf8;
+pub mod string;
+pub mod number;
+pub mod decimal;
+pub mod syntax;
+pub mod cursor;
+pub mod path;
+pub mod dom;
+pub mod schema_ir;
+pub mod schema_compile;
+pub mod schema_vm;
+pub mod format;
+pub mod encoder;
+pub mod schema_aot;
+pub mod native;
+pub mod endpoint_model;
+pub mod endpoint_ron;
+pub mod codegen_rust;
+pub mod codegen_spec;
+pub mod wire;
+pub mod mcp;
+pub mod nagoya;
+pub mod http;
+pub mod wss;
+pub mod exchange;
+#[cfg(feature = "cli")]
+pub mod cli;
 
 use alloc::{string::String, vec::Vec};
-pub use jmax_abi::{
+pub use crate::abi::{
     buffer::{ParsedMessage, Payload, UnvalidatedSpan, ValidationProof},
     endpoint::{EndpointField, EndpointSchemaSpec, EndpointType, ServiceSpec},
     error::{Error, ErrorCode, ErrorSource, Result},
@@ -40,8 +79,8 @@ pub const DEFAULT_MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 pub use endpoint::CompiledSchema;
 /// Native documents use immutable packed tapes. `ValidatedDocument` is the
 /// explicit legacy parallel-table representation.
-pub use jmax_dom::{BorrowedDocument, Document, DomScratch, TapeDocument};
-pub use jmax_schema_aot::JsonDecodeBorrowed;
+pub use crate::dom::{BorrowedDocument, Document, DomScratch, TapeDocument};
+pub use crate::schema_aot::JsonDecodeBorrowed;
 
 /// Optional allocator availability. Enabling `rusty-alloc` does not install a
 /// global allocator. A binary consumer can install it once in its crate root:

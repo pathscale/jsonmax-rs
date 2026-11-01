@@ -2,25 +2,25 @@
 
 use super::*;
 use std::{net::IpAddr, str};
-use jmax_dom::{Array, Node, NodeKind, Object, Scalar};
+use jsonmax::dom::{Array, Node, NodeKind, Object, Scalar};
 
 fn err(code: ErrorCode, node: Option<Node<'_>>, detail: &'static str) -> ValidatorError {
-    let offset = node.map(|n| jmax_dom::navigate::raw_span(n).offset).unwrap_or(0);
+    let offset = node.map(|n| jsonmax::dom::navigate::raw_span(n).offset).unwrap_or(0);
     ValidatorError::Validation(AbiError::new(code, ErrorSource::Decode, offset, detail))
 }
 fn decode_error(error: AbiError) -> ValidatorError {
     ValidatorError::Validation(AbiError { source: ErrorSource::Decode, ..error })
 }
 
-fn kind(node: Node<'_>) -> NodeKind { jmax_dom::navigate::kind(node) }
-fn object<'a>(node: Node<'a>) -> ValidatorResult<Object<'a>> { jmax_dom::navigate::object(node).map_err(ValidatorError::from) }
-fn array<'a>(node: Node<'a>) -> ValidatorResult<Array<'a>> { jmax_dom::navigate::array(node).map_err(ValidatorError::from) }
+fn kind(node: Node<'_>) -> NodeKind { jsonmax::dom::navigate::kind(node) }
+fn object<'a>(node: Node<'a>) -> ValidatorResult<Object<'a>> { jsonmax::dom::navigate::object(node).map_err(ValidatorError::from) }
+fn array<'a>(node: Node<'a>) -> ValidatorResult<Array<'a>> { jsonmax::dom::navigate::array(node).map_err(ValidatorError::from) }
 fn members<'a>(node: Node<'a>) -> ValidatorResult<Vec<(String, Node<'a>)>> {
     Ok(object(node)?.iter().map(|m| (m.key.to_owned(), m.value)).collect())
 }
 fn items<'a>(node: Node<'a>) -> ValidatorResult<Vec<Node<'a>>> { Ok(array(node)?.iter().collect()) }
 fn text<'a>(node: Node<'a>) -> ValidatorResult<&'a str> {
-    match jmax_dom::scalar::value(node).map_err(ValidatorError::from)? {
+    match jsonmax::dom::scalar::value(node).map_err(ValidatorError::from)? {
         Scalar::String(value) => Ok(value),
         _ => Err(err(ErrorCode::TypeMismatch, Some(node), "expected JSON string")),
     }
@@ -70,7 +70,7 @@ fn find_struct_type<'a>(ty: &'a EndpointType, name: &str, found: &mut Option<&'a
     Ok(())
 }
 
-fn find_enum<'a>(model: &'a ValidatorModel, name: &str) -> ValidatorResult<&'a [jmax_abi::endpoint::EnumVariantSpec]> {
+fn find_enum<'a>(model: &'a ValidatorModel, name: &str) -> ValidatorResult<&'a [jsonmax::abi::endpoint::EnumVariantSpec]> {
     let mut found = None;
     for service in &model.services {
         for endpoint in &service.endpoints {
@@ -81,7 +81,7 @@ fn find_enum<'a>(model: &'a ValidatorModel, name: &str) -> ValidatorResult<&'a [
     found.ok_or_else(|| err(ErrorCode::MissingRequiredField, None, "unknown enum reference"))
 }
 
-fn find_enum_type<'a>(ty: &'a EndpointType, name: &str, found: &mut Option<&'a [jmax_abi::endpoint::EnumVariantSpec]>) -> ValidatorResult<()> {
+fn find_enum_type<'a>(ty: &'a EndpointType, name: &str, found: &mut Option<&'a [jsonmax::abi::endpoint::EnumVariantSpec]>) -> ValidatorResult<()> {
     match ty {
         EndpointType::Enum { name: n, variants } => {
             if n == name {
@@ -101,7 +101,7 @@ fn check_depth(depth: u16, limits: Limits, node: Node<'_>) -> ValidatorResult<()
     if depth > limits.max_depth || depth == u16::MAX { Err(err(ErrorCode::DepthLimitExceeded, Some(node), "parameter nesting exceeds limit")) } else { Ok(()) }
 }
 fn scalar_number<'a>(node: Node<'a>) -> ValidatorResult<&'a [u8]> {
-    match jmax_dom::scalar::value(node).map_err(ValidatorError::from)? {
+    match jsonmax::dom::scalar::value(node).map_err(ValidatorError::from)? {
         Scalar::Number(bytes) => Ok(bytes),
         _ => Err(err(ErrorCode::TypeMismatch, Some(node), "expected number")),
     }
@@ -238,7 +238,7 @@ fn validate_node(model: &ValidatorModel, node: Node<'_>, ty: &EndpointType, limi
     }
 }
 
-fn validate_enum(node: Node<'_>, name: &str, prefixed: bool, variants: &[jmax_abi::endpoint::EnumVariantSpec], limits: Limits) -> ValidatorResult<()> {
+fn validate_enum(node: Node<'_>, name: &str, prefixed: bool, variants: &[jsonmax::abi::endpoint::EnumVariantSpec], limits: Limits) -> ValidatorResult<()> {
     let value = text(node)?;
     ensure_text_limit(value, limits, Some(node))?;
     let found = variants.iter().any(|variant| {
@@ -307,14 +307,14 @@ pub fn validate_input(model: &ValidatorModel, field: &EndpointField, input: &str
         InputGrammar::Text => {
             if input.len() > limits.max_string_bytes as usize { return Err(err(ErrorCode::PayloadTooLarge, None, "text parameter exceeds string limit")); }
             if input.len() > limits.max_decoded_bytes as usize { return Err(err(ErrorCode::DecodedArenaOverflow, None, "decoded text exceeds arena limit")); }
-            let encoded_len = jmax_encode::escaped_string_len(input).map_err(decode_error)?;
+            let encoded_len = jsonmax::encoder::escaped_string_len(input).map_err(decode_error)?;
             if encoded_len > limits.max_payload_bytes as usize { return Err(err(ErrorCode::PayloadTooLarge, None, "encoded text exceeds payload limit")); }
             validate_text_value(model, input, &field.ty, limits, 0)
         }
         InputGrammar::Json => {
             let mut strict = limits; strict.reject_duplicate_keys = true; strict.reject_unknown_keys = true;
-            let doc = jmax_dom::build::parse(Payload::from_slice(input.as_bytes()), strict).map_err(decode_error)?;
-            let root = jmax_dom::navigate::root(&doc);
+            let doc = jsonmax::dom::build::parse(Payload::from_slice(input.as_bytes()), strict).map_err(decode_error)?;
+            let root = jsonmax::dom::navigate::root(&doc);
             validate_node(model, root, &field.ty, limits, 0)
         }
     }
@@ -324,12 +324,12 @@ fn validate_text_value(model: &ValidatorModel, input: &str, ty: &EndpointType, l
     if input.len() > limits.max_string_bytes as usize { return Err(err(ErrorCode::PayloadTooLarge, None, "text parameter exceeds string limit")); }
     match ty {
         EndpointType::String => Ok(()),
-        EndpointType::Bytea => { let mut quoted = Vec::new(); quote(input, &mut quoted); let doc = jmax_dom::build::parse(Payload::from_vec(quoted), limits).map_err(decode_error)?; validate_node(model, jmax_dom::navigate::root(&doc), ty, limits, depth) }
+        EndpointType::Bytea => { let mut quoted = Vec::new(); quote(input, &mut quoted); let doc = jsonmax::dom::build::parse(Payload::from_vec(quoted), limits).map_err(decode_error)?; validate_node(model, jsonmax::dom::navigate::root(&doc), ty, limits, depth) }
         EndpointType::UUID | EndpointType::NanoId { .. } | EndpointType::IpAddr | EndpointType::BlockchainDecimal | EndpointType::BlockchainAddress | EndpointType::BlockchainTransactionHash => {
             let mut quoted = Vec::new(); quote(input, &mut quoted);
             let strict = limits;
-            let doc = jmax_dom::build::parse(Payload::from_vec(quoted), strict).map_err(decode_error)?;
-            validate_node(model, jmax_dom::navigate::root(&doc), ty, limits, depth)
+            let doc = jsonmax::dom::build::parse(Payload::from_vec(quoted), strict).map_err(decode_error)?;
+            validate_node(model, jsonmax::dom::navigate::root(&doc), ty, limits, depth)
         }
         _ => Err(err(ErrorCode::InternalError, None, "text grammar is not defined for this type")),
     }
@@ -366,16 +366,16 @@ pub fn prepare_params(model: &ValidatorModel, endpoint: EndpointKey, inputs: &[P
             return Err(err(ErrorCode::MissingRequiredField, None, "required endpoint parameter is missing"));
         }
     }
-    let encode_limits = jmax_encode::EncodeLimits {
+    let encode_limits = jsonmax::encoder::EncodeLimits {
         max_output_bytes: limits.max_payload_bytes as usize,
         max_depth: limits.max_depth,
         max_container_items: limits.max_fields_per_object.max(limits.max_array_items),
         max_string_bytes: limits.max_string_bytes,
         max_number_bytes: u32::from(limits.max_number_digits),
     };
-    let mut sink = jmax_encode::VecSink::new(limits.max_payload_bytes as usize);
+    let mut sink = jsonmax::encoder::VecSink::new(limits.max_payload_bytes as usize);
     {
-        let mut writer = jmax_encode::JsonWriter::new(&mut sink, encode_limits);
+        let mut writer = jsonmax::encoder::JsonWriter::new(&mut sink, encode_limits);
         writer.begin_object().map_err(decode_error)?;
         for field in &schema.params {
             let Some(input) = inputs.iter().find(|input| input.name == field.name) else { continue };
@@ -383,7 +383,7 @@ pub fn prepare_params(model: &ValidatorModel, endpoint: EndpointKey, inputs: &[P
             match grammar_for(&field.ty) {
                 InputGrammar::Text => writer.string(&input.text).map_err(decode_error)?,
                 InputGrammar::Json => {
-                    let fragment = jmax_encode::raw::validate(input.text.as_bytes(), encode_limits).map_err(decode_error)?;
+                    let fragment = jsonmax::encoder::raw::validate(input.text.as_bytes(), encode_limits).map_err(decode_error)?;
                     writer.raw(fragment).map_err(decode_error)?;
                 }
             }
@@ -399,7 +399,7 @@ pub fn validate_prepared(model: &ValidatorModel, params: &PreparedParams, limits
     let schema = model.endpoint(params.endpoint).ok_or_else(|| err(ErrorCode::MissingRequiredField, None, "endpoint key is missing or ambiguous"))?;
     if params.payload.len() > limits.max_payload_bytes as usize { return Err(err(ErrorCode::PayloadTooLarge, None, "prepared payload exceeds limit")); }
     let mut strict = limits; strict.reject_duplicate_keys = true; strict.reject_unknown_keys = true;
-    let doc = jmax_dom::build::parse(params.payload.clone(), strict).map_err(decode_error)?;
-    let root = jmax_dom::navigate::root(&doc);
+    let doc = jsonmax::dom::build::parse(params.payload.clone(), strict).map_err(decode_error)?;
+    let root = jsonmax::dom::navigate::root(&doc);
     validate_object_fields(model, root, &schema.params, limits, 0)
 }

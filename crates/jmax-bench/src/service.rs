@@ -3,7 +3,7 @@
 use std::vec::Vec;
 use core::{convert::TryFrom, mem::size_of};
 
-use jmax_abi::error::ErrorCode;
+use jsonmax::abi::error::ErrorCode;
 
 use crate::{
     Clock, Completion, Observation, Result, ServiceConfig, ServiceDriver, ServiceReport, Workload,

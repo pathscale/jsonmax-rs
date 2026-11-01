@@ -1,6 +1,6 @@
 // Shared by the jmax-harness binary and the cross-parser comparison bench.
 #![allow(dead_code, non_snake_case)]
-pub use jmax_schema_ir::{
+pub use jsonmax::schema_ir::{
     ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
 };
 pub use jsonmax::{
@@ -93,8 +93,8 @@ pub fn string(slots: &ValidatedSlots, n: usize) -> String {
         panic!("wrong string slot")
     };
     let b = match s.source {
-        jmax_abi::span::SpanSource::RawPayload => slots.payload.as_slice(),
-        jmax_abi::span::SpanSource::DecodedArena => &slots.decoded,
+        jsonmax::abi::span::SpanSource::RawPayload => slots.payload.as_slice(),
+        jsonmax::abi::span::SpanSource::DecodedArena => &slots.decoded,
     };
     std::str::from_utf8(s.span.slice(b).unwrap())
         .unwrap()
@@ -326,13 +326,13 @@ pub fn jmax_github_with_scratch(
         let _ = doc.root_node().array()?;
         unreachable!("a non-array root returned from BorrowedNode::array")
     }
-    Ok(jmax_schema_vm::direct::map_root_array_borrowed(
+    Ok(jsonmax::schema_vm::direct::map_root_array_borrowed(
         p.schema.program(),
         b,
         &p.selection,
-        jmax_schema_vm::VmLimits {
+        jsonmax::schema_vm::VmLimits {
             syntax: options.limits,
-            max_steps: jmax_schema_vm::DEFAULT_MAX_VM_STEPS,
+            max_steps: jsonmax::schema_vm::DEFAULT_MAX_VM_STEPS,
             max_scratch_bytes: 16 * 1024 * 1024,
         },
         options.numeric,
@@ -347,8 +347,8 @@ pub fn jmax_github_with_scratch(
 fn borrowed_string(slots: &[SlotValue], raw: &[u8], decoded: &[u8], n: usize) -> String {
     let SlotValue::Str(s) = slots[n] else { panic!("wrong string slot") };
     let b = match s.source {
-        jmax_abi::span::SpanSource::RawPayload => raw,
-        jmax_abi::span::SpanSource::DecodedArena => decoded,
+        jsonmax::abi::span::SpanSource::RawPayload => raw,
+        jsonmax::abi::span::SpanSource::DecodedArena => decoded,
     };
     std::str::from_utf8(s.span.slice(b).unwrap()).unwrap().to_owned()
 }

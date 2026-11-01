@@ -58,12 +58,12 @@ fn generation_is_deterministic() {
 
 #[test]
 fn the_shared_artifacts_equal_plain_generate() {
-    use jmax_codegen_rust::{generate, options_with_native_idents};
+    use jsonmax::codegen_rust::{generate, options_with_native_idents};
     let model = regen::model(&regen::BINANCE);
     let spec = regen::spec(&regen::BINANCE, true);
     let options = options_with_native_idents(&regen::options("binance"), &spec).unwrap();
     let plain = generate(&model, &options).unwrap();
-    let native = jmax_codegen_rust::generate_with_native(
+    let native = jsonmax::codegen_rust::generate_with_native(
         &model,
         &spec,
         &regen::options("binance"),

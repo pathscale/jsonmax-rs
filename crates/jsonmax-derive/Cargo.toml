@@ -1,0 +1,13 @@
+[package]
+name = "jsonmax-derive"
+description = "Derive macros for jsonmax: JsonDecode, JsonEncode and JsonSchema"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+jsonmax = { path = "../jsonmax", version = "=0.1.0", features = ["std"] }

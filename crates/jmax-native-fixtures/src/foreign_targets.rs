@@ -23,7 +23,7 @@ pub struct Quote {
     pub price: i128,
     pub side: i32,
 }
-pub fn price(value: &jmax_abi::number::Decimal128) -> Option<i128> {
+pub fn price(value: &jsonmax::abi::number::Decimal128) -> Option<i128> {
     (value.scale == 8).then_some(value.coefficient)
 }
 pub fn side(value: &crate::foreign::models::Side) -> Option<i32> {

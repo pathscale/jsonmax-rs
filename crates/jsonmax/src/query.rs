@@ -2,8 +2,8 @@
 
 use alloc::{string::String, vec::Vec};
 
-use jmax_cursor::{Event, SkipMode};
-use jmax_path::{PathLimits, Segment};
+use crate::cursor::{Event, SkipMode};
+use crate::path::{PathLimits, Segment};
 
 use super::{
     BorrowedQueryResult, CompiledQuery, Error, ErrorCode, ErrorSource, ParseOptions, Payload,
@@ -30,7 +30,7 @@ pub fn compile_paths(paths: &[&str]) -> Result<CompiledQuery> {
         .map_err(|_| allocation_error())?;
     for path in paths {
         // The native parser supplies the canonical grammar and error offsets.
-        let _parsed = jmax_path::parse::parse(path, limits)?;
+        let _parsed = crate::path::parse::parse(path, limits)?;
         let mut copy = String::new();
         copy.try_reserve_exact(path.len())
             .map_err(|_| allocation_error())?;
@@ -123,7 +123,7 @@ pub struct QueryScratch {
     decoded: Vec<u8>,
     key_tables: Vec<QueryKeyTable>,
     matches: Vec<Vec<Span32>>,
-    skip: jmax_syntax::SkipScratch,
+    skip: crate::syntax::SkipScratch,
 }
 
 impl QueryScratch {
@@ -176,7 +176,7 @@ impl QueryKeyTable {
         };
     }
 
-    fn insert(&mut self, key: jmax_abi::syntax::KeyMeta, raw: &[u8], decoded: &[u8]) -> Result<()> {
+    fn insert(&mut self, key: crate::abi::syntax::KeyMeta, raw: &[u8], decoded: &[u8]) -> Result<()> {
         let bytes = |reference: super::StrRef| {
             reference.span.slice(match reference.source {
                 super::SpanSource::RawPayload => raw,
@@ -278,7 +278,7 @@ pub fn execute_borrowed_with_scratch<'a>(
         QueryMode::Strict => SkipMode::Strict,
         QueryMode::Query => SkipMode::Query,
     };
-    let mut cursor = jmax_cursor::walk::walk_borrowed_with_numeric(
+    let mut cursor = crate::cursor::walk::walk_borrowed_with_numeric(
         input,
         options.parse.limits,
         mode,
@@ -289,7 +289,7 @@ pub fn execute_borrowed_with_scratch<'a>(
 
     loop {
         match cursor.next()? {
-            jmax_abi::syntax::ScanStep::Emit(event) => match event {
+            crate::abi::syntax::ScanStep::Emit(event) => match event {
                 Event::Key { str_ref } => {
                     let frame = stack.last_mut().ok_or_else(|| {
                         internal_error(
@@ -326,9 +326,9 @@ pub fn execute_borrowed_with_scratch<'a>(
                         .is_none_or(|node| node.edges.is_empty());
                     if no_children {
                         let skip_mode = if strict_subtree {
-                            jmax_cursor::ValueSkipMode::StrictValidate
+                            crate::cursor::ValueSkipMode::StrictValidate
                         } else {
-                            jmax_cursor::ValueSkipMode::QueryOnly
+                            crate::cursor::ValueSkipMode::QueryOnly
                         };
                         let value = cursor.skip_current(skip_mode)?;
                         add_matches(
@@ -401,8 +401,8 @@ pub fn execute_borrowed_with_scratch<'a>(
                     )?;
                 }
             },
-            jmax_abi::syntax::ScanStep::Finished => break,
-            jmax_abi::syntax::ScanStep::NeedMore => {
+            crate::abi::syntax::ScanStep::Finished => break,
+            crate::abi::syntax::ScanStep::NeedMore => {
                 return Err(internal_error(
                     cursor.state().byte_offset,
                     "complete-input query cursor requested more bytes",
@@ -471,7 +471,7 @@ impl SelectorTrie {
         trie.nodes.push(SelectorNode::default());
 
         for (slot, source) in paths.iter().enumerate() {
-            let path = jmax_path::parse::parse(source, limits)?;
+            let path = crate::path::parse::parse(source, limits)?;
             let mut node_index = 0usize;
             for segment in path.segments() {
                 let existing = trie.nodes[node_index]
@@ -554,7 +554,7 @@ struct Frame {
     next_index: u32,
     pending: Option<usize>,
     strict_subtree: bool,
-    phase: jmax_abi::syntax::FramePhase,
+    phase: crate::abi::syntax::FramePhase,
 }
 
 impl Frame {
@@ -566,7 +566,7 @@ impl Frame {
             next_index: 0,
             pending: None,
             strict_subtree: false,
-            phase: jmax_abi::syntax::FramePhase::ObjectStart,
+            phase: crate::abi::syntax::FramePhase::ObjectStart,
         }
     }
 
@@ -578,7 +578,7 @@ impl Frame {
             next_index: 0,
             pending: None,
             strict_subtree: false,
-            phase: jmax_abi::syntax::FramePhase::ArrayStart,
+            phase: crate::abi::syntax::FramePhase::ArrayStart,
         }
     }
 }
@@ -591,10 +591,10 @@ fn execute_query_blocks(
     options: QueryOptions,
     scratch: &mut QueryScratch,
     matches: &mut [Vec<Span32>],
-    skip: &mut jmax_syntax::SkipScratch,
+    skip: &mut crate::syntax::SkipScratch,
 ) -> Result<()> {
-    use jmax_abi::syntax::{DuplicatePolicyOwner, FramePhase};
-    let mut cursor = jmax_syntax::BlockCursor::with_scratch(
+    use crate::abi::syntax::{DuplicatePolicyOwner, FramePhase};
+    let mut cursor = crate::syntax::BlockCursor::with_scratch(
         input,
         options.parse.limits,
         Some(options.parse.numeric),
@@ -750,7 +750,7 @@ fn execute_query_blocks(
 }
 
 fn query_value(
-    cursor: &mut jmax_syntax::BlockCursor<'_>,
+    cursor: &mut crate::syntax::BlockCursor<'_>,
     node: Option<usize>,
     selector: &SelectorTrie,
     options: QueryOptions,
@@ -771,9 +771,9 @@ fn query_value(
         let mode = if options.mode == QueryMode::Strict
             || selected.is_some_and(|node| !node.slots.is_empty() || !node.edges.is_empty())
         {
-            jmax_abi::syntax::SkipMode::StrictValidate
+            crate::abi::syntax::SkipMode::StrictValidate
         } else {
-            jmax_abi::syntax::SkipMode::QueryOnly
+            crate::abi::syntax::SkipMode::QueryOnly
         };
         let span = cursor.skip_value(&mut scratch.decoded, depth, mode)?;
         return add_matches(node, span, selector, matches, total, options.max_matches);

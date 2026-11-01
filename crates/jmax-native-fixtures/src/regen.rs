@@ -1,11 +1,11 @@
 //! The generation recipe for the checked-in modules, shared by the
 //! `regenerate` example and the drift test.
 
-use jmax_codegen_rust::{
+use jsonmax::codegen_rust::{
     generate_with_native, CodegenOptions, GeneratedArtifact, NativeOptions, NativeSpec,
 };
-use jmax_endpoint_model::EndpointModel;
-use jmax_endpoint_ron::{load_model, load_native_spec, ConfigLimits, LoadOptions};
+use jsonmax::endpoint_model::EndpointModel;
+use jsonmax::endpoint_ron::{load_model, load_native_spec, ConfigLimits, LoadOptions};
 
 /// A model and the native specification for it.
 #[derive(Clone, Copy, Debug)]
@@ -120,7 +120,7 @@ pub fn generate_all(predict_layout: bool) -> Vec<GeneratedArtifact> {
 
 /// Compiled foreign targets exercise conversion hooks after schema validation.
 pub fn foreign_adapters(predict_layout: bool) -> Vec<GeneratedArtifact> {
-    use jmax_codegen_rust::{ForeignConversion, ForeignField, ForeignTarget, NativeAdapterOptions,
+    use jsonmax::codegen_rust::{ForeignConversion, ForeignField, ForeignTarget, NativeAdapterOptions,
         generate_with_native_adapters};
     let fixture = Fixture {
         name: "foreign", model: include_str!("../../../fixtures/native/foreign.ron"),

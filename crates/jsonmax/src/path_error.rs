@@ -1,7 +1,7 @@
 //! Endpoint-friendly diagnostics that retain the exact selected JSON path.
 
 use alloc::string::String;
-use jmax_path::{Path, Segment};
+use crate::path::{Path, Segment};
 
 use crate::{Error, ErrorCode, ErrorSource, Result};
 
@@ -165,7 +165,7 @@ mod tests {
     use super::*;
 
     fn parsed(path: &str) -> Path {
-        jmax_path::parse::parse(path, jmax_path::PathLimits::default()).unwrap()
+        crate::path::parse::parse(path, crate::path::PathLimits::default()).unwrap()
     }
 
     #[test]

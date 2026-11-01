@@ -4,7 +4,7 @@
 //! retain their original byte offsets, including errors inside retained fragments.
 
 use super::*;
-use jmax_dom::{navigate, scalar, Node, NodeKind, Object};
+use jsonmax::dom::{navigate, scalar, Node, NodeKind, Object};
 
 /// Parse exactly one version 1 scenario and validate its execution order.
 ///
@@ -21,7 +21,7 @@ pub fn parse_scenario(input: &[u8]) -> Result<Scenario> {
         )));
     }
 
-    let document = jmax_dom::build::parse(copy_payload(input, 0)?, Limits::strict_default())?;
+    let document = jsonmax::dom::build::parse(copy_payload(input, 0)?, Limits::strict_default())?;
     let root = object_fields(
         navigate::root(&document),
         &["version", "name", "timeout_ms", "steps"],
@@ -108,7 +108,7 @@ pub fn validate_scenario(scenario: &Scenario) -> Result<()> {
                 if !is_active(&responses, response) {
                     return Err(invalid(Some(index), "assert.response must have been saved by an earlier step"));
                 }
-                jmax_path::parse::parse(path, jmax_path::PathLimits::default())
+                jsonmax::path::parse::parse(path, jsonmax::path::PathLimits::default())
                     .map_err(|_| invalid(Some(index),
                         "assert.path must be a valid native selector path within path limits"))?;
                 match expected {
@@ -282,7 +282,7 @@ fn copy_payload(bytes: &[u8], offset: u32) -> Result<Payload> {
 }
 
 fn validate_fragment(payload: &Payload) -> Result<()> {
-    jmax_dom::build::parse(payload.clone(), Limits::strict_default())?;
+    jsonmax::dom::build::parse(payload.clone(), Limits::strict_default())?;
     Ok(())
 }
 

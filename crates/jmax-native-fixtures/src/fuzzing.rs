@@ -22,8 +22,8 @@ use crate::regen::{BINANCE, FORMATS, SHAPES, SHAPES_NULL};
 use crate::{
     binance, binance_open, binance_plain, formats, formats_open, shapes, shapes_null, shapes_null_open, shapes_open,
 };
-use jmax_abi::number::NumericPolicy;
-use jmax_native::{NativeContext, NativeDecode, VmLimits};
+use jsonmax::abi::number::NumericPolicy;
+use jsonmax::native::{NativeContext, NativeDecode, VmLimits};
 use std::cell::RefCell;
 
 /// The decoders a fuzz input can select, in selector order.

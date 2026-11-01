@@ -161,7 +161,7 @@ pub fn run() -> R<()> {
                 .map_or(false, |v| approx_eq(&v, val));
             assert!(ok, "serialize {who} on {name}");
         };
-        let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+        let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
         jsonmax::encode::encode_document_streaming(doc, &mut sink, Default::default())?;
         check("jmax", &sink.into_vec());
         check("serde_json", &serde_json::to_vec(val)?);
@@ -180,10 +180,10 @@ pub fn run() -> R<()> {
 
         // validate / skip
         let mut validation = jsonmax::Scratch::default();
-        let mut skip = jmax_syntax::SkipScratch::default();
+        let mut skip = jsonmax::syntax::SkipScratch::default();
         j.add("validate", "jmax", move || {
             let opts = options();
-            black_box(jmax_syntax::validate_borrowed_reusing(
+            black_box(jsonmax::syntax::validate_borrowed_reusing(
                 black_box(b),
                 opts.limits,
                 Some(opts.numeric),
@@ -377,7 +377,7 @@ pub fn run() -> R<()> {
 
         // serialize
         j.add("serialize", "jmax", move || {
-            let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+            let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
             jsonmax::encode::encode_document_streaming(
                 black_box(doc),
                 &mut sink,

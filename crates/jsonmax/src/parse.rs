@@ -29,7 +29,7 @@ pub fn parse_owned(input: Vec<u8>, options: ParseOptions) -> Result<Document> {
 pub fn parse_payload(input: Payload, options: ParseOptions) -> Result<Document> {
     ensure_payload_length(input.len())?;
     validate_policy_configuration(options.numeric)?;
-    jmax_dom::build::parse_with_numeric(input, options.limits, options.numeric)
+    crate::dom::build::parse_with_numeric(input, options.limits, options.numeric)
 }
 
 /// Returns a native tape and retains the original payload owner. The result
@@ -41,7 +41,7 @@ pub fn parse_payload_with_scratch(
 ) -> Result<Document> {
     ensure_payload_length(input.len())?;
     validate_policy_configuration(options.numeric)?;
-    jmax_dom::build::parse_with_numeric_into(input, options.limits, options.numeric, scratch)?;
+    crate::dom::build::parse_with_numeric_into(input, options.limits, options.numeric, scratch)?;
     scratch.take_document().ok_or_else(|| {
         facade_error(
             ErrorCode::InternalError,
@@ -78,7 +78,7 @@ pub fn parse_borrowed_with_scratch<'a>(
 ) -> Result<BorrowedDocument<'a>> {
     ensure_payload_length(input.len())?;
     validate_policy_configuration(options.numeric)?;
-    jmax_dom::build::parse_borrowed_with_numeric_and_scratch(
+    crate::dom::build::parse_borrowed_with_numeric_and_scratch(
         input,
         options.limits,
         options.numeric,
@@ -118,7 +118,7 @@ pub fn validate_borrowed(
 ) -> Result<ValidationProof> {
     ensure_payload_length(input.len())?;
     validate_policy_configuration(options.numeric)?;
-    jmax_syntax::validate_borrowed(input, options.limits, Some(options.numeric), scratch)
+    crate::syntax::validate_borrowed(input, options.limits, Some(options.numeric), scratch)
 }
 
 pub fn validate_syntax(input: &[u8], options: ParseOptions) -> Result<()> {
@@ -129,7 +129,7 @@ pub fn validate_syntax(input: &[u8], options: ParseOptions) -> Result<()> {
         return SYNTAX_REUSE.with(|cell| {
             if let Ok(mut reuse) = cell.try_borrow_mut() {
                 let SyntaxReuse { validation, skip } = &mut *reuse;
-                jmax_syntax::validate_borrowed_reusing(
+                crate::syntax::validate_borrowed_reusing(
                     input,
                     options.limits,
                     Some(options.numeric),
@@ -148,8 +148,8 @@ pub fn validate_syntax(input: &[u8], options: ParseOptions) -> Result<()> {
 
 fn validate_syntax_fresh(input: &[u8], options: ParseOptions) -> Result<()> {
     let mut validation = Scratch::default();
-    let mut skip = jmax_syntax::SkipScratch::default();
-    jmax_syntax::validate_borrowed_reusing(
+    let mut skip = crate::syntax::SkipScratch::default();
+    crate::syntax::validate_borrowed_reusing(
         input,
         options.limits,
         Some(options.numeric),
@@ -162,14 +162,14 @@ fn validate_syntax_fresh(input: &[u8], options: ParseOptions) -> Result<()> {
 #[cfg(feature = "std")]
 struct SyntaxReuse {
     validation: Scratch,
-    skip: jmax_syntax::SkipScratch,
+    skip: crate::syntax::SkipScratch,
 }
 
 #[cfg(feature = "std")]
 std::thread_local! {
     static SYNTAX_REUSE: RefCell<SyntaxReuse> = RefCell::new(SyntaxReuse {
         validation: Scratch::default(),
-        skip: jmax_syntax::SkipScratch::default(),
+        skip: crate::syntax::SkipScratch::default(),
     });
 }
 
@@ -252,14 +252,14 @@ pub fn from_borrowed_with_schema_into<T: super::JsonDecodeBorrowed + SchemaProvi
 ) -> Result<T> {
     check_type_schema::<T>(schema)?;
     let slots = super::endpoint::decode_slots_borrowed_into(input, schema, options, scratch)?;
-    T::decode_borrowed(jmax_schema_aot::BorrowedSlotReader::new(
+    T::decode_borrowed(crate::schema_aot::BorrowedSlotReader::new(
         &slots,
         schema.fingerprint(),
     )?)
 }
 
 pub use super::endpoint::ValidationScratch;
-pub use jmax_dom::build::ParseScratch;
+pub use crate::dom::build::ParseScratch;
 
 /// Returned document borrows scratch until its next reset.
 pub fn parse_payload_into<'a>(
@@ -269,7 +269,7 @@ pub fn parse_payload_into<'a>(
 ) -> Result<&'a Document> {
     ensure_payload_length(input.len())?;
     validate_policy_configuration(options.numeric)?;
-    jmax_dom::build::parse_with_numeric_into(
+    crate::dom::build::parse_with_numeric_into(
         input.clone(),
         options.limits,
         options.numeric,

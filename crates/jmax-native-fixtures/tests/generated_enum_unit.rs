@@ -1,13 +1,13 @@
 //! Compiled generated enum, Unit, and zero-field decoder parity with the VM.
-use jmax_abi::number::NumericPolicy;
-use jmax_native::{decode_into, NativeContext, NativeDecode, Reader, VmLimits};
+use jsonmax::abi::number::NumericPolicy;
+use jsonmax::native::{decode_into, NativeContext, NativeDecode, Reader, VmLimits};
 use jmax_native_fixtures::{enum_unit, enum_unit_null};
 
 fn agreement<T: NativeDecode + Default>(raw: &[u8], accepted: bool) {
     let program = T::build_program().unwrap();
     let limits = VmLimits::default();
     let numeric = NumericPolicy::strict_default();
-    let vm = jmax_schema_vm::validate_borrowed(&program, raw, limits, numeric).map(|_| ());
+    let vm = jsonmax::schema_vm::validate_borrowed(&program, raw, limits, numeric).map(|_| ());
     let mut ctx = NativeContext::with_program(&program, limits, numeric).unwrap();
     let native = decode_into(&mut ctx, raw, &mut T::default());
     assert_eq!(vm.is_ok(), accepted, "VM: {raw:?}: {vm:?}");

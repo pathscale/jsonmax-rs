@@ -6,7 +6,7 @@
 //! module validates the returned IR independently; it never issues a JSON proof.
 
 use alloc::{string::String, vec::Vec};
-use jmax_abi::schema::SchemaFieldIr;
+use jsonmax::abi::schema::SchemaFieldIr;
 
 use super::{
     BoundedSink, ByteSink, CompatOptions, CompatibilityWarning, Conversion, Error,

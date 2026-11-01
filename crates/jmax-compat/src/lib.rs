@@ -5,7 +5,7 @@
 extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
-pub use jmax_abi::{
+pub use jsonmax::abi::{
     buffer::Payload,
     endpoint::{EndpointField, EndpointSchemaSpec, EndpointType, EnumVariantSpec, ServiceSpec},
     error::{Error, ErrorCode, ErrorSource, Result},

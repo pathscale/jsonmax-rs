@@ -5,17 +5,17 @@
 //! proof. Endpoint lookup borrows the model without changing its ordering.
 
 use alloc::string::String;
-use jmax_abi::{
+use jsonmax::abi::{
     buffer::Payload,
     error::{Error, ErrorCode, ErrorSource, Result},
     span::SpanSource,
 };
 
-pub use jmax_abi::endpoint::{
+pub use jsonmax::abi::endpoint::{
     EndpointField, EndpointSchemaSpec, EndpointType, EnumVariantSpec, ServiceSpec,
 };
-pub use jmax_abi::span::{Span32, StrRef};
-pub use jmax_abi::traits::{ByteSink, JsonDecode, JsonEncode, SchemaProvider};
+pub use jsonmax::abi::span::{Span32, StrRef};
+pub use jsonmax::abi::traits::{ByteSink, JsonDecode, JsonEncode, SchemaProvider};
 
 /// Borrow the selected string after checking its range, UTF-8, and scalar count.
 ///

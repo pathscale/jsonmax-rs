@@ -3,7 +3,7 @@
 
 use std::{collections::BTreeMap, string::String, vec::Vec};
 use core::fmt;
-pub use jmax_abi::{
+pub use jsonmax::abi::{
     buffer::Payload,
     endpoint::{EndpointSchemaSpec, ServiceSpec},
     error::{Error, ErrorCode, ErrorSource},

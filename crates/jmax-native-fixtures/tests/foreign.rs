@@ -1,4 +1,4 @@
-use jmax_native::{ErrorCode, ErrorSource, NativeContext, NumericPolicy, VmLimits};
+use jsonmax::native::{ErrorCode, ErrorSource, NativeContext, NumericPolicy, VmLimits};
 use jmax_native_fixtures::{foreign::native_adapters::decode_quote_as, foreign_targets::{Id, Label, Quote}};
 
 #[test]

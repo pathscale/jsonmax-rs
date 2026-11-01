@@ -7,8 +7,8 @@ use crate::{
     FieldId, FuzzConfig, FuzzReport, Limits, Outcome, Payload, Result, RejectionComparison,
     SchemaCase, SchemaOracle,
 };
-use jmax_abi::schema::{SchemaFieldIr, SchemaId, SchemaImage};
-use jmax_abi::syntax::ScalarKind;
+use jsonmax::abi::schema::{SchemaFieldIr, SchemaId, SchemaImage};
+use jsonmax::abi::syntax::ScalarKind;
 
 /// Build a deterministic set of real compiler-produced schema images and test payloads.
 ///
@@ -184,11 +184,11 @@ pub fn run_schema(
     Ok(report)
 }
 
-fn validate_image_and_selection(image: &SchemaImage, selection: &jmax_abi::schema::Selection) -> Result<()> {
+fn validate_image_and_selection(image: &SchemaImage, selection: &jsonmax::abi::schema::Selection) -> Result<()> {
     // to_owned is the public AOT projection validator: it checks image metadata,
     // counts, spans and keys without issuing a proof. Compiler-produced corpus
     // images retain the fingerprint from their ValidatedProgram unchanged.
-    jmax_schema_aot::tables::to_owned(jmax_schema_aot::StaticSchemaImage::from(image))
+    jsonmax::schema_aot::tables::to_owned(jsonmax::schema_aot::StaticSchemaImage::from(image))
         .map_err(|_| schema_image_error(image.header.schema_id, "schema image failed AOT validation"))?;
 
     if selection.field_ids.len() > image.header.slot_count as usize {
@@ -251,7 +251,7 @@ fn add_case(
     }
     let required_count = u16::try_from(fields.iter().filter(|field| field.required).count())
         .map_err(|_| harness_error(ErrorCode::ConstraintViolation, "schema has too many required fields"))?;
-    let ir = jmax_abi::schema::SchemaIr {
+    let ir = jsonmax::abi::schema::SchemaIr {
         name: String::from(name),
         schema_id: SchemaId(cases.len() as u32 + 1),
         required_count,
@@ -260,9 +260,9 @@ fn add_case(
     };
     // Unsupported formats and constraints propagate as UnsupportedSchemaFeature;
     // they are never silently discarded from a corpus advertised as complete.
-    let program = jmax_schema_aot::compile_schema(&ir)?;
+    let program = jsonmax::schema_aot::compile_schema(&ir)?;
     let image = program.image().clone();
-    validate_image_and_selection(&image, &jmax_abi::schema::Selection {
+    validate_image_and_selection(&image, &jsonmax::abi::schema::Selection {
         field_ids: selected_ids.iter().copied().map(FieldId).collect(),
         strict_validate_unselected: true,
     })?;
@@ -278,7 +278,7 @@ fn add_case(
         name: owned_name,
         payload: Payload::from_slice(payload),
         schema: image,
-        selection: jmax_abi::schema::Selection {
+        selection: jsonmax::abi::schema::Selection {
             field_ids: selected_ids.iter().copied().map(FieldId).collect(),
             strict_validate_unselected: true,
         },

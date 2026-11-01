@@ -2,7 +2,7 @@ extern crate alloc;
 
 use std::sync::Arc;
 
-use jmax_abi::{schema::SchemaFieldIr, syntax::ScalarKind};
+use jsonmax::abi::{schema::SchemaFieldIr, syntax::ScalarKind};
 use jsonmax::{
     ByteSink, CompileLimits, DomScratch, EncodeOptions, Error, ErrorCode, ErrorSource, FieldId,
     JsonDecode, JsonEncode, ParseOptions, Payload, QueryMode, QueryOptions, Result, SchemaId,
@@ -379,7 +379,7 @@ fn native_streaming_limits_exclude_sink_prefix_and_reuse_writer_scratch() -> Tes
     encode::encode_borrowed_document_streaming(&document, &mut sink, options)?;
     assert_eq!(&sink[100..], raw);
     let mut output = jsonmax::OutputBuffer::new(raw.len());
-    let mut scratch = jmax_encode::WriterScratch::default();
+    let mut scratch = jsonmax::encoder::WriterScratch::default();
     encode::borrowed_document_to_buffer(&document, &mut output, &mut scratch)?;
     assert_eq!(output.as_bytes(), raw);
     encode::borrowed_document_to_buffer(&document, &mut output, &mut scratch)?;
@@ -413,7 +413,7 @@ impl JsonDecode for OwnedTyped {
 // This custom decoder explicitly chooses to own the input. That copy belongs
 // to the decoder, rather than being an unconditional facade compatibility step.
 impl jsonmax::JsonDecodeBorrowed for OwnedTyped {
-    fn decode_borrowed(reader: jmax_schema_aot::BorrowedSlotReader<'_>) -> Result<Self> {
+    fn decode_borrowed(reader: jsonmax::schema_aot::BorrowedSlotReader<'_>) -> Result<Self> {
         if reader.slot(0, FieldId(1))? != SlotValue::U64(7) {
             return Err(Error::new(
                 ErrorCode::TypeMismatch,
@@ -448,9 +448,9 @@ fn optional_allocator_is_available_without_library_global_installation() {
 
 #[test]
 fn canonical_hosted_validator_carries_exact_owner_capability() -> TestResult {
-    use jmax_nagoya::{CancellationToken, ParseValidator, worker::SchemaValidator};
+    use jsonmax::nagoya::{CancellationToken, ParseValidator, worker::SchemaValidator};
     let schema = schema()?;
-    let numeric = jmax_abi::number::NumericPolicy::strict_default();
+    let numeric = jsonmax::abi::number::NumericPolicy::strict_default();
     let validator = SchemaValidator::new(
         Arc::new(schema.program().clone()),
         selection(true),
@@ -469,12 +469,12 @@ fn canonical_hosted_validator_carries_exact_owner_capability() -> TestResult {
     )?;
     let capability = output.capability().unwrap();
     let values = output.slots();
-    let vm_limits = jmax_schema_vm::VmLimits {
+    let vm_limits = jsonmax::schema_vm::VmLimits {
         syntax: ParseOptions::default().limits,
         max_steps: 16_000_000,
         max_scratch_bytes: 1 << 20,
     };
-    let policy = jmax_schema_vm::direct::policy_fingerprint(vm_limits, numeric);
+    let policy = jsonmax::schema_vm::direct::policy_fingerprint(vm_limits, numeric);
     assert!(capability.matches_payload(
         &payload,
         values.decoded.len(),
@@ -517,7 +517,7 @@ fn payload_limit_is_inclusive_for_owned_borrowed_and_proof_only_paths() -> TestR
     Ok(())
 }
 
-#[derive(Debug, PartialEq, jmax_derive::JsonDecode, jmax_derive::JsonSchema)]
+#[derive(Debug, PartialEq, jsonmax_derive::JsonDecode, jsonmax_derive::JsonSchema)]
 struct DerivedBorrowed {
     wanted: u32,
     text: Option<String>,
@@ -573,7 +573,7 @@ impl SchemaProvider for PointerTyped {
     }
 }
 impl jsonmax::JsonDecodeBorrowed for PointerTyped {
-    fn decode_borrowed(reader: jmax_schema_aot::BorrowedSlotReader<'_>) -> Result<Self> {
+    fn decode_borrowed(reader: jsonmax::schema_aot::BorrowedSlotReader<'_>) -> Result<Self> {
         assert_eq!(reader.slot(0, FieldId(1))?, SlotValue::U64(7));
         Ok(Self(reader.values().raw.as_ptr() as usize))
     }

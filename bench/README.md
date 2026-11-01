@@ -7,7 +7,7 @@ Standalone benchmark and differential verification suites in `bench/`. Each crat
 | `harness/` | `jmax-harness`: general corpus benchmark suite (`compare`) and deterministic mutation differential runner (`DIFF=N`) |
 | `native/` | `jmax-native-bench`: generated native AOT decoders vs. `serde_json`, `sonic-rs`, `simd-json`, `jiter`, and `ps-pikkr` on Binance payloads |
 | `icount/` | `jmax-icount`: per-call hardware instruction counters (Darwin `RUSAGE_INFO_V4` or Linux Callgrind) |
-| `dcheck/` | Prints the SIMD scanner backend selected by `jmax-dispatch` per input size and detected CPU features |
+| `dcheck/` | Prints the SIMD scanner backend selected by `jsonmax::dispatch` per input size and detected CPU features |
 | `data/` | Vendored small fixtures (`endpoint_batch.json`, `rpc_small.json`, `binance_small.json`) and `fetch.sh` for the five `simdjson-data` corpora |
 
 ## Fetching External Corpora

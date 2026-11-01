@@ -3,17 +3,12 @@ name = "jmax-fuzz"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish.workspace = true
+publish = false
 
 [features]
 default = ["std"]
-alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+alloc = ["jsonmax/alloc"]
+std = ["alloc", "jsonmax/std"]
 
 [dependencies]
-jmax-abi = { workspace = true }
-jsonmax = { workspace = true }
-jmax-schema-aot = { workspace = true }
-jmax-schema-vm = { workspace = true }
-jmax-decimal = { workspace = true }
-jmax-dispatch = { workspace = true }
+jsonmax = { workspace = true, features = ["std"] }

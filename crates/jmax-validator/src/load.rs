@@ -3,13 +3,13 @@
 use super::*;
 use std::{collections::{BTreeMap, BTreeSet}, fs::File, io::Read, path::Path};
 
-use jmax_abi::endpoint::EnumVariantSpec;
-use jmax_dom::{Array, Node, NodeKind, Object, Scalar};
+use jsonmax::abi::endpoint::EnumVariantSpec;
+use jsonmax::dom::{Array, Node, NodeKind, Object, Scalar};
 
 pub const MODEL_VERSION: u16 = 1;
 
 fn decode_error(code: ErrorCode, node: Option<Node<'_>>, detail: &'static str) -> ValidatorError {
-    let offset = node.map(|n| jmax_dom::navigate::raw_span(n).offset).unwrap_or(0);
+    let offset = node.map(|n| jsonmax::dom::navigate::raw_span(n).offset).unwrap_or(0);
     ValidatorError::Validation(AbiError::new(code, ErrorSource::Decode, offset, detail))
 }
 
@@ -18,14 +18,14 @@ fn error(code: ErrorCode, detail: &'static str) -> ValidatorError {
 }
 
 fn object<'a>(node: Node<'a>) -> ValidatorResult<Object<'a>> {
-    jmax_dom::navigate::object(node).map_err(ValidatorError::from)
+    jsonmax::dom::navigate::object(node).map_err(ValidatorError::from)
 }
 
 fn array<'a>(node: Node<'a>) -> ValidatorResult<Array<'a>> {
-    jmax_dom::navigate::array(node).map_err(ValidatorError::from)
+    jsonmax::dom::navigate::array(node).map_err(ValidatorError::from)
 }
 
-fn kind(node: Node<'_>) -> NodeKind { jmax_dom::navigate::kind(node) }
+fn kind(node: Node<'_>) -> NodeKind { jsonmax::dom::navigate::kind(node) }
 
 fn members<'a>(node: Node<'a>) -> ValidatorResult<Vec<(String, Node<'a>)>> {
     let object = object(node)?;
@@ -59,7 +59,7 @@ fn required<'a>(values: &BTreeMap<String, Node<'a>>, key: &str) -> ValidatorResu
 }
 
 fn string(node: Node<'_>, limits: Limits) -> ValidatorResult<String> {
-    let text = jmax_dom::scalar::string(node).map_err(ValidatorError::from)?;
+    let text = jsonmax::dom::scalar::string(node).map_err(ValidatorError::from)?;
     if text.len() > limits.max_string_bytes as usize {
         return Err(decode_error(ErrorCode::PayloadTooLarge, Some(node), "model string exceeds limit"));
     }
@@ -67,7 +67,7 @@ fn string(node: Node<'_>, limits: Limits) -> ValidatorResult<String> {
 }
 
 fn number_bytes<'a>(node: Node<'a>) -> ValidatorResult<&'a [u8]> {
-    match jmax_dom::scalar::value(node).map_err(ValidatorError::from)? {
+    match jsonmax::dom::scalar::value(node).map_err(ValidatorError::from)? {
         Scalar::Number(bytes) => Ok(bytes),
         _ => Err(decode_error(ErrorCode::TypeMismatch, Some(node), "expected integer token")),
     }
@@ -184,7 +184,7 @@ fn parse_endpoint_type(node: Node<'_>, limits: Limits, depth: u16) -> ValidatorR
 }
 
 fn boolean(node: Node<'_>) -> ValidatorResult<bool> {
-    match jmax_dom::scalar::value(node).map_err(ValidatorError::from)? {
+    match jsonmax::dom::scalar::value(node).map_err(ValidatorError::from)? {
         Scalar::Bool(value) => Ok(value),
         _ => Err(decode_error(ErrorCode::TypeMismatch, Some(node), "expected boolean")),
     }
@@ -279,8 +279,8 @@ pub fn parse_model(payload: Payload, limits: Limits) -> ValidatorResult<Validato
     let mut strict = limits;
     strict.reject_duplicate_keys = true;
     strict.reject_unknown_keys = true;
-    let document = jmax_dom::build::parse(payload, strict).map_err(ValidatorError::from)?;
-    let root = jmax_dom::navigate::root(&document);
+    let document = jsonmax::dom::build::parse(payload, strict).map_err(ValidatorError::from)?;
+    let root = jsonmax::dom::navigate::root(&document);
     let root_fields = fields(root, &["version", "services", "presets"], &["version", "services"])?;
     let version = unsigned::<u16>(required(&root_fields, "version")?, u16::MAX as u128, limits)?;
     if version != MODEL_VERSION { return Err(decode_error(ErrorCode::ConstraintViolation, root_fields.get("version").copied(), "unsupported model version")); }

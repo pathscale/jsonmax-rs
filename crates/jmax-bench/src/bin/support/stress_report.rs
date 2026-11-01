@@ -1,6 +1,6 @@
 //! Supplemental harness for operation timings and separate allocation passes.
 use jmax_bench::{CorpusConfig, Payload, Workload};
-use jmax_schema_ir::{
+use jsonmax::schema_ir::{
     ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
 };
 use std::{
@@ -132,18 +132,18 @@ fn account(out: &mut impl Write, w: &Workload) -> R<()> {
     let d = jsonmax::parse::parse_payload(input.clone(), options())?;
     let legacy = d.to_legacy()?;
     let p = &legacy.parts;
-    let legacy_len = p.nodes.len() * std::mem::size_of::<jmax_abi::node::NodeWord>()
-        + p.spans.len() * std::mem::size_of::<jmax_abi::span::Span32>()
-        + p.containers.len() * std::mem::size_of::<jmax_abi::node::Container32>()
-        + p.numbers.len() * std::mem::size_of::<jmax_abi::number::ConvertedNumber>()
+    let legacy_len = p.nodes.len() * std::mem::size_of::<jsonmax::abi::node::NodeWord>()
+        + p.spans.len() * std::mem::size_of::<jsonmax::abi::span::Span32>()
+        + p.containers.len() * std::mem::size_of::<jsonmax::abi::node::Container32>()
+        + p.numbers.len() * std::mem::size_of::<jsonmax::abi::number::ConvertedNumber>()
         + p.decoded.len()
-        + p.node_metadata.len() * std::mem::size_of::<jmax_abi::node::NodeMeta>();
-    let legacy_cap = p.nodes.capacity() * std::mem::size_of::<jmax_abi::node::NodeWord>()
-        + p.spans.capacity() * std::mem::size_of::<jmax_abi::span::Span32>()
-        + p.containers.capacity() * std::mem::size_of::<jmax_abi::node::Container32>()
-        + p.numbers.capacity() * std::mem::size_of::<jmax_abi::number::ConvertedNumber>()
+        + p.node_metadata.len() * std::mem::size_of::<jsonmax::abi::node::NodeMeta>();
+    let legacy_cap = p.nodes.capacity() * std::mem::size_of::<jsonmax::abi::node::NodeWord>()
+        + p.spans.capacity() * std::mem::size_of::<jsonmax::abi::span::Span32>()
+        + p.containers.capacity() * std::mem::size_of::<jsonmax::abi::node::Container32>()
+        + p.numbers.capacity() * std::mem::size_of::<jsonmax::abi::number::ConvertedNumber>()
         + p.decoded.capacity()
-        + p.node_metadata.capacity() * std::mem::size_of::<jmax_abi::node::NodeMeta>();
+        + p.node_metadata.capacity() * std::mem::size_of::<jsonmax::abi::node::NodeMeta>();
     let mut scratch = jsonmax::DomScratch::new();
     let warm = jsonmax::parse::parse_payload_with_scratch(input.clone(), options(), &mut scratch)?;
     warm.recycle(&mut scratch);
@@ -220,7 +220,7 @@ pub fn run() -> R<()> {
             d.recycle(&mut dom);
             Ok(())
         })?;
-        let mut syntax = jmax_abi::syntax::Scratch::default();
+        let mut syntax = jsonmax::abi::syntax::Scratch::default();
         bench(&mut out, w, "Validate-Syntax", "Warm-Borrowed", |i| {
             black_box(jsonmax::parse::validate_borrowed(
                 inputs[i].as_slice(),
@@ -373,13 +373,13 @@ pub fn run() -> R<()> {
             Ok(())
         })?;
         bench(&mut out, w, "Serialize-Staged-Sink", "Cold-Owned", |i| {
-            let mut sink = jmax_encode::VecSink::new(32 * 1024 * 1024);
+            let mut sink = jsonmax::encoder::VecSink::new(32 * 1024 * 1024);
             jsonmax::encode::encode_document_to_sink(&docs[i], &mut sink, Default::default())?;
             black_box(sink);
             Ok(())
         })?;
         let mut output = jsonmax::OutputBuffer::new(32 * 1024 * 1024);
-        let mut writer = jmax_encode::WriterScratch::default();
+        let mut writer = jsonmax::encoder::WriterScratch::default();
         bench(&mut out, w, "Serialize-Native-Direct", "Warm-Owned", |i| {
             jsonmax::encode::document_to_buffer(&docs[i], &mut output, &mut writer)?;
             black_box(&output);
@@ -442,7 +442,7 @@ fn growth(out: &mut impl Write) -> R<()> {
     Ok(())
 }
 fn reactive(out: &mut impl Write, w: &Workload) -> R<()> {
-    use jmax_nagoya::{reactive::HostedPool, worker::SchemaValidator, *};
+    use jsonmax::nagoya::{reactive::HostedPool, worker::SchemaValidator, *};
     use std::{
         future::Future,
         pin::pin,

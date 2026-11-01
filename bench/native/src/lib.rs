@@ -21,7 +21,7 @@ pub static QUERY_RETAINED: std::sync::atomic::AtomicUsize = std::sync::atomic::A
 #[allow(clippy::all, dead_code, unused)]
 pub mod trades;
 
-use jmax_native::{decode_into, NativeContext, NativeDecode, NumericPolicy, Reader, VmLimits};
+use jsonmax::native::{decode_into, NativeContext, NativeDecode, NumericPolicy, Reader, VmLimits};
 use jmax_native_fixtures::binance::models as bm;
 use jmax_native_fixtures::harness::{depth_document, snapshot_document, AGG_TRADE};
 use serde::de::{DeserializeOwned, Deserializer, Visitor};
@@ -140,7 +140,7 @@ pub trait Case {
     fn sum_fix(value: &Self::Fix) -> i128;
 }
 
-fn dec(d: jmax_native::Decimal128) -> i128 {
+fn dec(d: jsonmax::native::Decimal128) -> i128 {
     assert_eq!(d.scale, 8, "fixtures use 8 fractional digits");
     d.coefficient
 }
@@ -291,10 +291,10 @@ pub fn roomy_limits() -> VmLimits {
 /// that accept unknown keys: the schema VM validates the whole input, then the
 /// native decoder reads it again.
 pub struct VmFirst<T: NativeDecode> {
-    program: jmax_native::ValidatedProgram,
+    program: jsonmax::native::ValidatedProgram,
     ctx: NativeContext,
     limits: VmLimits,
-    scratch: jmax_schema_vm::ValidationScratch,
+    scratch: jsonmax::schema_vm::ValidationScratch,
     _marker: std::marker::PhantomData<T>,
 }
 impl<T: NativeDecode> VmFirst<T> {
@@ -302,10 +302,10 @@ impl<T: NativeDecode> VmFirst<T> {
         let program = T::build_program().map_err(err)?;
         let limits = VmLimits::default();
         let ctx = NativeContext::with_program(&program, limits, NUMERIC()).map_err(err)?;
-        Ok(Self { program, ctx, limits, scratch: jmax_schema_vm::ValidationScratch::default(), _marker: std::marker::PhantomData })
+        Ok(Self { program, ctx, limits, scratch: jsonmax::schema_vm::ValidationScratch::default(), _marker: std::marker::PhantomData })
     }
     pub fn decode(&mut self, input: &[u8], out: &mut T) -> R<()> {
-        jmax_schema_vm::direct::validate_borrowed_into(
+        jsonmax::schema_vm::direct::validate_borrowed_into(
             &self.program,
             input,
             self.limits,

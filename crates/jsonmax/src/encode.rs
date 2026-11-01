@@ -46,7 +46,7 @@ pub fn to_sink_streaming<T: JsonEncode + ?Sized>(
     sink: &mut dyn ByteSink,
     options: EncodeOptions,
 ) -> Result<()> {
-    value.encode_json(&mut jmax_encode::LimitedSink::new(
+    value.encode_json(&mut crate::encoder::LimitedSink::new(
         sink,
         options.max_output_bytes,
     ))
@@ -54,7 +54,7 @@ pub fn to_sink_streaming<T: JsonEncode + ?Sized>(
 
 /// Emits a native packed tape directly into its final owned output buffer.
 pub fn encode_document(document: &Document, options: EncodeOptions) -> Result<Vec<u8>> {
-    jmax_encode::typed::encode_tape_document_to_vec(
+    crate::encoder::typed::encode_tape_document_to_vec(
         document,
         writer_limits(options.max_output_bytes),
     )
@@ -80,7 +80,7 @@ pub fn encode_document_streaming(
     sink: &mut dyn ByteSink,
     options: EncodeOptions,
 ) -> Result<()> {
-    jmax_encode::typed::write_tape_document(document, sink, writer_limits(options.max_output_bytes))
+    crate::encoder::typed::write_tape_document(document, sink, writer_limits(options.max_output_bytes))
         .map(|_| ())
 }
 
@@ -89,7 +89,7 @@ pub fn encode_borrowed_document(
     document: &BorrowedDocument<'_>,
     options: EncodeOptions,
 ) -> Result<Vec<u8>> {
-    jmax_encode::typed::encode_borrowed_document_to_vec(
+    crate::encoder::typed::encode_borrowed_document_to_vec(
         document,
         writer_limits(options.max_output_bytes),
     )
@@ -110,7 +110,7 @@ pub fn encode_borrowed_document_streaming(
     sink: &mut dyn ByteSink,
     options: EncodeOptions,
 ) -> Result<()> {
-    jmax_encode::typed::write_borrowed_document(
+    crate::encoder::typed::write_borrowed_document(
         document,
         sink,
         writer_limits(options.max_output_bytes),
@@ -122,7 +122,7 @@ pub fn encode_borrowed_document_streaming(
 pub fn escape_string(value: &str, options: EncodeOptions) -> Result<Vec<u8>> {
     let mut output = OutputBuffer::new(options.max_output_bytes);
     let mut writer =
-        jmax_encode::JsonWriter::new(&mut output, writer_limits(options.max_output_bytes));
+        crate::encoder::JsonWriter::new(&mut output, writer_limits(options.max_output_bytes));
     writer.string(value)?;
     writer.finish()?;
     Ok(output.into_vec())
@@ -133,11 +133,11 @@ pub fn escape_string(value: &str, options: EncodeOptions) -> Result<Vec<u8>> {
 pub fn document_to_buffer(
     document: &Document,
     output: &mut OutputBuffer,
-    scratch: &mut jmax_encode::WriterScratch,
+    scratch: &mut crate::encoder::WriterScratch,
 ) -> Result<()> {
     output.clear();
     let limits = writer_limits(output.max_bytes());
-    jmax_encode::typed::write_tape_document_with_scratch(document, output, limits, scratch)
+    crate::encoder::typed::write_tape_document_with_scratch(document, output, limits, scratch)
         .map(|_| ())
 }
 
@@ -145,11 +145,11 @@ pub fn document_to_buffer(
 pub fn borrowed_document_to_buffer(
     document: &BorrowedDocument<'_>,
     output: &mut OutputBuffer,
-    scratch: &mut jmax_encode::WriterScratch,
+    scratch: &mut crate::encoder::WriterScratch,
 ) -> Result<()> {
     output.clear();
     let limits = writer_limits(output.max_bytes());
-    jmax_encode::typed::write_borrowed_document_with_scratch(document, output, limits, scratch)
+    crate::encoder::typed::write_borrowed_document_with_scratch(document, output, limits, scratch)
         .map(|_| ())
 }
 
@@ -158,11 +158,11 @@ fn publish(bytes: &[u8], sink: &mut dyn ByteSink) -> Result<()> {
     sink.write_bytes(bytes)
 }
 
-fn writer_limits(max_output_bytes: usize) -> jmax_encode::EncodeLimits {
-    jmax_encode::EncodeLimits {
+fn writer_limits(max_output_bytes: usize) -> crate::encoder::EncodeLimits {
+    crate::encoder::EncodeLimits {
         max_output_bytes,
         max_string_bytes: u32::MAX,
         max_number_bytes: u32::MAX,
-        ..jmax_encode::EncodeLimits::default()
+        ..crate::encoder::EncodeLimits::default()
     }
 }

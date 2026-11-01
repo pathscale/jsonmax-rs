@@ -3,7 +3,7 @@
 use std::{string::String, vec::Vec};
 use core::convert::TryFrom;
 
-use jmax_abi::{
+use jsonmax::abi::{
     error::ErrorCode,
     schema::{FieldId, SchemaFieldIr, SchemaId, SchemaIr, Selection},
     syntax::ScalarKind,
@@ -118,7 +118,7 @@ pub fn validate_workload(workload: &Workload, max_bytes: u64) -> Result<()> {
             ));
         }
     }
-    jmax_schema_vm::check_selection(compiled.program(), &workload.selection)?;
+    jsonmax::schema_vm::check_selection(compiled.program(), &workload.selection)?;
 
     Ok(())
 }
@@ -156,7 +156,7 @@ fn validate_kind_config(kind: WorkloadKind, config: CorpusConfig) -> Result<()> 
         ));
     }
     if matches!(kind, WorkloadKind::DepthBook)
-        && config.items_per_document > jmax_exchange::ExchangeProfile::default().max_levels
+        && config.items_per_document > jsonmax::exchange::ExchangeProfile::default().max_levels
     {
         return Err(constraint_error(
             "depth level count exceeds the exchange profile limit",
@@ -395,7 +395,7 @@ fn agg_trade_schema() -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> 
     name.try_reserve_exact("jmax_bench_agg_trade".len())
         .map_err(|_| budget_error("schema name allocation failed"))?;
     name.push_str("jmax_bench_agg_trade");
-    compile_object_schema(jmax_exchange::TRADE_SCHEMA_ID.0, name, fields)
+    compile_object_schema(jsonmax::exchange::TRADE_SCHEMA_ID.0, name, fields)
 }
 
 fn compile_object_schema(
@@ -417,7 +417,7 @@ fn compile_object_schema(
         fields,
     };
     let compiled =
-        jsonmax::endpoint::compile_schema(&ir, jmax_abi::schema::CompileLimits::default_limits())?;
+        jsonmax::endpoint::compile_schema(&ir, jsonmax::abi::schema::CompileLimits::default_limits())?;
     let mut selection_ids = Vec::new();
     selection_ids
         .try_reserve_exact(ir.fields.len())
@@ -439,7 +439,7 @@ fn native_workload_schema(
     kind: WorkloadKind,
     items: u32,
 ) -> Result<(jsonmax::endpoint::CompiledSchema, Selection)> {
-    use jmax_schema_ir::{
+    use jsonmax::schema_ir::{
         ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
     };
     let mut nodes = Vec::new();
@@ -539,7 +539,7 @@ fn native_workload_schema(
     };
     let compiled = jsonmax::endpoint::compile_native_schema(
         &graph,
-        jmax_abi::schema::CompileLimits::default_limits(),
+        jsonmax::abi::schema::CompileLimits::default_limits(),
     )?;
     let mut field_ids = Vec::new();
     field_ids
@@ -1001,8 +1001,8 @@ pub mod followup {
     };
     use std::{string::String, vec, vec::Vec};
     use core::fmt::Write;
-    use jmax_abi::schema::{FieldId, SchemaId};
-    use jmax_schema_ir::{
+    use jsonmax::abi::schema::{FieldId, SchemaId};
+    use jsonmax::schema_ir::{
         ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode, ValueKind,
     };
 

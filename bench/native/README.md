@@ -1,6 +1,6 @@
 # Native Decoder Benchmarks (`jmax-native-bench`)
 
-Compares generated `jmax-native` AOT decoders against `serde_json`, `sonic-rs`, `simd-json`, `jiter`, and `ps-pikkr` across four Binance exchange payloads (`aggTrade`, `depth_20`, `depth_1000`, `trades_100`) and the six general corpora.
+Compares generated `jsonmax::native` AOT decoders against `serde_json`, `sonic-rs`, `simd-json`, `jiter`, and `ps-pikkr` across four Binance exchange payloads (`aggTrade`, `depth_20`, `depth_1000`, `trades_100`) and the six general corpora.
 
 ## Running
 
@@ -27,7 +27,7 @@ To aggregate multiple rounds, pass multiple TSV files to `bun ../tables.ts run1.
 |---|---|
 | `typed / jmax-native` | Generated zero-allocation AOT decoder with exact `Decimal128` parsing, strict unknown/duplicate key rejection, and default `VmLimits` |
 | `typed / jmax-native budget` | Generated AOT decoder with `max_steps` raised to `2^28` |
-| `typed / jmax vm+reparse` | Full `jmax-schema-vm` validation followed by native decoding |
+| `typed / jmax vm+reparse` | Full `jsonmax::schema_vm` validation followed by native decoding |
 | `typed / <rival> String` | `serde` deserialization keeping decimal fields as owned `String`s |
 | `typed / <rival> fixed` | `serde` deserialization parsing decimal fields into `10^8`-scaled `i64` fixed-point values |
 

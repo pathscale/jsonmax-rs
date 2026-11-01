@@ -5,9 +5,9 @@ use alloc::{string::String, sync::Arc, vec::Vec};
 #[cfg(feature = "std")]
 use std::cell::RefCell;
 
-use jmax_abi::schema::Selection;
-use jmax_schema_compile::{CompilerOptions, ValidatedProgram};
-use jmax_schema_vm::VmLimits;
+use crate::abi::schema::Selection;
+use crate::schema_compile::{CompilerOptions, ValidatedProgram};
+use crate::schema_vm::VmLimits;
 
 use super::{
     CompileLimits, EndpointCatalog, EndpointDirection, EndpointMessage, Error, ErrorCode,
@@ -20,7 +20,7 @@ use super::{
 pub struct CompiledSchema {
     image: SchemaImage,
     ir: SchemaIr,
-    native_ir: jmax_schema_ir::Schema,
+    native_ir: crate::schema_ir::Schema,
     program: Arc<ValidatedProgram>,
     selection: Selection,
 }
@@ -34,7 +34,7 @@ impl CompiledSchema {
     pub fn ir(&self) -> &SchemaIr {
         &self.ir
     }
-    pub fn native_ir(&self) -> &jmax_schema_ir::Schema {
+    pub fn native_ir(&self) -> &crate::schema_ir::Schema {
         &self.native_ir
     }
     pub fn program(&self) -> &ValidatedProgram {
@@ -47,12 +47,12 @@ impl CompiledSchema {
 
 /// Normalize, resolve, lower and validate an ABI schema once.
 pub fn compile_schema(ir: &SchemaIr, limits: CompileLimits) -> Result<CompiledSchema> {
-    compile_graph(ir.clone(), jmax_schema_ir::model::normalize(ir)?, limits)
+    compile_graph(ir.clone(), crate::schema_ir::model::normalize(ir)?, limits)
 }
 
 /// Compile a native graph, preserving array and nested object constraints.
 pub fn compile_native_schema(
-    graph: &jmax_schema_ir::Schema,
+    graph: &crate::schema_ir::Schema,
     limits: CompileLimits,
 ) -> Result<CompiledSchema> {
     let identity = SchemaIr {
@@ -65,19 +65,19 @@ pub fn compile_native_schema(
 
 fn compile_graph(
     ir: SchemaIr,
-    native_ir: jmax_schema_ir::Schema,
+    native_ir: crate::schema_ir::Schema,
     limits: CompileLimits,
 ) -> Result<CompiledSchema> {
-    let resolved = jmax_schema_ir::resolve::resolve(
+    let resolved = crate::schema_ir::resolve::resolve(
         native_ir.clone(),
-        jmax_schema_ir::ResolveLimits::default(),
+        crate::schema_ir::ResolveLimits::default(),
     )?;
     let options = CompilerOptions {
         limits,
         ..CompilerOptions::default()
     };
     let program =
-        jmax_schema_compile::lower::compile(&resolved, &options).map_err(schema_compile_error)?;
+        crate::schema_compile::lower::compile(&resolved, &options).map_err(schema_compile_error)?;
     // Empty selects all compiled slots without per-call field resolution or a
     // dense selection bitset. Typed decoding retains compiler slot order.
     let selection = Selection {
@@ -122,7 +122,7 @@ pub fn validate_payload(
     schema: &CompiledSchema,
     options: ParseOptions,
 ) -> Result<ValidationProof> {
-    jmax_schema_vm::direct::validate_payload_direct(
+    crate::schema_vm::direct::validate_payload_direct(
         schema.program(),
         &input,
         vm_limits(options),
@@ -138,7 +138,7 @@ pub fn validate_payload_with_scratch(
     options: ParseOptions,
     scratch: &mut ValidationScratch,
 ) -> Result<ValidationProof> {
-    jmax_schema_vm::direct::validate_into(
+    crate::schema_vm::direct::validate_into(
         schema.program(),
         &input,
         vm_limits(options),
@@ -155,7 +155,7 @@ pub fn validate_borrowed(
     options: ParseOptions,
     scratch: &mut ValidationScratch,
 ) -> Result<ValidationProof> {
-    jmax_schema_vm::direct::validate_borrowed_into(
+    crate::schema_vm::direct::validate_borrowed_into(
         schema.program(),
         input,
         vm_limits(options),
@@ -237,8 +237,8 @@ pub fn extract_borrowed<'a>(
     selection: &Selection,
     input: &'a [u8],
     options: ParseOptions,
-) -> Result<jmax_schema_vm::BorrowedValidatedSlots<'a>> {
-    jmax_schema_vm::direct::extract_borrowed(
+) -> Result<crate::schema_vm::BorrowedValidatedSlots<'a>> {
+    crate::schema_vm::direct::extract_borrowed(
         schema.program(),
         input,
         selection,
@@ -268,8 +268,8 @@ pub fn extract_borrowed_with_scratch<'raw, 'scratch>(
     input: &'raw [u8],
     options: ParseOptions,
     scratch: &'scratch mut ValidationScratch,
-) -> Result<jmax_schema_vm::BorrowedValidatedSlotsRef<'raw, 'scratch>> {
-    jmax_schema_vm::direct::extract_borrowed_with_scratch(
+) -> Result<crate::schema_vm::BorrowedValidatedSlotsRef<'raw, 'scratch>> {
+    crate::schema_vm::direct::extract_borrowed_with_scratch(
         schema.program(),
         input,
         selection,
@@ -286,9 +286,9 @@ pub fn extract_query_payload(
     schema: &CompiledSchema,
     selection: &Selection,
     options: ParseOptions,
-) -> Result<jmax_schema_vm::QuerySlots> {
+) -> Result<crate::schema_vm::QuerySlots> {
     let selection = query_selection(selection)?;
-    jmax_schema_vm::direct::extract_query_payload(
+    crate::schema_vm::direct::extract_query_payload(
         schema.program(),
         input,
         &selection,
@@ -303,9 +303,9 @@ pub fn extract_query_borrowed<'a>(
     selection: &Selection,
     input: &'a [u8],
     options: ParseOptions,
-) -> Result<jmax_schema_vm::BorrowedQuerySlots<'a>> {
+) -> Result<crate::schema_vm::BorrowedQuerySlots<'a>> {
     let selection = query_selection(selection)?;
-    jmax_schema_vm::direct::extract_query_borrowed(
+    crate::schema_vm::direct::extract_query_borrowed(
         schema.program(),
         input,
         &selection,
@@ -337,11 +337,11 @@ fn query_selection(selection: &Selection) -> Result<Selection> {
 
 /// Own and validate services without performing network activity.
 pub fn catalog(services: Vec<ServiceSpec>) -> Result<EndpointCatalog> {
-    let model = jmax_endpoint_model::EndpointModel {
+    let model = crate::endpoint_model::EndpointModel {
         services,
-        ..jmax_endpoint_model::EndpointModel::default()
+        ..crate::endpoint_model::EndpointModel::default()
     };
-    jmax_endpoint_model::registry::build_registry(&model).map_err(model_error)?;
+    crate::endpoint_model::registry::build_registry(&model).map_err(model_error)?;
     let count = model.services.iter().try_fold(0usize, |sum, service| {
         sum.checked_add(service.endpoints.len()).ok_or_else(|| {
             facade_error(
@@ -461,7 +461,7 @@ fn project_schema(
     };
     let schema_id = stable_projection_id(catalog, &qualified_name)?;
     let ir =
-        jmax_endpoint_model::utilities::schema_for_fields(&qualified_name, schema_id, fields, true)
+        crate::endpoint_model::utilities::schema_for_fields(&qualified_name, schema_id, fields, true)
             .map_err(model_error)?;
     compile_schema(&ir, limits)
 }
@@ -614,7 +614,7 @@ fn run_program_fresh(
     selection: &Selection,
     options: ParseOptions,
 ) -> Result<ValidatedSlots> {
-    jmax_schema_vm::direct::extract_payload_direct(
+    crate::schema_vm::direct::extract_payload_direct(
         program,
         input,
         selection,
@@ -631,7 +631,7 @@ fn run_program_with_scratch(
     options: ParseOptions,
     scratch: &mut ValidationScratch,
 ) -> Result<ValidatedSlots> {
-    jmax_schema_vm::direct::extract_payload_into(
+    crate::schema_vm::direct::extract_payload_into(
         program,
         input,
         selection,
@@ -675,7 +675,7 @@ pub(crate) fn decode_slots_borrowed_into<'raw, 'scratch>(
     schema: &CompiledSchema,
     options: ParseOptions,
     scratch: &'scratch mut ValidationScratch,
-) -> Result<jmax_schema_vm::BorrowedValidatedSlotsRef<'raw, 'scratch>> {
+) -> Result<crate::schema_vm::BorrowedValidatedSlotsRef<'raw, 'scratch>> {
     extract_borrowed_with_scratch(schema, &schema.selection, input, options, scratch)
 }
 
@@ -715,7 +715,7 @@ fn model_error(mut error: Error) -> Error {
 }
 
 /// Reusable complete-input schema validation storage.
-pub use jmax_schema_vm::ValidationScratch;
+pub use crate::schema_vm::ValidationScratch;
 
 /// Compatibility slot-producing API used by existing typed decoders. Despite
 /// its historic name, this captures all compiled slots. For proof-only warm
@@ -726,7 +726,7 @@ pub fn validate_payload_into<'a>(
     options: ParseOptions,
     scratch: &'a mut ValidationScratch,
 ) -> Result<&'a ValidatedSlots> {
-    jmax_schema_vm::direct::extract_payload_into(
+    crate::schema_vm::direct::extract_payload_into(
         schema.program(),
         input.clone(),
         &schema.selection,
@@ -743,7 +743,7 @@ pub fn extract_payload_into<'a>(
     options: ParseOptions,
     scratch: &'a mut ValidationScratch,
 ) -> Result<&'a ValidatedSlots> {
-    jmax_schema_vm::direct::extract_payload_into(
+    crate::schema_vm::direct::extract_payload_into(
         schema.program(),
         input.clone(),
         selection,

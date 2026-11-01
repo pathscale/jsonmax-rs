@@ -49,7 +49,7 @@ pub fn with_case<T>(
     let json_value = json::parse(std::str::from_utf8(b).map_err(err)?).map_err(err)?;
 
     // Check each output-producing serializer against the same parsed reference.
-    let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+    let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
     jsonmax::encode::encode_document_streaming(&doc, &mut sink, Default::default())?;
     check_roundtrip("jmax", &sink.into_vec(), &reference)?;
     check_roundtrip("serde_json", &serde_json::to_vec(&reference)?, &reference)?;
@@ -267,7 +267,7 @@ pub fn with_case<T>(
     jobs.push((
         "jmax serialize",
         Box::new(move || {
-            let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+            let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
             jsonmax::encode::encode_document_streaming(
                 black_box(&doc),
                 &mut sink,

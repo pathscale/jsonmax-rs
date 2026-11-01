@@ -1,5 +1,5 @@
 //! Rewrite src/trades/ from fixtures/trades.ron: `cargo run --release --example regen_trades`.
-use jmax_codegen_rust::generate_with_native;
+use jsonmax::codegen_rust::generate_with_native;
 use jmax_native_fixtures::regen::{model, native_options, options, spec, Fixture};
 
 fn main() {

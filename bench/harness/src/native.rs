@@ -1,8 +1,8 @@
 use super as common_types;
 use super::R;
 use super::ValueKind;
-use jmax_native::{NativeContext, NativeDecode, NativeResult, Reader, VmLimits};
-use jmax_schema_ir::{
+use jsonmax::native::{NativeContext, NativeDecode, NativeResult, Reader, VmLimits};
+use jsonmax::schema_ir::{
     ArrayShape, ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
 };
 
@@ -26,7 +26,7 @@ impl Default for NativeScratch {
             context: NativeContext::new(
                 VmLimits {
                     syntax: options.limits,
-                    max_steps: jmax_schema_vm::DEFAULT_MAX_VM_STEPS,
+                    max_steps: jsonmax::schema_vm::DEFAULT_MAX_VM_STEPS,
                     max_scratch_bytes: 16 * 1024 * 1024,
                 },
                 options.numeric,
@@ -39,7 +39,7 @@ pub fn project(name: &str, raw: &[u8], scratch: &mut NativeScratch) -> R<NativeP
     macro_rules! decode {
         ($ty:ty, $variant:ident) => {{
             let mut value = <$ty>::default();
-            jmax_native::decode_into(&mut scratch.context, raw, &mut value)?;
+            jsonmax::native::decode_into(&mut scratch.context, raw, &mut value)?;
             Ok(NativeProjection::$variant(value.into()))
         }};
     }
@@ -138,7 +138,7 @@ fn aot_program(
     name: &str,
     fields: &[(&[&str], ValueKind)],
     array_root: bool,
-) -> jmax_native::Result<jmax_native::ValidatedProgram> {
+) -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
     let object_root = if array_root { 1usize } else { 0usize };
     let mut nodes = Vec::new();
     if array_root {
@@ -186,7 +186,7 @@ fn aot_program(
             });
             if let TypeNode::Object(object) = &mut nodes[parent] {
                 object.properties.push(Property {
-                    field_id: jmax_abi::FieldId(if last {
+                    field_id: jsonmax::abi::FieldId(if last {
                         slot as u32 + 1
                     } else {
                         1000 + child as u32
@@ -204,9 +204,9 @@ fn aot_program(
             parent = child;
         }
     }
-    jmax_schema_aot::compile_graph(&Schema {
+    jsonmax::schema_aot::compile_graph(&Schema {
         name: name.into(),
-        schema_id: jmax_abi::SchemaId(1),
+        schema_id: jsonmax::abi::SchemaId(1),
         root: TypeId(0),
         nodes,
         definitions: Vec::new(),
@@ -216,7 +216,7 @@ fn aot_program(
 macro_rules! object_start {
     ($reader:ident, $ctx:ident, $depth:expr) => {{
         if $depth > $ctx.limits().syntax.max_depth {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         $reader.expect(b'{')?;
         ($ctx.begin_object(), 0usize)
@@ -226,7 +226,7 @@ macro_rules! object_start {
 macro_rules! unknown_field {
     ($reader:ident, $ctx:ident, $depth:expr) => {{
         if $ctx.limits().syntax.reject_unknown_keys {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         $reader.unknown_key($ctx)?;
         $reader.skip_value($ctx, $depth)?;
@@ -266,7 +266,7 @@ macro_rules! predicted_key {
 impl NativeDecode for TwitterNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program(
             "twitter",
             &[
@@ -289,11 +289,11 @@ impl NativeDecode for TwitterNative {
             loop {
                 fields += 1;
                 if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 if predicted_key!(r, ctx, next, 1; 0 => b"\"search_metadata\":") == 0 {
                     if seen_metadata && ctx.limits().syntax.reject_duplicate_keys {
-                        return Err(jmax_native::Fail);
+                        return Err(jsonmax::native::Fail);
                     }
                     seen_metadata = true;
                     decode_metadata(r, ctx, out)?;
@@ -308,7 +308,7 @@ impl NativeDecode for TwitterNative {
             }
         }
         if !seen_metadata {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         ctx.end_object(mark)
     }
@@ -326,7 +326,7 @@ fn decode_metadata(
         loop {
             fields += 1;
             if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                return Err(jmax_native::Fail);
+                return Err(jsonmax::native::Fail);
             }
             let index = predicted_key!(r, ctx, next, 3;
                 0 => b"\"query\":",
@@ -336,7 +336,7 @@ fn decode_metadata(
             if index < 3 {
                 next = (index + 1) % 3;
                 if seen[index] && ctx.limits().syntax.reject_duplicate_keys {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 seen[index] = true;
                 match index {
@@ -355,7 +355,7 @@ fn decode_metadata(
         }
     }
     if seen.iter().any(|present| !present) {
-        return Err(jmax_native::Fail);
+        return Err(jsonmax::native::Fail);
     }
     ctx.end_object(mark)
 }
@@ -374,7 +374,7 @@ fn decode_string_object(
         loop {
             fields += 1;
             if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                return Err(jmax_native::Fail);
+                return Err(jsonmax::native::Fail);
             }
             let matched = if key_name == b"PLEYEL_PLEYEL" {
                 predicted_key!(r, ctx, next, 1; 0 => b"\"PLEYEL_PLEYEL\":") == 0
@@ -383,7 +383,7 @@ fn decode_string_object(
             };
             if matched {
                 if seen && ctx.limits().syntax.reject_duplicate_keys {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 seen = true;
                 value = r.string(ctx)?.to_owned();
@@ -398,7 +398,7 @@ fn decode_string_object(
         }
     }
     if !seen {
-        return Err(jmax_native::Fail);
+        return Err(jsonmax::native::Fail);
     }
     ctx.end_object(mark)?;
     Ok(value)
@@ -407,7 +407,7 @@ fn decode_string_object(
 impl NativeDecode for CitmNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program(
             "citm_catalog",
             &[(&["venueNames", "PLEYEL_PLEYEL"], ValueKind::String)],
@@ -426,11 +426,11 @@ impl NativeDecode for CitmNative {
             loop {
                 fields += 1;
                 if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 if predicted_key!(r, ctx, next, 1; 0 => b"\"venueNames\":") == 0 {
                     if seen && ctx.limits().syntax.reject_duplicate_keys {
-                        return Err(jmax_native::Fail);
+                        return Err(jsonmax::native::Fail);
                     }
                     seen = true;
                     out.0 = decode_string_object(r, ctx, b"PLEYEL_PLEYEL", 2)?;
@@ -445,7 +445,7 @@ impl NativeDecode for CitmNative {
             }
         }
         if !seen {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         ctx.end_object(mark)
     }
@@ -454,7 +454,7 @@ impl NativeDecode for CitmNative {
 impl NativeDecode for CanadaNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program("canada", &[(&["type"], ValueKind::String)], false)
     }
     fn decode_core(
@@ -469,11 +469,11 @@ impl NativeDecode for CanadaNative {
             loop {
                 fields += 1;
                 if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 if predicted_key!(r, ctx, next, 1; 0 => b"\"type\":") == 0 {
                     if seen && ctx.limits().syntax.reject_duplicate_keys {
-                        return Err(jmax_native::Fail);
+                        return Err(jsonmax::native::Fail);
                     }
                     seen = true;
                     out.0 = r.string(ctx)?.to_owned();
@@ -488,7 +488,7 @@ impl NativeDecode for CanadaNative {
             }
         }
         if !seen {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         ctx.end_object(mark)
     }
@@ -511,7 +511,7 @@ fn decode_github_row(
         loop {
             fields += 1;
             if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                return Err(jmax_native::Fail);
+                return Err(jsonmax::native::Fail);
             }
             let index = predicted_key!(r, ctx, next, 3;
                 0 => b"\"id\":",
@@ -521,7 +521,7 @@ fn decode_github_row(
             if index < 3 {
                 next = (index + 1) % 3;
                 if seen[index] && ctx.limits().syntax.reject_duplicate_keys {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 seen[index] = true;
                 match index {
@@ -540,7 +540,7 @@ fn decode_github_row(
         }
     }
     if seen.iter().any(|present| !present) {
-        return Err(jmax_native::Fail);
+        return Err(jsonmax::native::Fail);
     }
     ctx.end_object(mark)?;
     Ok(row)
@@ -549,7 +549,7 @@ fn decode_github_row(
 impl NativeDecode for GithubNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program(
             "github_events",
             &[
@@ -566,7 +566,7 @@ impl NativeDecode for GithubNative {
         out: &mut Self,
     ) -> NativeResult<()> {
         if 1 > ctx.limits().syntax.max_depth {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         r.expect(b'[')?;
         let mut items = 0usize;
@@ -575,7 +575,7 @@ impl NativeDecode for GithubNative {
             loop {
                 items += 1;
                 if items > ctx.limits().syntax.max_array_items as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 out.0.push(decode_github_row(r, ctx, 2)?);
                 if r.eat(b',') {
@@ -592,7 +592,7 @@ impl NativeDecode for GithubNative {
 impl NativeDecode for ApacheNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program(
             "apache_builds",
             &[
@@ -616,7 +616,7 @@ impl NativeDecode for ApacheNative {
             loop {
                 fields += 1;
                 if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 let index = predicted_key!(r, ctx, next, 4;
                     0 => b"\"mode\":",
@@ -627,7 +627,7 @@ impl NativeDecode for ApacheNative {
                 if index < 4 {
                     next = (index + 1) % 4;
                     if seen[index] && ctx.limits().syntax.reject_duplicate_keys {
-                        return Err(jmax_native::Fail);
+                        return Err(jsonmax::native::Fail);
                     }
                     seen[index] = true;
                     match index {
@@ -647,7 +647,7 @@ impl NativeDecode for ApacheNative {
             }
         }
         if seen.iter().any(|present| !present) {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         ctx.end_object(mark)
     }
@@ -656,7 +656,7 @@ impl NativeDecode for ApacheNative {
 impl NativeDecode for TypedPayloadNative {
     const COUNTS_NATIVE_BUDGET: bool = true;
     const COUNTS_ENUM_VALUES: bool = true;
-    fn build_program() -> jmax_native::Result<jmax_native::ValidatedProgram> {
+    fn build_program() -> jsonmax::native::Result<jsonmax::native::ValidatedProgram> {
         aot_program(
             "typed_payload",
             &[
@@ -681,7 +681,7 @@ impl NativeDecode for TypedPayloadNative {
             loop {
                 fields += 1;
                 if fields > ctx.limits().syntax.max_fields_per_object as usize {
-                    return Err(jmax_native::Fail);
+                    return Err(jsonmax::native::Fail);
                 }
                 let index = predicted_key!(r, ctx, next, 5;
                     0 => b"\"batch_id\":",
@@ -693,7 +693,7 @@ impl NativeDecode for TypedPayloadNative {
                 if index < 5 {
                     next = (index + 1) % 5;
                     if seen[index] && ctx.limits().syntax.reject_duplicate_keys {
-                        return Err(jmax_native::Fail);
+                        return Err(jsonmax::native::Fail);
                     }
                     seen[index] = true;
                     match index {
@@ -714,7 +714,7 @@ impl NativeDecode for TypedPayloadNative {
             }
         }
         if seen.iter().any(|present| !present) {
-            return Err(jmax_native::Fail);
+            return Err(jsonmax::native::Fail);
         }
         ctx.end_object(mark)
     }

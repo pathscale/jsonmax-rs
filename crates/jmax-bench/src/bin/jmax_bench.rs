@@ -176,7 +176,7 @@ fn run() -> Result<(), String> {
             .first()
             .ok_or_else(|| String::from("generated workload is empty"))?;
         let backend =
-            jmax_dispatch::dispatch(first.len(), jmax_dispatch::DispatchPolicy::default())
+            jsonmax::dispatch::dispatch(first.len(), jsonmax::dispatch::DispatchPolicy::default())
                 .map_err(|error| error.to_string())?
                 .backend();
         let kind = followup::name(workload.kind);
@@ -264,7 +264,7 @@ fn run() -> Result<(), String> {
             writeln!(
                 output,
                 "  {name}: {}",
-                jmax_dispatch::backend_name(*backend)
+                jsonmax::dispatch::backend_name(*backend)
             )?;
         }
         writeln!(

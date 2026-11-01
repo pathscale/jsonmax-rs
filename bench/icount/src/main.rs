@@ -45,7 +45,7 @@ fn main() -> R<()> {
         ("serialize", "jmax") => {
             let doc = jsonmax::parse::parse_slice(b, options())?;
             Box::new(move || {
-                let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+                let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
                 jsonmax::encode::encode_document_streaming(black_box(&doc), &mut sink, Default::default())?;
                 black_box(sink.into_vec()); Ok(())
             })

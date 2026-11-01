@@ -3,6 +3,5 @@ name = "dcheck"
 version = "0.1.0"
 edition = "2024"
 [dependencies]
-jmax-dispatch = { path = "../../crates/jmax-dispatch" }
-jmax-scan-avx512 = { path = "../../crates/jmax-scan-avx512" }
+jsonmax = { path = "../../crates/jsonmax", features = ["std"] }
 [workspace]

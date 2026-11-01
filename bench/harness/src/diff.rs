@@ -47,15 +47,15 @@ fn outcome<T: std::fmt::Debug>(out: &mut String, tag: &str, r: Result<T, jsonmax
 fn observe(out: &mut String, input: &[u8], plans: &[Plan], any: &jsonmax::CompiledSchema, query: &jsonmax::CompiledQuery) {
     for (li, o) in limits_variants().into_iter().enumerate() {
         let _ = writeln!(out, "L{li}");
-        outcome(out, "validate", jsonmax::parse::validate_borrowed(input, o, &mut jmax_abi::syntax::Scratch::default()).map(|p| format!("{p:?}")), true);
+        outcome(out, "validate", jsonmax::parse::validate_borrowed(input, o, &mut jsonmax::abi::syntax::Scratch::default()).map(|p| format!("{p:?}")), true);
         match jsonmax::parse::parse_borrowed(input, o) {
             Ok(doc) => {
                 let _ = writeln!(out, "dom ok {}", doc.node_count());
                 if li == 0 {
-                    let mut sink = jmax_encode::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
+                    let mut sink = jsonmax::encoder::VecSink::new(jsonmax::DEFAULT_MAX_OUTPUT_BYTES);
                     let r = jsonmax::encode::encode_borrowed_document_streaming(&doc, &mut sink, Default::default());
                     let _ = writeln!(out, "enc {:?} {}", r.is_ok(), String::from_utf8_lossy(&sink.into_vec()));
-                    let base = jmax_encode::EncodeLimits::default();
+                    let base = jsonmax::encoder::EncodeLimits::default();
                     let mut variants = vec![];
                     let mut l = base; l.max_container_items = 2; variants.push((l, usize::MAX));
                     let mut l = base; l.max_string_bytes = 4; variants.push((l, usize::MAX));
@@ -64,8 +64,8 @@ fn observe(out: &mut String, input: &[u8], plans: &[Plan], any: &jsonmax::Compil
                     let mut l = base; l.max_output_bytes = 10; variants.push((l, usize::MAX));
                     variants.push((base, 10));
                     for (vi, (l, sl)) in variants.into_iter().enumerate() {
-                        let mut sink = jmax_encode::VecSink::new(sl);
-                        let r = jmax_encode::typed::write_borrowed_document(&doc, &mut sink, l);
+                        let mut sink = jsonmax::encoder::VecSink::new(sl);
+                        let r = jsonmax::encoder::typed::write_borrowed_document(&doc, &mut sink, l);
                         let _ = writeln!(out, "encv{vi} {:?}", r);
                     }
                 }
@@ -124,7 +124,7 @@ pub fn run() -> R<()> {
         if bi >= SMALL.len() {
             // big inputs: only default limits to keep it fast
             let o = options();
-            outcome(&mut out, "validate", jsonmax::parse::validate_borrowed(&input, o, &mut jmax_abi::syntax::Scratch::default()).map(|p| format!("{p:?}")), true);
+            outcome(&mut out, "validate", jsonmax::parse::validate_borrowed(&input, o, &mut jsonmax::abi::syntax::Scratch::default()).map(|p| format!("{p:?}")), true);
             outcome(&mut out, "dom", jsonmax::parse::parse_borrowed(&input, o).map(|d| d.node_count()), true);
             outcome(&mut out, "any", jsonmax::endpoint::validate_payload(Payload::from_slice(&input), &any, o).map(|_| ()), false);
             for (pi, p) in plans.iter().enumerate() {

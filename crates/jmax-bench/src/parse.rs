@@ -2,7 +2,7 @@
 
 use core::mem::size_of;
 
-use jmax_abi::{error::ErrorCode, schema::SlotValue};
+use jsonmax::abi::{error::ErrorCode, schema::SlotValue};
 
 use crate::{
     BenchmarkConfig, BenchmarkMode, BenchmarkOperation, BenchmarkReport, Clock, Observation,
@@ -123,7 +123,7 @@ impl BenchmarkOperation for BorrowedOperation<'_> {
                     jsonmax::parse::parse_borrowed_with_scratch(raw, options, &mut self.dom)?;
                 let digest = mix_digest(digest_bytes(document.raw()), document.node_count() as u64);
                 let retained_bytes = u64::try_from(
-                    document.tape().len() * size_of::<jmax_abi::node::TapeWord>()
+                    document.tape().len() * size_of::<jsonmax::abi::node::TapeWord>()
                         + document.decoded().len(),
                 )
                 .map_err(|_| {
@@ -281,7 +281,7 @@ impl SchemaOperation<'_> {
 
 enum SchemaResult {
     Proof(jsonmax::ValidationProof),
-    Slots(jmax_abi::schema::ValidatedSlots),
+    Slots(jsonmax::abi::schema::ValidatedSlots),
 }
 
 impl BenchmarkOperation for SchemaOperation<'_> {
@@ -362,7 +362,7 @@ fn with_verification(mut report: BenchmarkReport, verification: u64) -> Benchmar
 fn document_retained_bytes(document: &jsonmax::Document) -> Result<u64> {
     let mut total = u64::try_from(document.payload().len())
         .map_err(|_| bench_error(ErrorCode::BudgetExhausted, "input retention size overflow"))?;
-    add_capacity::<jmax_abi::node::TapeWord>(&mut total, document.tape().len())?;
+    add_capacity::<jsonmax::abi::node::TapeWord>(&mut total, document.tape().len())?;
     add_u64(&mut total, document.decoded().len())?;
     Ok(total)
 }
@@ -370,14 +370,14 @@ fn document_retained_bytes(document: &jsonmax::Document) -> Result<u64> {
 fn schema_retained_bytes(schema: &jsonmax::CompiledSchema) -> Result<u64> {
     let image = schema.image();
     let mut total = 0;
-    add_capacity::<jmax_abi::schema::InsnWord>(&mut total, image.insns.capacity())?;
-    add_capacity::<jmax_abi::schema::KeyEntry>(&mut total, image.keys.capacity())?;
+    add_capacity::<jsonmax::abi::schema::InsnWord>(&mut total, image.insns.capacity())?;
+    add_capacity::<jsonmax::abi::schema::KeyEntry>(&mut total, image.keys.capacity())?;
     add_u64(&mut total, image.key_bytes.capacity())?;
     Ok(total)
 }
 
 fn slots_retained_bytes(
-    slots: &jmax_abi::schema::ValidatedSlots,
+    slots: &jsonmax::abi::schema::ValidatedSlots,
     schema: &jsonmax::CompiledSchema,
 ) -> Result<u64> {
     let mut total = u64::try_from(slots.payload.len())
@@ -422,7 +422,7 @@ fn digest_document(document: &jsonmax::Document) -> u64 {
     mix_digest(digest, digest_bytes(document.decoded()))
 }
 
-fn digest_all_slots(slots: &jmax_abi::schema::ValidatedSlots) -> Result<u64> {
+fn digest_all_slots(slots: &jsonmax::abi::schema::ValidatedSlots) -> Result<u64> {
     let mut digest = ACCEPTED_SCHEMA_MARKER;
     for (index, value) in slots.slots.iter().enumerate() {
         digest = mix_digest(digest, index as u64);
@@ -470,7 +470,7 @@ fn mix_slot_value(
             18
         }
         SlotValue::Str(value) => {
-            let text = jmax_schema_vm::resolve_str(payload.as_slice(), decoded, *value)?;
+            let text = jsonmax::schema_vm::resolve_str(payload.as_slice(), decoded, *value)?;
             let len = u64::try_from(text.len()).map_err(|_| {
                 bench_error(ErrorCode::BudgetExhausted, "selected string size overflow")
             })?;

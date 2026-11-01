@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 use std::{string::String, vec::Vec};
-pub use jmax_abi::{
+pub use jsonmax::abi::{
     buffer::Payload,
     error::{Error, ErrorCode, ErrorSource, Result},
     schema::{SchemaImage, Selection},

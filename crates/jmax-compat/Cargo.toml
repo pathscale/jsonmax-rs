@@ -3,18 +3,12 @@ name = "jmax-compat"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-publish.workspace = true
+publish = false
 
 [features]
 default = ["std"]
-alloc = ["jmax-abi/alloc"]
-std = ["alloc", "jmax-abi/std"]
+alloc = ["jsonmax/alloc"]
+std = ["alloc", "jsonmax/std"]
 
 [dependencies]
-jmax-abi = { workspace = true }
-jmax-buffer = { workspace = true }
-jmax-dom = { workspace = true }
-jmax-schema-vm = { workspace = true }
-jmax-endpoint-model = { workspace = true }
-jmax-wire = { workspace = true }
-jmax-encode = { workspace = true }
+jsonmax = { workspace = true, features = ["std"] }

@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 
 use std::{collections::BTreeMap, ffi::OsString, fmt, io::{self, BufRead, Write}, path::PathBuf};
-pub use jmax_abi::{
+pub use jsonmax::abi::{
     buffer::Payload,
     endpoint::{EndpointField, EndpointSchemaSpec, EndpointType, ServiceSpec},
     error::{Error as AbiError, ErrorCode, ErrorSource},
