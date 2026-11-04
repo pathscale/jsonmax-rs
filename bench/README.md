@@ -46,6 +46,19 @@ Environment variables supported by `jmax-harness`:
 - `FILTER`: comma-separated substrings matched against `corpus<TAB>op`
 - `NODUP=1`: disable duplicate-key rejection in the single-binary harness
 
+## Running Paired Corpus Measurements
+
+Build baseline and candidate corpus harness executables separately, then run the Rust paired driver with explicit binary identities, a shared contract label, a supported corpus selection, positive block count, and minimum candidate-to-baseline throughput ratio:
+
+```sh
+cd bench/harness
+cargo build --release --bench compare
+cargo build --release --bin paired
+./target/release/paired BASELINE_PATH BASELINE_ID CANDIDATE_PATH CANDIDATE_ID CONTRACT CORPORA_CSV BLOCKS MIN_RATIO [DATA_DIR] [SAMPLES]
+```
+
+Each block runs baseline/candidate/candidate/baseline and compares the existing 14-column TSV row identities and byte denominators. If any cell's median ratio is below the threshold, exactly one additional block is collected before the performance result is decided. This is a performance measurement; correctness remains the differential harness's responsibility. The ordinary `bench/compare.sh` flow remains available.
+
 ## Running the Native Decoder Benchmarks
 
 ```sh
