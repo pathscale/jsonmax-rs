@@ -10,7 +10,7 @@ keywords = ["json", "simd", "parser", "schema", "serialization"]
 categories = ["parser-implementations", "encoding", "no-std"]
 
 [features]
-# Records per-site cycle counts through jmax-trace (off: marks compile to nothing).
+# Records per-site cycle counts through jsonmax::trace (off: marks compile to nothing).
 trace = []
 # Enables standard-library support by default.
 default = ["std"]

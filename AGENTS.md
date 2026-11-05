@@ -12,9 +12,8 @@ per-vendor file.
 - No Python. Scripts are shell or Rust.
 - No em dashes in code, comments, docs or commit messages.
 - Never `git stash`. Stage your own paths only, with `git commit --only <paths>`.
-- Never commit a `Cargo.lock`. The workspace and the bench crates depend on sibling checkouts by
-  relative path (`../ps-rusty_alloc`, `../nagoya`, `../ps-simdutf8`, `../ps-pikkr`, ...), so
-  every lock carries local drift. They are gitignored; keep it that way.
+- Never commit a `Cargo.lock`. Locks remain gitignored. Publishable crates use registry
+  dependencies; the excluded comparison benches still require a sibling `ps-pikkr` checkout.
 - No Docker.
 - No threads. jsonmax creates no threads and owns no pool. Parallel work goes through nagoya
   (`jmax-nagoya`) as typed `Arc<In>` tasks with real `Send + Sync + 'static` bounds and owned
@@ -54,8 +53,9 @@ path rejects.
 
 ## Agent workflow
 
-- Plan and review with the strongest model; hand bounded coding tasks to a coding agent that
-  returns a patch or local commit plus a one-line summary. Do not read subagent transcripts.
+- Follow the current owner's assignment for delegation and validation. A sole-integrator
+  assignment keeps source changes and local history under that owner; when validation is
+  assigned separately, report the exact pending gates without claiming they passed.
 - Be token efficient. Do not yield or stall while work remains.
 - Dependents (endpoint-libs, endpointgen, fleet applications) are integrated only after jmax
   beats every rival on both the native and general routes.

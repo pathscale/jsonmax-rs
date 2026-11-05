@@ -6,9 +6,9 @@
 //! `cntvct_el0`; other targets record hits only.
 //!
 //! With the `trace` feature off (the default) `span!` evaluates to a zero-sized
-//! guard with no `Drop`, so every mark compiles to nothing. Crates forward their
-//! own `trace` feature to `jmax-trace/trace`; cargo unifies it, so any one
-//! crate enabling it turns the marks on in all of them.
+//! guard with no `Drop`, so every mark compiles to nothing. The `jsonmax/trace`
+//! feature enables marks across the parser modules; benchmark crates forward
+//! their `trace` feature to it.
 //!
 //! Slots are static relaxed atomics updated with load and store (no locked
 //! read-modify-write): exact on one thread, which is how a compile runs here,
