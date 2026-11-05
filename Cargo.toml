@@ -30,5 +30,5 @@ jmax-validator = { path = "crates/jmax-validator", version = "0.1.0", default-fe
 jmax-runner = { path = "crates/jmax-runner", version = "0.1.0", default-features = false }
 jmax-bench = { path = "crates/jmax-bench", version = "0.1.0", default-features = false }
 jmax-fuzz = { path = "crates/jmax-fuzz", version = "0.1.0", default-features = false }
-jsonmax = { path = "crates/jsonmax", version = "0.1.0", default-features = false }
+jsonmax = { path = "crates/jsonmax", version = "0.1.1", default-features = false }
 jsonmax-derive = { path = "crates/jsonmax-derive", version = "0.1.0" }
