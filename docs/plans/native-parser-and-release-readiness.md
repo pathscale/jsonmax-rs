@@ -143,9 +143,11 @@ The two publishable crates remain `jsonmax` and `jsonmax-derive`; development
 crates remain unpublished. Tracing is integrated as `jsonmax::trace`, with one
 `trace` feature and benchmark feature forwarding, rather than an additional
 publishable crate. `cargo package -p jsonmax -p jsonmax-derive --offline`
-verified both unpacked packages. Both registry versions are currently `0.1.0`;
-this review PR is not a release, so new versions must be selected before
-publishing. The source review retained:
+verified both unpacked packages at `jsonmax` 0.1.1 and `jsonmax-derive` 0.1.0.
+Both registry versions are currently `0.1.0`. The public API diff is additive
+for `jsonmax`; its compatible patch version is bumped to 0.1.1. The derive
+crate's source and public API are unchanged, so its version stays 0.1.0. No
+crate is published from this PR. The source review retained:
 
 - `RowGroup` / `RowShape` compiler indexes, the repeated-item slot exception,
   per-element staging, scratch storage, borrowed rows API and endpoint facade.
@@ -257,7 +259,7 @@ native and VM routes, all available rivals, losses and machine details.
   remains open. Do not use the matched integration check above to claim a win
   against another implementation.
 
-Remaining release work: choose the next versions for both crates before
+Remaining release work: recheck that `jsonmax` 0.1.1 is still available before
 publishing, and resolve the comparison benches' sibling `ps-pikkr` dependency.
 The outgoing-history credential/private-path scan found no flagged lines in
 154 commit-message lines, 134 changed non-benchmark file versions, or 24

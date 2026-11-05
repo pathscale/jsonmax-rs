@@ -34,7 +34,8 @@
   route groups meet the 1% regression gate. Exact conditions and limitations
   are recorded in the [validation plan](plans/native-parser-and-release-readiness.md).
 - [x] Verify both publishable packages with
-  `cargo package -p jsonmax -p jsonmax-derive --offline`. Both unpacked package
+  `cargo package -p jsonmax -p jsonmax-derive --offline` after the version
+  changes: `jsonmax` 0.1.1 and `jsonmax-derive` 0.1.0. Both unpacked package
   sources compiled successfully.
 - [x] Run outgoing-history credential/private-path scans over commit messages,
   changed source/docs, and benchmark harness code. No lines were flagged in 134
@@ -43,14 +44,15 @@
   excluded and not read.
 - [x] Check remote GitHub Actions workflow paths on `master` and the existing
   PR branch. Neither contains workflow files; no remote CI run is claimed.
-- [x] Check registry versions: `jsonmax` and `jsonmax-derive` both have
-  `0.1.0` published. This review PR is not a release; select new versions
-  before publishing either crate.
+- [x] Check registry versions and public API compatibility. Both crates have
+  `0.1.0` published. The `jsonmax` API changes are additive and compatible, so
+  this PR sets it to `0.1.1`; the derive source/API is unchanged and remains
+  `0.1.0`. No crate is published from this PR.
 - [ ] Complete a current side-by-side report against all available rivals.
   The matched PR-head check establishes no more than a 1% instruction-count
   regression; it does not establish that JsonMax beats any rival.
-- [ ] Before publishing, select the next versions for both crates and resolve
-  the comparison benches' sibling dependency.
+- [ ] Before publishing, recheck that `jsonmax` 0.1.1 is still available and
+  resolve the comparison benches' sibling dependency.
 
 ## Parser architecture and release readiness
 
@@ -71,8 +73,8 @@
   views and adapters.
 - [x] Review outgoing source/docs, commit messages, and benchmark harness code
   for private disclosures; resolve remote ancestry. No GitHub Actions workflows
-  are present on `master` or the existing PR branch. Registry `0.1.0` versions
-  are recorded above; release version selection remains a pre-publish task.
+  are present on `master` or the existing PR branch. Registry versions and the
+  compatible `jsonmax` bump are recorded above; no crate is published here.
 - [x] Keep GitHub workflows manual by default. The current public repository has
   no workflow files and no remote CI run is claimed. Do not add benchmark
   content or comparative claims without current, equivalent evidence.
