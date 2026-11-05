@@ -8,12 +8,26 @@
 - [x] Carry remote row compiler/VM/scratch/facade paths, fixed scans, CPU and
   selection caches, strict skip probes/window/backoff, native skip memo, DOM
   scratch/duplicate tiers and tracing into the reorganized modules.
-- [ ] Run owner-controlled correctness, feature, formatting and lint gates in
-  [the reconciliation validation section](plans/native-parser-and-release-readiness.md#pending-owner-validation).
-  Integration performed source review only; no runtime success is claimed.
-- [ ] Measure both native and general routes against matched baselines and all
+- [x] Run `cargo test --workspace --all-features`, `cargo clippy
+  --workspace --all-targets --all-features`, and the `alloc` / `alloc,trace`
+  no-std feature checks. The first test run exposed trace counters being read
+  alongside parser tests that use the same global slots; move the counter test
+  to its own integration-test binary so its exact hit assertions are isolated.
+  The final workspace test run passes. Clippy exits successfully with existing
+  warnings.
+- [x] Build the paired harness and native benchmark executables and run both
+  exact differential checksum gates. Both match their expected digests; this
+  verifies correctness only, not relative speed.
+- [ ] Resolve workspace-wide `cargo fmt --check`. It reports formatting drift
+  across the large existing source tree; the modified trace source and new
+  integration test pass direct `rustfmt --check`. Avoid bulk formatting the
+  entire imported tree without a scoped formatting review.
+- [ ] Measure native and general routes against a matched baseline and all
   available rivals, including the 1% instruction regression gate. Review native
-  instruction results separately from the general report format.
+  instruction results separately from the general report format. The current
+  comparison baseline must be generated from PR #1's preserved source head in
+  the same machine and build target; do not infer performance from correctness
+  checks or historical figures.
 - [ ] Verify packages from a clean checkout and review the complete outgoing
   history for disclosures before any separately authorized publication. Resolve
   registry/version policy and the comparison benches' sibling dependency.

@@ -161,9 +161,11 @@ after adapting former crate paths. No build, test, formatter, benchmark,
 runtime or model call was run during integration. No benchmark corpus or
 results content was inspected or changed. No temporary patch files were used.
 
-### Pending owner validation
+### Owner validation commands
 
-Run serially from the repository root. These are pending commands, not results:
+Use the repository root and one target directory for owner-controlled checks.
+The correctness and feature checks below were run on 2026-11-05; the matched
+performance comparison remains open:
 
 ```sh
 cargo fmt --check
@@ -203,6 +205,29 @@ for baseline comparisons.
 The native instruction report also needs a matched native baseline review;
 the general `cmp.sh` does not consume the native report format. Report both
 native and VM routes, all available rivals, losses and machine details.
+
+#### Results and remaining gates
+
+- `cargo test --workspace --all-features` passes after moving the global trace
+  counter assertions into `crates/jsonmax/tests/trace.rs`, its own integration
+  test binary. Running those exact hit-count assertions beside parser tests was
+  racy because the trace counters are intentionally global and relaxed.
+- `cargo clippy --workspace --all-targets --all-features` exits successfully;
+  it reports warnings across the workspace.
+- `cargo check -p jsonmax --no-default-features --features alloc` and the same
+  command with `--features alloc,trace` both pass.
+- The harness release build, comparison benchmark `--no-run` build, and native
+  benchmark release build pass. Both differential checks match their expected
+  digests and exit successfully. These are correctness gates, not speed
+  measurements.
+- Workspace `cargo fmt --check` still fails with formatting diffs across the
+  tree. Direct `rustfmt --check` passes for the changed trace source and the
+  new trace integration test; the trace source at PR head `21197af` also failed
+  direct formatting, so its cleanup is not newly introduced by this test fix.
+- Matched performance comparison is still required. Compare the preserved PR
+  head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` with the integrated result on
+  the same machine and target. Do not treat the differential digests or build
+  success as evidence of no performance regression.
 
 Publication remains gated on clean-checkout package verification, registry
 availability/version policy, feature checks and a complete outgoing-history

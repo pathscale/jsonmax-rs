@@ -18,7 +18,7 @@
 //! report can subtract it.
 #![forbid(unsafe_op_in_unsafe_fn)]
 
-pub use crate::{span, end};
+pub use crate::{end, span};
 
 /// Identifier of one trace site: an index into the static slot table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -149,7 +149,7 @@ pub fn now() -> u64 {
 
 #[cfg(feature = "trace")]
 mod imp {
-    use super::{now, Site, SITES};
+    use super::{SITES, Site, now};
     use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
     #[allow(clippy::declare_interior_mutable_const)]
@@ -169,7 +169,11 @@ mod imp {
     pub fn enter(site: Site) -> Guard {
         let outer_child = CHILD.load(Relaxed);
         CHILD.store(0, Relaxed);
-        Guard { site: site.0, start: now(), outer_child }
+        Guard {
+            site: site.0,
+            start: now(),
+            outer_child,
+        }
     }
 
     impl Drop for Guard {
@@ -194,7 +198,10 @@ mod imp {
     }
 
     pub fn read(site: Site) -> (u64, u64) {
-        (TICKS[site.0 as usize].load(Relaxed), HITS[site.0 as usize].load(Relaxed))
+        (
+            TICKS[site.0 as usize].load(Relaxed),
+            HITS[site.0 as usize].load(Relaxed),
+        )
     }
 }
 
@@ -249,7 +256,6 @@ pub fn calibrate() -> u64 {
     ticks / hits.max(1)
 }
 
-
 /// `span!(NAME)` opens a scoped span for `crate::trace::site::NAME`;
 /// `span!(@ expr)` takes any `Site` expression. Bind the result:
 /// `let _t = crate::trace::span!(NAME);`. With the feature off it expands to a
@@ -299,23 +305,6 @@ macro_rules! end {
 #[cfg(all(test, feature = "trace"))]
 mod tests {
     use super::*;
-
-    #[test]
-    fn spans_count_hits_and_nested_time_is_exclusive() {
-        reset();
-        for _ in 0..3 {
-            let _outer = span!(BENCH_ROUTE);
-            let _inner = span!(CURSOR_REFILL);
-        }
-        let early = span!(SCAN_TAIL);
-        end!(early);
-        assert_eq!(read(site::BENCH_ROUTE).1, 3);
-        assert_eq!(read(site::CURSOR_REFILL).1, 3);
-        assert_eq!(read(site::SCAN_TAIL).1, 1);
-        assert_eq!(read(site::SCAN_WHITESPACE), (0, 0));
-        reset();
-        assert_eq!(read(site::BENCH_ROUTE), (0, 0));
-    }
 
     #[test]
     fn names_cover_every_site() {
