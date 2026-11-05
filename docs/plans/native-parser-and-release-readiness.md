@@ -129,16 +129,23 @@ shortcuts, and speculative fixes.
 
 ## Local reconciliation status (2026-11-05)
 
-Canonical local `master` now descends from the existing PR #1 head,
-`21197af0ab0bf2bb6e753793363f63f1830f5c4c`. Its 18 commits after `845b38e`
-remain intact. The publication split and both local harness fixes were replayed
-as individual commits, followed by the existing planning documentation. No push
-or PR change is part of this reconciliation.
+Canonical local `master` now descends from current `origin/master`
+(`58eff09beb9740cc93ecfac6e07e28b1e94d1783`) and retains the existing PR #1
+head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` in its ancestry. The 26 commits
+ahead of `origin/master` remain individual commits; no squash was used. The
+rebased source tree matches the pre-rebase validated source tree
+(`c5a251dcee2e99091989ed80c286d1ef7f692e80`). A stale conflict marker in the
+row-groups integration test was removed; its focused target passes 12 tests. No
+production source changed after the recorded full correctness and matched
+regression gates.
 
 The two publishable crates remain `jsonmax` and `jsonmax-derive`; development
 crates remain unpublished. Tracing is integrated as `jsonmax::trace`, with one
 `trace` feature and benchmark feature forwarding, rather than an additional
-publishable crate. The source review retained:
+publishable crate. `cargo package -p jsonmax -p jsonmax-derive --offline`
+verified both unpacked packages. Both registry versions are currently `0.1.0`;
+this review PR is not a release, so new versions must be selected before
+publishing. The source review retained:
 
 - `RowGroup` / `RowShape` compiler indexes, the repeated-item slot exception,
   per-element staging, scratch storage, borrowed rows API and endpoint facade.
@@ -158,8 +165,9 @@ publishable crate. The source review retained:
 This is source/history reconciliation, not evidence of runtime equivalence or
 speed. Source comparisons against the remote implementations were reviewed
 after adapting former crate paths. No build, test, formatter, benchmark,
-runtime or model call was run during integration. No benchmark corpus or
-results content was inspected or changed. No temporary patch files were used.
+runtime or model call was run during integration. No benchmark case, corpus, or
+raw result file was inspected or changed during source reconciliation. The owner
+ran the checks below afterward. No temporary patch files were used.
 
 ### Owner validation commands
 
@@ -214,6 +222,9 @@ native and VM routes, all available rivals, losses and machine details.
   counter assertions into `crates/jsonmax/tests/trace.rs`, its own integration
   test binary. Running those exact hit-count assertions beside parser tests was
   racy because the trace counters are intentionally global and relaxed.
+- After the rebase, the row-groups integration target passed all 12 tests. The
+  test file was reconciled with the pre-rebase validated tree and stale merge
+  marker text introduced during conflict resolution was removed.
 - `cargo clippy --workspace --all-targets --all-features` exits successfully;
   it reports warnings across the workspace.
 - `cargo check -p jsonmax --no-default-features --features alloc` and the same
@@ -228,7 +239,9 @@ native and VM routes, all available rivals, losses and machine details.
   direct formatting, so its cleanup is not newly introduced by this test fix.
 - A matched integration regression comparison was run between preserved PR
   head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` and the integrated source
-  tree at commit `6867b9389fd7cb73a6adef609738f0e33b3d75d3`. Both sides ran on
+  tree at commit `6867b9389fd7cb73a6adef609738f0e33b3d75d3`. The final rebased
+  production source and manifests are byte-identical to that measured source.
+  Both sides ran on
   macOS 26.5, arm64 Mac16,5 with 16 cores, using the same repository `target/`
   and local `ps-rusty_alloc` 2.3.4 source. The general instruction check used
   six corpora, five classes, and 128 iterations per sample for 30 matched
@@ -244,10 +257,13 @@ native and VM routes, all available rivals, losses and machine details.
   remains open. Do not use the matched integration check above to claim a win
   against another implementation.
 
-Publication remains gated on clean-checkout package verification, registry
-availability/version policy, feature checks and a complete outgoing-history
-disclosure review, including the retained remote ancestry. Manifest/source
-inspection alone does not establish package or release readiness. Excluded
-comparison benches still require the sibling `ps-pikkr` checkout. Future native
-tape, ownership/proof and adapter requirements above remain open; reconciliation
+Remaining release work: choose the next versions for both crates before
+publishing, and resolve the comparison benches' sibling `ps-pikkr` dependency.
+The outgoing-history credential/private-path scan found no flagged lines in
+154 commit-message lines, 134 changed non-benchmark file versions, or 24
+benchmark harness-code versions. Benchmark cases, corpora, matrices, result
+files and native fixtures were excluded from the scan and were not read. The
+remote repository has no GitHub Actions workflow files on `master` or the
+existing PR branch; no remote CI run is claimed. Future native tape,
+ownership/proof and adapter requirements above remain open; reconciliation
 does not mark them implemented.
