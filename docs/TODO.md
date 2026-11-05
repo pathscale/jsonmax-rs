@@ -38,10 +38,9 @@
   changes: `jsonmax` 0.1.1 and `jsonmax-derive` 0.1.0. Both unpacked package
   sources compiled successfully.
 - [x] Run outgoing-history credential/private-path scans over commit messages,
-  changed source/docs, and benchmark harness code. No lines were flagged in 134
-  non-benchmark file versions, 24 harness-code versions, or 154 commit-message
-  lines. Benchmark case, corpus, matrix, result, and native-fixture files were
-  excluded and not read.
+  changed source/docs, and benchmark harness code. No lines were flagged.
+  Benchmark case, corpus, matrix, result, and native-fixture files were excluded
+  and not read.
 - [x] Check remote GitHub Actions workflow paths on `master` and the existing
   PR branch. Neither contains workflow files; no remote CI run is claimed.
 - [x] Check registry versions and public API compatibility. Both crates have

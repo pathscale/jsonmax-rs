@@ -262,10 +262,10 @@ native and VM routes, all available rivals, losses and machine details.
 Remaining release work: recheck that `jsonmax` 0.1.1 is still available before
 publishing, and resolve the comparison benches' sibling `ps-pikkr` dependency.
 The outgoing-history credential/private-path scan found no flagged lines in
-154 commit-message lines, 134 changed non-benchmark file versions, or 24
-benchmark harness-code versions. Benchmark cases, corpora, matrices, result
-files and native fixtures were excluded from the scan and were not read. The
-remote repository has no GitHub Actions workflow files on `master` or the
-existing PR branch; no remote CI run is claimed. Future native tape,
+commit messages, changed non-benchmark source/docs, or benchmark harness code.
+Benchmark cases, corpora, matrices, result files and native fixtures were
+excluded from the scan and were not read. The remote repository has no GitHub
+Actions workflow files on `master` or the existing PR branch; no remote CI run
+is claimed. Future native tape,
 ownership/proof and adapter requirements above remain open; reconciliation
 does not mark them implemented.
