@@ -20,9 +20,10 @@ fn positive<T: std::str::FromStr + PartialOrd + Default>(value: &str, name: &str
     Ok(parsed)
 }
 
-fn run(binary: &str, corpora: &str, data: Option<&str>, samples: Option<&str>) -> Result<(Rates, Bytes)> {
+fn run(binary: &str, corpora: &str, data: Option<&str>, samples: Option<&str>, filter: Option<&str>) -> Result<(Rates, Bytes)> {
     let mut command = Command::new(binary);
     command.env("CORPORA", corpora).env_remove("FILTER");
+    if let Some(filter) = filter { command.env("FILTER", filter); }
     if let Some(path) = data { command.env("JMAX_DATA", path); }
     if let Some(count) = samples { command.env("SAMPLES", count); }
     let output = command.output()?;
@@ -41,7 +42,7 @@ fn run(binary: &str, corpora: &str, data: Option<&str>, samples: Option<&str>) -
         let key = (fields[0].to_owned(), fields[1].to_owned(), fields[2].to_owned());
         let size = fields[3].parse::<usize>().map_err(|_| "invalid byte denominator")?;
         let numbers = [3usize, 4, 5, 6, 9, 10, 11, 12, 13].map(|i| fields[i].parse::<f64>());
-        if numbers.iter().any(Result::is_err) { return Err("malformed numeric measurement field".into()); }
+        if numbers.iter().any(|number| number.is_err()) { return Err("malformed numeric measurement field".into()); }
         let values: Vec<f64> = numbers.into_iter().map(|n| n.unwrap()).collect();
         if size == 0 || values.iter().any(|n| !n.is_finite()) || values[1..4].iter().any(|n| *n <= 0.0)
             || values[4..].iter().any(|n| *n < 0.0) || values[8] != values[6] + values[7] {
@@ -62,8 +63,8 @@ fn median(values: &mut [f64]) -> f64 {
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.len() < 8 || args.len() > 10 {
-        return Err("usage: paired BASELINE_PATH BASELINE_ID CANDIDATE_PATH CANDIDATE_ID CONTRACT CORPORA_CSV BLOCKS MIN_RATIO [DATA_DIR] [SAMPLES]".into());
+    if args.len() < 8 || args.len() > 11 {
+        return Err("usage: paired BASELINE_PATH BASELINE_ID CANDIDATE_PATH CANDIDATE_ID CONTRACT CORPORA_CSV BLOCKS MIN_RATIO [DATA_DIR] [SAMPLES] [FILTER]".into());
     }
     let baseline = required(&args, 0, "baseline path")?;
     let baseline_id = required(&args, 1, "baseline identity")?;
@@ -84,6 +85,10 @@ fn main() -> Result<()> {
     }
     let data = args.get(8).map(String::as_str);
     let samples = args.get(9).map(String::as_str);
+    let filter = args.get(10).map(String::as_str);
+    if filter.is_some_and(|value| value.split(',').any(|pattern| pattern.is_empty())) {
+        return Err("filter patterns must be nonempty".into());
+    }
     if let Some(count) = samples { positive::<usize>(count, "sample count")?; }
 
     let mut reference_keys: Option<BTreeSet<Key>> = None;
@@ -95,10 +100,10 @@ fn main() -> Result<()> {
         let start = observed;
         let end = if start == 0 { blocks } else { start + 1 };
         while observed < end {
-            let (b0, b0_bytes) = run(baseline, corpora_arg, data, samples)?;
-            let (c0, c0_bytes) = run(candidate, corpora_arg, data, samples)?;
-            let (c1, c1_bytes) = run(candidate, corpora_arg, data, samples)?;
-            let (b1, b1_bytes) = run(baseline, corpora_arg, data, samples)?;
+            let (b0, b0_bytes) = run(baseline, corpora_arg, data, samples, filter)?;
+            let (c0, c0_bytes) = run(candidate, corpora_arg, data, samples, filter)?;
+            let (c1, c1_bytes) = run(candidate, corpora_arg, data, samples, filter)?;
+            let (b1, b1_bytes) = run(baseline, corpora_arg, data, samples, filter)?;
             let keys: BTreeSet<_> = b0.keys().cloned().collect();
             let expected = reference_keys.get_or_insert_with(|| keys.clone());
             if &keys != expected || c0.keys().cloned().collect::<BTreeSet<_>>() != *expected
