@@ -22,12 +22,14 @@
   across the large existing source tree; the modified trace source and new
   integration test pass direct `rustfmt --check`. Avoid bulk formatting the
   entire imported tree without a scoped formatting review.
-- [ ] Measure native and general routes against a matched baseline and all
-  available rivals, including the 1% instruction regression gate. Review native
-  instruction results separately from the general report format. The current
-  comparison baseline must be generated from PR #1's preserved source head in
-  the same machine and build target; do not infer performance from correctness
-  checks or historical figures.
+- [x] Compare the integrated source with PR #1's preserved head on the same
+  machine and target. The general instruction gate covers 30 matched jmax
+  rows; the separate native report covers 10 VM and 10 native rows. All three
+  route groups meet the 1% regression gate. Exact conditions and limitations
+  are recorded in the [validation plan](plans/native-parser-and-release-readiness.md).
+- [ ] Complete a current side-by-side report against all available rivals.
+  The matched PR-head check establishes no more than a 1% instruction-count
+  regression; it does not establish that JsonMax beats any rival.
 - [ ] Verify packages from a clean checkout and review the complete outgoing
   history for disclosures before any separately authorized publication. Resolve
   registry/version policy and the comparison benches' sibling dependency.

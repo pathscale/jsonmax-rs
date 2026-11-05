@@ -163,21 +163,23 @@ results content was inspected or changed. No temporary patch files were used.
 
 ### Owner validation commands
 
-Use the repository root and one target directory for owner-controlled checks.
-The correctness and feature checks below were run on 2026-11-05; the matched
-performance comparison remains open:
+Use the repository root target directory for owner-controlled checks. The
+correctness and feature checks below were run on 2026-11-05; matched
+integration regression checks also passed. A complete comparison against all
+available rivals remains open.
 
 ```sh
+export CARGO_TARGET_DIR="$PWD/target"
 cargo fmt --check
 cargo test --workspace --all-features
 cargo clippy --workspace --all-targets --all-features
 cargo check -p jsonmax --no-default-features --features alloc
 cargo check -p jsonmax --no-default-features --features alloc,trace
-cargo build --manifest-path bench/harness/Cargo.toml --release --features trace -j 4
-(cd bench/harness && DIFF=30000 ./target/release/jmax-harness | md5sum)
-(cd bench/harness && NODUP=1 DIFF=3000 ./target/release/jmax-harness | md5sum)
-cargo bench --manifest-path bench/harness/Cargo.toml --bench compare --features trace --no-run -j 4
-cargo build --manifest-path bench/native/Cargo.toml --release --features trace -j 4
+CARGO_TARGET_DIR="$PWD/target" cargo build --manifest-path bench/harness/Cargo.toml --release --features trace -j 4
+(cd bench/harness && DIFF=30000 "$CARGO_TARGET_DIR/release/jmax-harness" | md5sum)
+(cd bench/harness && NODUP=1 DIFF=3000 "$CARGO_TARGET_DIR/release/jmax-harness" | md5sum)
+CARGO_TARGET_DIR="$PWD/target" cargo bench --manifest-path bench/harness/Cargo.toml --bench compare --features trace --no-run -j 4
+CARGO_TARGET_DIR="$PWD/target" cargo build --manifest-path bench/native/Cargo.toml --release --features trace -j 4
 ```
 
 The existing differential gates expect respectively
@@ -190,16 +192,16 @@ For performance, use a quiet machine with no competing build. Keep outputs
 under ignored target directories and compare with a matched baseline supplied
 by the owner; do not substitute historical figures from commit messages:
 
-```sh
-bench/icount/icount.sh bench/icount/target/reconciled.tsv
-bench/icount/cmp.sh "$JSONMAX_ICOUNT_BASELINE" bench/icount/target/reconciled.tsv
-GENERAL_CORPORA='twitter citm_catalog canada github_events apache_builds endpoint_batch' bench/native/icount.sh 200 > bench/native/target/reconciled.tsv
-bench/compare.sh 1
-cargo build --manifest-path bench/native/Cargo.toml --release --bin time -j 4
-(cd bench/native && ./target/release/time > target/reconciled-time.tsv && ./tables.sh target/reconciled-time.tsv)
-```
+Run `bench/icount/icount.sh` and `bench/native/icount.sh` only after their
+standalone runners have been given the repository-root `CARGO_TARGET_DIR`; do
+not allow them to create `bench/*/target` directories. Save any measurement
+outputs under the root `target/` and remove them after the comparison.
 
-`JSONMAX_ICOUNT_BASELINE` must identify a comparable owner-provided baseline.
+`JSONMAX_ICOUNT_BASELINE` should identify a comparable owner-provided baseline.
+For an integration-only regression check without that artifact, the preserved
+PR head can serve as the baseline if both sides use the same toolchain, target,
+machine, corpus set, iteration count, and dependency source. This establishes
+only the delta from that PR head, not performance versus other libraries.
 Performance commands build without the tracing feature; keep tracing disabled
 for baseline comparisons.
 The native instruction report also needs a matched native baseline review;
@@ -224,10 +226,23 @@ native and VM routes, all available rivals, losses and machine details.
   tree. Direct `rustfmt --check` passes for the changed trace source and the
   new trace integration test; the trace source at PR head `21197af` also failed
   direct formatting, so its cleanup is not newly introduced by this test fix.
-- Matched performance comparison is still required. Compare the preserved PR
-  head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` with the integrated result on
-  the same machine and target. Do not treat the differential digests or build
-  success as evidence of no performance regression.
+- A matched integration regression comparison was run between preserved PR
+  head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` and the integrated source
+  tree at commit `6867b9389fd7cb73a6adef609738f0e33b3d75d3`. Both sides ran on
+  macOS 26.5, arm64 Mac16,5 with 16 cores, using the same repository `target/`
+  and local `ps-rusty_alloc` 2.3.4 source. The general instruction check used
+  six corpora, five classes, and 128 iterations per sample for 30 matched
+  jmax rows. `bench/icount/cmp.sh` exited successfully with its 1% gate; the
+  worst jmax delta was +0.96%. A separate 200-iteration check covered the four
+  native fixture cases and six general corpora for both VM and native routes
+  (10 rows each); worst deltas were +0.86% VM and +0.93% native. The benchmark
+  samples were summarized by the comparison scripts and temporary result
+  files outside the repository were removed. This is evidence that the local
+  integration stayed within 1% of PR #1, not evidence that either route beats
+  a rival or that the complete original PR is faster than its base.
+- A complete current side-by-side comparison against every available rival
+  remains open. Do not use the matched integration check above to claim a win
+  against another implementation.
 
 Publication remains gated on clean-checkout package verification, registry
 availability/version policy, feature checks and a complete outgoing-history
