@@ -1,16 +1,8 @@
 //! Row groups stage per-element slots and publish them only after strict EOF.
 
-<<<<<<<< HEAD:crates/jsonmax/tests/row_groups.rs
-use jsonmax::{abi as jmax_abi, schema_compile as jmax_schema_compile};
-use jsonmax::{schema_ir as jmax_schema_ir, schema_vm as jmax_schema_vm};
-use jmax_abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
-use jmax_schema_compile::{CompilerOptions, RowShape, ValidatedProgram};
-use jmax_schema_ir::{
-========
 use jsonmax::abi::number::{Decimal128, DecimalPolicy, NumericPolicy};
 use jsonmax::schema_compile::{CompilerOptions, RowShape, ValidatedProgram};
 use jsonmax::schema_ir::{
->>>>>>>> a497bc8 (Publish as two crates: jsonmax and jsonmax-derive):crates/jsonmax/tests/schema_vm__row_groups.rs
     ArrayShape, DecimalConstraints, FieldId, ObjectShape, Property, ScalarConstraints, Schema,
     SchemaId, TypeId, TypeNode, ValueKind,
 };
