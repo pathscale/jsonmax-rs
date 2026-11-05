@@ -55,6 +55,8 @@ using historical notes as authority.
    bounds checks.
 3. Separate mutable construction from frozen shared documents. Account for
    retained backing allocations when a small view pins a large buffer.
+   For incremental input, state which incomplete tokens or chunk joins require
+   copying; do not describe those exceptions as a zero-copy complete-body path.
 4. If a compact native tape is introduced, specify record and extension-word
    layouts, overflow behavior, and navigation before implementation. Keep any
    legacy document representation as an explicit conversion; do not silently
@@ -94,6 +96,11 @@ using historical notes as authority.
 5. **Encoding and adapters:** consume validated native/borrowed views; then
    update transport adapters while preserving framing, cancellation,
    backpressure, ordering, and owner lifetimes.
+   Validate the complete HTTP body and reject truncation before publishing a
+   strict result. Bind transport-completeness and UTF-8 evidence to the exact
+   immutable owner/range; a text flag alone is insufficient. Preserve WebSocket
+   fragmentation and protocol compatibility. Provide per-consumer rollback
+   while adapters are introduced.
 6. **Integration and evidence:** review each changed public contract, feature
    combination, error path, and adapter boundary. Any later performance claim
    requires matched operations, equivalent validation, recorded environment,

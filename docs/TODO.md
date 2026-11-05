@@ -1,5 +1,15 @@
 # TODO
 
+## Residual repository hygiene review
+
+- [ ] Revalidate whether `all_crates_marker` is unused, and review Cargo.lock and
+  `.cargo` handling against current policy. Separate useful invariants from
+  frozen worker contracts; clarify facade/reference-path ownership versus
+  runtime-neutral core and Nagoya integration boundaries. These are review
+  questions, not confirmed defects.
+- [ ] Decide allocator adoption and the owner/scope of durable ps-pikkr
+  integration before treating either as an accepted dependency.
+
 ## Reconciled master validation
 
 - [x] Retain PR #1 head `21197af0ab0bf2bb6e753793363f63f1830f5c4c` as
