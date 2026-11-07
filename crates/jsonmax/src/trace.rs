@@ -167,6 +167,13 @@ mod imp {
 
     #[inline(always)]
     pub fn enter(site: Site) -> Guard {
+        if site.0 as usize >= SITES {
+            return Guard {
+                site: site.0,
+                start: 0,
+                outer_child: 0,
+            };
+        }
         let outer_child = CHILD.load(Relaxed);
         CHILD.store(0, Relaxed);
         Guard {
@@ -179,10 +186,13 @@ mod imp {
     impl Drop for Guard {
         #[inline(always)]
         fn drop(&mut self) {
+            let i = self.site as usize;
+            if i >= SITES {
+                return;
+            }
             let total = now().wrapping_sub(self.start);
             let child = CHILD.load(Relaxed);
             let own = total.saturating_sub(child);
-            let i = self.site as usize;
             TICKS[i].store(TICKS[i].load(Relaxed).wrapping_add(own), Relaxed);
             HITS[i].store(HITS[i].load(Relaxed).wrapping_add(1), Relaxed);
             CHILD.store(self.outer_child.wrapping_add(total), Relaxed);
@@ -198,10 +208,11 @@ mod imp {
     }
 
     pub fn read(site: Site) -> (u64, u64) {
-        (
-            TICKS[site.0 as usize].load(Relaxed),
-            HITS[site.0 as usize].load(Relaxed),
-        )
+        let i = site.0 as usize;
+        if i >= SITES {
+            return (0, 0);
+        }
+        (TICKS[i].load(Relaxed), HITS[i].load(Relaxed))
     }
 }
 
@@ -226,6 +237,7 @@ pub use imp::Guard;
 pub const ENABLED: bool = cfg!(feature = "trace");
 
 /// Opens a span for `site`; bind the result: `let _t = crate::trace::span!(SITE);`.
+/// An out-of-range site ID yields an inert guard.
 #[inline(always)]
 pub fn enter(site: Site) -> Guard {
     imp::enter(site)
@@ -237,6 +249,7 @@ pub fn reset() {
 }
 
 /// Self ticks and hits recorded for `site` since the last reset.
+/// An out-of-range site ID returns `(0, 0)`.
 pub fn read(site: Site) -> (u64, u64) {
     imp::read(site)
 }

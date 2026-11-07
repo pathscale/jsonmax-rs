@@ -8,10 +8,16 @@ fn spans_count_hits_and_reset() {
         let _outer = jsonmax::span!(@ site::BENCH_ROUTE);
         let _inner = jsonmax::span!(@ site::CURSOR_REFILL);
     }
+    for invalid in [trace::Site(trace::SITES as u16), trace::Site(u16::MAX)] {
+        let _outer = jsonmax::span!(@ site::BENCH_ROUTE);
+        let invalid_span = jsonmax::span!(@ invalid);
+        jsonmax::end!(invalid_span);
+        assert_eq!(trace::read(invalid), (0, 0));
+    }
     let early = jsonmax::span!(@ site::SCAN_TAIL);
     jsonmax::end!(early);
 
-    assert_eq!(trace::read(site::BENCH_ROUTE).1, 3);
+    assert_eq!(trace::read(site::BENCH_ROUTE).1, 5);
     assert_eq!(trace::read(site::CURSOR_REFILL).1, 3);
     assert_eq!(trace::read(site::SCAN_TAIL).1, 1);
 
