@@ -427,6 +427,10 @@ impl Engine<'_, '_, '_> {
     /// exact engine runs; only a resource failure is an error here.
     fn fast_leaf_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
         let _t = crate::trace::span!(VM_ROWS);
+        #[cfg(test)]
+        if tests::force_exact() {
+            return Ok(None);
+        }
         let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
             return Ok(None);
         };
@@ -487,8 +491,7 @@ impl Engine<'_, '_, '_> {
             self.context.limits.syntax,
             &mut tight_budget,
             &mut block.values,
-        )?
-        else {
+        ) else {
             return Ok(None);
         };
         self.cursor.advance(span.len);
@@ -1745,8 +1748,7 @@ impl<'a> FixedScan<'a> {
                         limits,
                         &mut ctx.budget,
                         &mut block.values,
-                    )
-                    .ok()??;
+                    )?;
                     *cell = SlotValue::RawSpan(span);
                     (at + span.len as usize, 0)
                 }
@@ -2377,9 +2379,9 @@ fn ascii_digits(mut digits: &[u8]) -> u64 {
     value
 }
 
-/// `fixed_pair_array` that also appends every decimal to `rows`. A miss
-/// (`Ok(None)`) leaves `rows` as it was; `Err` is a resource failure the
-/// exact engine would report too.
+/// `fixed_pair_array` that also appends every decimal to `rows`. This
+/// recognizer uses only already-charged capacity; a miss leaves `rows` and
+/// `budget` as they were so the exact engine owns any resource error.
 fn fixed_pair_rows(
     raw: &[u8],
     start: u32,
@@ -2390,14 +2392,14 @@ fn fixed_pair_rows(
     limits: Limits,
     budget: &mut VmBudget,
     rows: &mut Vec<SlotValue>,
-) -> Result<Option<Span32>> {
+) -> Option<Span32> {
     let len0 = rows.len();
-    let cap0 = rows.capacity();
     let mut at = start as usize;
     let miss = |rows: &mut Vec<SlotValue>| {
         rows.truncate(len0);
-        Ok(None)
+        None
     };
+    let mut tight_budget = budget.clone();
     if raw.get(at) != Some(&b'[') {
         return miss(rows);
     }
@@ -2443,7 +2445,9 @@ fn fixed_pair_rows(
                 return miss(rows);
             }
             at = end + 1;
-            rows.try_reserve(2).map_err(|_| resource(at as u32))?;
+            if rows.capacity() - rows.len() < 2 {
+                return miss(rows);
+            }
             rows.push(first);
             rows.push(second);
             count += 1;
@@ -2459,16 +2463,14 @@ fn fixed_pair_rows(
     if constraints::check_count(outer, count, at as u32).is_err() {
         return miss(rows);
     }
-    let growth = rows
-        .capacity()
-        .checked_sub(cap0)
-        .and_then(|n| n.checked_mul(core::mem::size_of::<SlotValue>()))
-        .and_then(|n| u32::try_from(n).ok())
-        .ok_or_else(|| resource(start))?;
-    budget.retain(growth, start)?;
+    at += 1;
+    let span = match u32::try_from(at - start as usize) {
+        Ok(len) => Span32::new(start, len),
+        Err(_) => return miss(rows),
+    };
     // The exact engine also pays one step for each staged value.
     let staged = u64::from(count) * 2;
-    if budget
+    if tight_budget
         .charge(
             scalar_work + staged + if count == 0 { 1 } else { u64::from(count) * 5 },
             start,
@@ -2477,11 +2479,8 @@ fn fixed_pair_rows(
     {
         return miss(rows);
     }
-    at += 1;
-    match u32::try_from(at - start as usize) {
-        Ok(len) => Ok(Some(Span32::new(start, len))),
-        Err(_) => miss(rows),
-    }
+    *budget = tight_budget;
+    Some(span)
 }
 
 /// A unit-tick decimal whose precision including scale padding fits i128.
@@ -2940,12 +2939,18 @@ fn fast_root_object(
         _ => None,
     };
     let mut written = 0u64;
-    let steps_left = ctx
-        .as_ref()
-        .map_or_else(|| context.budget.steps_left(), |c| c.budget.steps_left());
     let accepted = match scan.object(0, &mut context.slots, 0, &mut written, ctx.as_mut()) {
-        // One step for the root value token, then the object itself.
-        Some((end, work)) if end == raw.len() && work < steps_left => Some(work + 1),
+        // Check object work against the budget remaining after speculative row
+        // staging. A miss must still reach the rollback below.
+        Some((end, work))
+            if end == raw.len()
+                && work
+                    < ctx
+                        .as_ref()
+                        .map_or_else(|| context.budget.steps_left(), |c| c.budget.steps_left()) =>
+        {
+            Some(work + 1)
+        }
         _ => None,
     };
     match accepted {
@@ -3733,8 +3738,8 @@ pub fn extract_validated_borrowed<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
     use crate::abi::schema::{SchemaFieldIr, SchemaId, SchemaIr};
+    use alloc::vec;
 
     use core::cell::Cell;
     std::thread_local! {
@@ -3752,7 +3757,9 @@ mod tests {
         decimal_exponent: bool,
         object_count_bound: bool,
     ) -> Result<(ValidatedProgram, Selection)> {
-        use crate::schema_ir::{ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode};
+        use crate::schema_ir::{
+            ObjectShape, Property, ScalarConstraints, Schema, TypeId, TypeNode,
+        };
         let decimal = || {
             let mut c = ScalarConstraints::new(ValueKind::Decimal);
             c.decimal = Some(crate::schema_ir::DecimalConstraints {
@@ -4081,7 +4088,10 @@ mod tests {
             ],
         };
         let resolved = crate::schema_ir::resolve::resolve(schema, Default::default())?;
-        crate::schema_compile::compile(&resolved, &crate::schema_compile::CompilerOptions::default())
+        crate::schema_compile::compile(
+            &resolved,
+            &crate::schema_compile::CompilerOptions::default(),
+        )
     }
 
     fn run_rows(
@@ -4249,16 +4259,113 @@ mod tests {
             ],
         };
         let resolved = crate::schema_ir::resolve::resolve(schema, Default::default())?;
-        crate::schema_compile::compile(&resolved, &crate::schema_compile::CompilerOptions::default())
+        crate::schema_compile::compile(
+            &resolved,
+            &crate::schema_compile::CompilerOptions::default(),
+        )
+    }
+
+    #[test]
+    fn pair_rows_capacity_miss_rolls_back_prefix_and_budget() -> Result<()> {
+        let program = depth_rows_program()?;
+        let outer_state = program
+            .slot_for_field(FieldId(3))
+            .expect("field 3 row slot")
+            .state;
+        let outer = program.state(outer_state).expect("outer row array state");
+        let StateKind::Array { items: pair_id } = outer.kind else {
+            panic!("outer row array state shape");
+        };
+        let pair = program.state(pair_id).expect("pair array state");
+        let StateKind::Array { items: decimal_id } = pair.kind else {
+            panic!("pair array state shape");
+        };
+        let decimal = program
+            .state(decimal_id)
+            .and_then(|state| state.constraints.decimal.as_ref())
+            .expect("decimal constraints");
+
+        let mut rows = Vec::with_capacity(3);
+        let capacity = rows.capacity();
+        assert!(capacity >= 3);
+        rows.resize(capacity - 2, SlotValue::Empty);
+        assert!(!rows.is_empty());
+        let entry = rows.clone();
+        let mut budget = VmBudget::new(VmLimits::default());
+        let entry_steps = budget.steps_left();
+        let entry_scratch = budget.scratch_bytes();
+
+        let span = fixed_pair_rows(
+            br#"[["1","2"],["3","4"]]"#,
+            0,
+            decimal,
+            &pair.constraints,
+            &outer.constraints,
+            NumericPolicy::strict_default(),
+            VmLimits::default().syntax,
+            &mut budget,
+            &mut rows,
+        );
+
+        assert!(span.is_none());
+        assert_eq!(rows, entry);
+        assert_eq!(rows.capacity(), capacity);
+        assert_eq!(budget.steps_left(), entry_steps);
+        assert_eq!(budget.scratch_bytes(), entry_scratch);
+        Ok(())
+    }
+
+    #[test]
+    fn pair_rows_scratch_refusal_matches_exact_after_warm_prefix() -> Result<()> {
+        let program = depth_rows_program()?;
+        let warm = br#" {"e":"d","E":1,"b":[["1","1"]],"a":[]}"#;
+        let input = br#" {"e":"d","E":1,"b":[["1","1"],["2","2"],["3","3"], ["4","4"]],"a":[]}"#;
+        let base = VmLimits::default();
+        let mut found_growth_failure = false;
+
+        for max_scratch_bytes in (0..=2_048u32).step_by(8) {
+            let limits = VmLimits {
+                max_scratch_bytes,
+                ..base
+            };
+            let mut exact = ValidationScratch::default();
+            let mut ordinary = ValidationScratch::default();
+            assert!(run_rows(&program, warm, base, &mut exact, true).is_ok());
+            assert!(run_rows(&program, warm, base, &mut ordinary, true).is_ok());
+            assert_eq!(
+                exact.rows[0].values.capacity(),
+                ordinary.rows[0].values.capacity()
+            );
+
+            let want = run_rows(&program, input, limits, &mut exact, true);
+            let got = run_rows(&program, input, limits, &mut ordinary, false);
+            assert_eq!(got, want, "scratch limit {max_scratch_bytes}");
+            if let Err((ErrorCode::BudgetExhausted, offset, field)) = &want {
+                if *offset > 0 {
+                    assert_eq!(*field, 3);
+                    found_growth_failure = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(found_growth_failure);
+        Ok(())
     }
 
     #[test]
     fn root_rows_fast_path_matches_the_exact_engine_at_every_budget() -> Result<()> {
         let program = depth_rows_program()?;
-        let inputs: [&[u8]; 17] = [
+        let inputs: [&[u8]; 19] = [
             br#"{"e":"depthUpdate","E":123,"b":[],"a":[]}"#,
             br#"{"e":"depthUpdate","E":123,"b":[["0.0024","10"]],"a":[["0.0026","0.5"],["1","2"]]}"#,
             br#"{"a":[["1","2"]],"b":[["3.25","4"],["5","6"]],"E":9,"e":"x"}"#,
+            // Leading whitespace bypasses the root-object scanner, allowing
+            // the array replay to exercise the leaf-row recognizer.
+            br#" {"e":"d","E":1,"b":[["1","1"],["2","2"]],"a":[]}"#,
+            // The pair recognizer stages a valid prefix, then refuses at the
+            // whitespace miss and leaves exact replay to report any error.
+            br#" {"e":"d","E":1,"b":[["1","1"],["2","2"], ["3","3"]],"a":[]}"#,
             br#"{"e":"d","E":1,"b":[["1","1"],["2","2"],["3","3"],["4","4"]],"a":[]}"#,
             // Over the array count bound.
             br#"{"e":"d","E":1,"b":[["1","1"],["2","2"],["3","3"],["4","4"],["5","5"]],"a":[]}"#,
