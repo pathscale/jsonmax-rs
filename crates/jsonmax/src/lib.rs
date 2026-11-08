@@ -9,10 +9,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 extern crate alloc;
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", test))]
 extern crate std;
 extern crate self as jsonmax;
 
+pub mod trace;
 pub mod abi;
 pub mod buffer;
 pub mod error;

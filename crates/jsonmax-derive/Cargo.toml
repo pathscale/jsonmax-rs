@@ -10,4 +10,4 @@ repository.workspace = true
 proc-macro = true
 
 [dependencies]
-jsonmax = { path = "../jsonmax", version = "=0.1.0", features = ["std"] }
+jsonmax = { path = "../jsonmax", version = "0.1.0", features = ["std"] }

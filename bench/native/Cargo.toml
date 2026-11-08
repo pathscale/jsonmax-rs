@@ -27,3 +27,5 @@ debug = "line-tables-only"
 
 [features]
 system-alloc = []
+# Per-route trace tables on stderr (jsonmax::trace marks after each timed route).
+trace = ["jsonmax/trace"]
