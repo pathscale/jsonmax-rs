@@ -138,6 +138,12 @@ fn selected_states(
     Ok(())
 }
 
+enum ItemRowsOutcome {
+    Refused,
+    Complete(Span32),
+    Continue { next: u32, count: u32, work: u64 },
+}
+
 struct Engine<'a, 'ctx, 'buf> {
     cursor: BlockCursor<'a>,
     context: &'buf mut VmContext<'ctx>,
@@ -151,9 +157,6 @@ struct Engine<'a, 'ctx, 'buf> {
     validated: Option<ValidationCapability>,
     // Row staging for the rows API: one block per program row group.
     rows: Option<&'buf mut Vec<RowBlock>>,
-    // The last error came from staging a row inside the array fast path. The
-    // exact engine raises it outside any value, so it carries no field.
-    staged_error: bool,
 }
 
 impl Engine<'_, '_, '_> {
@@ -184,7 +187,7 @@ impl Engine<'_, '_, '_> {
         let pending = execute::take_value(self.context, offset)?;
         let result = self.value_pending(byte, pending);
         result.map_err(|error| {
-            let field = if error.field_id == 0 && !self.staged_error {
+            let field = if error.field_id == 0 {
                 pending.field_id.0
             } else {
                 error.field_id
@@ -195,26 +198,42 @@ impl Engine<'_, '_, '_> {
 
     fn value_pending(&mut self, byte: u8, pending: PendingValue) -> Result<()> {
         let offset = self.cursor.offset();
-        if byte == b'['
-            && !self.query
-            && self.rows.is_some()
-            && let Some(span) = match self.fast_leaf_rows(pending, offset)? {
-                Some(span) => Some(span),
+        if byte == b'[' && !self.query && self.rows.is_some() {
+            let outcome = match self.fast_leaf_rows(pending, offset)? {
+                Some(span) => ItemRowsOutcome::Complete(span),
                 None => self.fast_item_rows(pending, offset)?,
+            };
+            match outcome {
+                ItemRowsOutcome::Complete(span) => {
+                    if let Some(slot) = pending.slot {
+                        extract::store(
+                            &mut self.context.slots,
+                            slot,
+                            SlotValue::RawSpan(span),
+                            offset,
+                        )?;
+                    }
+                    if self.context.frames.is_empty() {
+                        self.context.root_done = true;
+                    }
+                    return Ok(());
+                }
+                ItemRowsOutcome::Continue { next, count, work } => {
+                    execute::open_pending(self.context, ContainerKind::Array, pending, offset)?;
+                    let frame = self.context.frames.last_mut().expect("opened array frame");
+                    if let FrameKind::Array {
+                        count: frame_count, ..
+                    } = &mut frame.kind
+                    {
+                        *frame_count = count;
+                    }
+                    frame.phase = FramePhase::ArrayCommaOrEnd;
+                    self.context.budget.charge(work, offset)?;
+                    self.cursor.advance(next - offset);
+                    return Ok(());
+                }
+                ItemRowsOutcome::Refused => {}
             }
-        {
-            if let Some(slot) = pending.slot {
-                extract::store(
-                    &mut self.context.slots,
-                    slot,
-                    SlotValue::RawSpan(span),
-                    offset,
-                )?;
-            }
-            if self.context.frames.is_empty() {
-                self.context.root_done = true;
-            }
-            return Ok(());
         }
         if byte == b'[' && !self.query && !self.in_row_group(pending.slot) {
             if let Some(span) = self
@@ -848,38 +867,35 @@ impl Engine<'_, '_, '_> {
         }
     }
 
-    /// A slotted item-group array of minified flat objects: validate every
-    /// element in one pass and stage its row directly. A miss leaves no rows
-    /// and no step charge, so the exact engine replays from the array start;
-    /// capacity growth is charged exactly as the exact engine charges it, in
-    /// the same order, because every accepted prefix is identical to its work.
-    fn fast_item_rows(&mut self, pending: PendingValue, start: u32) -> Result<Option<Span32>> {
+    /// A slotted item-group array of minified flat objects: validate rows that
+    /// fit, then hand off a verified growth-row delimiter to the exact frame.
+    fn fast_item_rows(&mut self, pending: PendingValue, start: u32) -> Result<ItemRowsOutcome> {
         let _t = crate::trace::span!(VM_ROWS);
         #[cfg(test)]
         if tests::force_exact() {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         }
         let (Some(slot), Some(state)) = (pending.slot, pending.state) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let program = self.context.program;
         let Some(group) = program.row_group_of_slot(slot) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let RowShape::Items { first_slot, width } = program.row_groups()[group].shape else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         if width == 0
             || width as usize > MAX_ROW
             || self.context.slots.get(slot as usize) != Some(&SlotValue::Empty)
         {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         }
         let Some(outer) = program.state(state) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let StateKind::Array { items } = outer.kind else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let Some(StateKind::Object {
             key_table,
@@ -887,10 +903,10 @@ impl Engine<'_, '_, '_> {
             ..
         }) = program.state(items).map(|s| &s.kind)
         else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let Some(plan) = program.fixed_object(*key_table) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let limits = self.context.limits.syntax;
         let Some(scan) = FixedScan::new(
@@ -904,10 +920,10 @@ impl Engine<'_, '_, '_> {
             self.context.frames.capacity(),
             FixedScan::selected_mask(plan, &self.context.selection),
         ) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let Some(block) = self.rows.as_mut().and_then(|rows| rows.get_mut(group)) else {
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         let input = scan.input;
         let budget = &mut self.context.budget;
@@ -918,6 +934,7 @@ impl Engine<'_, '_, '_> {
         let mut at = start as usize + 1;
         let mut work = 0u64;
         let mut count = 0u32;
+        let mut continuation = None;
         let accepted = 'scan: {
             if input.get(at) == Some(&b']') {
                 work = 1;
@@ -934,39 +951,90 @@ impl Engine<'_, '_, '_> {
                 else {
                     break 'scan false;
                 };
+                // Verify the delimiter before mutating the row block. The
+                // exact parser owns any missing or invalid delimiter.
+                let delimiter = match input.get(end) {
+                    Some(b',') => b',',
+                    Some(b']') => b']',
+                    _ => break 'scan false,
+                };
+                if block.values.capacity() - block.values.len() < width {
+                    let Some(checkpoint_work) = work
+                        .checked_add(object_work)
+                        .and_then(|work| work.checked_add(2))
+                    else {
+                        break 'scan false;
+                    };
+                    let Some(capture_end) = (first_slot as usize).checked_add(width) else {
+                        break 'scan false;
+                    };
+                    let Some(captures) = self.context.slots.get(first_slot as usize..capture_end)
+                    else {
+                        break 'scan false;
+                    };
+                    if count < limits.max_array_items
+                        && captures.iter().all(|slot| *slot == SlotValue::Empty)
+                        && self.context.frames.capacity() > self.context.frames.len()
+                        && checkpoint_work <= steps_left
+                    {
+                        continuation = Some((end as u32, count + 1, checkpoint_work));
+                        for (capture, value) in self.context.slots[first_slot as usize..capture_end]
+                            .iter_mut()
+                            .zip(row[..width].iter())
+                        {
+                            *capture = value.clone();
+                        }
+                    }
+                    break 'scan false;
+                }
                 // One step each for the element's two value tokens and the
                 // delimiter after it, plus the staged width.
                 work += object_work + 3 + width as u64;
                 if work > steps_left {
                     break 'scan false;
                 }
-                if let Err(error) = grow_staged(budget, &mut block.values, width, end as u32) {
-                    self.staged_error = true;
-                    return Err(error);
-                }
                 block.values.extend_from_slice(&row[..width]);
                 count += 1;
-                at = end;
-                match input.get(at) {
-                    Some(b',') => at += 1,
-                    Some(b']') => break 'scan true,
-                    _ => break 'scan false,
+                match delimiter {
+                    b',' => at = end + 1,
+                    b']' => {
+                        at = end;
+                        break 'scan true;
+                    }
+                    _ => unreachable!(),
                 }
             }
         };
-        if !accepted || constraints::check_count(&outer.constraints, count, at as u32).is_err() {
+        if !accepted {
+            if let Some((next, count, work)) = continuation {
+                #[cfg(test)]
+                tests::ITEM_ROWS_TAKEN.with(|n| n.set(n.get() + 1));
+                return Ok(ItemRowsOutcome::Continue { next, count, work });
+            }
             block.values.truncate(rows_start);
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
+        }
+        if constraints::check_count(&outer.constraints, count, at as u32).is_err() {
+            block.values.truncate(rows_start);
+            return Ok(ItemRowsOutcome::Refused);
+        }
+        // Empty arrays do not pass through the per-row check above, but they
+        // still have a one-step speculative cost. Refuse before committing
+        // either the staged rows or the budget when the complete work does
+        // not fit, so exact replay owns the budget diagnostic.
+        if work > steps_left {
+            block.values.truncate(rows_start);
+            return Ok(ItemRowsOutcome::Refused);
         }
         let Ok(len) = u32::try_from(at + 1 - start as usize) else {
             block.values.truncate(rows_start);
-            return Ok(None);
+            return Ok(ItemRowsOutcome::Refused);
         };
         budget.charge(work, start)?;
         #[cfg(test)]
         tests::ITEM_ROWS_TAKEN.with(|n| n.set(n.get() + 1));
         self.cursor.advance(len);
-        Ok(Some(Span32::new(start, len)))
+        Ok(ItemRowsOutcome::Complete(Span32::new(start, len)))
     }
 
     /// Fast path for arrays of schema objects containing scalar properties.
@@ -2441,21 +2509,19 @@ fn fixed_pair_rows(
                 return miss(rows);
             };
             scalar_work += work;
-            if raw.get(end) != Some(&b']') {
+            let Some(&[b']', delimiter @ (b',' | b']')]) = raw.get(end..end + 2) else {
                 return miss(rows);
-            }
+            };
             at = end + 1;
             if rows.capacity() - rows.len() < 2 {
                 return miss(rows);
             }
-            rows.push(first);
-            rows.push(second);
+            rows.extend_from_slice(&[first, second]);
+            #[cfg(test)]
+            tests::PAIR_ROWS_STAGED.with(|n| n.set(n.get() + 1));
             count += 1;
-            if raw.get(at) == Some(&b']') {
+            if delimiter == b']' {
                 break;
-            }
-            if raw.get(at) != Some(&b',') {
-                return miss(rows);
             }
             at += 1;
         }
@@ -2838,7 +2904,6 @@ fn execute_direct(
             decoded_capacity,
             validated,
             rows: if rows { Some(&mut scratch.rows) } else { None },
-            staged_error: false,
         };
         engine.run()?;
         Ok(())
@@ -3196,7 +3261,6 @@ pub fn map_root_array_borrowed<T>(
                     decoded_capacity,
                     validated: None,
                     rows: None,
-                    staged_error: false,
                 };
                 let (next_cursor, row_result) = {
                     let mut engine = engine;
@@ -3748,6 +3812,7 @@ mod tests {
     /// True while a test compares the fast paths against the exact engine.
     std::thread_local! {
         pub(super) static ITEM_ROWS_TAKEN: Cell<u32> = const { Cell::new(0) };
+        pub(super) static PAIR_ROWS_STAGED: Cell<u32> = const { Cell::new(0) };
     }
     pub(super) fn force_exact() -> bool {
         FORCE_EXACT.with(Cell::get)
@@ -4130,7 +4195,7 @@ mod tests {
     #[test]
     fn item_rows_fast_path_matches_the_exact_engine_at_every_budget() -> Result<()> {
         let program = item_rows_program()?;
-        let inputs: [&[u8]; 14] = [
+        let inputs: [&[u8]; 16] = [
             br#"{"rows":[]}"#,
             br#"{"rows":[{"n":1,"d":"1.5","s":"a"}]}"#,
             br#"{"rows":[{"n":1,"d":"1.5","s":"a","f":true},{"f":false,"s":"bb","d":"2","n":-7},{"n":3,"d":"0.00000001","s":"","f":true}]}"#,
@@ -4147,6 +4212,11 @@ mod tests {
             br#"{"rows":[{"n":1,"d":"1","s":"a"},{"n":1,"n":2,"d":"2","s":"b"}]}"#,
             br#"{"rows":[{"n":1,"d":"1","s":"a"}"#,
             br#"{"rows":[{"n":1,"d":"1","s":"a"},{}]}"#,
+            // A valid second item followed by a bad delimiter must replay so
+            // the exact parser reports the syntax error at the delimiter.
+            br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}x]}"#,
+            // EOF after a valid second item belongs to exact replay too.
+            br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}"#,
         ];
         let mut fast = ValidationScratch::default();
         let mut probe = ValidationScratch::default();
@@ -4201,6 +4271,177 @@ mod tests {
         }
         // The comparison is only meaningful if the fast path actually ran.
         assert!(ITEM_ROWS_TAKEN.with(Cell::get) > taken_before);
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_empty_step_shortage_replays_exactly() -> Result<()> {
+        let program = item_rows_program()?;
+        let input = br#" {"rows":[]}"#;
+        let base = VmLimits::default();
+        let mut exact = ValidationScratch::default();
+        let mut fast = ValidationScratch::default();
+        // Prime frame storage without allowing the root shortcut to consume
+        // the empty array, then locate the exact budget boundary at `]`.
+        assert!(
+            run_rows(
+                &program,
+                br#" {"rows":[{"n":1,"d":"1","s":"a"}]}"#,
+                base,
+                &mut exact,
+                true
+            )
+            .is_ok()
+        );
+        assert!(
+            run_rows(
+                &program,
+                br#" {"rows":[{"n":1,"d":"1","s":"a"}]}"#,
+                base,
+                &mut fast,
+                true
+            )
+            .is_ok()
+        );
+        let boundary = (0..64u64)
+            .find(|steps| {
+                run_rows(
+                    &program,
+                    input,
+                    VmLimits {
+                        max_steps: *steps,
+                        ..base
+                    },
+                    &mut exact,
+                    true,
+                ) == Err((ErrorCode::BudgetExhausted, 10, 0))
+            })
+            .expect("exact array-loop charge must have a reproducible step boundary");
+        assert_eq!(
+            run_rows(
+                &program,
+                input,
+                VmLimits {
+                    max_steps: boundary,
+                    ..base
+                },
+                &mut fast,
+                false,
+            ),
+            Err((ErrorCode::BudgetExhausted, 10, 0))
+        );
+        // Whole-document success also pays for the root close and finish.
+        let exact_ok = run_rows(&program, input, base, &mut exact, true);
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        let fast_ok = run_rows(&program, input, base, &mut fast, false);
+        assert_eq!(fast_ok, exact_ok);
+        assert!(fast_ok.is_ok());
+        assert!(ITEM_ROWS_TAKEN.with(Cell::get) > taken_before);
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_isolated_warm_scratch_witnesses() -> Result<()> {
+        let program = item_rows_program()?;
+        let base = VmLimits::default();
+        let one = br#" {"rows":[{"n":1,"d":"1","s":"a"}]}"#;
+        let invalid = br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}x]}"#;
+        let eof = br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}"#;
+        let valid = br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}]}"#;
+
+        let mut invalid_scratch = ValidationScratch::default();
+        assert!(run_rows(&program, one, base, &mut invalid_scratch, true).is_ok());
+        let width = invalid_scratch.rows[0].width as usize;
+        let capacity = invalid_scratch.rows[0].values.capacity();
+        assert!(capacity >= width && capacity < 2 * width);
+        let bad_at = invalid.iter().position(|byte| *byte == b'x').unwrap() as u32;
+        assert_eq!(
+            run_rows(&program, invalid, base, &mut invalid_scratch, true),
+            Err((ErrorCode::InvalidSyntax, bad_at, 0))
+        );
+
+        let mut eof_scratch = ValidationScratch::default();
+        assert!(run_rows(&program, one, base, &mut eof_scratch, true).is_ok());
+        let width = eof_scratch.rows[0].width as usize;
+        let capacity = eof_scratch.rows[0].values.capacity();
+        assert!(capacity >= width && capacity < 2 * width);
+        assert_eq!(
+            run_rows(&program, eof, base, &mut eof_scratch, true),
+            Err((ErrorCode::UnexpectedEof, eof.len() as u32, 0))
+        );
+
+        // Find the exact staging limit where a second row would require a
+        // growth charge. Each candidate is independently primed and its
+        // carried capacity is checked before the forced-exact control run.
+        let second_end = valid.iter().rposition(|byte| *byte == b']').unwrap() as u32;
+        let mut saw_growth_refusal = false;
+        for max_scratch_bytes in (0..=6_000u32).step_by(8) {
+            let mut scratch = ValidationScratch::default();
+            assert!(run_rows(&program, one, base, &mut scratch, true).is_ok());
+            let width = scratch.rows[0].width as usize;
+            let capacity = scratch.rows[0].values.capacity();
+            assert!(capacity >= width && capacity < 2 * width);
+            let limits = VmLimits {
+                max_scratch_bytes,
+                ..base
+            };
+            if run_rows(&program, valid, limits, &mut scratch, true)
+                == Err((ErrorCode::BudgetExhausted, second_end, 0))
+            {
+                for (input, expected) in [
+                    (
+                        valid.as_slice(),
+                        (ErrorCode::BudgetExhausted, second_end, 0),
+                    ),
+                    (invalid.as_slice(), (ErrorCode::InvalidSyntax, bad_at, 0)),
+                    (
+                        eof.as_slice(),
+                        (ErrorCode::UnexpectedEof, eof.len() as u32, 0),
+                    ),
+                ] {
+                    for forced_exact in [false, true] {
+                        let mut candidate = ValidationScratch::default();
+                        assert!(run_rows(&program, one, base, &mut candidate, true).is_ok());
+                        assert_eq!(candidate.rows[0].values.capacity(), capacity);
+                        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+                        assert_eq!(
+                            run_rows(&program, input, limits, &mut candidate, forced_exact),
+                            Err(expected)
+                        );
+                        if !forced_exact && input == valid.as_slice() {
+                            assert_eq!(ITEM_ROWS_TAKEN.with(Cell::get), taken_before + 1);
+                        }
+                    }
+                }
+                saw_growth_refusal = true;
+                break;
+            }
+        }
+        assert!(
+            saw_growth_refusal,
+            "exact second-row staging must hit growth refusal"
+        );
+
+        let mut exact_scratch = ValidationScratch::default();
+        let mut fast_scratch = ValidationScratch::default();
+        assert!(run_rows(&program, one, base, &mut exact_scratch, true).is_ok());
+        assert!(run_rows(&program, one, base, &mut fast_scratch, true).is_ok());
+        let width = fast_scratch.rows[0].width as usize;
+        let capacity = fast_scratch.rows[0].values.capacity();
+        assert!(capacity >= width && capacity < 2 * width);
+        assert_eq!(exact_scratch.rows[0].values.capacity(), capacity);
+
+        let exact = run_rows(&program, valid, base, &mut exact_scratch, true);
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        let fast = run_rows(&program, valid, base, &mut fast_scratch, false);
+        assert_eq!(fast, exact);
+        let (slots, groups) = fast.expect("warm item-row continuation should succeed");
+        assert_eq!(groups[0].len(), 2 * width);
+        let SlotValue::RawSpan(array) = slots[0] else {
+            panic!("expected the continued array's raw span");
+        };
+        assert_eq!(array.slice(valid), Some(&valid[9..valid.len() - 1]));
+        assert_eq!(ITEM_ROWS_TAKEN.with(Cell::get), taken_before + 1);
         Ok(())
     }
 
@@ -4266,7 +4507,587 @@ mod tests {
     }
 
     #[test]
-    fn pair_rows_capacity_miss_rolls_back_prefix_and_budget() -> Result<()> {
+    fn item_rows_scanner_continuation_preserves_state_and_reports_exact_debit() -> Result<()> {
+        let program = item_rows_program()?;
+        let array = program.slot_for_field(FieldId(1)).expect("rows array slot");
+        let (first_slot, width) = match program.row_groups()[0].shape {
+            RowShape::Items { first_slot, width } => (first_slot, width as usize),
+            _ => panic!("item row group shape"),
+        };
+        let pending = PendingValue {
+            state: Some(array.state),
+            field_id: FieldId(1),
+            slot: Some(array.slot),
+        };
+        let selection = Selection {
+            field_ids: vec![],
+            strict_validate_unselected: true,
+        };
+        let limits = VmLimits::default();
+        let zero_prefix_input = br#"[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}]"#;
+        let one_prefix_input = br#"[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}]"#;
+
+        for (input, accepted_prefix, expected_count, expected_next, expected_work) in [
+            (zero_prefix_input.as_slice(), 0usize, 1u32, 24u32, 2_221u64),
+            (one_prefix_input.as_slice(), 1usize, 2u32, 48u32, 4_447u64),
+        ] {
+            let mut scratch = ValidationScratch::default();
+            scratch
+                .vm
+                .frames
+                .try_reserve_exact(2)
+                .map_err(|_| resource(0))?;
+            scratch.rows.try_reserve_exact(1).map_err(|_| resource(0))?;
+            scratch.rows.push(RowBlock::default());
+            scratch.rows[0]
+                .values
+                .try_reserve_exact(2 * width)
+                .map_err(|_| resource(0))?;
+            let mut context =
+                execute::new_context_rows(&program, &selection, limits, &mut scratch.vm)?;
+            setup_row_blocks(&mut scratch.rows, &program, &mut context.budget)?;
+            let capacity = scratch.rows[0].values.capacity();
+            assert!(capacity >= 2 * width);
+            let prefix_len = capacity - accepted_prefix * width;
+            assert!(prefix_len > 0);
+            assert_eq!(capacity - prefix_len, accepted_prefix * width);
+            scratch.rows[0]
+                .values
+                .resize(prefix_len, SlotValue::I64(0x5a17));
+            let entry_rows = scratch.rows[0].values.clone();
+            let entry_slots = context.slots.clone();
+            let entry_steps = context.budget.steps_left();
+            let entry_scratch = context.budget.scratch_bytes();
+            let entry_frames_len = context.frames.len();
+            let frame_capacity = context.frames.capacity();
+            let entry_root_started = context.root_started;
+            let entry_root_done = context.root_done;
+            let cursor = BlockCursor::new(
+                input,
+                limits.syntax,
+                Some(NumericPolicy::strict_default()),
+                DuplicatePolicyOwner::SchemaVm,
+            )?;
+            let decoded_capacity = scratch.direct_decoded.capacity();
+            let mut engine = Engine {
+                cursor,
+                context: &mut context,
+                decoded: &mut scratch.direct_decoded,
+                needed: &scratch.direct_needed,
+                query: false,
+                numeric: NumericPolicy::strict_default(),
+                decoded_capacity,
+                validated: None,
+                rows: Some(&mut scratch.rows),
+            };
+            assert!(matches!(
+                engine.fast_item_rows(pending, 0)?,
+                ItemRowsOutcome::Continue { next, count, work }
+                    if (next, count, work) == (expected_next, expected_count, expected_work)
+            ));
+            assert_eq!(engine.cursor.offset(), 0);
+            assert_eq!(engine.context.frames.len(), entry_frames_len);
+            assert_eq!(engine.context.frames.capacity(), frame_capacity);
+            let mut expected_slots = entry_slots.clone();
+            expected_slots[first_slot as usize..first_slot as usize + width].clone_from_slice(&[
+                SlotValue::U64(expected_count as u64),
+                SlotValue::Decimal(crate::abi::number::Decimal128::new(
+                    expected_count as i128 * 100_000_000,
+                    8,
+                )),
+                SlotValue::Str(StrRef {
+                    span: Span32::new(if expected_count == 1 { 21 } else { 45 }, 1),
+                    source: SpanSource::RawPayload,
+                    scalar_len: 1,
+                }),
+                SlotValue::Empty,
+            ]);
+            assert_eq!(engine.context.slots, expected_slots);
+            assert_eq!(engine.context.root_started, entry_root_started);
+            assert_eq!(engine.context.root_done, entry_root_done);
+            assert_eq!(engine.context.budget.steps_left(), entry_steps);
+            assert_eq!(engine.context.budget.scratch_bytes(), entry_scratch);
+            assert_eq!(
+                engine.rows.as_ref().unwrap()[0].values.len(),
+                prefix_len + accepted_prefix * width
+            );
+            assert_eq!(
+                &engine.rows.as_ref().unwrap()[0].values[..prefix_len],
+                &entry_rows
+            );
+            assert_eq!(engine.rows.as_ref().unwrap()[0].values.capacity(), capacity);
+            if accepted_prefix == 1 {
+                assert_eq!(
+                    &engine.rows.as_ref().unwrap()[0].values[prefix_len..],
+                    &[
+                        SlotValue::U64(1),
+                        SlotValue::Decimal(crate::abi::number::Decimal128::new(100_000_000, 8)),
+                        SlotValue::Str(StrRef {
+                            span: Span32::new(21, 1),
+                            source: SpanSource::RawPayload,
+                            scalar_len: 1,
+                        }),
+                        SlotValue::Empty,
+                    ]
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_pending_value_opens_exact_continuation_frame() -> Result<()> {
+        let program = item_rows_program()?;
+        let array = program.slot_for_field(FieldId(1)).expect("rows array slot");
+        let item_state = match program.state(array.state).map(|state| &state.kind) {
+            Some(StateKind::Array { items }) => *items,
+            _ => panic!("rows array state shape"),
+        };
+        let (first_slot, width) = match program.row_groups()[0].shape {
+            RowShape::Items { first_slot, width } => (first_slot, width as usize),
+            _ => panic!("item row group shape"),
+        };
+        let pending = PendingValue {
+            state: Some(array.state),
+            field_id: FieldId(1),
+            slot: Some(array.slot),
+        };
+        let selection = Selection {
+            field_ids: vec![],
+            strict_validate_unselected: true,
+        };
+        let limits = VmLimits::default();
+        let zero_prefix_input = br#"[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}]"#;
+        let one_prefix_input = br#"[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}]"#;
+
+        for (input, accepted_prefix, expected_count, expected_next, expected_work) in [
+            (zero_prefix_input.as_slice(), 0usize, 1u32, 24u32, 2_221u64),
+            (one_prefix_input.as_slice(), 1usize, 2u32, 48u32, 4_447u64),
+        ] {
+            let mut scratch = ValidationScratch::default();
+            scratch
+                .vm
+                .frames
+                .try_reserve_exact(2)
+                .map_err(|_| resource(0))?;
+            scratch.rows.try_reserve_exact(1).map_err(|_| resource(0))?;
+            scratch.rows.push(RowBlock::default());
+            scratch.rows[0]
+                .values
+                .try_reserve_exact(2 * width)
+                .map_err(|_| resource(0))?;
+            let mut context =
+                execute::new_context_rows(&program, &selection, limits, &mut scratch.vm)?;
+            setup_row_blocks(&mut scratch.rows, &program, &mut context.budget)?;
+            let capacity = scratch.rows[0].values.capacity();
+            assert!(capacity >= 2 * width);
+            let prefix_len = capacity - accepted_prefix * width;
+            assert!(prefix_len > 0);
+            assert_eq!(capacity - prefix_len, accepted_prefix * width);
+            scratch.rows[0]
+                .values
+                .resize(prefix_len, SlotValue::I64(0x5a17));
+            let entry_rows = scratch.rows[0].values.clone();
+            let entry_slots = context.slots.clone();
+            let entry_steps = context.budget.steps_left();
+            let entry_scratch = context.budget.scratch_bytes();
+            let entry_frames_len = context.frames.len();
+            let frame_capacity = context.frames.capacity();
+            let entry_root_started = context.root_started;
+            let entry_root_done = context.root_done;
+            let cursor = BlockCursor::new(
+                input,
+                limits.syntax,
+                Some(NumericPolicy::strict_default()),
+                DuplicatePolicyOwner::SchemaVm,
+            )?;
+            let decoded_capacity = scratch.direct_decoded.capacity();
+            let mut engine = Engine {
+                cursor,
+                context: &mut context,
+                decoded: &mut scratch.direct_decoded,
+                needed: &scratch.direct_needed,
+                query: false,
+                numeric: NumericPolicy::strict_default(),
+                decoded_capacity,
+                validated: None,
+                rows: Some(&mut scratch.rows),
+            };
+            engine.value_pending(b'[', pending)?;
+
+            let frame = engine.context.frames.last().expect("continued array frame");
+            assert_eq!(engine.context.frames.len(), entry_frames_len + 1);
+            assert_eq!(engine.context.frames.capacity(), frame_capacity);
+            assert_eq!(frame.state, pending.state);
+            assert_eq!(frame.field_id, pending.field_id);
+            assert_eq!(frame.slot, pending.slot);
+            assert_eq!(frame.start, 0);
+            assert!(matches!(
+                frame.kind,
+                FrameKind::Array { count, items: Some(items) }
+                    if count == expected_count && items == item_state
+            ));
+            assert_eq!(frame.phase, FramePhase::ArrayCommaOrEnd);
+            assert_eq!(engine.cursor.offset(), expected_next);
+            assert_eq!(
+                engine.rows.as_ref().unwrap()[0].values.len(),
+                prefix_len + accepted_prefix * width
+            );
+            assert_eq!(
+                &engine.rows.as_ref().unwrap()[0].values[..prefix_len],
+                &entry_rows
+            );
+            assert_eq!(engine.rows.as_ref().unwrap()[0].values.capacity(), capacity);
+            let mut expected_slots = entry_slots.clone();
+            expected_slots[first_slot as usize..first_slot as usize + width].clone_from_slice(&[
+                SlotValue::U64(expected_count as u64),
+                SlotValue::Decimal(crate::abi::number::Decimal128::new(
+                    expected_count as i128 * 100_000_000,
+                    8,
+                )),
+                SlotValue::Str(StrRef {
+                    span: Span32::new(if expected_count == 1 { 21 } else { 45 }, 1),
+                    source: SpanSource::RawPayload,
+                    scalar_len: 1,
+                }),
+                SlotValue::Empty,
+            ]);
+            assert_eq!(engine.context.slots, expected_slots);
+            assert!(engine.context.slots[array.slot as usize].eq(&SlotValue::Empty));
+            assert_eq!(engine.context.root_started, entry_root_started);
+            assert_eq!(engine.context.root_done, entry_root_done);
+            assert_eq!(engine.context.budget.scratch_bytes(), entry_scratch);
+            // Checkpoint work is charged once, before the delimiter dispatch.
+            assert_eq!(
+                entry_steps - engine.context.budget.steps_left(),
+                expected_work
+            );
+            if accepted_prefix == 1 {
+                assert_eq!(
+                    &engine.rows.as_ref().unwrap()[0].values[prefix_len..],
+                    &[
+                        SlotValue::U64(1),
+                        SlotValue::Decimal(crate::abi::number::Decimal128::new(100_000_000, 8)),
+                        SlotValue::Str(StrRef {
+                            span: Span32::new(21, 1),
+                            source: SpanSource::RawPayload,
+                            scalar_len: 1,
+                        }),
+                        SlotValue::Empty,
+                    ]
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_normal_api_continuation_matches_exact_after_later_error() -> Result<()> {
+        let program = item_rows_program()?;
+        let warm = br#" {"rows":[{"n":1,"d":"1","s":"a"}]}"#;
+        let input = br#" {"rows":[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"},x]}"#;
+        let bad_at = input.iter().position(|byte| *byte == b'x').unwrap() as u32;
+        let mut ordinary = ValidationScratch::default();
+        let mut exact = ValidationScratch::default();
+        assert!(run_rows(&program, warm, VmLimits::default(), &mut ordinary, true).is_ok());
+        assert!(run_rows(&program, warm, VmLimits::default(), &mut exact, true).is_ok());
+        let width = ordinary.rows[0].width as usize;
+        let capacity = ordinary.rows[0].values.capacity();
+        assert!(capacity >= width && capacity < 2 * width);
+        assert_eq!(exact.rows[0].values.capacity(), capacity);
+        let before = ITEM_ROWS_TAKEN.with(Cell::get);
+        assert_eq!(
+            run_rows(&program, input, VmLimits::default(), &mut ordinary, false),
+            Err((ErrorCode::InvalidSyntax, bad_at, 1))
+        );
+        assert_eq!(
+            run_rows(&program, input, VmLimits::default(), &mut exact, true),
+            Err((ErrorCode::InvalidSyntax, bad_at, 1))
+        );
+        assert!(ITEM_ROWS_TAKEN.with(Cell::get) > before);
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_post_append_refusal_preserves_engine_state() -> Result<()> {
+        let program = item_rows_program()?;
+        let array = program.slot_for_field(FieldId(1)).expect("rows array slot");
+        let width = match program.row_groups()[0].shape {
+            RowShape::Items { width, .. } => width as usize,
+            _ => panic!("item row group shape"),
+        };
+        let pending = PendingValue {
+            state: Some(array.state),
+            field_id: FieldId(1),
+            slot: Some(array.slot),
+        };
+        let selection = Selection {
+            field_ids: vec![],
+            strict_validate_unselected: true,
+        };
+        let limits = VmLimits::default();
+        let two = br#"[{"n":1,"d":"1","s":"a"},x]"#;
+        let one = br#"[{"n":1,"d":"1","s":"a"}]"#;
+
+        let mut refused_scratch = ValidationScratch::default();
+        refused_scratch
+            .vm
+            .frames
+            .try_reserve_exact(2)
+            .map_err(|_| resource(0))?;
+        refused_scratch
+            .rows
+            .try_reserve_exact(1)
+            .map_err(|_| resource(0))?;
+        refused_scratch.rows.push(RowBlock::default());
+        refused_scratch.rows[0]
+            .values
+            .try_reserve_exact(2 * width)
+            .map_err(|_| resource(0))?;
+        let mut refused_context =
+            execute::new_context_rows(&program, &selection, limits, &mut refused_scratch.vm)?;
+        setup_row_blocks(
+            &mut refused_scratch.rows,
+            &program,
+            &mut refused_context.budget,
+        )?;
+        let capacity = refused_scratch.rows[0].values.capacity();
+        assert!(capacity >= 2 * width);
+        let prefix_len = capacity - width;
+        assert!(prefix_len > 0);
+        refused_scratch.rows[0]
+            .values
+            .resize(prefix_len, SlotValue::I64(0x5a17));
+        let entry = refused_scratch.rows[0].values.clone();
+        assert_eq!(capacity - refused_scratch.rows[0].values.len(), width);
+        let entry_steps = refused_context.budget.steps_left();
+        let entry_scratch = refused_context.budget.scratch_bytes();
+        let entry_slots = refused_context.slots.clone();
+        let entry_frames_len = refused_context.frames.len();
+        let entry_frames_capacity = refused_context.frames.capacity();
+        let entry_root_started = refused_context.root_started;
+        let entry_root_done = refused_context.root_done;
+        assert!(refused_context.frames.capacity() >= 2);
+        let cursor = BlockCursor::new(
+            two,
+            limits.syntax,
+            Some(NumericPolicy::strict_default()),
+            DuplicatePolicyOwner::SchemaVm,
+        )?;
+        let refused_decoded_capacity = refused_scratch.direct_decoded.capacity();
+        let mut refused_engine = Engine {
+            cursor,
+            context: &mut refused_context,
+            decoded: &mut refused_scratch.direct_decoded,
+            needed: &refused_scratch.direct_needed,
+            query: false,
+            numeric: NumericPolicy::strict_default(),
+            decoded_capacity: refused_decoded_capacity,
+            validated: None,
+            rows: Some(&mut refused_scratch.rows),
+        };
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        assert!(matches!(
+            refused_engine.fast_item_rows(pending, 0)?,
+            ItemRowsOutcome::Refused
+        ));
+        assert_eq!(refused_engine.rows.as_ref().unwrap()[0].values, entry);
+        assert_eq!(
+            refused_engine.rows.as_ref().unwrap()[0].values.len(),
+            prefix_len
+        );
+        assert_eq!(
+            refused_engine.rows.as_ref().unwrap()[0].values.capacity(),
+            capacity
+        );
+        assert_eq!(refused_engine.cursor.offset(), 0);
+        assert_eq!(refused_engine.context.budget.steps_left(), entry_steps);
+        assert_eq!(refused_engine.context.budget.scratch_bytes(), entry_scratch);
+        assert_eq!(refused_engine.context.frames.len(), entry_frames_len);
+        assert_eq!(
+            refused_engine.context.frames.capacity(),
+            entry_frames_capacity
+        );
+        assert_eq!(refused_engine.context.slots, entry_slots);
+        assert_eq!(refused_engine.context.root_started, entry_root_started);
+        assert_eq!(refused_engine.context.root_done, entry_root_done);
+        assert_eq!(ITEM_ROWS_TAKEN.with(Cell::get), taken_before);
+        drop(refused_engine);
+
+        let mut success_scratch = ValidationScratch::default();
+        success_scratch
+            .vm
+            .frames
+            .try_reserve_exact(2)
+            .map_err(|_| resource(0))?;
+        success_scratch
+            .rows
+            .try_reserve_exact(1)
+            .map_err(|_| resource(0))?;
+        success_scratch.rows.push(RowBlock::default());
+        success_scratch.rows[0]
+            .values
+            .try_reserve_exact(2 * width)
+            .map_err(|_| resource(0))?;
+        let mut success_context =
+            execute::new_context_rows(&program, &selection, limits, &mut success_scratch.vm)?;
+        setup_row_blocks(
+            &mut success_scratch.rows,
+            &program,
+            &mut success_context.budget,
+        )?;
+        let success_capacity = success_scratch.rows[0].values.capacity();
+        assert!(success_capacity >= 2 * width);
+        let success_prefix_len = success_capacity - width;
+        assert!(success_prefix_len > 0);
+        success_scratch.rows[0]
+            .values
+            .resize(success_prefix_len, SlotValue::I64(0x5a17));
+        let success_entry = success_scratch.rows[0].values.clone();
+        let success_steps = success_context.budget.steps_left();
+        let success_scratch_bytes = success_context.budget.scratch_bytes();
+        assert!(success_context.frames.capacity() >= 2);
+        let cursor = BlockCursor::new(
+            one,
+            limits.syntax,
+            Some(NumericPolicy::strict_default()),
+            DuplicatePolicyOwner::SchemaVm,
+        )?;
+        assert_eq!(
+            success_capacity - success_scratch.rows[0].values.len(),
+            width
+        );
+        let success_decoded_capacity = success_scratch.direct_decoded.capacity();
+        let mut success_engine = Engine {
+            cursor,
+            context: &mut success_context,
+            decoded: &mut success_scratch.direct_decoded,
+            needed: &success_scratch.direct_needed,
+            query: false,
+            numeric: NumericPolicy::strict_default(),
+            decoded_capacity: success_decoded_capacity,
+            validated: None,
+            rows: Some(&mut success_scratch.rows),
+        };
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        assert!(matches!(
+            success_engine.fast_item_rows(pending, 0)?,
+            ItemRowsOutcome::Complete(_)
+        ));
+        assert_eq!(
+            success_engine.rows.as_ref().unwrap()[0].values.len(),
+            success_prefix_len + width
+        );
+        assert_eq!(
+            &success_engine.rows.as_ref().unwrap()[0].values[..success_prefix_len],
+            success_entry
+        );
+        assert_eq!(
+            success_engine.rows.as_ref().unwrap()[0].values.capacity(),
+            success_capacity
+        );
+        assert_eq!(success_engine.cursor.offset(), one.len() as u32);
+        assert!(success_engine.context.budget.steps_left() < success_steps);
+        assert_eq!(
+            success_engine.context.budget.scratch_bytes(),
+            success_scratch_bytes
+        );
+        assert_eq!(ITEM_ROWS_TAKEN.with(Cell::get), taken_before + 1);
+        Ok(())
+    }
+
+    #[test]
+    fn item_rows_later_delimiter_refusal_rolls_back_staged_prefix() -> Result<()> {
+        let program = item_rows_program()?;
+        let array = program.slot_for_field(FieldId(1)).expect("rows array slot");
+        let (first_slot, width) = match program.row_groups()[0].shape {
+            RowShape::Items { first_slot, width } => (first_slot, width as usize),
+            _ => panic!("item row group shape"),
+        };
+        let pending = PendingValue {
+            state: Some(array.state),
+            field_id: FieldId(1),
+            slot: Some(array.slot),
+        };
+        let selection = Selection {
+            field_ids: vec![],
+            strict_validate_unselected: true,
+        };
+        let limits = VmLimits::default();
+        let input = br#"[{"n":1,"d":"1","s":"a"},{"n":2,"d":"2","s":"b"}x]"#;
+        let mut scratch = ValidationScratch::default();
+        scratch
+            .vm
+            .frames
+            .try_reserve_exact(2)
+            .map_err(|_| resource(0))?;
+        scratch.rows.try_reserve_exact(1).map_err(|_| resource(0))?;
+        scratch.rows.push(RowBlock::default());
+        scratch.rows[0]
+            .values
+            .try_reserve_exact(3 * width)
+            .map_err(|_| resource(0))?;
+        let mut context = execute::new_context_rows(&program, &selection, limits, &mut scratch.vm)?;
+        setup_row_blocks(&mut scratch.rows, &program, &mut context.budget)?;
+        let capacity = scratch.rows[0].values.capacity();
+        assert!(capacity >= 3 * width);
+        let prefix_len = capacity - 2 * width;
+        assert!(prefix_len > 0);
+        scratch.rows[0]
+            .values
+            .resize(prefix_len, SlotValue::I64(0x5a17));
+        let entry_rows = scratch.rows[0].values.clone();
+        let entry_slots = context.slots.clone();
+        let entry_steps = context.budget.steps_left();
+        let entry_scratch = context.budget.scratch_bytes();
+        let entry_frames_len = context.frames.len();
+        let entry_frames_capacity = context.frames.capacity();
+        let entry_root_started = context.root_started;
+        let entry_root_done = context.root_done;
+        let cursor = BlockCursor::new(
+            input,
+            limits.syntax,
+            Some(NumericPolicy::strict_default()),
+            DuplicatePolicyOwner::SchemaVm,
+        )?;
+        let decoded_capacity = scratch.direct_decoded.capacity();
+        let mut engine = Engine {
+            cursor,
+            context: &mut context,
+            decoded: &mut scratch.direct_decoded,
+            needed: &scratch.direct_needed,
+            query: false,
+            numeric: NumericPolicy::strict_default(),
+            decoded_capacity,
+            validated: None,
+            rows: Some(&mut scratch.rows),
+        };
+        let taken_before = ITEM_ROWS_TAKEN.with(Cell::get);
+        assert!(matches!(
+            engine.fast_item_rows(pending, 0)?,
+            ItemRowsOutcome::Refused
+        ));
+        assert_eq!(ITEM_ROWS_TAKEN.with(Cell::get), taken_before);
+        assert_eq!(engine.rows.as_ref().unwrap()[0].values, entry_rows);
+        assert_eq!(engine.rows.as_ref().unwrap()[0].values.capacity(), capacity);
+        assert_eq!(engine.cursor.offset(), 0);
+        assert_eq!(engine.context.slots, entry_slots);
+        assert!(
+            engine.context.slots[first_slot as usize..first_slot as usize + width]
+                .iter()
+                .all(|slot| *slot == SlotValue::Empty)
+        );
+        assert_eq!(engine.context.frames.len(), entry_frames_len);
+        assert_eq!(engine.context.frames.capacity(), entry_frames_capacity);
+        assert_eq!(engine.context.root_started, entry_root_started);
+        assert_eq!(engine.context.root_done, entry_root_done);
+        assert_eq!(engine.context.budget.steps_left(), entry_steps);
+        assert_eq!(engine.context.budget.scratch_bytes(), entry_scratch);
+        Ok(())
+    }
+
+    #[test]
+    fn pair_rows_refusal_rolls_back_prefix_and_budget() -> Result<()> {
         let program = depth_rows_program()?;
         let outer_state = program
             .slot_for_field(FieldId(3))
@@ -4285,33 +5106,41 @@ mod tests {
             .and_then(|state| state.constraints.decimal.as_ref())
             .expect("decimal constraints");
 
-        let mut rows = Vec::with_capacity(3);
-        let capacity = rows.capacity();
-        assert!(capacity >= 3);
-        rows.resize(capacity - 2, SlotValue::Empty);
-        assert!(!rows.is_empty());
-        let entry = rows.clone();
-        let mut budget = VmBudget::new(VmLimits::default());
-        let entry_steps = budget.steps_left();
-        let entry_scratch = budget.scratch_bytes();
+        let cases: [(&[u8], usize); 3] = [
+            (br#"[["1","2"],["3","4"]]"#, 2),
+            // Both pairs fit, but only the first has a verified delimiter.
+            (br#"[["1","2"],["3","4"]x]"#, 4),
+            (br#"[["1","2"],["3","4"]"#, 4),
+        ];
+        let limits = VmLimits::default();
+        for (input, spare) in cases {
+            let mut rows = Vec::with_capacity(spare + 1);
+            let capacity = rows.capacity();
+            rows.resize(capacity - spare, SlotValue::U64(7));
+            let entry = rows.clone();
+            let mut budget = VmBudget::new(limits);
+            let entry_steps = budget.steps_left();
+            let entry_scratch = budget.scratch_bytes();
+            let staged_before = PAIR_ROWS_STAGED.with(Cell::get);
+            let span = fixed_pair_rows(
+                input,
+                0,
+                decimal,
+                &pair.constraints,
+                &outer.constraints,
+                NumericPolicy::strict_default(),
+                limits.syntax,
+                &mut budget,
+                &mut rows,
+            );
 
-        let span = fixed_pair_rows(
-            br#"[["1","2"],["3","4"]]"#,
-            0,
-            decimal,
-            &pair.constraints,
-            &outer.constraints,
-            NumericPolicy::strict_default(),
-            VmLimits::default().syntax,
-            &mut budget,
-            &mut rows,
-        );
-
-        assert!(span.is_none());
-        assert_eq!(rows, entry);
-        assert_eq!(rows.capacity(), capacity);
-        assert_eq!(budget.steps_left(), entry_steps);
-        assert_eq!(budget.scratch_bytes(), entry_scratch);
+            assert!(span.is_none());
+            assert_eq!(PAIR_ROWS_STAGED.with(Cell::get), staged_before + 1);
+            assert_eq!(rows, entry);
+            assert_eq!(rows.capacity(), capacity);
+            assert_eq!(budget.steps_left(), entry_steps);
+            assert_eq!(budget.scratch_bytes(), entry_scratch);
+        }
         Ok(())
     }
 
@@ -4356,7 +5185,7 @@ mod tests {
     #[test]
     fn root_rows_fast_path_matches_the_exact_engine_at_every_budget() -> Result<()> {
         let program = depth_rows_program()?;
-        let inputs: [&[u8]; 19] = [
+        let inputs: [&[u8]; 21] = [
             br#"{"e":"depthUpdate","E":123,"b":[],"a":[]}"#,
             br#"{"e":"depthUpdate","E":123,"b":[["0.0024","10"]],"a":[["0.0026","0.5"],["1","2"]]}"#,
             br#"{"a":[["1","2"]],"b":[["3.25","4"],["5","6"]],"E":9,"e":"x"}"#,
@@ -4377,6 +5206,8 @@ mod tests {
             br#"{"e":"d","E":1,"b":[["1","1"]],"a":null}"#,
             br#"{"e":"d","E":1,"b":[["1","1"], ["2","2"]],"a":[]}"#,
             br#"{"e":"d","E":1,"b":[["1","1"],],"a":[]}"#,
+            br#"{"e":"d","E":1,"b":[["1","1"],["2","2"]x],"a":[]}"#,
+            br#" {"e":"d","E":1,"b":[["1","1"],["2","2"]"#,
             br#"{"e":"d","E":1,"b":[["1","1"]],"b":[],"a":[]}"#,
             br#"{"e":"d","E":1,"b":[["1","1"]]}"#,
             br#"{"e":"d","E":1,"b":[["1","1"]],"a":[],"z":1}"#,
