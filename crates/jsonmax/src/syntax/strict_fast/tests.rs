@@ -18,7 +18,11 @@ fn digit_words_find_the_first_non_digit_for_every_byte_and_lane() {
             word[lane] = byte;
             let expected = word.iter().position(|b| !b.is_ascii_digit()).unwrap_or(8);
             let mask = non_digit_mask(u64::from_le_bytes(word));
-            let actual = if mask == 0 { 8 } else { (mask.trailing_zeros() / 8) as usize };
+            let actual = if mask == 0 {
+                8
+            } else {
+                (mask.trailing_zeros() / 8) as usize
+            };
             assert_eq!(actual, expected, "byte {byte}, lane {lane}");
         }
     }
@@ -65,6 +69,9 @@ const SEEDS: &[&str] = &[
     "{\n  \"a\": [\n    1,\n    2\n  ],\n  \"b\": {\n    \"c\": null\n  }\n}\n",
     r#"{"batch_id":"b","tenant":"t","schema_version":1,"request_count":2,"accepted":true,"records":[{"a":"ÿ"}]}"#,
     r#"{"mode":"m","nodeName":"n","numExecutors":3,"quietingDown":false,"jobs":[{"name":"x","url":"y"}]}"#,
+    "[\"Deliver to 東京\\n\\\"42\\\"; C:\\\\x\\t✓\",\"é\\u00e9\\u20ac\\ud83d\\ude00z\",\"\\u0041\\/\"]",
+    "{\"notes\":\"é\\n✓\",\"k\":[\"\\ud800\",\"\\udc00\",\"\\ud800\\u0041\",\"a\\u12g4\",\"\\u12\"]}",
+    "[\"\\n\\xc3\\xa9\",\"\\\u{e9}\",\"a\\\n\"]",
 ];
 const BYTES: &[u8] =
     b"{}[]:,\"\\ \t\n0123456789-+.eEtrufalsn\x00\x1f\x7f\x80\xc3\xa9\xed\xa0\xf0\x9f\xffuA";
@@ -218,11 +225,20 @@ fn check(
         };
         match outcome {
             Some((end, discarded)) => {
-                assert!(exact.accepted, "fast accepted what the exact loop rejects: {}", context());
+                assert!(
+                    exact.accepted,
+                    "fast accepted what the exact loop rejects: {}",
+                    context()
+                );
                 assert_eq!(end, input.len(), "{}", context());
                 assert_eq!(discarded, exact.discarded, "{}", context());
                 assert_eq!(decoded, exact.decoded, "{}", context());
-                assert_eq!(decoded.capacity(), exact.decoded.capacity(), "{}", context());
+                assert_eq!(
+                    decoded.capacity(),
+                    exact.decoded.capacity(),
+                    "{}",
+                    context()
+                );
                 stats.fast += 1;
             }
             None => {
@@ -275,7 +291,12 @@ fn fast_matches_exact_on_large_objects() {
                 if i > 0 {
                     body.push(',');
                 }
-                body.push_str(&format!("\"{}\":{{\"{}\":1,\"x\":[{}]}}", key(i), key(i), i));
+                body.push_str(&format!(
+                    "\"{}\":{{\"{}\":1,\"x\":[{}]}}",
+                    key(i),
+                    key(i),
+                    i
+                ));
             }
             body.push('}');
             for (limits, numeric) in limit_variants() {
@@ -325,7 +346,10 @@ fn fast_matches_exact_on_fixtures_and_corpora() {
             };
             let large = bytes.len() > 20_000;
             let variants: &[(usize, usize)] = if large { &[(0, 0)] } else { ALL_VARIANTS };
-            let (default, numeric) = (Limits::strict_default(), Some(NumericPolicy::strict_default()));
+            let (default, numeric) = (
+                Limits::strict_default(),
+                Some(NumericPolicy::strict_default()),
+            );
             let mut probe = Limits::strict_default();
             probe.reject_unknown_keys = false;
             check(&bytes, probe, numeric, variants, &mut stats);
@@ -400,7 +424,9 @@ fn cursor_run(
     if let Ok(mut cursor) = BlockCursor::new(input, limits, numeric, DuplicatePolicyOwner::Syntax) {
         for _ in 0..2 {
             let result = if fast {
-                cursor.skip_value(&mut decoded, depth, SkipMode::StrictValidate).map(|_| ())
+                cursor
+                    .skip_value(&mut decoded, depth, SkipMode::StrictValidate)
+                    .map(|_| ())
             } else {
                 cursor
                     .skip_whitespace()
@@ -455,10 +481,26 @@ fn constant_work_key_hash_keeps_duplicate_semantics() {
     let numeric = Some(NumericPolicy::strict_default());
     let key = |mid: &str| format!("0123456789abcdef{mid}fedcba9876543210");
     let accepts = |text: String| reference(text.as_bytes(), limits, numeric, 0, 0).accepted;
-    assert!(accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AAAB"))));
-    assert!(!accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AAAA"))));
-    assert!(!accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AA\\u0041A"))));
-    assert!(accepts(format!(r#"{{"{}":1,"{}":2}}"#, key("AAAA"), key("AA\\u0042A"))));
+    assert!(accepts(format!(
+        r#"{{"{}":1,"{}":2}}"#,
+        key("AAAA"),
+        key("AAAB")
+    )));
+    assert!(!accepts(format!(
+        r#"{{"{}":1,"{}":2}}"#,
+        key("AAAA"),
+        key("AAAA")
+    )));
+    assert!(!accepts(format!(
+        r#"{{"{}":1,"{}":2}}"#,
+        key("AAAA"),
+        key("AA\\u0041A")
+    )));
+    assert!(accepts(format!(
+        r#"{{"{}":1,"{}":2}}"#,
+        key("AAAA"),
+        key("AA\\u0042A")
+    )));
     for n in 0..24usize {
         let a = "k".repeat(n);
         let b = format!("{}x{}", "k".repeat(n / 2), "k".repeat(n - n / 2));
@@ -505,9 +547,19 @@ fn shape_memo_keeps_duplicate_semantics_at_every_key_position() {
                     ks[at] = keys[dup];
                     let last = format!(
                         "{{{}}}",
-                        ks.iter().enumerate().map(|(i, k)| format!("\"{k}\":{i}")).collect::<std::vec::Vec<_>>().join(",")
+                        ks.iter()
+                            .enumerate()
+                            .map(|(i, k)| format!("\"{k}\":{i}"))
+                            .collect::<std::vec::Vec<_>>()
+                            .join(",")
                     );
-                    check(shaped_array(&keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+                    check(
+                        shaped_array(&keys, &last, repeats).as_bytes(),
+                        limits,
+                        numeric,
+                        ALL_VARIANTS,
+                        &mut stats,
+                    );
                 }
             }
             for last in [
@@ -527,13 +579,31 @@ fn shape_memo_keeps_duplicate_semantics_at_every_key_position() {
                 r#"{"alpha":1,"beta":2,"gamma":3,"delta":4,"epsilon":5,"zeta":6}"#,
                 "{\"alpha\":1,\"beta\":2,\"gamma\":3,\"delta\":4,\"epsilon\":5,\"z\u{e9}ta\":6}",
             ] {
-                check(shaped_array(&keys, last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+                check(
+                    shaped_array(&keys, last, repeats).as_bytes(),
+                    limits,
+                    numeric,
+                    ALL_VARIANTS,
+                    &mut stats,
+                );
             }
             // Distinct keys with equal fingerprints (same length, head and tail words).
             let last = format!("{{\"{long_a}\":1,\"x\":2,\"{long_b}\":3,\"y\":4}}");
-            check(shaped_array(&long_keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            check(
+                shaped_array(&long_keys, &last, repeats).as_bytes(),
+                limits,
+                numeric,
+                ALL_VARIANTS,
+                &mut stats,
+            );
             let last = format!("{{\"{long_a}\":1,\"x\":2,\"{long_a}\":3,\"y\":4}}");
-            check(shaped_array(&long_keys, &last, repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+            check(
+                shaped_array(&long_keys, &last, repeats).as_bytes(),
+                limits,
+                numeric,
+                ALL_VARIANTS,
+                &mut stats,
+            );
             // Nested repeated objects at two depths with a duplicate deep inside.
             let inner = r#"{"p":1,"q":2,"r":{"s":1,"t":2}}"#;
             let bad = r#"{"p":1,"q":2,"r":{"s":1,"s":2}}"#;
@@ -632,30 +702,70 @@ fn shape_memo_covers_table_sized_objects() {
     let body = |ks: &[&str]| {
         format!(
             "{{{}}}",
-            ks.iter().enumerate().map(|(i, k)| format!("\"{k}\":{i}")).collect::<std::vec::Vec<_>>().join(",")
+            ks.iter()
+                .enumerate()
+                .map(|(i, k)| format!("\"{k}\":{i}"))
+                .collect::<std::vec::Vec<_>>()
+                .join(",")
         )
     };
     let (limits, numeric) = limit_variants().remove(0);
     for repeats in [1usize, 2, 3] {
-        check(shaped_array(&keys, &body(&keys), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        check(
+            shaped_array(&keys, &body(&keys), repeats).as_bytes(),
+            limits,
+            numeric,
+            ALL_VARIANTS,
+            &mut stats,
+        );
         for dup in [0usize, 1, 31, 32, 33, 39] {
             for at in [1usize, 2, 30, 31, 32, 33, 34, 39] {
                 let mut ks = keys.clone();
                 ks[at] = keys[dup];
-                check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+                check(
+                    shaped_array(&keys, &body(&ks), repeats).as_bytes(),
+                    limits,
+                    numeric,
+                    ALL_VARIANTS,
+                    &mut stats,
+                );
             }
         }
         // Extra key after the memo, escaped twin of the last key, shorter object.
         let mut ks = keys.clone();
         ks.push("extra");
-        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        check(
+            shaped_array(&keys, &body(&ks), repeats).as_bytes(),
+            limits,
+            numeric,
+            ALL_VARIANTS,
+            &mut stats,
+        );
         ks.push("field39");
-        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        check(
+            shaped_array(&keys, &body(&ks), repeats).as_bytes(),
+            limits,
+            numeric,
+            ALL_VARIANTS,
+            &mut stats,
+        );
         ks.pop();
         ks.pop();
         ks[39] = "field3\\u0039";
-        check(shaped_array(&keys, &body(&ks), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
-        check(shaped_array(&keys, &body(&keys[..35]), repeats).as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        check(
+            shaped_array(&keys, &body(&ks), repeats).as_bytes(),
+            limits,
+            numeric,
+            ALL_VARIANTS,
+            &mut stats,
+        );
+        check(
+            shaped_array(&keys, &body(&keys[..35]), repeats).as_bytes(),
+            limits,
+            numeric,
+            ALL_VARIANTS,
+            &mut stats,
+        );
     }
     assert!(stats.fast > 10);
     assert!(stats.declined > 100);
@@ -683,7 +793,17 @@ fn shape_memo_skips_short_slices_and_single_objects() {
     // or retain a shape that cannot be looked up by another object.
     scratch.new_input();
     let singleton = format!("{{\"{}\":1,\"beta\":2}}", "a".repeat(300));
-    assert!(accept(singleton.as_bytes(), 0, &params, 0, &mut decoded, &mut scratch).is_some());
+    assert!(
+        accept(
+            singleton.as_bytes(),
+            0,
+            &params,
+            0,
+            &mut decoded,
+            &mut scratch
+        )
+        .is_some()
+    );
     assert!(scratch.shapes.is_empty());
     assert!(scratch.seen_objects != 0);
 }
@@ -703,8 +823,96 @@ fn shape_memo_still_records_repeated_long_objects() {
     let mut decoded = Vec::new();
     let mut scratch = FastScratch::default();
     assert!(accept(input.as_bytes(), 0, &params, 0, &mut decoded, &mut scratch).is_some());
-    assert!(scratch
-        .shapes
-        .iter()
-        .any(|shape| shape.generation == scratch.generation && shape.keys.len() == 2));
+    assert!(
+        scratch
+            .shapes
+            .iter()
+            .any(|shape| shape.generation == scratch.generation && shape.keys.len() == 2)
+    );
+}
+
+#[test]
+fn fast_escaped_strings_with_raw_non_ascii_match_exact() {
+    let valid = [
+        "[\"Deliver to 東京 \\n \\\"42\\\"; C:\\\\x\\t✓\"]",
+        "[\"é\\u00e9\\u20ac\\ud83d\\ude00z\",\"\\u0041\\/\\u0000\"]",
+        "{\"é\\n\":\"\\u00e9\",\"x\":[\"a\\nb\"]}",
+    ];
+    let invalid: [&[u8]; 8] = [
+        b"[\"\xc3\\n\"]",
+        b"[\"\\n\xe6\x9d\"]",
+        b"[\"\\n\xff\"]",
+        b"[\"\\ud800\"]",
+        b"[\"\\udc00x\"]",
+        b"[\"\\ud83d\\u0041\"]",
+        b"[\"\\u12g4\"]",
+        b"[\"\xed\xa0\x80\\n\"]",
+    ];
+    for (limits, numeric) in limit_variants() {
+        let mut stats = Stats::default();
+        for text in valid {
+            check(text.as_bytes(), limits, numeric, ALL_VARIANTS, &mut stats);
+        }
+        for bytes in invalid {
+            check(bytes, limits, numeric, ALL_VARIANTS, &mut stats);
+        }
+        if limits.max_string_bytes >= 64
+            && limits.max_decoded_bytes >= 4096
+            && limits.max_depth >= 4
+            && limits.max_fields_per_object >= 3
+            && limits.max_array_items >= 3
+        {
+            assert!(
+                stats.fast >= 3,
+                "valid escaped strings were not accepted fast: {limits:?}"
+            );
+        }
+    }
+}
+
+fn record_array(records: &[&str]) -> Vec<u8> {
+    let mut text = String::from("[");
+    for (n, record) in records.iter().enumerate() {
+        if n > 0 {
+            text.push_str(",\n  ");
+        }
+        text.push_str(record);
+    }
+    text.push(']');
+    text.into_bytes()
+}
+
+#[test]
+fn repeated_shape_recognizer_matches_exact() {
+    let base = r#"{"id":1,"name":"é\né","tags":["a","b",3],"meta":{"x":1.5,"y":null,"z":[true,{"k":"v"}]},"empty":[],"o":{}}"#;
+    let variants = [
+        base,
+        r#"{"id":2,"name":"plain","tags":[],"meta":{"x":-0.0,"y":null,"z":[]},"empty":[],"o":{}}"#,
+        // extra key, missing key, reordered keys, duplicate key, escaped key
+        r#"{"id":3,"name":"n","tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{},"more":1}"#,
+        r#"{"id":4,"name":"n","tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[]}"#,
+        r#"{"name":"n","id":5,"tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":6,"name":"n","tags":[],"meta":{"x":1,"x":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":7,"name":"n","tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":8,"name":"n","tags":{"a":1},"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":9,"name":"\ud800","tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":01,"name":"n","tags":[],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+        r#"{"id":10,"name":"n","tags":[1,],"meta":{"x":1,"y":2,"z":[]},"empty":[],"o":{}}"#,
+    ];
+    let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+    let mut stats = Stats::default();
+    for (limits, numeric) in limit_variants() {
+        // Three identical records first, so the shapes are memoized before a variant.
+        for variant in variants {
+            let input = record_array(&[base, base, base, variant, base]);
+            check(&input, limits, numeric, ALL_VARIANTS, &mut stats);
+            for round in 0..40 {
+                let mut mutated = input.clone();
+                mutate(&mut rng, &mut mutated, 1 + round % 3);
+                check(&mutated, limits, numeric, ALL_VARIANTS, &mut stats);
+            }
+        }
+    }
+    assert!(stats.fast > 500, "fast path barely used: {}", stats.fast);
+    assert!(stats.declined > 500);
 }

@@ -38,6 +38,13 @@ pub fn resolve(backend: BackendId) -> Result<Dispatch> {
     if !detect::is_available(backend) {
         return Err(unavailable_backend());
     }
+    resolve_supported(backend)
+}
+
+/// `resolve` without the capability pre-check, for callers that already hold
+/// a detection result. The scanner's cached bindings still verify their own
+/// CPU/OS feature invariant, so an unsupported backend yields an error here.
+pub(crate) fn resolve_supported(backend: BackendId) -> Result<Dispatch> {
 
     // Each scanner resolves private guarded bindings. Subsequent blocks keep
     // this CPU/OS capability invariant and avoid general-entry detection.
