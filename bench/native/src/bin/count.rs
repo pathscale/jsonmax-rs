@@ -20,7 +20,7 @@ fn count_ops(bytes: usize, ops: Vec<(&'static str, Op<'_>)>, parser: &str, iters
     let retained = alloc_metrics::live().saturating_sub(baseline)
         + if (parser.starts_with("simd-json") && !parser.ends_with("serialize")) {
             bytes
-        } else if parser == "jmax vm+reparse" {
+        } else if parser == jmax_native_bench::VM_NATIVE_DIAG_ROW {
             jmax_native_bench::VM_RETAINED.load(std::sync::atomic::Ordering::Relaxed)
         } else {
             0

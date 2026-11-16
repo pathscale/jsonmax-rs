@@ -68,7 +68,7 @@ fn typed<'a, T: PartialEq + Debug + DeserializeOwned + 'a>(
         j.corpus
     );
     let mut scratch = jsonmax::endpoint::ValidationScratch::default();
-    j.add("typed", "jmax", move || {
+    j.add("typed", "jmax vm", move || {
         black_box(f(black_box(b), p, &mut scratch)?);
         Ok(())
     });
@@ -169,14 +169,16 @@ pub fn run() -> R<()> {
         check("simd-json", &simd_json::to_vec(&simd_vals[i]).map_err(err)?);
         check("json-rust", json_vals[i].dump().as_bytes());
 
-        j.add("ref", "memcpy", {
-            let mut buf = b.to_vec();
-            move || {
-                buf.copy_from_slice(black_box(b));
-                black_box(&buf);
-                Ok(())
-            }
-        });
+        if std::env::var_os("DIAG").is_some() {
+            j.add("ref", "memcpy", {
+                let mut buf = b.to_vec();
+                move || {
+                    buf.copy_from_slice(black_box(b));
+                    black_box(&buf);
+                    Ok(())
+                }
+            });
+        }
 
         // validate / skip
         let mut validation = jsonmax::Scratch::default();
@@ -366,7 +368,7 @@ pub fn run() -> R<()> {
         common::native::check(name, b)?;
         let mut native_scratch = common::native::NativeScratch::default();
         let native_name = *name;
-        j.add("typed", "jmax-native", move || {
+        j.add("typed", "jmax native", move || {
             black_box(common::native::project(
                 native_name,
                 black_box(b),
@@ -420,6 +422,7 @@ pub fn run() -> R<()> {
             job.retained += job.bytes;
         }
         let m = measure::run(&mut *job.run, job.retained, job.retained_get.as_deref())?;
+        crate::trace_report::report(&format!("{}/{} {}", job.corpus, job.class, job.parser), &mut *job.run)?;
         println!(
             "{}",
             measure::row(&job.corpus, job.class, job.parser, job.bytes, &m)

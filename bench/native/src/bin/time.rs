@@ -4,6 +4,8 @@ use jmax_native_bench::alloc_metrics;
 mod measure;
 #[path = "../../../metrics.rs"]
 mod metrics;
+#[path = "../../../trace_report.rs"]
+mod trace_report;
 #[global_allocator]
 static GLOBAL: alloc_metrics::CountingPeakAlloc = alloc_metrics::CountingPeakAlloc;
 use jmax_native_bench::{CASES, Op, R, general, with_case};
@@ -18,7 +20,7 @@ fn report(case: &str, bytes: usize, ops: Vec<(&'static str, Op<'_>)>) -> R<()> {
         }
         let retained = if (name.starts_with("simd-json") && !name.ends_with("serialize")) {
             bytes
-        } else if name == "jmax vm+reparse" {
+        } else if name == jmax_native_bench::VM_NATIVE_DIAG_ROW {
             jmax_native_bench::VM_RETAINED.load(std::sync::atomic::Ordering::Relaxed)
         } else {
             0
@@ -34,6 +36,7 @@ fn report(case: &str, bytes: usize, ops: Vec<(&'static str, Op<'_>)>) -> R<()> {
                 None
             },
         )?;
+        trace_report::report(&format!("{case}/{name}"), &mut *op)?;
         let class = [
             "query-only",
             "strict-extract",
